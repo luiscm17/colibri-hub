@@ -25,7 +25,7 @@ UseCaseProvider = Callable[..., RegisterBaleReception]
 def create_router(
     use_case_provider: UseCaseProvider,
 ) -> APIRouter:
-    router = APIRouter()
+    router = APIRouter(prefix="/bales")
 
     @router.post(
     "",

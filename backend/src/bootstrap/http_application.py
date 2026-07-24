@@ -8,6 +8,7 @@ from bootstrap.database_session_dependency import (
     SessionFactory,
     session_dependency,
 )
+from bootstrap.api_router import create_api_router
 from bootstrap.http_error_handlers import register_exception_handlers
 from bootstrap.warehouse_bale_dependency import (
     use_case_dependency,
@@ -15,7 +16,6 @@ from bootstrap.warehouse_bale_dependency import (
 from infra.persistence.database_engine import create_db_engine
 from infra.persistence.database_session_factory import create_session_factory
 from infra.persistence.database_settings import DatabaseSettings
-from warehouse.adapters.http.raw_material.bale_router import create_router
 
 EngineFactory = Callable[[DatabaseSettings], Engine]
 SessionFactoryBuilder = Callable[[Engine], Callable[[], Session]]
@@ -42,8 +42,5 @@ def create_app(
 
     register_exception_handlers(app)
 
-    app.include_router(
-        create_router(use_case_provider),
-        prefix="/api/v1/warehouse/bales",
-    )
+    app.include_router(create_api_router(use_case_provider))
     return app

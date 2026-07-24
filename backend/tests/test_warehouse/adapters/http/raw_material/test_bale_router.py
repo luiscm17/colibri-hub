@@ -79,7 +79,7 @@ class TestBaleRouter(unittest.TestCase):
                 app = FastAPI()
                 app.include_router(
                     create_router(lambda: stub),
-                    prefix="/api/v1/warehouse/bales",
+                    prefix="/api/v1/warehouse",
                 )
 
                 response = TestClient(app).post(
@@ -96,7 +96,7 @@ class TestBaleRouter(unittest.TestCase):
         app = FastAPI()
         app.include_router(
             create_router(lambda: stub),
-            prefix="/api/v1/warehouse/bales",
+            prefix="/api/v1/warehouse",
         )
 
         response = TestClient(app).post(
@@ -152,7 +152,7 @@ class TestBaleRouter(unittest.TestCase):
         app = FastAPI()
         app.include_router(
             create_router(lambda: stub),
-            prefix="/api/v1/warehouse/bales",
+            prefix="/api/v1/warehouse",
         )
 
         payload = request_payload(1)
@@ -169,7 +169,7 @@ class TestBaleRouter(unittest.TestCase):
         app = FastAPI()
         app.include_router(
             create_router(lambda: stub),
-            prefix="/api/v1/warehouse/bales",
+            prefix="/api/v1/warehouse",
         )
 
         response = TestClient(app).post(
@@ -183,7 +183,7 @@ class TestBaleRouter(unittest.TestCase):
         app = FastAPI()
         app.include_router(
             create_router(lambda: stub),
-            prefix="/api/v1/warehouse/bales",
+            prefix="/api/v1/warehouse",
         )
 
         payload = request_payload(1)
@@ -200,7 +200,7 @@ class TestBaleRouter(unittest.TestCase):
         app = FastAPI()
         app.include_router(
             create_router(lambda: stub),
-            prefix="/api/v1/warehouse/bales",
+            prefix="/api/v1/warehouse",
         )
 
         payload = request_payload(1)
@@ -217,7 +217,7 @@ class TestBaleRouter(unittest.TestCase):
         app = FastAPI()
         app.include_router(
             create_router(lambda: stub),
-            prefix="/api/v1/warehouse/bales",
+            prefix="/api/v1/warehouse",
         )
 
         post = app.openapi()["paths"]["/api/v1/warehouse/bales"]["post"]
