@@ -10,7 +10,7 @@
 - Focus a class or method by appending its dotted name to the module command.
 - SQLite adapter tests belong to the unit suite; do not treat them as proof of PostgreSQL constraint diagnostics, migration shape, timezone, or `Decimal` round-trips.
 - Tests use stdlib `unittest`; no pytest, Python linter, formatter, type checker, or coverage tool is configured.
-- Root `main.py` is print-only scaffolding. `backend/main.py` is the ASGI entrypoint (`app`) and requires `DATABASE_URL` at import time; application creation builds the engine but does not connect until a request uses a session.
+- Root `main.py` is print-only scaffolding. `backend/main.py` is the ASGI entrypoint (`app`), declared as `backend.main:app` in root `[tool.fastapi]`, and requires `DATABASE_URL` at import time; application creation builds the engine but does not connect until a request uses a session.
 
 ## Database and integration tests
 
@@ -29,7 +29,7 @@
 ## Backend boundaries
 
 - `warehouse.application` is the public facade for reception inputs, result, use case, and application errors. `warehouse.ports` exposes repository, identity, transaction, and transaction-conflict contracts; keep SQLAlchemy details in adapters.
-- `bootstrap.http_application.create_app` composes `infra.persistence` and Warehouse adapters into `POST /api/v1/warehouse/bales`; pass a session factory in tests to avoid requiring `DATABASE_URL` or database access.
+- `bootstrap.http_application.create_app` composes `infra.persistence` and Warehouse adapters into `POST /api/v1/warehouse/bales` and registers the HTTP exception handlers; pass a session factory in tests to avoid requiring `DATABASE_URL` or database access.
 - Reception registration inserts the reception before its bales in one transaction. Only the two named uniqueness constraints are translated to application conflicts; unknown integrity failures propagate.
 - Shipment numbers are globally unique. Bale numbers are unique only within a reception, via `uq_raw_material_bales_reception_bale_number`; the same canonical bale number is valid in different receptions.
 - Keep ORM records and the Supabase migration aligned. The migration enables RLS and revokes all privileges from `anon`, `authenticated`, and `service_role`; it defines no policies or runtime authorization flow.
