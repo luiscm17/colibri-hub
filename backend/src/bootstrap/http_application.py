@@ -8,6 +8,7 @@ from bootstrap.database_session_dependency import (
     SessionFactory,
     session_dependency,
 )
+from bootstrap.http_error_handlers import register_exception_handlers
 from bootstrap.warehouse_bale_dependency import (
     use_case_dependency,
 )
@@ -38,6 +39,9 @@ def create_app(
     use_case_provider = use_case_dependency(session_provider)
 
     app = FastAPI()
+
+    register_exception_handlers(app)
+
     app.include_router(
         create_router(use_case_provider),
         prefix="/api/v1/warehouse/bales",

@@ -16,6 +16,7 @@ from warehouse.adapters.http.raw_material.error_response import (
     ErrorResponse,
     FieldErrorResponse,
 )
+from warehouse.adapters.http.raw_material.error_mapping import error_json_response
 
 __all__ = [
     "BaleReceptionRequest",
@@ -28,4 +29,5 @@ __all__ = [
     "bale_reception_to_input",
     "bale_reception_to_response",
     "create_router",
+    "error_json_response",
 ]

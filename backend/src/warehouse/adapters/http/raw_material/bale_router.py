@@ -16,6 +16,8 @@ from warehouse.adapters.http.raw_material.bale_reception_response import (
 from warehouse.application.raw_material.register_bale_reception import (
     RegisterBaleReception,
 )
+from warehouse.adapters.http.raw_material.error_response import ErrorResponse
+
 
 UseCaseProvider = Callable[..., RegisterBaleReception]
 
@@ -26,10 +28,29 @@ def create_router(
     router = APIRouter()
 
     @router.post(
-        "",
-        response_model=BaleReceptionResponse,
-        status_code=status.HTTP_201_CREATED,
-    )
+    "",
+    response_model=BaleReceptionResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        status.HTTP_409_CONFLICT: {
+            "model": ErrorResponse,
+            "description": (
+                "The shipment number is already registered."
+            ),
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": ErrorResponse,
+            "description": (
+                "The request or reception violates a validation rule."
+            ),
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "model": ErrorResponse,
+            "description": "Unexpected internal server error.",
+        },
+    },
+)
+
     def register(
         request: BaleReceptionRequest,
         use_case: Annotated[RegisterBaleReception, Depends(use_case_provider)],
