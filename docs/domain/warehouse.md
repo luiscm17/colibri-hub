@@ -31,7 +31,8 @@ expresses readiness for release or distribution.
 
 | Concept | Warehouse meaning |
 |---|---|
-| Bale | A raw-material unit received from a supplier and held under Warehouse custody. |
+| RawMaterialBatch | A supplier-shipment grouping identified by `ShipmentNumber`, containing one or more bales and shared evidence/characteristics. It is not a production lot. |
+| Bale | An independently identified raw-material unit and lifecycle owner. Its business-visible identity is `shipment_number` + `bale_number`. |
 | Production identity | The Warehouse-defined cross-context identity, represented by `production_identity_id` and `lot_code`. |
 | Finished product receipt | The single Warehouse acceptance of a production identity after its Quality Send. |
 | `availability_state` | Warehouse's operational disposition of accepted finished product. It is not quality or stock. |
@@ -40,9 +41,13 @@ expresses readiness for release or distribution.
 
 ## Business Flows
 
-1. **Raw-material custody:** Warehouse receives raw material as bales. A bale
-   can be delivered once, whole and only to Production. This delivery never
-   links the bale to a `production_identity_id` or `lot_code`.
+1. **Raw-material custody:** The receiving application action registers one
+   complete `RawMaterialBatch` and one or more independently identified `Bale`
+   aggregates in one transaction. Reception is not a domain aggregate. A bale
+   can be delivered once, whole and only to Production. Delivery records
+   `delivered_at` and moves the bale from `IN_WAREHOUSE` to `IN_PRODUCTION`;
+   that resulting custody condition does not mean consumed or processed. This
+   delivery never links the bale to a `production_identity_id` or `lot_code`.
 2. **Production identity:** Separately from bale reception, Warehouse defines
    one `production_identity_id` and `lot_code` with the requested `yarn_count`
    and production requirements. Yarn Spinning and Lot Processing use that
@@ -73,12 +78,16 @@ expresses readiness for release or distribution.
   not introduce supplier, destination, or category catalogs without evidence.
 - This map does not prescribe tables, field dictionaries, APIs, identifier
   formats, or authorization assignments.
+- Persistence header/detail records and historical `reception_id` names may map
+  these concepts without defining the aggregate shape.
 
 ## Vocabulary
 
 | Term | Meaning in this map |
 |---|---|
 | `yarn_count` | Canonical yarn count used when defining production identity. |
+| `ShipmentNumber` | Business-visible identity of a `RawMaterialBatch`; transported as `shipment_number`. |
+| `delivered_at` | Mandatory evidence of the one Bale delivery to Production. |
 | `production_identity_id` | Warehouse-owned technical identity shared across the production flow. |
 | `lot_code` | Visible business code for the same production identity. |
 | `availability_state` | Warehouse operational readiness for release or distribution. |

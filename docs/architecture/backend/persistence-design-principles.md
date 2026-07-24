@@ -24,6 +24,10 @@ foreign keys, SQL, or ORM mappings.
    support editable current business state plus auditable correction history.
 4. **Business time and system time stay separate.** Persist business date,
    shift, and system timestamps independently where the record meaning requires them.
+5. **Persistence representation does not define aggregate shape.** Normalized
+   header/detail records and historical physical names may remain for compatibility;
+   map them explicitly to the current domain concepts instead of deriving a
+   same-named aggregate from each table.
 
 ---
 

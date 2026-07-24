@@ -46,7 +46,7 @@ This document belongs to the detailed backend-design layer within the current ar
 | Stable overview | [Backend Architecture](../backend.md) | High-level backend-oriented architecture view |
 | Detailed backend design | [Backend Technical Design](./backend-technical-design.md) | Technical backend module design baseline |
 | Detailed backend design | [Persistence Design Principles](./persistence-design-principles.md) | Conceptual persistence ownership, identity, correction, and time-model rules |
-| Context-level schema design | [Warehouse DBML](../../db/warehouse.dbml) | Canonical Warehouse schema artifact |
+| Context-level schema design | Applied Supabase migrations and [Warehouse DB Dictionary](../../db/warehouse-dictionary.md) | Migration-authoritative physical schema and explanatory Markdown mapping; DBML remains design detail |
 
 ---
 
@@ -120,7 +120,9 @@ At minimum, each context design must account for:
 
 ### Record / aggregate families
 
-- Raw material reception (`bales`)
+- Raw-material batch (`RawMaterialBatch`) identified by `ShipmentNumber`
+- Independently identified `Bale` aggregates owning their custody lifecycle
+- Receiving application action that registers one complete batch plus one or more bales in one transaction
 - Production identity definition
 - Material emission to production
 - Finished-product reception from Operation
@@ -130,9 +132,9 @@ At minimum, each context design must account for:
 
 ### Use-case groups
 
-- Receive and register raw material
+- Register one complete raw-material batch and its one-or-more bales
 - Define production identity from available raw material
-- Deliver a whole bale to production with authorization
+- Deliver one or more independently loaded whole bales to Production; each transition records `delivered_at` and rejects repeat delivery
 - Accept a finished product lot after Warehouse physical verification
 - Classify finished product for warehouse disposition
 - Execute sale, transfer, return, and stock-affecting warehouse actions
@@ -150,6 +152,8 @@ At minimum, each context design must account for:
 ### Correction and audit implications
 
 - raw-material reception, whole-bale delivery, identity definition, PT acceptance, and PT classification are separate auditable business acts
+- receiving is not a `Reception` aggregate, and normalized header/detail persistence does not impose an aggregate shape
+- `IN_PRODUCTION` expresses resulting custody/location, not consumption or processing; responsible delivery actors are not mandatory evidence in the current model
 - Warehouse corrections must not rewrite Lot Processing stage history
 - Lot Processing-owned quality state must not be duplicated in Warehouse; Warehouse availability/disposition and physical presentation remain separately auditable dimensions
 

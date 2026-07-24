@@ -20,6 +20,8 @@
 | Scope | Identifier | Rule |
 |---|---|---|
 | Warehouse | `productionIdentityId` | Internal technical ID of the Warehouse-owned production identity. |
+| Warehouse raw material | `ShipmentNumber` / `shipment_number` | Business-visible identity of a `RawMaterialBatch`; globally unique. |
+| Warehouse bale | Technical Bale ID plus `shipment_number` + `bale_number` | Technical identity is independent; the composite is business-visible and bale number is unique within its batch. |
 | Cross-context business navigation | `lotCode` | Visible business code shared across contexts for operator recognition and traceability. |
 | Lot Processing | `productionIdentityId` | Reference to the Warehouse-defined single lot identity used by every stage record. |
 | Cross-context links | `productionIdentityId` and `lotCode` | The technical ID links records to the same lot; the visible code supports operator recognition and traceability. |
@@ -39,7 +41,7 @@
 | Area | Decision |
 |---|---|
 | Production identity | Snapshot business-defining descriptors such as yarn count, color requirement, destination/client, and request notes when they are part of the meaning of the identity. |
-| Bale custody | Preserve receipt evidence and whole-bale delivery responsibility; bales do not link to production identities or finished-product lots. Delivery coherence is an eventual PostgreSQL `CHECK` and transactional application invariant: `delivered = false` requires the delivery time and both delivery actors to be null; `delivered = true` requires all three. A bale moves from not delivered to delivered once, except through controlled correction audit. |
+| Raw-material batch and Bale custody | The implemented normalized header/detail migration remains unchanged. Its historical reception names map the header to `RawMaterialBatch` and each detail to an independently identified `Bale`; table or record names do not define aggregate shape. Shipment number is globally unique and bale number is unique within the persisted batch/reception. Bales do not link to production identities or finished-product lots. The current domain transition requires `delivered_at`, moves one Bale from `IN_WAREHOUSE` to `IN_PRODUCTION`, and rejects repeat delivery. Delivery actors are not mandatory current evidence; adding them requires a future explicit decision. |
 | Lot stage records | Keep inherited references explicit and snapshot the values that the stage actually received, verified, or produced. Later-stage registration requires prior-stage completion as a use-case/domain invariant; it is not represented by cross-table database constraints across the specialized stage tables. |
 | PT handoff and reception | Preserve the one permitted Quality Send marker and exact send timestamp separately from Warehouse's later acceptance. A pending handoff is that singular marker with no Warehouse receipt for the same `productionIdentityId`; it needs no timestamp tie-breaker. Warehouse verifies the existing route-sheet facts and records acceptance, presentation, and differences; it does not duplicate quality state, lot weight, bag count, or unit count. |
 | Shared catalogs | Keep only references when the catalog remains authoritative and the historical wording is not itself business evidence. |

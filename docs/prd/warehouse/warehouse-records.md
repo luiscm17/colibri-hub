@@ -92,7 +92,7 @@ agrupaciones funcionales para cerrar el significado del dato antes del diseño.
 ## 5.1 Materia Prima — Recepción física de fardos
 
 - **Qué representa:** ingreso físico de materia prima desde proveedor.
-- **Granularidad:** 1 partida o recepción × uno o más fardos recibidos.
+- **Granularidad:** 1 partida de materia prima (`RawMaterialBatch`) × uno o más fardos recibidos.
 
 ### Regla de frontera
 
@@ -102,8 +102,8 @@ agrupaciones funcionales para cerrar el significado del dato antes del diseño.
 
 ### Datos de cabecera
 
-- `shipment_number`: número de partida que identifica la recepción o entrega de
-  materia prima; es obligatorio y globalmente único
+- `shipment_number`: identificador visible de la partida de materia prima; es
+  obligatorio y globalmente único
 - proveedor
 - documento de respaldo del proveedor, como dato comercial opcional y separado
 - origen o procedencia
@@ -114,7 +114,7 @@ agrupaciones funcionales para cerrar el significado del dato antes del diseño.
 
 ### Datos por ítem o fardo
 
-- `bale_number`: obligatorio y único dentro de la partida o recepción; puede
+- `bale_number`: obligatorio y único dentro de la partida de materia prima; puede
   repetirse en partidas diferentes
 - tipo de materia prima
 - título o referencia técnica conocida al momento de recibir
@@ -123,8 +123,12 @@ agrupaciones funcionales para cerrar el significado del dato antes del diseño.
 - unidad principal de control: kg
 - estado u observación del fardo si existe diferencia física
 
-La identidad empresarial del fardo recibido queda determinada por la combinación
-`shipment_number` + `bale_number`.
+Cada fardo tiene identidad técnica y ciclo de vida independientes. Su identidad
+visible para el negocio queda determinada por `shipment_number` + `bale_number`.
+El registro actual recibe la partida completa y todos sus fardos en una única
+solicitud y transacción. Una futura corrección de errores tipográficos debe ser
+explícita y auditada; este flujo no promete CRUD genérico ni permite agregar en
+silencio fardos omitidos.
 
 ### Datos técnicos automáticos
 
@@ -142,15 +146,15 @@ La identidad empresarial del fardo recibido queda determinada por la combinació
 
 ## 5.2 Identidad de producción — Definición posterior a la recepción
 
-- **Qué representa:** acto posterior en el que se decide qué MP se destinará a
-  producción y bajo qué identidad se seguirá su historial.
+- **Qué representa:** acto posterior en el que se define la identidad de una
+  unidad de producción planificada y la continuidad de su historial operativo.
 - **Granularidad:** 1 definición de identidad × 1 unidad de producción a planificar.
 
 ### Regla de frontera
 
 - Este acto es **separado** de la recepción física de fardos.
-- Ocurre cuando el **Jefe de Producción** decide la destinación de MP a
-  producción.
+- No selecciona, asigna ni vincula fardos recibidos con la identidad de
+  producción; la entrega de fardos sigue siendo un acto independiente.
 - La identidad definida aquí será la base de continuidad del historial con
   Operación.
 
@@ -195,7 +199,9 @@ La identidad empresarial del fardo recibido queda determinada por la combinació
 - la emisión mueve stock de MP
 - no redefine la identidad del lote
 - documenta la entrega completa del fardo únicamente a Producción, sin vincularlo a una identidad de producción o código de lote; no requiere ni registra un destino
-- un fardo pasa de no entregado a entregado una sola vez; al entregarlo se registran obligatoriamente fecha de negocio, responsable que entrega y responsable receptor, y antes de entregarlo esos datos no existen
+- la entrega es el hecho de negocio; su resultado es `IN_PRODUCTION`, condición de custodia/ubicación que no significa consumo ni procesamiento
+- un fardo pasa una sola vez de `IN_WAREHOUSE` a `IN_PRODUCTION`; la entrega exige `delivered_at` y una entrega repetida se rechaza
+- los responsables que entregan o reciben no son evidencia obligatoria actual; pueden definirse después mediante un requerimiento explícito
 - una reversión solo puede ocurrir como corrección controlada y auditada
 
 ### Datos de negocio principales
@@ -204,8 +210,7 @@ La identidad empresarial del fardo recibido queda determinada por la combinació
 - fecha de negocio de emisión
 - fardo entregado completo
 - peso del fardo entregado en kg
-- responsable que entrega
-- responsable receptor
+- `delivered_at`, fecha y hora del hecho de entrega
 - autorización operativa correspondiente
 - observaciones o incidencias
 
@@ -223,7 +228,7 @@ La identidad empresarial del fardo recibido queda determinada por la combinació
 
 ### Nota de permisos
 
-- registrador y autorizador configurables por política de acceso
+- registrador y autorizador configurables por política de acceso; esto no vuelve obligatoria la captura de actores de entrega en el modelo actual
 
 ---
 

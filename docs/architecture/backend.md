@@ -8,8 +8,9 @@
 > [Backend Technical Design Baseline](./backend/backend-technical-design.md).
 > Conceptual persistence rules now live in
 > [Persistence Design Principles](./backend/persistence-design-principles.md).
-> The Warehouse schema source of truth now lives in
-> [Warehouse DBML](../db/warehouse.dbml).
+> Applied Supabase migrations are authoritative for the implemented Warehouse
+> schema; [Warehouse DB Dictionary](../db/warehouse-dictionary.md) explains the
+> current mapping. DBML remains a lower-level design artifact.
 > This document remains the higher-level backend view.
 
 ---
@@ -83,7 +84,7 @@ Code-facing names should follow the aliases defined in
 flowchart LR
     AC[Access Control\nPolicy + RBAC]
     SRD[Shared Reference Data\nYarn counts]
-    W[Warehouse\nCustody + identity + stock lifecycle]
+    W[Warehouse\nRaw-material batches + Bale custody + stock lifecycle]
     YS[Yarn Spinning\nContinuous production records]
     LP[Lot Processing\nStage history for the Warehouse-defined lot]
 
@@ -105,12 +106,15 @@ flowchart LR
 
 ### Purpose
 
-Own custody, stock movements, production identity definition, finished-product
-reception, and downstream warehouse lifecycle decisions.
+Own raw-material batch registration, independent Bale custody/lifecycle, stock
+movements, production identity definition, finished-product reception, and
+downstream warehouse lifecycle decisions.
 
 ### Core aggregates / record families
 
-- **Raw Material Reception** — receipt of raw material as **bales**
+- **RawMaterialBatch** — shipment grouping identified by `ShipmentNumber`
+- **Bale** — independently identified aggregate and custody/lifecycle owner
+- **Raw-material receiving action** — application orchestration that registers one complete batch and one or more bales in one transaction
 - **Production Identity Definition** — documentary/commercial identity later
   reused across contexts
 - **Material Emission to Production** — stock movement and production handoff
@@ -124,6 +128,12 @@ reception, and downstream warehouse lifecycle decisions.
 ### Important invariants / business rules
 
 - Raw material is received as **bales**, not as a production lot.
+- `RawMaterialBatch` is not a production lot; it groups one or more bales and
+  shared shipment evidence.
+- Reception is an application action, not a domain aggregate. The current
+  collective POST registers the complete batch; omitted bales are not silently appended later.
+- A Bale delivery records `delivered_at`, rejects repeat delivery, and changes
+  custody from `IN_WAREHOUSE` to `IN_PRODUCTION`; it does not mean processed.
 - Production identity is defined **after** raw-material reception as bales, as a separate business
   act.
 - Warehouse owns the single lot identity; Lot Processing owns the operational
@@ -137,6 +147,8 @@ reception, and downstream warehouse lifecycle decisions.
 - Warehouse can document inconsistencies during PT reception; that is not the
   same as rewriting Operation history.
 - Critical warehouse records support controlled edits with full audit trail.
+- Header/detail persistence and historical `reception_id` names may remain for
+  compatibility without dictating domain aggregate boundaries.
 
 ### Likely ports / contracts
 
