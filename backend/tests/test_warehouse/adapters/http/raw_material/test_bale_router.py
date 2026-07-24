@@ -147,5 +147,85 @@ class TestBaleRouter(unittest.TestCase):
         )
 
 
+    def test_rejects_empty_bales_with_422(self) -> None:
+        stub = StubRegisterBaleReception(reception_result(1))
+        app = FastAPI()
+        app.include_router(
+            create_router(lambda: stub),
+            prefix="/api/v1/warehouse/bales",
+        )
+
+        payload = request_payload(1)
+        payload["bales"] = []
+
+        response = TestClient(app).post(
+            "/api/v1/warehouse/bales", json=payload
+        )
+
+        self.assertEqual(response.status_code, 422)
+
+    def test_rejects_missing_body_with_422(self) -> None:
+        stub = StubRegisterBaleReception(reception_result(1))
+        app = FastAPI()
+        app.include_router(
+            create_router(lambda: stub),
+            prefix="/api/v1/warehouse/bales",
+        )
+
+        response = TestClient(app).post(
+            "/api/v1/warehouse/bales", json={}
+        )
+
+        self.assertEqual(response.status_code, 422)
+
+    def test_rejects_naive_datetime_with_422(self) -> None:
+        stub = StubRegisterBaleReception(reception_result(1))
+        app = FastAPI()
+        app.include_router(
+            create_router(lambda: stub),
+            prefix="/api/v1/warehouse/bales",
+        )
+
+        payload = request_payload(1)
+        payload["received_at"] = "2026-07-22T10:30:00"
+
+        response = TestClient(app).post(
+            "/api/v1/warehouse/bales", json=payload
+        )
+
+        self.assertEqual(response.status_code, 422)
+
+    def test_rejects_extra_fields_with_422(self) -> None:
+        stub = StubRegisterBaleReception(reception_result(1))
+        app = FastAPI()
+        app.include_router(
+            create_router(lambda: stub),
+            prefix="/api/v1/warehouse/bales",
+        )
+
+        payload = request_payload(1)
+        payload["unexpected"] = "value"
+
+        response = TestClient(app).post(
+            "/api/v1/warehouse/bales", json=payload
+        )
+
+        self.assertEqual(response.status_code, 422)
+
+    def test_openapi_spec_lists_error_responses(self) -> None:
+        stub = StubRegisterBaleReception(reception_result(1))
+        app = FastAPI()
+        app.include_router(
+            create_router(lambda: stub),
+            prefix="/api/v1/warehouse/bales",
+        )
+
+        post = app.openapi()["paths"]["/api/v1/warehouse/bales"]["post"]
+
+        self.assertIn("409", post["responses"])
+        self.assertIn("422", post["responses"])
+        self.assertIn("500", post["responses"])
+
+
 if __name__ == "__main__":
     unittest.main()

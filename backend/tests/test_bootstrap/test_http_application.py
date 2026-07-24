@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from bootstrap.database_session_dependency import (
@@ -13,6 +14,11 @@ from bootstrap.database_session_dependency import (
 )
 from bootstrap.http_application import create_app
 from bootstrap.warehouse_bale_dependency import build_use_case
+from infra.persistence.database_settings import DatabaseSettings
+from warehouse.application.raw_material.bale_reception_errors import (
+    DuplicateBaleNumberError,
+    DuplicateShipmentNumberError,
+)
 
 
 class FakeSession(Session):
@@ -80,6 +86,45 @@ class TestHttpApplication(unittest.TestCase):
         response = TestClient(app).post("/api/v1/warehouse/bales/", json={})
         self.assertNotEqual(response.status_code, 404)
         self.assertEqual(session_factory_calls, 1)
+
+    def test_create_app_with_explicit_engine(self) -> None:
+        engine = create_engine("sqlite:///:memory:", echo=True)
+
+        app = create_app(engine=engine)
+
+        self.assertIsInstance(app, FastAPI)
+        post_paths = {
+            path
+            for path, operations in app.openapi()["paths"].items()
+            if "post" in operations
+        }
+        self.assertEqual(post_paths, {"/api/v1/warehouse/bales"})
+
+    def test_create_app_with_explicit_settings(self) -> None:
+        settings = DatabaseSettings(
+            database_url="sqlite:///:memory:",
+        )
+
+        app = create_app(settings=settings)
+
+        self.assertIsInstance(app, FastAPI)
+        post_paths = {
+            path
+            for path, operations in app.openapi()["paths"].items()
+            if "post" in operations
+        }
+        self.assertEqual(post_paths, {"/api/v1/warehouse/bales"})
+
+    def test_registers_exception_handlers(self) -> None:
+        def session_factory() -> Session:
+            return Session()
+
+        app = create_app(session_factory=session_factory)
+
+        handler_types = {exc for exc in app.exception_handlers if isinstance(exc, type)}
+
+        self.assertIn(DuplicateShipmentNumberError, handler_types)
+        self.assertIn(DuplicateBaleNumberError, handler_types)
 
     def test_backend_main_exposes_app_without_opening_connection(self) -> None:
         database_url = (
