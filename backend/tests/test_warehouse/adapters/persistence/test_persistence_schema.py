@@ -4,13 +4,9 @@ from sqlalchemy import DateTime, Numeric, String, Text
 
 from warehouse.bales.adapters.persistence.bale_record import BaleRecord
 from warehouse.bales.adapters.persistence.raw_material_batch_record import RawMaterialBatchRecord
-from warehouse.adapters.persistence.raw_material.bale_reception_record import BaleReceptionRecord
 
 
 class TestPersistenceSchema(unittest.TestCase):
-    def test_legacy_record_is_a_canonical_alias(self) -> None:
-        self.assertIs(BaleReceptionRecord, RawMaterialBatchRecord)
-
     def test_domain_bounded_strings_match_domain_limits(self) -> None:
         bale_number = BaleRecord.__table__.c.bale_number.type
         material_type = BaleRecord.__table__.c.material_type.type

@@ -1,1 +1,0 @@
-from warehouse.bales.adapters.persistence.raw_material_batch_record import RawMaterialBatchRecord as BaleReceptionRecord

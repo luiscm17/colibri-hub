@@ -3,13 +3,12 @@ from unittest.mock import Mock
 
 from sqlalchemy.exc import IntegrityError
 
-from warehouse.adapters.persistence.warehouse_transaction import (
+from warehouse.bales.adapters.persistence.transaction import (
     BALE_NUMBER_UNIQUE_CONSTRAINT,
     SHIPMENT_NUMBER_UNIQUE_CONSTRAINT,
-    WarehouseTransaction as LegacyWarehouseTransaction,
+    SqlAlchemyTransaction,
     violated_constraint,
 )
-from warehouse.bales.adapters.persistence.transaction import SqlAlchemyTransaction
 from warehouse.bales.ports.transaction import Transaction
 from warehouse.bales.ports.transaction_errors import (
     DuplicateBaleNumberConflict,
@@ -46,9 +45,6 @@ class TestViolatedConstraint(unittest.TestCase):
 
 
 class TestWarehouseTransaction(unittest.TestCase):
-    def test_canonical_and_legacy_imports_are_the_same_class(self) -> None:
-        self.assertIs(LegacyWarehouseTransaction, SqlAlchemyTransaction)
-
     def test_satisfies_canonical_transaction_port(self) -> None:
         self.assertIsInstance(SqlAlchemyTransaction(Mock()), Transaction)
 

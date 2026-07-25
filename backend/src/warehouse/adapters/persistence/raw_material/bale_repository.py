@@ -1,1 +1,0 @@
-from warehouse.bales.adapters.persistence.bale_repository import BaleRepository

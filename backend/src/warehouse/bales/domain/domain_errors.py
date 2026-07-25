@@ -12,6 +12,3 @@ class InvalidReceptionDateTimeError(DomainError): pass
 class EmptyRawMaterialBatchError(DomainError): pass
 class DuplicateBaleIdError(DomainError): pass
 class InvalidProviderNameError(DomainError): pass
-
-
-EmptyBaleReceptionError = EmptyRawMaterialBatchError

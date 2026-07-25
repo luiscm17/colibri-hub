@@ -1,3 +1,0 @@
-from warehouse.bales.ports.raw_material_batch_repository import RawMaterialBatchRepository
-
-BaleReceptionRepository = RawMaterialBatchRepository

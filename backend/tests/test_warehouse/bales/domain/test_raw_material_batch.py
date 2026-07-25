@@ -2,31 +2,115 @@ import unittest
 from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
+from uuid import uuid4
 
 from warehouse.bales.domain import (
+    DomainError,
     DuplicateBaleIdError,
     EmptyRawMaterialBatchError,
+    InvalidProviderNameError,
     RawMaterialBatch,
+    RawMaterialBatchId,
 )
-from warehouse.bales.domain.bale import Bale
 from warehouse.bales.domain.bale_id import BaleId
+from warehouse.bales.domain.bale import Bale
 from warehouse.bales.domain.bale_number import BaleNumber
 from warehouse.bales.domain.bale_status import BaleStatus
 from warehouse.bales.domain.bale_weight import BaleWeight
 from warehouse.bales.domain.dtex import Dtex
 from warehouse.bales.domain.material_type import MaterialType
 from warehouse.bales.domain.reception_datetime import ReceptionDateTime
-from warehouse.bales.domain.raw_material_batch_id import RawMaterialBatchId
 from warehouse.bales.domain.shipment_number import ShipmentNumber
-from warehouse.domain.raw_material import BaleReception
-from warehouse.domain.raw_material.bale import Bale as LegacyBale
-from warehouse.domain.raw_material.bale_id import BaleId as LegacyBaleId
-from warehouse.domain.raw_material.bale_number import BaleNumber as LegacyBaleNumber
-from warehouse.domain.raw_material.bale_reception_id import BaleReceptionId
-from warehouse.domain.raw_material.domain_errors import EmptyBaleReceptionError
 
 
 class TestRawMaterialBatch(unittest.TestCase):
+    def setUp(self) -> None:
+        self.reception_id = RawMaterialBatchId(uuid4())
+        self.received_at = ReceptionDateTime(datetime.now(timezone.utc))
+        self.shipment_number = ShipmentNumber("SHIP-001")
+        self.bale_id_1 = BaleId(uuid4())
+        self.bale_id_2 = BaleId(uuid4())
+
+    def _make_batch(
+        self,
+        bale_ids: tuple[BaleId, ...] | None = None,
+    ) -> RawMaterialBatch:
+        return RawMaterialBatch(
+            id=self.reception_id,
+            received_at=self.received_at,
+            shipment_number=self.shipment_number,
+            provider_name="PROV-001",
+            bale_ids=(self.bale_id_1, self.bale_id_2) if bale_ids is None else bale_ids,
+        )
+
+    def test_creates_with_multiple_bales(self) -> None:
+        batch = self._make_batch()
+        self.assertEqual(batch.id, self.reception_id)
+        self.assertEqual(batch.shipment_number.value, "SHIP-001")
+        self.assertEqual(batch.provider_name, "PROV-001")
+        self.assertEqual(len(batch.bale_ids), 2)
+
+    def test_creates_with_single_bale(self) -> None:
+        batch = self._make_batch(bale_ids=(self.bale_id_1,))
+        self.assertEqual(batch.bale_count, 1)
+
+    def test_bale_count_matches_number_of_bales(self) -> None:
+        batch = self._make_batch()
+        self.assertEqual(batch.bale_count, 2)
+
+    def test_rejects_empty_bale_ids(self) -> None:
+        with self.assertRaises(EmptyRawMaterialBatchError) as ctx:
+            self._make_batch(bale_ids=())
+        self.assertIn("at least one bale", str(ctx.exception))
+
+    def test_rejects_duplicate_bale_ids(self) -> None:
+        with self.assertRaises(DuplicateBaleIdError) as ctx:
+            self._make_batch(bale_ids=(self.bale_id_1, self.bale_id_1))
+        self.assertIn("duplicate", str(ctx.exception))
+
+    def test_strips_provider_name_whitespace(self) -> None:
+        reception = RawMaterialBatch(
+            id=self.reception_id,
+            received_at=self.received_at,
+            shipment_number=self.shipment_number,
+            provider_name="  PROV-001  ",
+            bale_ids=(self.bale_id_1,),
+        )
+        self.assertEqual(reception.provider_name, "PROV-001")
+
+    def test_rejects_empty_provider_name(self) -> None:
+        with self.assertRaises(InvalidProviderNameError) as ctx:
+            RawMaterialBatch(
+                id=self.reception_id,
+                received_at=self.received_at,
+                shipment_number=self.shipment_number,
+                provider_name="",
+                bale_ids=(self.bale_id_1,),
+            )
+        self.assertIn("empty", str(ctx.exception))
+
+    def test_rejects_whitespace_only_provider_name(self) -> None:
+        with self.assertRaises(InvalidProviderNameError):
+            RawMaterialBatch(
+                id=self.reception_id,
+                received_at=self.received_at,
+                shipment_number=self.shipment_number,
+                provider_name="   ",
+                bale_ids=(self.bale_id_1,),
+            )
+
+    def test_is_frozen(self) -> None:
+        batch = self._make_batch()
+        with self.assertRaises(AttributeError):
+            batch.provider_name = "OTHER"  # type: ignore[misc]
+
+    def test_all_exceptions_inherit_from_domain_error(self) -> None:
+        self.assertTrue(issubclass(EmptyRawMaterialBatchError, DomainError))
+        self.assertTrue(issubclass(DuplicateBaleIdError, DomainError))
+        self.assertTrue(issubclass(InvalidProviderNameError, DomainError))
+
+
+class TestRawMaterialBatchIdentity(unittest.TestCase):
     def setUp(self) -> None:
         self.batch_id = RawMaterialBatchId(UUID(int=1))
         self.received_at = ReceptionDateTime(datetime(2026, 1, 1, tzinfo=timezone.utc))
@@ -48,17 +132,13 @@ class TestRawMaterialBatch(unittest.TestCase):
     def test_technical_identity_is_distinct_from_business_identity(self) -> None:
         first = self._batch()
         second = RawMaterialBatch(
-            id=RawMaterialBatchId(UUID(int=3)),
-            received_at=self.received_at,
-            shipment_number=ShipmentNumber("SHIP-001"),
-            provider_name="Other provider",
+            id=RawMaterialBatchId(UUID(int=3)), received_at=self.received_at,
+            shipment_number=ShipmentNumber("SHIP-001"), provider_name="Other provider",
             bale_ids=(BaleId(UUID(int=4)),),
         )
         same_identity = RawMaterialBatch(
-            id=self.batch_id,
-            received_at=self.received_at,
-            shipment_number=ShipmentNumber("SHIP-002"),
-            provider_name="Other provider",
+            id=self.batch_id, received_at=self.received_at,
+            shipment_number=ShipmentNumber("SHIP-002"), provider_name="Other provider",
             bale_ids=(BaleId(UUID(int=4)),),
         )
         self.assertNotEqual(first, second)
@@ -73,10 +153,8 @@ class TestRawMaterialBatch(unittest.TestCase):
 
     def test_same_bale_number_is_valid_in_distinct_batches(self) -> None:
         second_batch = RawMaterialBatch(
-            id=RawMaterialBatchId(UUID(int=3)),
-            received_at=self.received_at,
-            shipment_number=ShipmentNumber("SHIP-002"),
-            provider_name="Provider",
+            id=RawMaterialBatchId(UUID(int=3)), received_at=self.received_at,
+            shipment_number=ShipmentNumber("SHIP-002"), provider_name="Provider",
             bale_ids=(BaleId(UUID(int=4)),),
         )
         self.assertNotEqual(self._batch("SHIP-001"), second_batch)
@@ -93,22 +171,11 @@ class TestRawMaterialBatch(unittest.TestCase):
         with self.assertRaises(DuplicateBaleIdError):
             self._batch(bale_ids=(self.bale_id, self.bale_id))
 
-    def test_legacy_symbols_preserve_canonical_identity(self) -> None:
-        self.assertIs(BaleReception, RawMaterialBatch)
-        self.assertIs(LegacyBale, Bale)
-        self.assertIs(LegacyBaleId, BaleId)
-        self.assertIs(LegacyBaleNumber, BaleNumber)
-        self.assertIs(BaleReceptionId, RawMaterialBatchId)
-        self.assertIs(EmptyBaleReceptionError, EmptyRawMaterialBatchError)
-
     def test_bale_p0_behavior_is_unchanged(self) -> None:
         bale = Bale(
-            id=self.bale_id,
-            raw_material_batch_id=self.batch_id,
-            bale_number=BaleNumber("BAL-001"),
-            material=MaterialType("algodón"),
-            dtex=Dtex(Decimal("2.2")),
-            weight=BaleWeight(Decimal("120"), Decimal("20")),
+            id=self.bale_id, raw_material_batch_id=self.batch_id,
+            bale_number=BaleNumber("BAL-001"), material=MaterialType("algodón"),
+            dtex=Dtex(Decimal("2.2")), weight=BaleWeight(Decimal("120"), Decimal("20")),
         )
         self.assertIs(bale.raw_material_batch_id, self.batch_id)
         self.assertFalse(hasattr(bale, "shipment_number"))

@@ -24,10 +24,10 @@ class TestBuildUseCase(unittest.TestCase):
         use_case = build_use_case(session)
 
         self.assertIsInstance(use_case, RegisterRawMaterialBatch)
-        self.assertIsInstance(use_case._reception_repository, RawMaterialBatchRepository)
+        self.assertIsInstance(use_case._raw_material_batch_repository, RawMaterialBatchRepository)
         self.assertIsInstance(use_case._bale_repository, BaleRepository)
         self.assertIsInstance(
-            use_case._warehouse_transaction,
+            use_case._transaction,
             SqlAlchemyTransaction,
         )
 
@@ -36,9 +36,9 @@ class TestBuildUseCase(unittest.TestCase):
 
         use_case = build_use_case(session)
 
-        self.assertIs(use_case._reception_repository._session, session)
+        self.assertIs(use_case._raw_material_batch_repository._session, session)
         self.assertIs(use_case._bale_repository._session, session)
-        self.assertIs(use_case._warehouse_transaction._session, session)
+        self.assertIs(use_case._transaction._session, session)
 
 
 class FakeSessionProvider:

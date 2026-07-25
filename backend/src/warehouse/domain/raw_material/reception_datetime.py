@@ -1,1 +1,0 @@
-from warehouse.bales.domain.reception_datetime import ReceptionDateTime

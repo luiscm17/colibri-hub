@@ -14,13 +14,13 @@ from warehouse.bales.adapters.http import (
     bale_reception_to_input,
     bale_reception_to_response,
 )
-from warehouse.application.raw_material.bale_reception_result import (
-    BaleReceptionResult,
-    RegisteredBaleResult,
+from warehouse.bales.application.register_raw_material_batch_command import (
+    ReceivedBaleCommand,
+    RegisterRawMaterialBatchCommand,
 )
-from warehouse.application.raw_material.register_bale_reception_input import (
-    ReceivedBaleInput,
-    RegisterBaleReceptionInput,
+from warehouse.bales.application.register_raw_material_batch_result import (
+    RegisterRawMaterialBatchResult,
+    RegisteredBaleResult,
 )
 
 
@@ -129,12 +129,12 @@ class TestBaleReceptionMapping(unittest.TestCase):
 
         mapped = bale_reception_to_input(request)
 
-        self.assertIsInstance(mapped, RegisterBaleReceptionInput)
+        self.assertIsInstance(mapped, RegisterRawMaterialBatchCommand)
         self.assertEqual(mapped.received_at, request.received_at)
         self.assertEqual(mapped.shipment_number, "P-260042")
         self.assertEqual(mapped.provider_name, "Proveedor Industrial")
         self.assertEqual([item.bale_number for item in mapped.bales], ["F-001", "F-002"])
-        self.assertTrue(all(isinstance(item, ReceivedBaleInput) for item in mapped.bales))
+        self.assertTrue(all(isinstance(item, ReceivedBaleCommand) for item in mapped.bales))
         self.assertTrue(all(isinstance(item.dtex, Decimal) for item in mapped.bales))
 
     def test_maps_result_to_response_exactly(self) -> None:
@@ -144,7 +144,7 @@ class TestBaleReceptionMapping(unittest.TestCase):
             UUID("f247354b-009a-42fa-94f7-9b55442fbe71"),
             UUID("24d72ee3-61dd-456b-a47d-c82d119dfcbc"),
         )
-        result = BaleReceptionResult(
+        result = RegisterRawMaterialBatchResult(
             reception_id=reception_id,
             shipment_number="P-260042",
             received_at=received_at,
@@ -182,7 +182,7 @@ class TestBaleReceptionMapping(unittest.TestCase):
         self.assertNotIn("total_net_weight_kg", payload)
 
     def test_rejects_unexpected_application_result_status(self) -> None:
-        result = BaleReceptionResult(
+        result = RegisterRawMaterialBatchResult(
             reception_id=UUID("7a367a1e-18eb-4568-9548-563cd889f121"),
             shipment_number="P-260042",
             received_at=datetime(2026, 7, 22, 10, 30, tzinfo=timezone.utc),

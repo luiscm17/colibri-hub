@@ -39,10 +39,8 @@ class RegisterRawMaterialBatch:
         identity_generator: IdentityGenerator,
     ) -> None:
         self._raw_material_batch_repository = reception_repository
-        self._reception_repository = reception_repository
         self._bale_repository = bale_repository
         self._transaction = warehouse_transaction
-        self._warehouse_transaction = warehouse_transaction
         self._identity_generator = identity_generator
 
     def execute(

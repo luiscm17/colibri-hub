@@ -64,26 +64,6 @@ class TestCanonicalHttpAdapter(unittest.TestCase):
 
         self.assertTrue(callable(create_router))
 
-    def test_legacy_modules_are_exact_old_to_new_aliases(self) -> None:
-        from warehouse.adapters.http.raw_material.bale_reception_request import (
-            BaleReceptionRequest as LegacyRequest,
-        )
-        from warehouse.adapters.http.raw_material.bale_router import (
-            create_router as legacy_create_router,
-        )
-        from warehouse.adapters.http.raw_material.error_response import (
-            ErrorResponse as LegacyErrorResponse,
-        )
-        from warehouse.bales.adapters.http.bale_reception_request import (
-            BaleReceptionRequest,
-        )
-        from warehouse.bales.adapters.http.error_response import ErrorResponse
-        from warehouse.bales.adapters.http.router import create_router
-
-        self.assertIs(LegacyRequest, BaleReceptionRequest)
-        self.assertIs(LegacyErrorResponse, ErrorResponse)
-        self.assertIs(legacy_create_router, create_router)
-
     def test_runtime_contract_has_one_route_openapi_slash_and_error_envelopes(self) -> None:
         from warehouse.bales.adapters.http.router import create_router
 

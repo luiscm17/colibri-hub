@@ -1,3 +1,0 @@
-from warehouse.bales.application.register_raw_material_batch import RegisterRawMaterialBatch
-
-RegisterBaleReception = RegisterRawMaterialBatch

@@ -43,9 +43,9 @@ class TestBootstrapDependencies(unittest.TestCase):
 
         use_case = build_use_case(session)
 
-        self.assertIs(getattr(use_case._reception_repository, "_session"), session)
+        self.assertIs(getattr(use_case._raw_material_batch_repository, "_session"), session)
         self.assertIs(getattr(use_case._bale_repository, "_session"), session)
-        self.assertIs(getattr(use_case._warehouse_transaction, "_session"), session)
+        self.assertIs(getattr(use_case._transaction, "_session"), session)
 
     def test_session_dependency_yields_and_closes_independent_sessions(self) -> None:
         sessions: list[FakeSession] = []
