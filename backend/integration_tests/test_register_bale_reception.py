@@ -119,7 +119,7 @@ class TestRegisterRawMaterialBatchIntegration(unittest.TestCase):
                 number, material, dtex, gross, container = values
                 self.assertIsInstance(bale.id, UUID)
                 self.assertEqual(bale.id, registered_bale.id)
-                self.assertEqual(bale.reception_id, result.reception_id)
+                self.assertEqual(bale.raw_material_batch_id, result.reception_id)
                 self.assertEqual(bale.bale_number, number)
                 self.assertEqual(bale.material_type, material)
                 self.assertIsInstance(bale.dtex, Decimal)

@@ -1,12 +1,14 @@
 import unittest
+from uuid import uuid4
 
 from sqlalchemy import Numeric, Text, inspect, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID, VARCHAR
 from sqlalchemy.engine import Engine
 
 from backend.integration_tests.database_test_support import create_test_engine
 
-TABLES = ("raw_material_receptions", "raw_material_bales")
+TABLES = ("raw_material_batches", "raw_material_bales")
 
 
 class TestMigratedWarehouseSchema(unittest.TestCase):
@@ -26,9 +28,9 @@ class TestMigratedWarehouseSchema(unittest.TestCase):
 
         self.assertTrue(set(TABLES).issubset(table_names))
 
-    def test_reception_columns_match_migration(self) -> None:
+    def test_batch_columns_match_migration(self) -> None:
         self._assert_columns(
-            "raw_material_receptions",
+            "raw_material_batches",
             {
                 "id": (UUID, None),
                 "received_at": (TIMESTAMP, None),
@@ -36,7 +38,7 @@ class TestMigratedWarehouseSchema(unittest.TestCase):
                 "provider_name": (Text, None),
             },
         )
-        received_at = self._columns("raw_material_receptions")["received_at"]
+        received_at = self._columns("raw_material_batches")["received_at"]
         self.assertTrue(received_at["type"].timezone)
 
     def test_bale_columns_match_migration(self) -> None:
@@ -44,7 +46,7 @@ class TestMigratedWarehouseSchema(unittest.TestCase):
             "raw_material_bales",
             {
                 "id": (UUID, None),
-                "reception_id": (UUID, None),
+                "raw_material_batch_id": (UUID, None),
                 "bale_number": (VARCHAR, 10),
                 "material_type": (VARCHAR, 20),
                 "dtex": (Numeric, None),
@@ -62,10 +64,10 @@ class TestMigratedWarehouseSchema(unittest.TestCase):
         inspector = inspect(self.engine)
         self.assertEqual(
             inspector.get_pk_constraint(
-                "raw_material_receptions", schema="public"
+                "raw_material_batches", schema="public"
             ),
             {
-                "name": "pk_raw_material_receptions",
+                "name": "pk_raw_material_batches",
                 "constrained_columns": ["id"],
                 "comment": None,
                 "dialect_options": {"postgresql_include": []},
@@ -90,11 +92,11 @@ class TestMigratedWarehouseSchema(unittest.TestCase):
         self.assertEqual(
             uniques,
             {
-                "uq_raw_material_receptions_shipment_number": [
+                "uq_raw_material_batches_shipment_number": [
                     "shipment_number"
                 ],
-                "uq_raw_material_bales_reception_bale_number": [
-                    "reception_id",
+                "uq_raw_material_bales_raw_material_batch_bale_number": [
+                    "raw_material_batch_id",
                     "bale_number",
                 ],
             },
@@ -107,10 +109,10 @@ class TestMigratedWarehouseSchema(unittest.TestCase):
         )
         self.assertEqual(len(foreign_keys), 1)
         foreign_key = foreign_keys[0]
-        self.assertEqual(foreign_key["name"], "fk_raw_material_bales_reception_id")
-        self.assertEqual(foreign_key["constrained_columns"], ["reception_id"])
+        self.assertEqual(foreign_key["name"], "fk_raw_material_bales_raw_material_batch_id")
+        self.assertEqual(foreign_key["constrained_columns"], ["raw_material_batch_id"])
         self.assertEqual(foreign_key["referred_schema"], "public")
-        self.assertEqual(foreign_key["referred_table"], "raw_material_receptions")
+        self.assertEqual(foreign_key["referred_table"], "raw_material_batches")
         self.assertEqual(foreign_key["referred_columns"], ["id"])
         self.assertEqual(foreign_key["options"].get("ondelete"), "RESTRICT")
 
@@ -122,9 +124,52 @@ class TestMigratedWarehouseSchema(unittest.TestCase):
             if not index.get("unique")
         }
         self.assertEqual(
-            indexes["ix_raw_material_bales_reception_id"]["column_names"],
-            ["reception_id"],
+            indexes["ix_raw_material_bales_raw_material_batch_id"]["column_names"],
+            ["raw_material_batch_id"],
         )
+
+    def test_status_check_accepts_lifecycle_values_and_rejects_others(self) -> None:
+        batch_id = uuid4()
+        with self.engine.begin() as connection:
+            connection.execute(
+                text(
+                    "insert into public.raw_material_batches "
+                    "(id, received_at, shipment_number, provider_name) "
+                    "values (:id, now(), 'SHIP-STAT', 'Status provider')"
+                ),
+                {"id": batch_id},
+            )
+            for status in ("in_warehouse", "delivered"):
+                connection.execute(
+                    text(
+                        "insert into public.raw_material_bales "
+                        "(id, raw_material_batch_id, bale_number, material_type, dtex, "
+                        "gross_weight_kg, container_weight_kg, status) "
+                        "values (:id, :batch_id, :bale_number, 'COTTON', 2.2, 100, 5, :status)"
+                    ),
+                    {
+                        "id": uuid4(),
+                        "batch_id": batch_id,
+                        "bale_number": f"BAL-{status[:3]}",
+                        "status": status,
+                    },
+                )
+        for status in ("in_production", "arbitrary"):
+            with self.assertRaises(IntegrityError) as raised:
+                with self.engine.begin() as connection:
+                    connection.execute(
+                        text(
+                            "insert into public.raw_material_bales "
+                            "(id, raw_material_batch_id, bale_number, material_type, dtex, "
+                            "gross_weight_kg, container_weight_kg, status) "
+                            "values (:id, :batch_id, :bale_number, 'COTTON', 2.2, 100, 5, :status)"
+                        ),
+                        {"id": uuid4(), "batch_id": batch_id, "bale_number": f"BAD-{status[:3]}", "status": status},
+                    )
+            self.assertEqual(
+                raised.exception.orig.diag.constraint_name,
+                "ck_raw_material_bales_status",
+            )
 
     def test_rls_is_enabled_without_policies(self) -> None:
         with self.engine.connect() as connection:
@@ -136,7 +181,7 @@ class TestMigratedWarehouseSchema(unittest.TestCase):
                     join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
                     where n.nspname = 'public'
                       and c.relname in (
-                          'raw_material_receptions', 'raw_material_bales'
+                          'raw_material_batches', 'raw_material_bales'
                       )
                     """
                 ),
@@ -148,7 +193,7 @@ class TestMigratedWarehouseSchema(unittest.TestCase):
                     from pg_catalog.pg_policies
                     where schemaname = 'public'
                       and tablename in (
-                          'raw_material_receptions', 'raw_material_bales'
+                          'raw_material_batches', 'raw_material_bales'
                       )
                     """
                 ),
@@ -170,7 +215,7 @@ class TestMigratedWarehouseSchema(unittest.TestCase):
                         on grantee.oid = acl.grantee
                     where n.nspname = 'public'
                       and c.relname in (
-                          'raw_material_receptions', 'raw_material_bales'
+                          'raw_material_batches', 'raw_material_bales'
                       )
                       and grantee.rolname in (
                           'anon', 'authenticated', 'service_role'

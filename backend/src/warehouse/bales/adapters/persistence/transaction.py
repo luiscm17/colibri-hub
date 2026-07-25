@@ -11,8 +11,8 @@ from warehouse.bales.ports.transaction_errors import (
 )
 
 
-BALE_NUMBER_UNIQUE_CONSTRAINT = "uq_raw_material_bales_reception_bale_number"
-SHIPMENT_NUMBER_UNIQUE_CONSTRAINT = "uq_raw_material_receptions_shipment_number"
+BALE_NUMBER_UNIQUE_CONSTRAINT = "uq_raw_material_bales_raw_material_batch_bale_number"
+SHIPMENT_NUMBER_UNIQUE_CONSTRAINT = "uq_raw_material_batches_shipment_number"
 
 
 def violated_constraint(error: IntegrityError) -> str | None:

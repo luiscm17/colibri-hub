@@ -1,6 +1,6 @@
 import unittest
 
-from sqlalchemy import DateTime, Numeric, String, Text
+from sqlalchemy import CheckConstraint, DateTime, Numeric, String, Text
 
 from warehouse.bales.adapters.persistence.bale_record import BaleRecord
 from warehouse.bales.adapters.persistence.raw_material_batch_record import RawMaterialBatchRecord
@@ -26,7 +26,7 @@ class TestPersistenceSchema(unittest.TestCase):
             constraint
             for constraint in RawMaterialBatchRecord.__table__.constraints
             if constraint.name
-            == "uq_raw_material_receptions_shipment_number"
+            == "uq_raw_material_batches_shipment_number"
         )
 
         self.assertEqual(
@@ -34,25 +34,46 @@ class TestPersistenceSchema(unittest.TestCase):
             ("shipment_number",),
         )
 
-    def test_bale_number_is_unique_within_reception(self) -> None:
+    def test_bale_number_is_unique_within_batch(self) -> None:
         constraint = next(
             constraint
             for constraint in BaleRecord.__table__.constraints
             if constraint.name
-            == "uq_raw_material_bales_reception_bale_number"
+            == "uq_raw_material_bales_raw_material_batch_bale_number"
         )
 
         self.assertEqual(
             tuple(column.name for column in constraint.columns),
-            ("reception_id", "bale_number"),
+            ("raw_material_batch_id", "bale_number"),
         )
 
-    def test_reception_id_remains_indexed_without_defaults(self) -> None:
-        reception_id = BaleRecord.__table__.c.reception_id
+    def test_batch_id_remains_indexed_without_defaults(self) -> None:
+        raw_material_batch_id = BaleRecord.__table__.c.raw_material_batch_id
 
-        self.assertTrue(reception_id.index)
-        self.assertIsNone(reception_id.default)
-        self.assertIsNone(reception_id.server_default)
+        index = next(
+            index
+            for index in BaleRecord.__table__.indexes
+            if index.name == "ix_raw_material_bales_raw_material_batch_id"
+        )
+        self.assertEqual(
+            tuple(column.name for column in index.columns),
+            ("raw_material_batch_id",),
+        )
+        self.assertIsNone(raw_material_batch_id.default)
+        self.assertIsNone(raw_material_batch_id.server_default)
+
+    def test_bale_status_has_named_lifecycle_check_constraint(self) -> None:
+        constraint = next(
+            constraint
+            for constraint in BaleRecord.__table__.constraints
+            if isinstance(constraint, CheckConstraint)
+        )
+
+        self.assertEqual(constraint.name, "ck_raw_material_bales_status")
+        self.assertEqual(
+            str(constraint.sqltext),
+            "status IN ('in_warehouse', 'delivered')",
+        )
 
     def test_provider_name_is_unbounded(self) -> None:
         provider_name = RawMaterialBatchRecord.__table__.c.provider_name.type

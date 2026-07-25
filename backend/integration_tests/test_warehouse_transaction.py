@@ -60,7 +60,7 @@ class TestWarehouseTransactionIntegration(unittest.TestCase):
             self.assertEqual(
                 read_session.scalars(
                     select(BaleRecord).where(
-                        BaleRecord.reception_id == reception_id
+                        BaleRecord.raw_material_batch_id == reception_id
                     )
                 ).all(),
                 [],
@@ -112,7 +112,7 @@ class TestWarehouseTransactionIntegration(unittest.TestCase):
     def _bale(bale_id, reception_id, bale_number: str) -> BaleRecord:
         return BaleRecord(
             id=bale_id,
-            reception_id=reception_id,
+            raw_material_batch_id=reception_id,
             bale_number=bale_number,
             material_type="COTTON",
             dtex=Decimal("2.2"),

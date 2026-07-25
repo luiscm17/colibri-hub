@@ -49,7 +49,7 @@ class TestBaleRepository(unittest.TestCase):
         self.session.add(
             BaleRecord(
                 id=UUID(int=bale_id),
-                reception_id=UUID(int=reception_id),
+                raw_material_batch_id=UUID(int=reception_id),
                 bale_number=bale_number,
                 material_type="COTTON",
                 dtex=Decimal("2.2000"),
@@ -85,14 +85,14 @@ class TestBaleRepository(unittest.TestCase):
             (BaleId(bale_id),),
         )
         bale = BaleMapper.to_domain(
-            BaleRecord(id=bale_id, reception_id=batch_id, bale_number="BAL-003", material_type="COTTON", dtex=Decimal("2.2"), gross_weight_kg=Decimal("120"), container_weight_kg=Decimal("20"), status="in_warehouse")
+            BaleRecord(id=bale_id, raw_material_batch_id=batch_id, bale_number="BAL-003", material_type="COTTON", dtex=Decimal("2.2"), gross_weight_kg=Decimal("120"), container_weight_kg=Decimal("20"), status="in_warehouse")
         )
 
         RawMaterialBatchRepository(self.session).add(batch)
         BaleRepository(self.session).add_all((bale,))
         self.session.commit()
 
-        self.assertEqual(self.session.get(BaleRecord, bale_id).reception_id, batch_id)
+        self.assertEqual(self.session.get(BaleRecord, bale_id).raw_material_batch_id, batch_id)
 
 
 if __name__ == "__main__":
