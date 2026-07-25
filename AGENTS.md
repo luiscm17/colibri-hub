@@ -11,6 +11,8 @@
 - SQLite adapter tests belong to the unit suite; do not treat them as proof of PostgreSQL constraint diagnostics, migration shape, timezone, or `Decimal` round-trips.
 - Tests use stdlib `unittest`; no pytest, Python linter, formatter, type checker, or coverage tool is configured.
 - Root `main.py` is print-only scaffolding. `backend/main.py` is the ASGI entrypoint (`app`), declared as `backend.main:app` in root `[tool.fastapi]`, and requires `DATABASE_URL` at import time; application creation builds the engine but does not connect until a request uses a session.
+- Local backend configuration is `backend/.env`: copy `backend/.env.example`, then run `uv run fastapi dev` from the root without `--env-file`. `ApplicationSettings` receives that explicit sibling path; OS `DATABASE_URL` overrides it, while an absent local file is OS-only.
+- Keep `backend/.env` untracked and secrets out of Vite `VITE_*` values. Unit tests isolate settings sources; guarded integration tests use `TEST_DATABASE_URL` only and never fall back to `DATABASE_URL`.
 
 ## Database and integration tests
 
