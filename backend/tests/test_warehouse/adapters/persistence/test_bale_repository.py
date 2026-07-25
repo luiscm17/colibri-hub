@@ -8,12 +8,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from infra.persistence.record_registry import RecordRegistry
-from warehouse.adapters.persistence.raw_material.bale_record import (
-    BaleRecord,
-)
-from warehouse.adapters.persistence.raw_material.bale_reception_record import (
-    BaleReceptionRecord,
-)
+from warehouse.bales.adapters.persistence.bale_record import BaleRecord
+from warehouse.bales.adapters.persistence.bale_mapper import BaleMapper
+from warehouse.bales.adapters.persistence.bale_repository import BaleRepository
+from warehouse.bales.adapters.persistence.raw_material_batch_mapper import RawMaterialBatchMapper
+from warehouse.bales.adapters.persistence.raw_material_batch_record import RawMaterialBatchRecord
+from warehouse.bales.adapters.persistence.raw_material_batch_repository import RawMaterialBatchRepository
+from warehouse.bales.domain.bale_id import BaleId
 
 
 class TestBaleRepository(unittest.TestCase):
@@ -31,7 +32,7 @@ class TestBaleRepository(unittest.TestCase):
 
     def _add_reception(self, reception_id: int, shipment_number: str) -> None:
         self.session.add(
-            BaleReceptionRecord(
+            RawMaterialBatchRecord(
                 id=UUID(int=reception_id),
                 received_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
                 shipment_number=shipment_number,
@@ -76,6 +77,22 @@ class TestBaleRepository(unittest.TestCase):
             self.session.query(BaleRecord).count(),
             2,
         )
+
+    def test_canonical_repositories_map_batch_then_bale(self) -> None:
+        batch_id, bale_id = UUID(int=3), UUID(int=4)
+        batch = RawMaterialBatchMapper.to_domain(
+            RawMaterialBatchRecord(id=batch_id, received_at=datetime(2026, 1, 1, tzinfo=timezone.utc), shipment_number="SHIP-003", provider_name="Provider"),
+            (BaleId(bale_id),),
+        )
+        bale = BaleMapper.to_domain(
+            BaleRecord(id=bale_id, reception_id=batch_id, bale_number="BAL-003", material_type="COTTON", dtex=Decimal("2.2"), gross_weight_kg=Decimal("120"), container_weight_kg=Decimal("20"), status="in_warehouse")
+        )
+
+        RawMaterialBatchRepository(self.session).add(batch)
+        BaleRepository(self.session).add_all((bale,))
+        self.session.commit()
+
+        self.assertEqual(self.session.get(BaleRecord, bale_id).reception_id, batch_id)
 
 
 if __name__ == "__main__":
