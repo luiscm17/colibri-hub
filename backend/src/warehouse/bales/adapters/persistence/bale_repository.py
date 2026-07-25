@@ -7,7 +7,7 @@ from warehouse.bales.domain.bale import Bale
 from warehouse.bales.ports.bale_repository import BaleRepository as BaleRepositoryPort
 
 
-class BaleRepository(BaleRepositoryPort):
+class BaleRepositoryAdapter(BaleRepositoryPort):
     def __init__(self, session: Session) -> None:
         self._session = session
 

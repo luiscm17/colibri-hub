@@ -7,11 +7,11 @@ from bootstrap.warehouse_bale_dependency import (
     build_use_case,
     use_case_dependency,
 )
-from warehouse.bales.adapters.persistence.bale_repository import BaleRepository
+from warehouse.bales.adapters.persistence.bale_repository import BaleRepositoryAdapter
 from warehouse.bales.adapters.persistence.raw_material_batch_repository import (
-    RawMaterialBatchRepository,
+    RawMaterialBatchRepositoryAdapter,
 )
-from warehouse.bales.adapters.persistence.transaction import SqlAlchemyTransaction
+from warehouse.bales.adapters.persistence.transaction import TransactionAdapter
 from warehouse.bales.application.register_raw_material_batch import (
     RegisterRawMaterialBatch,
 )
@@ -24,11 +24,11 @@ class TestBuildUseCase(unittest.TestCase):
         use_case = build_use_case(session)
 
         self.assertIsInstance(use_case, RegisterRawMaterialBatch)
-        self.assertIsInstance(use_case._raw_material_batch_repository, RawMaterialBatchRepository)
-        self.assertIsInstance(use_case._bale_repository, BaleRepository)
+        self.assertIsInstance(use_case._raw_material_batch_repository, RawMaterialBatchRepositoryAdapter)
+        self.assertIsInstance(use_case._bale_repository, BaleRepositoryAdapter)
         self.assertIsInstance(
             use_case._transaction,
-            SqlAlchemyTransaction,
+            TransactionAdapter,
         )
 
     def test_all_components_share_same_session(self) -> None:

@@ -5,7 +5,7 @@ from warehouse.bales.domain.raw_material_batch import RawMaterialBatch
 from warehouse.bales.ports.raw_material_batch_repository import RawMaterialBatchRepository as RawMaterialBatchRepositoryPort
 
 
-class RawMaterialBatchRepository(RawMaterialBatchRepositoryPort):
+class RawMaterialBatchRepositoryAdapter(RawMaterialBatchRepositoryPort):
     def __init__(self, session: Session) -> None:
         self._session = session
 

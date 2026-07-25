@@ -4,12 +4,12 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from bootstrap.database_session_dependency import SessionProvider
-from warehouse.bales.adapters.identity.identity_generator import UuidIdentityGenerator
-from warehouse.bales.adapters.persistence.bale_repository import BaleRepository
+from warehouse.bales.adapters.identity.identity_generator import Uuid4IdentityGenerator
+from warehouse.bales.adapters.persistence.bale_repository import BaleRepositoryAdapter
 from warehouse.bales.adapters.persistence.raw_material_batch_repository import (
-    RawMaterialBatchRepository,
+    RawMaterialBatchRepositoryAdapter,
 )
-from warehouse.bales.adapters.persistence.transaction import SqlAlchemyTransaction
+from warehouse.bales.adapters.persistence.transaction import TransactionAdapter
 from warehouse.bales.application.register_raw_material_batch import (
     RegisterRawMaterialBatch,
 )
@@ -21,10 +21,10 @@ class UseCaseProvider(Protocol):
 
 def build_use_case(session: Session) -> RegisterRawMaterialBatch:
     return RegisterRawMaterialBatch(
-        reception_repository=RawMaterialBatchRepository(session),
-        bale_repository=BaleRepository(session),
-        warehouse_transaction=SqlAlchemyTransaction(session),
-        identity_generator=UuidIdentityGenerator(),
+        reception_repository=RawMaterialBatchRepositoryAdapter(session),
+        bale_repository=BaleRepositoryAdapter(session),
+        warehouse_transaction=TransactionAdapter(session),
+        identity_generator=Uuid4IdentityGenerator(),
     )
 
 

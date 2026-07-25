@@ -18,7 +18,7 @@ from warehouse.bales.adapters.persistence.raw_material_batch_record import (
     RawMaterialBatchRecord,
 )
 from warehouse.bales.adapters.persistence.transaction import (
-    SqlAlchemyTransaction,
+    TransactionAdapter,
 )
 from warehouse.bales.ports import DuplicateBaleNumberConflict
 
@@ -45,7 +45,7 @@ class TestWarehouseTransactionIntegration(unittest.TestCase):
 
         with Session(self.engine) as session:
             with self.assertRaisesRegex(RuntimeError, "deterministic failure"):
-                with SqlAlchemyTransaction(session):
+                with TransactionAdapter(session):
                     session.add(self._reception(reception_id, "SHIP-900"))
                     session.flush()
                     self.assertIsNotNone(
@@ -73,7 +73,7 @@ class TestWarehouseTransactionIntegration(unittest.TestCase):
 
         with Session(self.engine) as session:
             with self.assertRaises(DuplicateBaleNumberConflict):
-                with SqlAlchemyTransaction(session) as transaction:
+                with TransactionAdapter(session) as transaction:
                     session.add(self._reception(reception_id, "SHIP-910"))
                     session.flush()
                     session.add_all(

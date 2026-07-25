@@ -20,7 +20,7 @@ def violated_constraint(error: IntegrityError) -> str | None:
     return getattr(diagnostic, "constraint_name", None)
 
 
-class SqlAlchemyTransaction(Transaction):
+class TransactionAdapter(Transaction):
     def __init__(self, session: Session) -> None:
         self._session = session
         self._rolled_back = False

@@ -12,21 +12,21 @@ from backend.integration_tests.database_test_support import (
     clean_warehouse_tables,
     create_test_engine,
 )
-from warehouse.bales.adapters.identity.identity_generator import UuidIdentityGenerator
+from warehouse.bales.adapters.identity.identity_generator import Uuid4IdentityGenerator
 from warehouse.bales.adapters.persistence.bale_record import (
     BaleRecord,
 )
 from warehouse.bales.adapters.persistence.bale_repository import (
-    BaleRepository,
+    BaleRepositoryAdapter,
 )
 from warehouse.bales.adapters.persistence.raw_material_batch_record import (
     RawMaterialBatchRecord,
 )
 from warehouse.bales.adapters.persistence.raw_material_batch_repository import (
-    RawMaterialBatchRepository,
+    RawMaterialBatchRepositoryAdapter,
 )
 from warehouse.bales.adapters.persistence.transaction import (
-    SqlAlchemyTransaction,
+    TransactionAdapter,
 )
 from warehouse.bales.application import (
     DuplicateShipmentNumberError,
@@ -172,10 +172,10 @@ class TestRegisterRawMaterialBatchIntegration(unittest.TestCase):
     @staticmethod
     def _use_case(session: Session) -> RegisterRawMaterialBatch:
         return RegisterRawMaterialBatch(
-            reception_repository=RawMaterialBatchRepository(session),
-            bale_repository=BaleRepository(session),
-            warehouse_transaction=SqlAlchemyTransaction(session),
-            identity_generator=UuidIdentityGenerator(),
+            reception_repository=RawMaterialBatchRepositoryAdapter(session),
+            bale_repository=BaleRepositoryAdapter(session),
+            warehouse_transaction=TransactionAdapter(session),
+            identity_generator=Uuid4IdentityGenerator(),
         )
 
     @staticmethod

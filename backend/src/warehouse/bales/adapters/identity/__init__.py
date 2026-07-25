@@ -1,3 +1,3 @@
-from warehouse.bales.adapters.identity.identity_generator import UuidIdentityGenerator
+from warehouse.bales.adapters.identity.identity_generator import Uuid4IdentityGenerator
 
-__all__ = ["UuidIdentityGenerator"]
+__all__ = ["Uuid4IdentityGenerator"]

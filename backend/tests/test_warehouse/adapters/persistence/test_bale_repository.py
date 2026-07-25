@@ -10,10 +10,10 @@ from sqlalchemy.orm import Session
 from infra.persistence.record_registry import RecordRegistry
 from warehouse.bales.adapters.persistence.bale_record import BaleRecord
 from warehouse.bales.adapters.persistence.bale_mapper import BaleMapper
-from warehouse.bales.adapters.persistence.bale_repository import BaleRepository
+from warehouse.bales.adapters.persistence.bale_repository import BaleRepositoryAdapter
 from warehouse.bales.adapters.persistence.raw_material_batch_mapper import RawMaterialBatchMapper
 from warehouse.bales.adapters.persistence.raw_material_batch_record import RawMaterialBatchRecord
-from warehouse.bales.adapters.persistence.raw_material_batch_repository import RawMaterialBatchRepository
+from warehouse.bales.adapters.persistence.raw_material_batch_repository import RawMaterialBatchRepositoryAdapter
 from warehouse.bales.domain.bale_id import BaleId
 
 
@@ -88,8 +88,8 @@ class TestBaleRepository(unittest.TestCase):
             BaleRecord(id=bale_id, raw_material_batch_id=batch_id, bale_number="BAL-003", material_type="COTTON", dtex=Decimal("2.2"), gross_weight_kg=Decimal("120"), container_weight_kg=Decimal("20"), status="in_warehouse")
         )
 
-        RawMaterialBatchRepository(self.session).add(batch)
-        BaleRepository(self.session).add_all((bale,))
+        RawMaterialBatchRepositoryAdapter(self.session).add(batch)
+        BaleRepositoryAdapter(self.session).add_all((bale,))
         self.session.commit()
 
         self.assertEqual(self.session.get(BaleRecord, bale_id).raw_material_batch_id, batch_id)
