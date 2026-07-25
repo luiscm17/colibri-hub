@@ -132,8 +132,8 @@ downstream warehouse lifecycle decisions.
   shared shipment evidence.
 - Reception is an application action, not a domain aggregate. The current
   collective POST registers the complete batch; omitted bales are not silently appended later.
-- A Bale delivery records `delivered_at`, rejects repeat delivery, and changes
-  custody from `IN_WAREHOUSE` to `IN_PRODUCTION`; it does not mean processed.
+- A Bale delivery rejects repeat delivery and changes custody from
+  `IN_WAREHOUSE` to `DELIVERED`; it does not mean processed.
 - Production identity is defined **after** raw-material reception as bales, as a separate business
   act.
 - Warehouse owns the single lot identity; Lot Processing owns the operational
@@ -147,8 +147,8 @@ downstream warehouse lifecycle decisions.
 - Warehouse can document inconsistencies during PT reception; that is not the
   same as rewriting Operation history.
 - Critical warehouse records support controlled edits with full audit trail.
-- Header/detail persistence and historical `reception_id` names may remain for
-  compatibility without dictating domain aggregate boundaries.
+- The implemented batch/bale persistence shape does not dictate domain aggregate
+  boundaries.
 
 ### Likely ports / contracts
 

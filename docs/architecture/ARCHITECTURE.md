@@ -155,8 +155,7 @@ flowchart LR
     - **physical presentation** of finished product
 
 9. **Persistence shape does not define aggregates.** A normalized header/detail
-   representation or historical `reception_id` name may remain for compatibility;
-   it does not make Reception a domain aggregate. Warehouse models the
+    representation does not make Reception a domain aggregate. Warehouse models the
    `RawMaterialBatch` shipment grouping and the independently lifecycle-owning `Bale`.
 
 ---
@@ -185,8 +184,7 @@ flowchart LR
 - **Raw material starts as bales in Warehouse**, not as a production lot.
 - **Receiving is an application action**, not a Reception aggregate; it registers
   one complete `RawMaterialBatch` with one or more bales.
-- **Each Bale owns its custody lifecycle** from `IN_WAREHOUSE` to
-  `IN_PRODUCTION`; delivery is the fact and `delivered_at` its current mandatory evidence.
+- **Each Bale owns its custody lifecycle** from `IN_WAREHOUSE` to `DELIVERED`.
 - **Production identity is defined later** by Warehouse / Production Chief.
 - **Yarn Spinning has no lot entity or lot timeline.**
 - **Inventory records the assembled lot's weight and skein count.**

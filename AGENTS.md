@@ -15,9 +15,9 @@
 ## Database and integration tests
 
 - Schema changes are imperative Supabase migrations under `supabase/migrations/`; there is no Alembic setup. Generate migration filenames with the Supabase CLI.
-- Local database provisioning requires the Supabase CLI plus a Docker-compatible runtime. From the repository root run `supabase start`, then `supabase db reset --local --no-seed`; `--no-seed` is required because `supabase/config.toml` names `supabase/seed.sql`, which does not exist.
+- Local database provisioning requires the repository Supabase CLI wrapper plus a Docker-compatible runtime. From the repository root run `pnpm supabase start`, then `pnpm supabase db reset --local --no-seed`; `--no-seed` is required because `supabase/config.toml` names `supabase/seed.sql`, which does not exist.
 - PostgreSQL integration tests deliberately accept only `postgresql+psycopg` URLs on loopback port `54322`, database `postgres`. Run them after migration with `TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres uv run --locked python -m unittest discover -s backend/integration_tests -v`.
-- Inspect local migration state with `supabase migration list --local`. The Supabase CLI is not declared or vendored here.
+- Inspect local migration state with `pnpm supabase migration list --local`.
 
 ## Frontend workspace
 
@@ -28,11 +28,11 @@
 
 ## Backend boundaries
 
-- `warehouse.application` is the public facade for reception inputs, result, use case, and application errors. `warehouse.ports` exposes repository, identity, transaction, and transaction-conflict contracts; keep SQLAlchemy details in adapters.
+- `warehouse.application` is the public facade for raw-material batch inputs, result, use case, and application errors. `warehouse.ports` exposes repository, identity, transaction, and transaction-conflict contracts; keep SQLAlchemy details in adapters.
 - `bootstrap.http_application.create_app` composes `infra.persistence` and Warehouse adapters into `POST /api/v1/warehouse/bales` and registers the HTTP exception handlers; pass a session factory in tests to avoid requiring `DATABASE_URL` or database access.
-- Reception registration inserts the reception before its bales in one transaction. Only the two named uniqueness constraints are translated to application conflicts; unknown integrity failures propagate.
-- Shipment numbers are globally unique. Bale numbers are unique only within a reception, via `uq_raw_material_bales_reception_bale_number`; the same canonical bale number is valid in different receptions.
-- Keep ORM records and the Supabase migration aligned. The migration enables RLS and revokes all privileges from `anon`, `authenticated`, and `service_role`; it defines no policies or runtime authorization flow.
+- Raw-material batch registration inserts the batch before its bales in one transaction and returns `raw_material_batch_id`. Only the two named uniqueness constraints are translated to application conflicts; unknown integrity failures propagate.
+- Shipment numbers are globally unique through `uq_raw_material_batches_shipment_number`. Bale numbers are unique only within a batch through `uq_raw_material_bales_raw_material_batch_bale_number`; the same canonical bale number is valid in different batches.
+- Keep ORM records and the Supabase migration aligned: `raw_material_batches`, `raw_material_bales`, and `raw_material_batch_id` use named PK/FK/unique/index constraints, including `ck_raw_material_bales_status` for `in_warehouse` and `delivered`. The migration enables RLS and revokes all privileges from `anon`, `authenticated`, and `service_role`; it defines no policies or runtime authorization flow.
 
 ## Business truth
 
