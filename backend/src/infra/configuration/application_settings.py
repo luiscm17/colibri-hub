@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from infra.configuration.database_settings import DatabaseSettings
@@ -16,6 +14,3 @@ class ApplicationSettings(BaseSettings):
     )
 
     database: DatabaseSettings
-
-    def __init__(self, *, _env_file: Path | None = None, **values: object) -> None:
-        super().__init__(_env_file=_env_file, **values)
