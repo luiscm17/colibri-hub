@@ -1,20 +1,7 @@
-from pydantic import BaseModel, ConfigDict
+from warehouse.bales.adapters.http.error_response import (
+    ErrorDetailResponse,
+    ErrorResponse,
+    FieldErrorResponse,
+)
 
-
-class _ErrorResponseModel(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-
-class FieldErrorResponse(_ErrorResponseModel):
-    path: str
-    message: str
-
-
-class ErrorDetailResponse(_ErrorResponseModel):
-    code: str
-    message: str
-    fields: tuple[FieldErrorResponse, ...] = ()
-
-
-class ErrorResponse(_ErrorResponseModel):
-    error: ErrorDetailResponse
+__all__ = ["ErrorDetailResponse", "ErrorResponse", "FieldErrorResponse"]

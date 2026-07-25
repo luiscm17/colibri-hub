@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from warehouse.adapters.http.raw_material.bale_router import UseCaseProvider
+from warehouse.bales.adapters.http.router import UseCaseProvider
 from warehouse.adapters.http.router import create_router as create_warehouse_router
 
 

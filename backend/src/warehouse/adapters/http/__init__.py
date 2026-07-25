@@ -1,4 +1,4 @@
-from warehouse.adapters.http.raw_material import (
+from warehouse.bales.adapters.http import (
     BaleReceptionRequest,
     BaleReceptionResponse,
     ErrorDetailResponse,

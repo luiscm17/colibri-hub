@@ -1,10 +1,10 @@
 import json
 import unittest
 
-from warehouse.adapters.http.raw_material.error_mapping import (
+from warehouse.bales.adapters.http.error_mapping import (
     error_json_response,
 )
-from warehouse.adapters.http.raw_material.error_response import (
+from warehouse.bales.adapters.http.error_response import (
     FieldErrorResponse,
 )
 

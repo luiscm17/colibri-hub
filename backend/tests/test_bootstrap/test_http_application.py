@@ -16,11 +16,11 @@ from bootstrap.api_router import create_api_router
 from bootstrap.http_application import create_app
 from bootstrap.warehouse_bale_dependency import build_use_case
 from infra.persistence.database_settings import DatabaseSettings
-from warehouse.application.raw_material.bale_reception_errors import (
+from warehouse.bales.application.errors import (
     DuplicateBaleNumberError,
     DuplicateShipmentNumberError,
 )
-from warehouse.adapters.http.raw_material.bale_router import (
+from warehouse.bales.adapters.http.router import (
     create_router as create_bale_router,
 )
 from warehouse.adapters.http.router import create_router as create_warehouse_router

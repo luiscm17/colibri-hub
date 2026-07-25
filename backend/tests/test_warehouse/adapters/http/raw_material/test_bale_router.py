@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from warehouse.adapters.http.raw_material.bale_router import create_router
+from warehouse.bales.adapters.http.router import create_router
 from warehouse.application.raw_material.bale_reception_result import (
     BaleReceptionResult,
     RegisteredBaleResult,

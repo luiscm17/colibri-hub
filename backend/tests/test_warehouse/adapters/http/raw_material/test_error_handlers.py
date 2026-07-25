@@ -5,16 +5,16 @@ from unittest.mock import MagicMock
 
 from fastapi import Request
 
-from warehouse.adapters.http.raw_material.error_handlers import (
+from warehouse.bales.adapters.http.error_handlers import (
     domain_error_handler,
     duplicate_bale_number_handler,
     duplicate_shipment_number_handler,
 )
-from warehouse.application.raw_material.bale_reception_errors import (
+from warehouse.bales.application.errors import (
     DuplicateBaleNumberError,
     DuplicateShipmentNumberError,
 )
-from warehouse.domain.raw_material.domain_errors import DomainError
+from warehouse.bales.domain.domain_errors import DomainError
 
 
 def _await(coro):

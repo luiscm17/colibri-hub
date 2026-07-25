@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import ValidationError
 
-from warehouse.adapters.http.raw_material import (
+from warehouse.bales.adapters.http import (
     BaleReceptionRequest,
     ErrorDetailResponse,
     ErrorResponse,
