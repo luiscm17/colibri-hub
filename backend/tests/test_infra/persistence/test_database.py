@@ -3,41 +3,15 @@ from unittest.mock import patch
 
 from sqlalchemy import create_engine
 
+from infra.configuration import DatabaseSettings
 from infra.persistence.database_engine import create_db_engine
 from infra.persistence.database_session_factory import create_session_factory
-from infra.persistence.database_settings import DatabaseSettings
-
-
-class TestDatabaseSettings(unittest.TestCase):
-    def test_loads_database_url_from_environment(self) -> None:
-        settings = DatabaseSettings.from_env(
-            {
-                "DATABASE_URL": "  postgresql+psycopg://fixture_user:fixture_password@database.invalid/fixture_database  "
-            }
-        )
-
-        self.assertEqual(
-            settings.database_url,
-            "postgresql+psycopg://fixture_user:fixture_password@database.invalid/fixture_database",
-        )
-
-    def test_rejects_missing_database_url(self) -> None:
-        with self.assertRaisesRegex(RuntimeError, "DATABASE_URL"):
-            DatabaseSettings.from_env({})
-
-    def test_rejects_empty_database_url(self) -> None:
-        with self.assertRaisesRegex(RuntimeError, "DATABASE_URL"):
-            DatabaseSettings.from_env({"DATABASE_URL": ""})
-
-    def test_rejects_whitespace_database_url(self) -> None:
-        with self.assertRaisesRegex(RuntimeError, "DATABASE_URL"):
-            DatabaseSettings.from_env({"DATABASE_URL": "   "})
 
 
 class TestDatabaseEngine(unittest.TestCase):
     def test_creates_engine_with_supplied_database_url_without_connecting(self) -> None:
         settings = DatabaseSettings(
-            "postgresql+psycopg://fixture_user:fixture_password@database.invalid/fixture_database"
+            url="postgresql+psycopg://fixture_user:fixture_password@database.invalid/fixture_database"
         )
         expected_engine = object()
 

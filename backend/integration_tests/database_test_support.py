@@ -4,7 +4,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine, make_url
 
 from infra.persistence.database_engine import create_db_engine
-from infra.persistence.database_settings import DatabaseSettings
+from infra.configuration import DatabaseSettings
 
 
 def create_test_engine() -> Engine:
@@ -22,7 +22,7 @@ def create_test_engine() -> Engine:
             "TEST_DATABASE_URL must target local port 54322/database postgres"
         )
 
-    return create_db_engine(DatabaseSettings(database_url))
+    return create_db_engine(DatabaseSettings(url=database_url))
 
 
 def clean_warehouse_tables(engine: Engine) -> None:

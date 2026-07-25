@@ -2,6 +2,7 @@ import importlib
 import os
 import sys
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from fastapi import FastAPI
@@ -15,7 +16,7 @@ from bootstrap.database_session_dependency import (
 from bootstrap.api_router import create_api_router
 from bootstrap.http_application import create_app
 from bootstrap.warehouse_bale_dependency import build_use_case
-from infra.persistence.database_settings import DatabaseSettings
+from infra.configuration import ApplicationSettings
 from warehouse.bales.application.errors import (
     DuplicateBaleNumberError,
     DuplicateShipmentNumberError,
@@ -132,8 +133,8 @@ class TestHttpApplication(unittest.TestCase):
         self.assertEqual(post_paths, {"/api/v1/warehouse/bales"})
 
     def test_create_app_with_explicit_settings(self) -> None:
-        settings = DatabaseSettings(
-            database_url="sqlite:///:memory:",
+        settings = ApplicationSettings(
+            database={"url": "sqlite:///:memory:"},
         )
 
         app = create_app(settings=settings)
@@ -145,6 +146,36 @@ class TestHttpApplication(unittest.TestCase):
             if "post" in operations
         }
         self.assertEqual(post_paths, {"/api/v1/warehouse/bales"})
+
+    def test_loads_settings_once_and_passes_nested_database_settings(self) -> None:
+        settings = ApplicationSettings(database={"url": "sqlite:///:memory:"})
+        received_settings = []
+
+        def engine_factory(database_settings):
+            received_settings.append(database_settings)
+            return object()
+
+        with patch("bootstrap.http_application.ApplicationSettings", return_value=settings) as loader:
+            create_app(
+                settings_env_file=Path("settings.env"),
+                engine_factory=engine_factory,
+                session_factory_builder=lambda engine: lambda: FakeSession(),
+            )
+
+        loader.assert_called_once_with(_env_file=Path("settings.env"))
+        self.assertEqual(received_settings, [settings.database])
+
+    def test_explicit_dependencies_bypass_settings_sources(self) -> None:
+        with patch("bootstrap.http_application.ApplicationSettings") as loader:
+            create_app(session_factory=lambda: FakeSession())
+            create_app(engine=object(), session_factory_builder=lambda engine: lambda: FakeSession())
+            create_app(
+                settings=ApplicationSettings(database={"url": "sqlite:///:memory:"}),
+                engine_factory=lambda database_settings: object(),
+                session_factory_builder=lambda engine: lambda: FakeSession(),
+            )
+
+        loader.assert_not_called()
 
     def test_registers_exception_handlers(self) -> None:
         def session_factory() -> Session:
@@ -168,6 +199,16 @@ class TestHttpApplication(unittest.TestCase):
             module = importlib.import_module("backend.main")
 
         self.assertIsInstance(module.app, FastAPI)
+
+    def test_backend_main_passes_only_its_sibling_dotenv_path(self) -> None:
+        sys.modules.pop("backend.main", None)
+        with patch("bootstrap.http_application.create_app", return_value=FastAPI()) as factory:
+            module = importlib.import_module("backend.main")
+
+        self.assertEqual(
+            factory.call_args.kwargs["settings_env_file"],
+            Path(module.__file__).resolve().with_name(".env"),
+        )
 
 
 if __name__ == "__main__":

@@ -1,10 +1,10 @@
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
-from infra.persistence.database_settings import DatabaseSettings
+from infra.configuration import DatabaseSettings
 
 
 def create_db_engine(
     settings: DatabaseSettings,
 ) -> Engine:
-    return create_engine(settings.database_url)
+    return create_engine(settings.url.get_secret_value())
