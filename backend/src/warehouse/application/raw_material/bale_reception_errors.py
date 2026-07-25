@@ -1,10 +1,7 @@
-class BaleReceptionApplicationError(Exception):
-    """Base error for raw-material reception orchestration."""
+from warehouse.bales.application.errors import (
+    DuplicateBaleNumberError,
+    DuplicateShipmentNumberError,
+    RawMaterialBatchApplicationError,
+)
 
-
-class DuplicateBaleNumberError(BaleReceptionApplicationError):
-    """A reception contains duplicate canonical bale numbers."""
-
-
-class DuplicateShipmentNumberError(BaleReceptionApplicationError):
-    """A raw-material reception already uses the shipment number."""
+BaleReceptionApplicationError = RawMaterialBatchApplicationError

@@ -32,21 +32,50 @@ from warehouse.ports.warehouse_transaction_errors import (
     DuplicateBaleNumberConflict,
     DuplicateShipmentNumberConflict,
 )
+from warehouse.bales.application import (
+    ReceivedBaleCommand,
+    RegisterRawMaterialBatch,
+    RegisterRawMaterialBatchCommand,
+    RegisterRawMaterialBatchResult,
+)
+from warehouse.bales.ports import (
+    BaleRepository as CanonicalBaleRepository,
+    IdentityGenerator as CanonicalIdentityGenerator,
+    RawMaterialBatchRepository,
+    Transaction,
+)
+from warehouse.ports.identity_generator import IdentityGenerator
+from warehouse.ports.raw_material.bale_reception_repository import BaleReceptionRepository
+from warehouse.ports.raw_material.bale_repository import BaleRepository
+from warehouse.ports.warehouse_transaction import WarehouseTransaction
 
 
 class FakeBaleReceptionRepository:
-    def __init__(self) -> None:
+    def __init__(self, call_trace: list[str] | None = None) -> None:
         self.added: BaleReception | None = None
+        self.persisted: BaleReception | None = None
+        self._call_trace = call_trace
 
     def add(self, reception: BaleReception) -> None:
+        if self._call_trace is not None:
+            self._call_trace.append("batch.add")
         self.added = reception
+
+    def commit(self) -> None:
+        self.persisted = self.added
+
+    def rollback(self) -> None:
+        self.added = None
 
 
 class FakeBaleRepository:
-    def __init__(self) -> None:
+    def __init__(self, call_trace: list[str] | None = None) -> None:
         self.added_bales: tuple[Bale, ...] = ()
+        self._call_trace = call_trace
 
     def add_all(self, bales: Sequence[Bale]) -> None:
+        if self._call_trace is not None:
+            self._call_trace.append("bales.add_all")
         self.added_bales = tuple(bales)
 
 
@@ -61,7 +90,12 @@ class FakeFailingReceptionRepository:
 class FakeFailingBaleRepository:
     """Simulates a repository that raises on add_all()."""
 
+    def __init__(self, call_trace: list[str] | None = None) -> None:
+        self._call_trace = call_trace
+
     def add_all(self, bales: Sequence[Bale]) -> None:
+        if self._call_trace is not None:
+            self._call_trace.append("bales.add_all")
         msg = "Database connection failed"
         raise RuntimeError(msg)
 
@@ -76,12 +110,20 @@ class FakeIdentityGenerator:
 
 
 class FakeWarehouseTransaction:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        call_trace: list[str] | None = None,
+        batch_repository: FakeBaleReceptionRepository | None = None,
+    ) -> None:
         self.committed = False
         self.entered = False
         self.exited_with: BaseException | None = None
+        self._call_trace = call_trace
+        self._batch_repository = batch_repository
 
     def __enter__(self) -> Self:
+        if self._call_trace is not None:
+            self._call_trace.append("transaction.enter")
         self.entered = True
         return self
 
@@ -92,8 +134,17 @@ class FakeWarehouseTransaction:
         traceback: TracebackType | None,
     ) -> None:
         self.exited_with = exception
+        if exception is not None:
+            if self._call_trace is not None:
+                self._call_trace.append("transaction.rollback")
+            if self._batch_repository is not None:
+                self._batch_repository.rollback()
 
     def commit(self) -> None:
+        if self._call_trace is not None:
+            self._call_trace.append("transaction.commit")
+        if self._batch_repository is not None:
+            self._batch_repository.commit()
         self.committed = True
 
 
@@ -263,6 +314,31 @@ class TestRegisterBaleReception(unittest.TestCase):
         self.assertTrue(self.transaction.entered)
         self.assertTrue(self.transaction.committed)
 
+    def test_adds_batch_before_bales_and_commits_last(self) -> None:
+        call_trace: list[str] = []
+        batch_repository = FakeBaleReceptionRepository(call_trace)
+        bale_repository = FakeBaleRepository(call_trace)
+        transaction = FakeWarehouseTransaction(call_trace, batch_repository)
+        use_case = RegisterBaleReception(
+            reception_repository=batch_repository,
+            bale_repository=bale_repository,
+            warehouse_transaction=transaction,
+            identity_generator=self.identity_generator,
+        )
+
+        use_case.execute(self._make_input())
+
+        self.assertEqual(
+            call_trace,
+            [
+                "transaction.enter",
+                "batch.add",
+                "bales.add_all",
+                "transaction.commit",
+            ],
+        )
+        self.assertIsNotNone(batch_repository.persisted)
+
     def test_strips_provider_name(self) -> None:
         """Provider name is stripped of surrounding whitespace."""
         input_data = self._make_input()
@@ -319,11 +395,14 @@ class TestRegisterBaleReception(unittest.TestCase):
 
     def test_no_commit_on_repository_failure(self) -> None:
         """When the repository raises, transaction is not committed."""
-        failing_bale_repo = FakeFailingBaleRepository()
+        call_trace: list[str] = []
+        batch_repository = FakeBaleReceptionRepository(call_trace)
+        failing_bale_repo = FakeFailingBaleRepository(call_trace)
+        transaction = FakeWarehouseTransaction(call_trace, batch_repository)
         use_case = RegisterBaleReception(
-            reception_repository=self.reception_repo,
+            reception_repository=batch_repository,
             bale_repository=failing_bale_repo,
-            warehouse_transaction=self.transaction,
+            warehouse_transaction=transaction,
             identity_generator=self.identity_generator,
         )
 
@@ -331,14 +410,39 @@ class TestRegisterBaleReception(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             use_case.execute(input_data)
 
-        self.assertTrue(self.transaction.entered)
-        self.assertFalse(self.transaction.committed)
+        self.assertTrue(transaction.entered)
+        self.assertFalse(transaction.committed)
+        self.assertEqual(
+            call_trace,
+            [
+                "transaction.enter",
+                "batch.add",
+                "bales.add_all",
+                "transaction.rollback",
+            ],
+        )
+        self.assertIsNone(batch_repository.added)
+        self.assertIsNone(batch_repository.persisted)
 
     def test_application_errors_inherit_from_base(self) -> None:
         for error in (DuplicateBaleNumberError, DuplicateShipmentNumberError):
             self.assertTrue(
                 issubclass(error, BaleReceptionApplicationError)
             )
+
+    def test_canonical_contracts_and_legacy_aliases_are_identical(self) -> None:
+        self.assertIs(RegisterBaleReception, RegisterRawMaterialBatch)
+        self.assertIs(RegisterBaleReceptionInput, RegisterRawMaterialBatchCommand)
+        self.assertIs(ReceivedBaleInput, ReceivedBaleCommand)
+        self.assertIs(BaleReceptionResult, RegisterRawMaterialBatchResult)
+        self.assertIs(BaleReceptionRepository, RawMaterialBatchRepository)
+        self.assertIs(BaleRepository, CanonicalBaleRepository)
+        self.assertIs(WarehouseTransaction, Transaction)
+        self.assertIs(IdentityGenerator, CanonicalIdentityGenerator)
+        self.assertIsInstance(self.reception_repo, RawMaterialBatchRepository)
+        self.assertIsInstance(self.bale_repo, CanonicalBaleRepository)
+        self.assertIsInstance(self.identity_generator, CanonicalIdentityGenerator)
+        self.assertIsInstance(self.transaction, Transaction)
 
 
 if __name__ == "__main__":
