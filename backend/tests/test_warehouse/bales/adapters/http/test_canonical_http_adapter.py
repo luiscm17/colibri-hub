@@ -45,7 +45,7 @@ class StubUseCase:
 
 def successful_result() -> RegisterRawMaterialBatchResult:
     return RegisterRawMaterialBatchResult(
-        reception_id=UUID(int=1),
+        raw_material_batch_id=UUID(int=1),
         shipment_number="SHIP-001",
         received_at=datetime(2026, 7, 22, 10, 30, tzinfo=timezone.utc),
         provider_name="Provider",
@@ -80,7 +80,11 @@ class TestCanonicalHttpAdapter(unittest.TestCase):
         self.assertEqual(post_paths, ["/api/v1/warehouse/bales"])
         response = client.post("/api/v1/warehouse/bales", json=request_payload())
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json()["reception_id"], str(UUID(int=1)))
+        self.assertEqual(response.json()["raw_material_batch_id"], str(UUID(int=1)))
+        self.assertNotIn("reception_id", response.json())
+        properties = app.openapi()["components"]["schemas"]["BaleReceptionResponse"]["properties"]
+        self.assertIn("raw_material_batch_id", properties)
+        self.assertNotIn("reception_id", properties)
         slash = client.post("/api/v1/warehouse/bales/", json=request_payload(), follow_redirects=False)
         self.assertEqual(slash.status_code, 307)
 

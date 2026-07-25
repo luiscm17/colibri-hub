@@ -17,7 +17,7 @@ class RegisteredBaleResult:
 
 @dataclass(frozen=True, slots=True)
 class RegisterRawMaterialBatchResult:
-    reception_id: UUID
+    raw_material_batch_id: UUID
     shipment_number: str
     received_at: datetime
     provider_name: str

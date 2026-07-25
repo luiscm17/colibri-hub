@@ -49,7 +49,7 @@ def request_payload(bale_count: int) -> dict[str, object]:
 
 def reception_result(bale_count: int) -> RegisterRawMaterialBatchResult:
     return RegisterRawMaterialBatchResult(
-        reception_id=UUID(int=100),
+        raw_material_batch_id=UUID(int=100),
         shipment_number="P-260042",
         received_at=datetime(
             2026, 7, 22, 10, 30, tzinfo=timezone(timedelta(hours=-4))
@@ -122,7 +122,7 @@ class TestBaleRouter(unittest.TestCase):
         self.assertEqual(
             response.json(),
             {
-                "reception_id": str(UUID(int=100)),
+                "raw_material_batch_id": str(UUID(int=100)),
                 "shipment_number": "P-260042",
                 "received_at": "2026-07-22T10:30:00-04:00",
                 "provider_name": "Proveedor Industrial",
@@ -142,6 +142,7 @@ class TestBaleRouter(unittest.TestCase):
             },
         )
         self.assertNotIn("total_net_weight_kg", response.json())
+        self.assertNotIn("reception_id", response.json())
         self.assertTrue(
             all("net_weight_kg" not in bale for bale in response.json()["bales"])
         )
@@ -225,6 +226,11 @@ class TestBaleRouter(unittest.TestCase):
         self.assertIn("409", post["responses"])
         self.assertIn("422", post["responses"])
         self.assertIn("500", post["responses"])
+        response_schema = post["responses"]["201"]["content"]["application/json"]["schema"]
+        self.assertEqual(response_schema["$ref"], "#/components/schemas/BaleReceptionResponse")
+        properties = app.openapi()["components"]["schemas"]["BaleReceptionResponse"]["properties"]
+        self.assertIn("raw_material_batch_id", properties)
+        self.assertNotIn("reception_id", properties)
 
 
 if __name__ == "__main__":

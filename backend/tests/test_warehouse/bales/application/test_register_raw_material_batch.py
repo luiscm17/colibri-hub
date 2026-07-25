@@ -195,7 +195,7 @@ class TestRegisterRawMaterialBatch(unittest.TestCase):
         result = self.use_case.execute(input_data)
 
         self.assertIsInstance(result, RegisterRawMaterialBatchResult)
-        self.assertIsInstance(result.reception_id, UUID)
+        self.assertIsInstance(result.raw_material_batch_id, UUID)
         self.assertEqual(result.bale_count, 2)
         self.assertEqual(len(result.bales), 2)
         self.assertTrue(
@@ -336,7 +336,7 @@ class TestRegisterRawMaterialBatch(unittest.TestCase):
         input_data = self._make_input()
         result = self.use_case.execute(input_data)
 
-        self.assertNotEqual(result.reception_id, result.bales[0].id)
+        self.assertNotEqual(result.raw_material_batch_id, result.bales[0].id)
         self.assertNotEqual(result.bales[0].id, result.bales[1].id)
 
     def test_bales_belong_to_reception(self) -> None:
@@ -347,7 +347,7 @@ class TestRegisterRawMaterialBatch(unittest.TestCase):
         for bale in self.bale_repo.added_bales:
             self.assertEqual(
                 bale.raw_material_batch_id.value,
-                result.reception_id,
+                result.raw_material_batch_id,
             )
 
     def test_no_side_effects_on_empty_reception(self) -> None:

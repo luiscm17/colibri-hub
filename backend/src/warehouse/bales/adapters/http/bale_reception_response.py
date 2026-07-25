@@ -20,7 +20,7 @@ class RegisteredBaleResponse(_HttpResponseModel):
 
 
 class BaleReceptionResponse(_HttpResponseModel):
-    reception_id: UUID
+    raw_material_batch_id: UUID
     shipment_number: str
     received_at: AwareDatetime
     provider_name: str

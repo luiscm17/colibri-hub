@@ -72,7 +72,7 @@ class RegisterRawMaterialBatch:
                 "Shipment number is already registered."
             ) from error
         return RegisterRawMaterialBatchResult(
-            reception_id=batch.id.value,
+            raw_material_batch_id=batch.id.value,
             shipment_number=batch.shipment_number.value,
             received_at=batch.received_at.value,
             provider_name=batch.provider_name,

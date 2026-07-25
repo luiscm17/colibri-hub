@@ -139,13 +139,13 @@ class TestBaleReceptionMapping(unittest.TestCase):
 
     def test_maps_result_to_response_exactly(self) -> None:
         received_at = datetime(2026, 7, 22, 10, 30, tzinfo=timezone(timedelta(hours=-4)))
-        reception_id = UUID("7a367a1e-18eb-4568-9548-563cd889f121")
+        raw_material_batch_id = UUID("7a367a1e-18eb-4568-9548-563cd889f121")
         bale_ids = (
             UUID("f247354b-009a-42fa-94f7-9b55442fbe71"),
             UUID("24d72ee3-61dd-456b-a47d-c82d119dfcbc"),
         )
         result = RegisterRawMaterialBatchResult(
-            reception_id=reception_id,
+            raw_material_batch_id=raw_material_batch_id,
             shipment_number="P-260042",
             received_at=received_at,
             provider_name="Proveedor Industrial",
@@ -166,7 +166,7 @@ class TestBaleReceptionMapping(unittest.TestCase):
 
         response = bale_reception_to_response(result)
 
-        self.assertEqual(response.reception_id, reception_id)
+        self.assertEqual(response.raw_material_batch_id, raw_material_batch_id)
         self.assertEqual(response.received_at, received_at)
         self.assertEqual(response.received_at.utcoffset(), timedelta(hours=-4))
         self.assertEqual([item.id for item in response.bales], list(bale_ids))
@@ -175,6 +175,8 @@ class TestBaleReceptionMapping(unittest.TestCase):
         self.assertTrue(all(isinstance(item.dtex, Decimal) for item in response.bales))
 
         payload = json.loads(response.model_dump_json())
+        self.assertEqual(payload["raw_material_batch_id"], str(raw_material_batch_id))
+        self.assertNotIn("reception_id", payload)
         self.assertEqual(payload["bales"][0]["dtex"], "1.70")
         self.assertEqual(payload["bales"][0]["gross_weight_kg"], "253.40")
         self.assertEqual(payload["bales"][0]["container_weight_kg"], "3.40")
@@ -183,7 +185,7 @@ class TestBaleReceptionMapping(unittest.TestCase):
 
     def test_rejects_unexpected_application_result_status(self) -> None:
         result = RegisterRawMaterialBatchResult(
-            reception_id=UUID("7a367a1e-18eb-4568-9548-563cd889f121"),
+            raw_material_batch_id=UUID("7a367a1e-18eb-4568-9548-563cd889f121"),
             shipment_number="P-260042",
             received_at=datetime(2026, 7, 22, 10, 30, tzinfo=timezone.utc),
             provider_name="Proveedor Industrial",

@@ -80,7 +80,7 @@ class TestRegisterRawMaterialBatchIntegration(unittest.TestCase):
         with Session(self.engine) as write_session:
             result = self._use_case(write_session).execute(reception_input)
 
-        self.assertIsInstance(result.reception_id, UUID)
+        self.assertIsInstance(result.raw_material_batch_id, UUID)
         self.assertEqual(len(result.bales), 2)
         self.assertTrue(all(isinstance(bale.id, UUID) for bale in result.bales))
         self.assertEqual(result.bale_count, 2)
@@ -88,7 +88,7 @@ class TestRegisterRawMaterialBatchIntegration(unittest.TestCase):
         with Session(self.engine) as read_session:
             reception = read_session.scalar(
                 select(RawMaterialBatchRecord).where(
-                    RawMaterialBatchRecord.id == result.reception_id
+                    RawMaterialBatchRecord.id == result.raw_material_batch_id
                 )
             )
             bales = read_session.scalars(
@@ -119,7 +119,7 @@ class TestRegisterRawMaterialBatchIntegration(unittest.TestCase):
                 number, material, dtex, gross, container = values
                 self.assertIsInstance(bale.id, UUID)
                 self.assertEqual(bale.id, registered_bale.id)
-                self.assertEqual(bale.raw_material_batch_id, result.reception_id)
+                self.assertEqual(bale.raw_material_batch_id, result.raw_material_batch_id)
                 self.assertEqual(bale.bale_number, number)
                 self.assertEqual(bale.material_type, material)
                 self.assertIsInstance(bale.dtex, Decimal)
@@ -147,7 +147,7 @@ class TestRegisterRawMaterialBatchIntegration(unittest.TestCase):
 
         with Session(self.engine) as read_session:
             first_reception = read_session.get(
-                RawMaterialBatchRecord, first_result.reception_id
+                RawMaterialBatchRecord, first_result.raw_material_batch_id
             )
             first_bale = read_session.get(BaleRecord, first_result.bales[0].id)
             second_reception = read_session.get(RawMaterialBatchRecord, ids[2])

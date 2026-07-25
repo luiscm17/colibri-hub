@@ -44,7 +44,7 @@ def bale_reception_to_response(
     result: RegisterRawMaterialBatchResult,
 ) -> BaleReceptionResponse:
     return BaleReceptionResponse(
-        reception_id=result.reception_id,
+        raw_material_batch_id=result.raw_material_batch_id,
         shipment_number=result.shipment_number,
         received_at=result.received_at,
         provider_name=result.provider_name,
