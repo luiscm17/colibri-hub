@@ -6,7 +6,7 @@
 - Root owns `openpyxl`, `pandas`, and SQLAlchemy; `backend/` owns FastAPI, Psycopg, and SQLAlchemy. Add backend-only dependencies to `backend/pyproject.toml` and keep `uv.lock` synchronized with both manifests.
 - Backend uses setuptools `src` layout and discovers only `warehouse*`, `infra*`, and `bootstrap*`; run through the root uv environment so editable workspace imports resolve.
 - Run all backend unit tests: `uv run --locked python -m unittest discover -s backend/tests -v`.
-- Run one test module: `uv run --locked python -m unittest backend.tests.test_warehouse.domain.test_raw_material_bale -v`.
+- Run one test module: `uv run --locked python -m unittest backend.tests.test_warehouse.bales.domain.test_raw_material_batch -v`.
 - Focus a class or method by appending its dotted name to the module command.
 - SQLite adapter tests belong to the unit suite; do not treat them as proof of PostgreSQL constraint diagnostics, migration shape, timezone, or `Decimal` round-trips.
 - Tests use stdlib `unittest`; no pytest, Python linter, formatter, type checker, or coverage tool is configured.
@@ -23,12 +23,12 @@
 
 - Run frontend commands from `frontend/`: `pnpm install --frozen-lockfile`, `pnpm dev`, `pnpm build`, `pnpm lint`, and `pnpm preview`.
 - `pnpm build` is the typecheck plus production build (`tsc -b && vite build`); `pnpm lint` runs ESLint. No frontend test script or test framework is configured.
-- Preserve `pnpm-workspace.yaml` supply-chain policy: 24-hour minimum release age and no-downgrade trust, including its explicit exclusions.
+- Preserve `frontend/pnpm-workspace.yaml` supply-chain policy: 24-hour minimum release age and no-downgrade trust, including its explicit exclusions.
 - `src/main.tsx` installs Mantine, notifications, and `AuthProvider`; `src/app/` owns shell/routing and `src/features/` owns feature code. Use the configured `@/*` alias for `src/*`.
 
 ## Backend boundaries
 
-- `warehouse.application` is the public facade for raw-material batch inputs, result, use case, and application errors. `warehouse.ports` exposes repository, identity, transaction, and transaction-conflict contracts; keep SQLAlchemy details in adapters.
+- `warehouse.bales.application` is the capability boundary for raw-material batch commands, result, use case, and application errors. `warehouse.bales.ports` exposes repository, identity, transaction, and transaction-conflict contracts; keep SQLAlchemy details in `warehouse.bales.adapters`.
 - `bootstrap.http_application.create_app` composes `infra.persistence` and Warehouse adapters into `POST /api/v1/warehouse/bales` and registers the HTTP exception handlers; pass a session factory in tests to avoid requiring `DATABASE_URL` or database access.
 - Raw-material batch registration inserts the batch before its bales in one transaction and returns `raw_material_batch_id`. Only the two named uniqueness constraints are translated to application conflicts; unknown integrity failures propagate.
 - Shipment numbers are globally unique through `uq_raw_material_batches_shipment_number`. Bale numbers are unique only within a batch through `uq_raw_material_bales_raw_material_batch_bale_number`; the same canonical bale number is valid in different batches.
