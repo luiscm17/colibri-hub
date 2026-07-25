@@ -34,7 +34,7 @@ class TestBaleStatus(unittest.TestCase):
     def _make_bale(self) -> Bale:
         return Bale(
             id=BaleId(uuid4()),
-            reception_id=BaleReceptionId(uuid4()),
+            raw_material_batch_id=BaleReceptionId(uuid4()),
             bale_number=BaleNumber("BAL-001"),
             material=MaterialType("ALGODÓN"),
             dtex=Dtex(Decimal("2.2")),
@@ -49,7 +49,7 @@ class TestBale(unittest.TestCase):
     def setUp(self) -> None:
         self.bale = Bale(
             id=BaleId(uuid4()),
-            reception_id=BaleReceptionId(uuid4()),
+            raw_material_batch_id=BaleReceptionId(uuid4()),
             bale_number=BaleNumber("BAL-001"),
             material=MaterialType("ALGODÓN"),
             dtex=Dtex(Decimal("2.2")),

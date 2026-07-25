@@ -1,7 +1,3 @@
-from dataclasses import dataclass
-from uuid import UUID
+from warehouse.bales.domain.raw_material_batch_id import RawMaterialBatchId
 
-
-@dataclass(frozen=True, slots=True)
-class BaleReceptionId:
-    value: UUID
+BaleReceptionId = RawMaterialBatchId

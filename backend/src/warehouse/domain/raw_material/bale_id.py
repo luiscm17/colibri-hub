@@ -1,7 +1,1 @@
-from dataclasses import dataclass
-from uuid import UUID
-
-
-@dataclass(frozen=True, slots=True)
-class BaleId:
-    value: UUID
+from warehouse.bales.domain.bale_id import BaleId

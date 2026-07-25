@@ -97,7 +97,7 @@ class TestBaleId(unittest.TestCase):
             bale_id.value = UUID(int=2)  # type: ignore[misc]
 
 
-class TestBaleReceptionId(unittest.TestCase):
+class TestLegacyBaleReceptionId(unittest.TestCase):
     def test_accepts_uuid(self) -> None:
         uid = UUID("87654321-4321-8765-4321-876543210987")
         reception_id = BaleReceptionId(uid)

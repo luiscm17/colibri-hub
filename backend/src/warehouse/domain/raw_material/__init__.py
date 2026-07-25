@@ -1,11 +1,9 @@
-from warehouse.domain.raw_material.bale import Bale
-from warehouse.domain.raw_material.bale_id import BaleId
-from warehouse.domain.raw_material.bale_number import BaleNumber
-from warehouse.domain.raw_material.bale_reception import BaleReception
-from warehouse.domain.raw_material.bale_reception_id import BaleReceptionId
-from warehouse.domain.raw_material.bale_status import BaleStatus
-from warehouse.domain.raw_material.bale_weight import BaleWeight
-from warehouse.domain.raw_material.domain_errors import (
+from warehouse.bales.domain.bale import Bale
+from warehouse.bales.domain.bale_id import BaleId
+from warehouse.bales.domain.bale_number import BaleNumber
+from warehouse.bales.domain.bale_status import BaleStatus
+from warehouse.bales.domain.bale_weight import BaleWeight
+from warehouse.bales.domain.domain_errors import (
     DomainError,
     DuplicateBaleIdError,
     EmptyBaleReceptionError,
@@ -18,10 +16,12 @@ from warehouse.domain.raw_material.domain_errors import (
     InvalidReceptionDateTimeError,
     InvalidShipmentNumberError,
 )
-from warehouse.domain.raw_material.dtex import Dtex
-from warehouse.domain.raw_material.material_type import MaterialType
-from warehouse.domain.raw_material.reception_datetime import ReceptionDateTime
-from warehouse.domain.raw_material.shipment_number import ShipmentNumber
+from warehouse.bales.domain.dtex import Dtex
+from warehouse.bales.domain.material_type import MaterialType
+from warehouse.bales.domain.raw_material_batch import RawMaterialBatch as BaleReception
+from warehouse.bales.domain.raw_material_batch_id import RawMaterialBatchId as BaleReceptionId
+from warehouse.bales.domain.reception_datetime import ReceptionDateTime
+from warehouse.bales.domain.shipment_number import ShipmentNumber
 
 __all__ = [
     "Bale",

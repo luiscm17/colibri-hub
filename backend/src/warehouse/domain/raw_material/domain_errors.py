@@ -1,42 +1,13 @@
-class DomainError(Exception):
-    """Base exception for warehouse domain rule violations."""
-
-
-class InvalidBaleNumberError(DomainError):
-    """Raised when a bale number is invalid."""
-
-
-class InvalidMaterialTypeError(DomainError):
-    """Raised when a material type is invalid."""
-
-
-class InvalidBaleWeightError(DomainError):
-    """Raised when a bale weight information is invalid."""
-
-
-class InvalidBaleStateTransitionError(DomainError):
-    """Raised when an invalid state transition is attempted for a bale."""
-
-
-class InvalidDtexError(DomainError):
-    """Raised when a Dtex number is invalid."""
-
-
-class InvalidShipmentNumberError(DomainError):
-    """Raised when a shipment number is invalid."""
-
-
-class InvalidReceptionDateTimeError(DomainError):
-    """Raised when a reception date and time is invalid."""
-
-
-class EmptyBaleReceptionError(DomainError):
-    """Raised when a reception does not contain any bale."""
-
-
-class DuplicateBaleIdError(DomainError):
-    """Raised when a reception contains duplicate bale identities."""
-
-
-class InvalidProviderNameError(DomainError):
-    """Raised when a provider name is invalid."""
+from warehouse.bales.domain.domain_errors import (
+    DomainError,
+    DuplicateBaleIdError,
+    EmptyBaleReceptionError,
+    InvalidBaleNumberError,
+    InvalidBaleStateTransitionError,
+    InvalidBaleWeightError,
+    InvalidDtexError,
+    InvalidMaterialTypeError,
+    InvalidProviderNameError,
+    InvalidReceptionDateTimeError,
+    InvalidShipmentNumberError,
+)
