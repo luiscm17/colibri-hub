@@ -10,7 +10,7 @@
 > [Warehouse functional records](../../prd/warehouse/warehouse-records.md),
 > [Architecture](../ARCHITECTURE.md),
 > [Backend Architecture](../backend.md), and
-> [`backend/docs/task.md`](../../../backend/docs/task.md).
+> [Backend Technical Design](./backend-technical-design.md).
 > The current public registration operation remains collective
 > `POST /api/v1/warehouse/bales`; Supabase migrations, not Alembic or DBML,
 > define the implemented schema. The historical body below is retained only as

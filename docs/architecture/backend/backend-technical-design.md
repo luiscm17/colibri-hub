@@ -134,7 +134,7 @@ At minimum, each context design must account for:
 
 - Register one complete raw-material batch and its one-or-more bales
 - Define production identity from available raw material
-- Deliver one or more independently loaded whole bales to Production; each transition records `delivered_at` and rejects repeat delivery
+- Deliver one or more independently loaded whole bales to Production; each transition requires no timestamp and rejects repeat delivery
 - Accept a finished product lot after Warehouse physical verification
 - Classify finished product for warehouse disposition
 - Execute sale, transfer, return, and stock-affecting warehouse actions
@@ -153,7 +153,7 @@ At minimum, each context design must account for:
 
 - raw-material reception, whole-bale delivery, identity definition, PT acceptance, and PT classification are separate auditable business acts
 - receiving is not a `Reception` aggregate, and normalized header/detail persistence does not impose an aggregate shape
-- `IN_PRODUCTION` expresses resulting custody/location, not consumption or processing; responsible delivery actors are not mandatory evidence in the current model
+- `DELIVERED` is the resulting Bale state and does not mean consumption or processing; delivery timestamps and responsible actors are not mandatory evidence in the current model
 - Warehouse corrections must not rewrite Lot Processing stage history
 - Lot Processing-owned quality state must not be duplicated in Warehouse; Warehouse availability/disposition and physical presentation remain separately auditable dimensions
 

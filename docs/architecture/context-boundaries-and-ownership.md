@@ -119,7 +119,7 @@ Shared Reference Data is a support context, not a dumping ground for business lo
 | Aggregate / record family | Owning context | Ownership note |
 |---|---|---|
 | Raw-material batch registration | Warehouse | Application action registers one complete `RawMaterialBatch` and one or more `Bale` aggregates in one transaction; persistence shape does not define this ownership |
-| Bale custody and delivery | Warehouse | Bale owns independent identity and `IN_WAREHOUSE` to `IN_PRODUCTION` transition; delivery records `delivered_at` and rejects repetition |
+| Bale custody and delivery | Warehouse | Bale owns independent identity and the `IN_WAREHOUSE` to `DELIVERED` transition; delivery requires no timestamp and rejects repetition |
 | Lot identity definition | Warehouse | Defines the single lot before Inventory records its assembly facts |
 | MP emission to production | Warehouse | Stock movement plus production handoff |
 | Warehouse supply movement | Warehouse | Independent from production lot history |

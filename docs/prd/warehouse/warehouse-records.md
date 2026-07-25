@@ -199,8 +199,8 @@ silencio fardos omitidos.
 - la emisión mueve stock de MP
 - no redefine la identidad del lote
 - documenta la entrega completa del fardo únicamente a Producción, sin vincularlo a una identidad de producción o código de lote; no requiere ni registra un destino
-- la entrega es el hecho de negocio; su resultado es `IN_PRODUCTION`, condición de custodia/ubicación que no significa consumo ni procesamiento
-- un fardo pasa una sola vez de `IN_WAREHOUSE` a `IN_PRODUCTION`; la entrega exige `delivered_at` y una entrega repetida se rechaza
+- la entrega es el hecho de negocio; su resultado es `DELIVERED`, sin afirmar consumo ni procesamiento
+- un fardo pasa una sola vez de `IN_WAREHOUSE` a `DELIVERED`; una entrega repetida se rechaza
 - los responsables que entregan o reciben no son evidencia obligatoria actual; pueden definirse después mediante un requerimiento explícito
 - una reversión solo puede ocurrir como corrección controlada y auditada
 
@@ -210,7 +210,6 @@ silencio fardos omitidos.
 - fecha de negocio de emisión
 - fardo entregado completo
 - peso del fardo entregado en kg
-- `delivered_at`, fecha y hora del hecho de entrega
 - autorización operativa correspondiente
 - observaciones o incidencias
 
