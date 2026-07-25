@@ -30,6 +30,6 @@ def clean_warehouse_tables(engine: Engine) -> None:
         connection.execute(
             text(
                 "TRUNCATE TABLE public.raw_material_bales, "
-                "public.raw_material_receptions"
+                "public.raw_material_batches"
             )
         )

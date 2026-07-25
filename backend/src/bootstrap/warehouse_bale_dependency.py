@@ -4,27 +4,27 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from bootstrap.database_session_dependency import SessionProvider
-from warehouse.adapters.identity.uuid_identity_generator import UuidIdentityGenerator
-from warehouse.adapters.persistence.raw_material.bale_reception_repository import (
-    BaleReceptionRepository,
+from warehouse.bales.adapters.identity.identity_generator import Uuid4IdentityGenerator
+from warehouse.bales.adapters.persistence.bale_repository import BaleRepositoryAdapter
+from warehouse.bales.adapters.persistence.raw_material_batch_repository import (
+    RawMaterialBatchRepositoryAdapter,
 )
-from warehouse.adapters.persistence.raw_material.bale_repository import BaleRepository
-from warehouse.adapters.persistence.warehouse_transaction import WarehouseTransaction
-from warehouse.application.raw_material.register_bale_reception import (
-    RegisterBaleReception,
+from warehouse.bales.adapters.persistence.transaction import TransactionAdapter
+from warehouse.bales.application.register_raw_material_batch import (
+    RegisterRawMaterialBatch,
 )
 
 
 class UseCaseProvider(Protocol):
-    def __call__(self, session: Session) -> RegisterBaleReception: ...
+    def __call__(self, session: Session) -> RegisterRawMaterialBatch: ...
 
 
-def build_use_case(session: Session) -> RegisterBaleReception:
-    return RegisterBaleReception(
-        reception_repository=BaleReceptionRepository(session),
-        bale_repository=BaleRepository(session),
-        warehouse_transaction=WarehouseTransaction(session),
-        identity_generator=UuidIdentityGenerator(),
+def build_use_case(session: Session) -> RegisterRawMaterialBatch:
+    return RegisterRawMaterialBatch(
+        reception_repository=RawMaterialBatchRepositoryAdapter(session),
+        bale_repository=BaleRepositoryAdapter(session),
+        warehouse_transaction=TransactionAdapter(session),
+        identity_generator=Uuid4IdentityGenerator(),
     )
 
 
@@ -33,7 +33,7 @@ def use_case_dependency(
 ) -> UseCaseProvider:
     def provide_use_case(
         session: Annotated[Session, Depends(session_provider)],
-    ) -> RegisterBaleReception:
+    ) -> RegisterRawMaterialBatch:
         return build_use_case(session)
 
     return provide_use_case

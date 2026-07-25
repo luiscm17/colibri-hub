@@ -12,33 +12,31 @@ from backend.integration_tests.database_test_support import (
     clean_warehouse_tables,
     create_test_engine,
 )
-from warehouse.adapters.identity.uuid_identity_generator import (
-    UuidIdentityGenerator,
-)
-from warehouse.adapters.persistence.raw_material.bale_record import (
+from warehouse.bales.adapters.identity.identity_generator import Uuid4IdentityGenerator
+from warehouse.bales.adapters.persistence.bale_record import (
     BaleRecord,
 )
-from warehouse.adapters.persistence.raw_material.bale_repository import (
-    BaleRepository,
+from warehouse.bales.adapters.persistence.bale_repository import (
+    BaleRepositoryAdapter,
 )
-from warehouse.adapters.persistence.raw_material.bale_reception_record import (
-    BaleReceptionRecord,
+from warehouse.bales.adapters.persistence.raw_material_batch_record import (
+    RawMaterialBatchRecord,
 )
-from warehouse.adapters.persistence.raw_material.bale_reception_repository import (
-    BaleReceptionRepository,
+from warehouse.bales.adapters.persistence.raw_material_batch_repository import (
+    RawMaterialBatchRepositoryAdapter,
 )
-from warehouse.adapters.persistence.warehouse_transaction import (
-    WarehouseTransaction,
+from warehouse.bales.adapters.persistence.transaction import (
+    TransactionAdapter,
 )
-from warehouse.application import (
+from warehouse.bales.application import (
     DuplicateShipmentNumberError,
-    ReceivedBaleInput,
-    RegisterBaleReception,
-    RegisterBaleReceptionInput,
+    ReceivedBaleCommand,
+    RegisterRawMaterialBatch,
+    RegisterRawMaterialBatchCommand,
 )
 
 
-class TestRegisterBaleReceptionIntegration(unittest.TestCase):
+class TestRegisterRawMaterialBatchIntegration(unittest.TestCase):
     engine: Engine
 
     @classmethod
@@ -57,19 +55,19 @@ class TestRegisterBaleReceptionIntegration(unittest.TestCase):
 
     def test_persists_reception_and_bales_with_database_types(self) -> None:
         received_at = datetime.fromisoformat("2026-07-22T14:15:16.123456-04:00")
-        reception_input = RegisterBaleReceptionInput(
+        reception_input = RegisterRawMaterialBatchCommand(
             received_at=received_at,
             shipment_number="SHIP-800",
             provider_name="Andean Fiber Cooperative",
             bales=(
-                ReceivedBaleInput(
+                ReceivedBaleCommand(
                     bale_number="BAL-800",
                     material_type="alpaca",
                     dtex=Decimal("2.20"),
                     gross_weight_kg=Decimal("125.750"),
                     container_weight_kg=Decimal("5.25"),
                 ),
-                ReceivedBaleInput(
+                ReceivedBaleCommand(
                     bale_number="BAL-801",
                     material_type="cotton",
                     dtex=Decimal("3.125"),
@@ -82,15 +80,15 @@ class TestRegisterBaleReceptionIntegration(unittest.TestCase):
         with Session(self.engine) as write_session:
             result = self._use_case(write_session).execute(reception_input)
 
-        self.assertIsInstance(result.reception_id, UUID)
+        self.assertIsInstance(result.raw_material_batch_id, UUID)
         self.assertEqual(len(result.bales), 2)
         self.assertTrue(all(isinstance(bale.id, UUID) for bale in result.bales))
         self.assertEqual(result.bale_count, 2)
 
         with Session(self.engine) as read_session:
             reception = read_session.scalar(
-                select(BaleReceptionRecord).where(
-                    BaleReceptionRecord.id == result.reception_id
+                select(RawMaterialBatchRecord).where(
+                    RawMaterialBatchRecord.id == result.raw_material_batch_id
                 )
             )
             bales = read_session.scalars(
@@ -121,7 +119,7 @@ class TestRegisterBaleReceptionIntegration(unittest.TestCase):
                 number, material, dtex, gross, container = values
                 self.assertIsInstance(bale.id, UUID)
                 self.assertEqual(bale.id, registered_bale.id)
-                self.assertEqual(bale.reception_id, result.reception_id)
+                self.assertEqual(bale.raw_material_batch_id, result.raw_material_batch_id)
                 self.assertEqual(bale.bale_number, number)
                 self.assertEqual(bale.material_type, material)
                 self.assertIsInstance(bale.dtex, Decimal)
@@ -138,7 +136,7 @@ class TestRegisterBaleReceptionIntegration(unittest.TestCase):
         second_input = self._input("SHIP-810", "BAL-811", "Second provider")
 
         with patch(
-            "warehouse.adapters.identity.uuid_identity_generator.uuid4",
+            "warehouse.bales.adapters.identity.identity_generator.uuid4",
             side_effect=ids,
         ):
             with Session(self.engine) as first_session:
@@ -149,10 +147,10 @@ class TestRegisterBaleReceptionIntegration(unittest.TestCase):
 
         with Session(self.engine) as read_session:
             first_reception = read_session.get(
-                BaleReceptionRecord, first_result.reception_id
+                RawMaterialBatchRecord, first_result.raw_material_batch_id
             )
             first_bale = read_session.get(BaleRecord, first_result.bales[0].id)
-            second_reception = read_session.get(BaleReceptionRecord, ids[2])
+            second_reception = read_session.get(RawMaterialBatchRecord, ids[2])
             second_bale = read_session.get(BaleRecord, ids[3])
 
             self.assertIsNotNone(first_reception)
@@ -172,12 +170,12 @@ class TestRegisterBaleReceptionIntegration(unittest.TestCase):
             )
 
     @staticmethod
-    def _use_case(session: Session) -> RegisterBaleReception:
-        return RegisterBaleReception(
-            reception_repository=BaleReceptionRepository(session),
-            bale_repository=BaleRepository(session),
-            warehouse_transaction=WarehouseTransaction(session),
-            identity_generator=UuidIdentityGenerator(),
+    def _use_case(session: Session) -> RegisterRawMaterialBatch:
+        return RegisterRawMaterialBatch(
+            reception_repository=RawMaterialBatchRepositoryAdapter(session),
+            bale_repository=BaleRepositoryAdapter(session),
+            warehouse_transaction=TransactionAdapter(session),
+            identity_generator=Uuid4IdentityGenerator(),
         )
 
     @staticmethod
@@ -185,13 +183,13 @@ class TestRegisterBaleReceptionIntegration(unittest.TestCase):
         shipment_number: str,
         bale_number: str,
         provider_name: str,
-    ) -> RegisterBaleReceptionInput:
-        return RegisterBaleReceptionInput(
+    ) -> RegisterRawMaterialBatchCommand:
+        return RegisterRawMaterialBatchCommand(
             received_at=datetime.fromisoformat("2026-07-22T12:00:00+00:00"),
             shipment_number=shipment_number,
             provider_name=provider_name,
             bales=(
-                ReceivedBaleInput(
+                ReceivedBaleCommand(
                     bale_number=bale_number,
                     material_type="cotton",
                     dtex=Decimal("2.2"),

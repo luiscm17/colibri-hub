@@ -6,25 +6,25 @@ from uuid import UUID
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from warehouse.adapters.http.raw_material.bale_router import create_router
-from warehouse.application.raw_material.bale_reception_result import (
-    BaleReceptionResult,
+from warehouse.bales.adapters.http.router import create_router
+from warehouse.bales.application.register_raw_material_batch_command import (
+    ReceivedBaleCommand,
+    RegisterRawMaterialBatchCommand,
+)
+from warehouse.bales.application.register_raw_material_batch_result import (
+    RegisterRawMaterialBatchResult,
     RegisteredBaleResult,
 )
-from warehouse.application.raw_material.register_bale_reception_input import (
-    ReceivedBaleInput,
-    RegisterBaleReceptionInput,
-)
 
 
-class StubRegisterBaleReception:
-    def __init__(self, result: BaleReceptionResult) -> None:
+class StubRegisterRawMaterialBatch:
+    def __init__(self, result: RegisterRawMaterialBatchResult) -> None:
         self.result = result
-        self.inputs: list[RegisterBaleReceptionInput] = []
+        self.inputs: list[RegisterRawMaterialBatchCommand] = []
 
     def execute(
-        self, reception_input: RegisterBaleReceptionInput
-    ) -> BaleReceptionResult:
+        self, reception_input: RegisterRawMaterialBatchCommand
+    ) -> RegisterRawMaterialBatchResult:
         self.inputs.append(reception_input)
         return self.result
 
@@ -47,9 +47,9 @@ def request_payload(bale_count: int) -> dict[str, object]:
     }
 
 
-def reception_result(bale_count: int) -> BaleReceptionResult:
-    return BaleReceptionResult(
-        reception_id=UUID(int=100),
+def reception_result(bale_count: int) -> RegisterRawMaterialBatchResult:
+    return RegisterRawMaterialBatchResult(
+        raw_material_batch_id=UUID(int=100),
         shipment_number="P-260042",
         received_at=datetime(
             2026, 7, 22, 10, 30, tzinfo=timezone(timedelta(hours=-4))
@@ -75,11 +75,11 @@ class TestBaleRouter(unittest.TestCase):
     def test_registers_one_and_multiple_bales_with_201(self) -> None:
         for bale_count in (1, 2):
             with self.subTest(bale_count=bale_count):
-                stub = StubRegisterBaleReception(reception_result(bale_count))
+                stub = StubRegisterRawMaterialBatch(reception_result(bale_count))
                 app = FastAPI()
                 app.include_router(
                     create_router(lambda: stub),
-                    prefix="/api/v1/warehouse/bales",
+                    prefix="/api/v1/warehouse",
                 )
 
                 response = TestClient(app).post(
@@ -92,23 +92,23 @@ class TestBaleRouter(unittest.TestCase):
                 self.assertEqual(len(stub.inputs), 1)
 
     def test_maps_request_executes_once_and_maps_result_response(self) -> None:
-        stub = StubRegisterBaleReception(reception_result(2))
+        stub = StubRegisterRawMaterialBatch(reception_result(2))
         app = FastAPI()
         app.include_router(
             create_router(lambda: stub),
-            prefix="/api/v1/warehouse/bales",
+            prefix="/api/v1/warehouse",
         )
 
         response = TestClient(app).post(
             "/api/v1/warehouse/bales", json=request_payload(2)
         )
 
-        expected_input = RegisterBaleReceptionInput(
+        expected_input = RegisterRawMaterialBatchCommand(
             received_at=datetime.fromisoformat("2026-07-22T10:30:00-04:00"),
             shipment_number="P-260042",
             provider_name="Proveedor Industrial",
             bales=tuple(
-                ReceivedBaleInput(
+                ReceivedBaleCommand(
                     bale_number=f"F-{index:03d}",
                     material_type="HB",
                     dtex=Decimal("1.70"),
@@ -122,7 +122,7 @@ class TestBaleRouter(unittest.TestCase):
         self.assertEqual(
             response.json(),
             {
-                "reception_id": str(UUID(int=100)),
+                "raw_material_batch_id": str(UUID(int=100)),
                 "shipment_number": "P-260042",
                 "received_at": "2026-07-22T10:30:00-04:00",
                 "provider_name": "Proveedor Industrial",
@@ -142,17 +142,18 @@ class TestBaleRouter(unittest.TestCase):
             },
         )
         self.assertNotIn("total_net_weight_kg", response.json())
+        self.assertNotIn("reception_id", response.json())
         self.assertTrue(
             all("net_weight_kg" not in bale for bale in response.json()["bales"])
         )
 
 
     def test_rejects_empty_bales_with_422(self) -> None:
-        stub = StubRegisterBaleReception(reception_result(1))
+        stub = StubRegisterRawMaterialBatch(reception_result(1))
         app = FastAPI()
         app.include_router(
             create_router(lambda: stub),
-            prefix="/api/v1/warehouse/bales",
+            prefix="/api/v1/warehouse",
         )
 
         payload = request_payload(1)
@@ -165,11 +166,11 @@ class TestBaleRouter(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
 
     def test_rejects_missing_body_with_422(self) -> None:
-        stub = StubRegisterBaleReception(reception_result(1))
+        stub = StubRegisterRawMaterialBatch(reception_result(1))
         app = FastAPI()
         app.include_router(
             create_router(lambda: stub),
-            prefix="/api/v1/warehouse/bales",
+            prefix="/api/v1/warehouse",
         )
 
         response = TestClient(app).post(
@@ -179,11 +180,11 @@ class TestBaleRouter(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
 
     def test_rejects_naive_datetime_with_422(self) -> None:
-        stub = StubRegisterBaleReception(reception_result(1))
+        stub = StubRegisterRawMaterialBatch(reception_result(1))
         app = FastAPI()
         app.include_router(
             create_router(lambda: stub),
-            prefix="/api/v1/warehouse/bales",
+            prefix="/api/v1/warehouse",
         )
 
         payload = request_payload(1)
@@ -196,11 +197,11 @@ class TestBaleRouter(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
 
     def test_rejects_extra_fields_with_422(self) -> None:
-        stub = StubRegisterBaleReception(reception_result(1))
+        stub = StubRegisterRawMaterialBatch(reception_result(1))
         app = FastAPI()
         app.include_router(
             create_router(lambda: stub),
-            prefix="/api/v1/warehouse/bales",
+            prefix="/api/v1/warehouse",
         )
 
         payload = request_payload(1)
@@ -213,11 +214,11 @@ class TestBaleRouter(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
 
     def test_openapi_spec_lists_error_responses(self) -> None:
-        stub = StubRegisterBaleReception(reception_result(1))
+        stub = StubRegisterRawMaterialBatch(reception_result(1))
         app = FastAPI()
         app.include_router(
             create_router(lambda: stub),
-            prefix="/api/v1/warehouse/bales",
+            prefix="/api/v1/warehouse",
         )
 
         post = app.openapi()["paths"]["/api/v1/warehouse/bales"]["post"]
@@ -225,6 +226,11 @@ class TestBaleRouter(unittest.TestCase):
         self.assertIn("409", post["responses"])
         self.assertIn("422", post["responses"])
         self.assertIn("500", post["responses"])
+        response_schema = post["responses"]["201"]["content"]["application/json"]["schema"]
+        self.assertEqual(response_schema["$ref"], "#/components/schemas/BaleReceptionResponse")
+        properties = app.openapi()["components"]["schemas"]["BaleReceptionResponse"]["properties"]
+        self.assertIn("raw_material_batch_id", properties)
+        self.assertNotIn("reception_id", properties)
 
 
 if __name__ == "__main__":

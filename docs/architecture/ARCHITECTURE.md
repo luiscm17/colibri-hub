@@ -100,7 +100,7 @@ flowchart LR
 
 | Context | Owns | Does not own |
 |---|---|---|
-| **Warehouse** | Raw-material reception as **bales**, production identity definition, emissions to production, PT reception, warehouse availability/disposition, physical presentation, stock lifecycle | Spinning section records, lot-stage progression, operation quality execution |
+| **Warehouse** | Raw-material batch registration, independent **Bale** custody/lifecycle, production identity definition, deliveries to Production, PT reception, warehouse availability/disposition, physical presentation, stock lifecycle | Spinning section records, lot-stage progression, operation quality execution |
 | **Yarn Spinning** | Continuous production records by section / machine / shift / yarn count, process quality in spinning, spinning waste, skein output | Physical lot, lot timeline, warehouse stock |
 | **Lot Processing** | Inventory assembly facts, stage-by-stage lot history, stage notes/exceptions, stage waste, final lot quality at delivery | Warehouse stock balances, warehouse disposition, spinning records |
 | **Access Control** | Authorization policy, scopes, permissions, exceptions, auditability of permission changes | Business workflow meaning |
@@ -154,6 +154,10 @@ flowchart LR
     - warehouse **availability / disposition**
     - **physical presentation** of finished product
 
+9. **Persistence shape does not define aggregates.** A normalized header/detail
+    representation does not make Reception a domain aggregate. Warehouse models the
+   `RawMaterialBatch` shipment grouping and the independently lifecycle-owning `Bale`.
+
 ---
 
 ## 5. High-Level Cross-Context Lifecycle
@@ -164,7 +168,7 @@ single internal workflow owned by one model.
 ```mermaid
 flowchart LR
     S[Supplier]
-    W1[Warehouse<br/>Receive raw material as bales]
+    W1[Warehouse<br/>Register one raw-material batch and its bales]
     W2[Warehouse<br/>Define production identity and specifications]
     W3[Warehouse<br/>Emit material to production]
     YS[Yarn Spinning<br/>Continuous production and skein output]
@@ -178,6 +182,9 @@ flowchart LR
 ### Lifecycle notes
 
 - **Raw material starts as bales in Warehouse**, not as a production lot.
+- **Receiving is an application action**, not a Reception aggregate; it registers
+  one complete `RawMaterialBatch` with one or more bales.
+- **Each Bale owns its custody lifecycle** from `IN_WAREHOUSE` to `DELIVERED`.
 - **Production identity is defined later** by Warehouse / Production Chief.
 - **Yarn Spinning has no lot entity or lot timeline.**
 - **Inventory records the assembled lot's weight and skein count.**

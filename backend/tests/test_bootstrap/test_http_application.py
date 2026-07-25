@@ -12,13 +12,18 @@ from sqlalchemy.orm import Session
 from bootstrap.database_session_dependency import (
     session_dependency,
 )
+from bootstrap.api_router import create_api_router
 from bootstrap.http_application import create_app
 from bootstrap.warehouse_bale_dependency import build_use_case
 from infra.persistence.database_settings import DatabaseSettings
-from warehouse.application.raw_material.bale_reception_errors import (
+from warehouse.bales.application.errors import (
     DuplicateBaleNumberError,
     DuplicateShipmentNumberError,
 )
+from warehouse.bales.adapters.http.router import (
+    create_router as create_bale_router,
+)
+from warehouse.adapters.http.router import create_router as create_warehouse_router
 
 
 class FakeSession(Session):
@@ -38,9 +43,9 @@ class TestBootstrapDependencies(unittest.TestCase):
 
         use_case = build_use_case(session)
 
-        self.assertIs(use_case._reception_repository._session, session)
-        self.assertIs(use_case._bale_repository._session, session)
-        self.assertIs(use_case._warehouse_transaction._session, session)
+        self.assertIs(getattr(use_case._raw_material_batch_repository, "_session"), session)
+        self.assertIs(getattr(use_case._bale_repository, "_session"), session)
+        self.assertIs(getattr(use_case._transaction, "_session"), session)
 
     def test_session_dependency_yields_and_closes_independent_sessions(self) -> None:
         sessions: list[FakeSession] = []
@@ -64,6 +69,19 @@ class TestBootstrapDependencies(unittest.TestCase):
 
 
 class TestHttpApplication(unittest.TestCase):
+    def test_router_hierarchy_assigns_each_prefix_to_one_owner(self) -> None:
+        from typing import Any, Callable
+
+        use_case_provider: Callable[[], Any] = lambda: object()
+
+        api_router = create_api_router(use_case_provider)
+        warehouse_router = create_warehouse_router(use_case_provider)
+        bale_router = create_bale_router(use_case_provider)
+
+        self.assertEqual(api_router.prefix, "/api/v1")
+        self.assertEqual(warehouse_router.prefix, "/warehouse")
+        self.assertEqual(bale_router.prefix, "/bales")
+
     def test_factory_exposes_exact_route_without_database_access(self) -> None:
         session_factory_calls = 0
 
@@ -75,17 +93,30 @@ class TestHttpApplication(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             app = create_app(session_factory=session_factory)
 
-        post_paths = {
+        post_paths = [
             path
             for path, operations in app.openapi()["paths"].items()
             if "post" in operations
-        }
-        self.assertEqual(post_paths, {"/api/v1/warehouse/bales"})
+        ]
+        self.assertEqual(post_paths, ["/api/v1/warehouse/bales"])
         self.assertEqual(session_factory_calls, 0)
 
-        response = TestClient(app).post("/api/v1/warehouse/bales/", json={})
-        self.assertNotEqual(response.status_code, 404)
+        client = TestClient(app)
+        response = client.post("/api/v1/warehouse/bales", json={})
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.history, [])
         self.assertEqual(session_factory_calls, 1)
+
+        slash_response = client.post(
+            "/api/v1/warehouse/bales/",
+            json={},
+            follow_redirects=False,
+        )
+        self.assertEqual(slash_response.status_code, 307)
+        self.assertEqual(
+            slash_response.headers["location"],
+            "http://testserver/api/v1/warehouse/bales",
+        )
 
     def test_create_app_with_explicit_engine(self) -> None:
         engine = create_engine("sqlite:///:memory:", echo=True)

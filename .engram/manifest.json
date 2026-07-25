@@ -32,6 +32,14 @@
       "sessions": 20,
       "memories": 125,
       "prompts": 227
+    },
+    {
+      "id": "e9e80603",
+      "created_by": "luis-cm",
+      "created_at": "2026-07-25T13:54:39Z",
+      "sessions": 58,
+      "memories": 230,
+      "prompts": 194
     }
   ]
 }

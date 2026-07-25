@@ -10,11 +10,11 @@ from bootstrap.http_error_handlers import (
     unexpected_error_handler,
     _validation_error_path,
 )
-from warehouse.application.raw_material.bale_reception_errors import (
+from warehouse.bales.application.errors import (
     DuplicateBaleNumberError,
     DuplicateShipmentNumberError,
 )
-from warehouse.domain.raw_material.domain_errors import DomainError
+from warehouse.bales.domain.domain_errors import DomainError
 
 
 def _await(coro):

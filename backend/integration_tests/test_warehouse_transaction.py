@@ -11,16 +11,16 @@ from backend.integration_tests.database_test_support import (
     clean_warehouse_tables,
     create_test_engine,
 )
-from warehouse.adapters.persistence.raw_material.bale_record import (
+from warehouse.bales.adapters.persistence.bale_record import (
     BaleRecord,
 )
-from warehouse.adapters.persistence.raw_material.bale_reception_record import (
-    BaleReceptionRecord,
+from warehouse.bales.adapters.persistence.raw_material_batch_record import (
+    RawMaterialBatchRecord,
 )
-from warehouse.adapters.persistence.warehouse_transaction import (
-    WarehouseTransaction,
+from warehouse.bales.adapters.persistence.transaction import (
+    TransactionAdapter,
 )
-from warehouse.ports import DuplicateBaleNumberConflict
+from warehouse.bales.ports import DuplicateBaleNumberConflict
 
 
 class TestWarehouseTransactionIntegration(unittest.TestCase):
@@ -45,22 +45,22 @@ class TestWarehouseTransactionIntegration(unittest.TestCase):
 
         with Session(self.engine) as session:
             with self.assertRaisesRegex(RuntimeError, "deterministic failure"):
-                with WarehouseTransaction(session):
+                with TransactionAdapter(session):
                     session.add(self._reception(reception_id, "SHIP-900"))
                     session.flush()
                     self.assertIsNotNone(
-                        session.get(BaleReceptionRecord, reception_id)
+                        session.get(RawMaterialBatchRecord, reception_id)
                     )
                     raise RuntimeError("deterministic failure")
 
         with Session(self.engine) as read_session:
             self.assertIsNone(
-                read_session.get(BaleReceptionRecord, reception_id)
+                read_session.get(RawMaterialBatchRecord, reception_id)
             )
             self.assertEqual(
                 read_session.scalars(
                     select(BaleRecord).where(
-                        BaleRecord.reception_id == reception_id
+                        BaleRecord.raw_material_batch_id == reception_id
                     )
                 ).all(),
                 [],
@@ -73,7 +73,7 @@ class TestWarehouseTransactionIntegration(unittest.TestCase):
 
         with Session(self.engine) as session:
             with self.assertRaises(DuplicateBaleNumberConflict):
-                with WarehouseTransaction(session) as transaction:
+                with TransactionAdapter(session) as transaction:
                     session.add(self._reception(reception_id, "SHIP-910"))
                     session.flush()
                     session.add_all(
@@ -86,7 +86,7 @@ class TestWarehouseTransactionIntegration(unittest.TestCase):
 
         with Session(self.engine) as read_session:
             self.assertIsNone(
-                read_session.get(BaleReceptionRecord, reception_id)
+                read_session.get(RawMaterialBatchRecord, reception_id)
             )
             self.assertEqual(
                 read_session.scalars(
@@ -100,8 +100,8 @@ class TestWarehouseTransactionIntegration(unittest.TestCase):
             )
 
     @staticmethod
-    def _reception(reception_id, shipment_number: str) -> BaleReceptionRecord:
-        return BaleReceptionRecord(
+    def _reception(reception_id, shipment_number: str) -> RawMaterialBatchRecord:
+        return RawMaterialBatchRecord(
             id=reception_id,
             received_at=datetime.now(timezone.utc),
             shipment_number=shipment_number,
@@ -112,7 +112,7 @@ class TestWarehouseTransactionIntegration(unittest.TestCase):
     def _bale(bale_id, reception_id, bale_number: str) -> BaleRecord:
         return BaleRecord(
             id=bale_id,
-            reception_id=reception_id,
+            raw_material_batch_id=reception_id,
             bale_number=bale_number,
             material_type="COTTON",
             dtex=Decimal("2.2"),

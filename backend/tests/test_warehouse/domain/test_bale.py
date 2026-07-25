@@ -2,22 +2,24 @@ import unittest
 from decimal import Decimal
 from uuid import uuid4
 
-from warehouse.domain.raw_material import (
+from warehouse.bales.domain import (
     Bale,
-    BaleId,
-    BaleNumber,
-    BaleReceptionId,
-    BaleStatus,
-    BaleWeight,
-    Dtex,
     DomainError,
-    InvalidBaleNumberError,
     InvalidBaleStateTransitionError,
+)
+from warehouse.bales.domain.bale_id import BaleId
+from warehouse.bales.domain.bale_number import BaleNumber
+from warehouse.bales.domain.bale_status import BaleStatus
+from warehouse.bales.domain.bale_weight import BaleWeight
+from warehouse.bales.domain.dtex import Dtex
+from warehouse.bales.domain.domain_errors import (
+    InvalidBaleNumberError,
     InvalidBaleWeightError,
     InvalidMaterialTypeError,
     InvalidProviderNameError,
-    MaterialType,
 )
+from warehouse.bales.domain.material_type import MaterialType
+from warehouse.bales.domain.raw_material_batch_id import RawMaterialBatchId
 
 
 class TestBaleStatus(unittest.TestCase):
@@ -34,7 +36,7 @@ class TestBaleStatus(unittest.TestCase):
     def _make_bale(self) -> Bale:
         return Bale(
             id=BaleId(uuid4()),
-            reception_id=BaleReceptionId(uuid4()),
+            raw_material_batch_id=RawMaterialBatchId(uuid4()),
             bale_number=BaleNumber("BAL-001"),
             material=MaterialType("ALGODÓN"),
             dtex=Dtex(Decimal("2.2")),
@@ -49,7 +51,7 @@ class TestBale(unittest.TestCase):
     def setUp(self) -> None:
         self.bale = Bale(
             id=BaleId(uuid4()),
-            reception_id=BaleReceptionId(uuid4()),
+            raw_material_batch_id=RawMaterialBatchId(uuid4()),
             bale_number=BaleNumber("BAL-001"),
             material=MaterialType("ALGODÓN"),
             dtex=Dtex(Decimal("2.2")),

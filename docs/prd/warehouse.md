@@ -187,10 +187,10 @@ En cada cierre, el sistema calcula los saldos con la formula `(Saldo Anterior + 
 
 | ID | Requerimiento |
 |---|---|
-| WH-RM-01 | El sistema debe permitir registrar una partida o recepción de MP con un `shipment_number` obligatorio y globalmente único, y uno o más fardos. Cada fardo debe tener un `bale_number` obligatorio y único dentro de la partida, aunque pueda repetirse en partidas diferentes; su identidad empresarial queda determinada por `shipment_number` + `bale_number`. También se registran proveedor, peso bruto, título, color/fibra y número de camión; la factura o documento del proveedor es un respaldo comercial opcional y separado. |
+| WH-RM-01 | El sistema debe permitir registrar una partida de materia prima (`RawMaterialBatch`) completa, identificada por un `shipment_number` obligatorio y globalmente único, con uno o más fardos. Cada fardo tiene identidad técnica independiente y un `bale_number` obligatorio, único dentro de la partida aunque pueda repetirse en partidas diferentes; su identidad visible para el negocio es `shipment_number` + `bale_number`. También se registran proveedor, peso bruto, título, color/fibra y número de camión; la factura o documento del proveedor es un respaldo comercial opcional y separado. El alta actual ocurre en una única solicitud y transacción. Agregar después fardos omitidos no forma parte del flujo actual; una futura corrección de carga deberá ser explícita y auditada. |
 | WH-RM-02 | El sistema debe permitir definir una identidad de producción independiente mediante `production_identity_id` y un `lot_code` único visible. |
 | WH-RM-03 | El sistema debe registrar en esa identidad los datos del pedido: cliente o destino, color solicitado, título, tipo N/CH y observaciones. Este enriquecimiento es el insumo para la planificación de producción que realiza el Jefe de Producción (ver [sección 5 de operation.md](../prd/operation.md#5-planificación-de-la-producción)). |
-| WH-RM-04 | El sistema debe permitir registrar una única entrega completa de un fardo a Producción indicando fecha, responsable que entrega y responsable receptor. Los fardos completos se entregan únicamente a Producción, por lo que no se requiere ni se persiste un destino. Cuando la entrega está registrada, esos tres datos son obligatorios; antes de la entrega no se registran. La transición de no entregado a entregado solo se revierte mediante corrección controlada y auditada. La entrega no vincula el fardo a una identidad de producción o código de lote. |
+| WH-RM-04 | El sistema debe permitir registrar una única entrega completa de un fardo a Producción. La entrega es el hecho de negocio y su resultado es que el fardo pasa de `IN_WAREHOUSE` a `DELIVERED`, sin afirmar consumo ni procesamiento. Los fardos completos se entregan únicamente a Producción, por lo que no se requiere ni se persiste un destino. Una segunda entrega debe rechazarse. La reversión solo puede ocurrir mediante corrección controlada y auditada. La entrega no vincula el fardo a una identidad de producción o código de lote. No se exigen una fecha de entrega ni los responsables que entregan o reciben; solo podrán incorporarse mediante un requerimiento futuro explícito. |
 | WH-RM-05 | El sistema debe mantener el historial de fardos recibidos y entregados a Operación, independiente de las definiciones de producción. |
 
 ### 5.2 Producto Terminado
@@ -239,14 +239,17 @@ En cada cierre, el sistema calcula los saldos con la formula `(Saldo Anterior + 
 |---|---|
 | **Almacen** | Unidad organizacional responsable de gestionar las existencias de materia prima, producto terminado e insumos de produccion. Depende de la Direccion de Produccion. |
 | **Fardo** | Unidad física de materia prima recibida desde proveedor. La recepción inicial de MP ocurre en fardos, no en lotes de proceso. |
+| **Partida de materia prima** | Agrupación `RawMaterialBatch` identificada visiblemente por `shipment_number`, que reúne uno o más fardos y su evidencia o características compartidas. No es un lote de producción. |
+| **Número de envío** | `shipment_number`; identificador visible y globalmente único de una partida de materia prima. |
+| **Identidad del fardo** | Cada fardo posee identidad técnica independiente; para el negocio se reconoce por `shipment_number` + `bale_number`. |
 | **Lote** | Unidad de producción cuya única identidad es definida por Almacén y cuyo armado físico ocurre más adelante en Operación. |
 | **Codigo de lote** | `lot_code` visible definido por Almacén para la única `production_identity_id` que acompaña la producción y el historial del lote. |
 | **Movimiento** | Registro auditable de una entrada o salida de existencias en Almacen. Puede corregirse mediante edición controlada con trazabilidad completa. Cada movimiento pertenece a un tipo especifico (reception, emission, sale, etc.). |
 | **Existencias** | Cantidad de un producto disponible en Almacen en un momento dado. Se calcula con la formula `(Saldo Anterior + Entradas) − Salidas`. |
 | **Estado operativo del PT** | Situación del Producto Terminado dentro de Almacén para efectos de disponibilidad y distribución: disponible, observado, disponible con condición, defectuoso o entregado/despachado. |
 | **Presentación física** | Forma en que Almacén mantiene o recibe el PT, por ejemplo bolsa/suelto o modalidad industrial/ovillado cuando corresponda. |
-| **Recepcion** | Movimiento de entrada de MP o PT a Almacen, proveniente de proveedor o de Operacion respectivamente. |
-| **Emision** | Movimiento de salida de MP desde Almacen hacia Operacion para su procesamiento. |
+| **Recepcion** | Acción de negocio o caso de uso que registra una entrada a Almacén. Para MP registra una partida completa con uno o más fardos; no define un agregado de dominio `Reception`. |
+| **Emision** | Entrega de un fardo completo desde Almacén hacia Producción. El hecho deja al fardo en `DELIVERED`, sin afirmar consumo o procesamiento. |
 | **Salida** | Movimiento de salida de PT hacia cliente directo (venta) o Comercializacion. |
 | **Devolucion** | Movimiento de entrada de PT o Insumos de Producción que retorna a Almacen despues de haber salido. Puede ser total o parcial. |
 | **Consumo** | Movimiento de salida de Insumos de Producción desde Almacen hacia Produccion para su uso en el proceso productivo. |

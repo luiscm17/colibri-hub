@@ -3,13 +3,14 @@ from unittest.mock import Mock
 
 from sqlalchemy.exc import IntegrityError
 
-from warehouse.adapters.persistence.warehouse_transaction import (
+from warehouse.bales.adapters.persistence.transaction import (
     BALE_NUMBER_UNIQUE_CONSTRAINT,
     SHIPMENT_NUMBER_UNIQUE_CONSTRAINT,
-    WarehouseTransaction,
+    TransactionAdapter,
     violated_constraint,
 )
-from warehouse.ports.warehouse_transaction_errors import (
+from warehouse.bales.ports.transaction import Transaction
+from warehouse.bales.ports.transaction_errors import (
     DuplicateBaleNumberConflict,
     DuplicateShipmentNumberConflict,
 )
@@ -44,6 +45,9 @@ class TestViolatedConstraint(unittest.TestCase):
 
 
 class TestWarehouseTransaction(unittest.TestCase):
+    def test_satisfies_canonical_transaction_port(self) -> None:
+        self.assertIsInstance(TransactionAdapter(Mock()), Transaction)
+
     def test_translates_bale_constraint_and_rolls_back_once(self) -> None:
         self._assert_translated(
             BALE_NUMBER_UNIQUE_CONSTRAINT,
@@ -60,7 +64,7 @@ class TestWarehouseTransaction(unittest.TestCase):
         error = make_integrity_error("unrelated_constraint")
         session = Mock()
         session.commit.side_effect = error
-        transaction = WarehouseTransaction(session)
+        transaction = TransactionAdapter(session)
 
         with self.assertRaises(IntegrityError) as raised:
             with transaction:
@@ -76,7 +80,7 @@ class TestWarehouseTransaction(unittest.TestCase):
     ) -> None:
         session = Mock()
         session.commit.side_effect = make_integrity_error(constraint_name)
-        transaction = WarehouseTransaction(session)
+        transaction = TransactionAdapter(session)
 
         with self.assertRaises(conflict):
             with transaction:

@@ -33,6 +33,12 @@ This document is a **naming contract only**. It does **not** define:
 | Spanish term                            | Business meaning                                                                       | Canonical English term for docs          | Canonical code term                   | Avoid / notes                                                                                                                   |
 | --------------------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `fardo`                                 | Raw-material unit received from suppliers before any production lot exists             | **bale**                                 | `bale`                                | Avoid `bundle` or `lot`. A `fardo` is not a production lot.                                                                     |
+| `partida de materia prima`              | Supplier shipment grouping one or more bales and their shared evidence/characteristics | **raw-material batch**                   | `RawMaterialBatch`                   | Identified by `ShipmentNumber`. Never use it for a production lot/batch.                                                        |
+| `número de envío`                       | Business-visible identifier of a raw-material batch                                     | **shipment number**                      | `ShipmentNumber`                     | Transport and persistence currently expose `shipment_number`.                                                                  |
+| `recepción de fardos`                   | Application action that registers one complete raw-material batch and one or more bales | **receiving action**                     | `ReceiveBales` or `RegisterRawMaterialBatch` | Verb remains provisional. Do not model `Reception` or `BaleReception` as the domain grouping.                              |
+| `entrega de fardos a Producción`        | Application action that changes custody for one or more independently loaded bales       | **delivery to Production**               | `DeliverBales`                       | Future capability. Multi-bale command atomicity remains undecided.                                                             |
+| `en Almacén`                            | Bale remains under Warehouse custody                                                     | **in Warehouse**                          | `IN_WAREHOUSE`                       | Bale lifecycle state.                                                                                                          |
+| `entregado`                             | Bale has been delivered to Production                                                    | **delivered**                             | `DELIVERED`                          | Bale lifecycle state. Does not mean consumed or processed.                                                                      |
 | `título`                                | Textile count/thickness designation of the yarn, such as `2/18` or `2/32`              | **yarn count**                           | `yarnCount`                           | Avoid bare `title`; it is overloaded in software and weak in English. Keep `title` only when quoting legacy business wording.   |
 | `lote`                                  | Physical batch tracked through Lot Processing and later Warehouse continuity           | **lot**                                  | `lot`                                 | Use only for the physical batch, not for upstream raw-material reception.                                                       |
 | `identidad de producción`               | Business identity used across contexts before and during production flow               | **production identity**                  | `productionIdentity`                  | Keep distinct from `lot`.                                                                                                       |
@@ -89,6 +95,13 @@ Use these names for **operation section/stage identifiers** so process names sta
 - In **Warehouse**, balances and custody should prefer **stock** terminology.
 
 This is a hard rule to avoid one of the worst naming collisions in the current docs.
+
+### Raw-material batch vs production lot
+
+- `RawMaterialBatch` groups supplier-shipment bales before production and is identified by `ShipmentNumber`.
+- `Bale` has independent technical identity and owns the `IN_WAREHOUSE` to `DELIVERED` lifecycle; its business-visible identity is `shipment_number` + `bale_number`.
+- A production `lot` belongs to the later production flow. It is never a synonym for `RawMaterialBatch`.
+- Receiving is an application action, not a `Reception` aggregate.
 
 ### Availability state vs stock
 

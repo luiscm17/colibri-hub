@@ -6,22 +6,22 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.types import ExceptionHandler
 
-from warehouse.adapters.http.raw_material.error_handlers import (
+from warehouse.bales.adapters.http.error_handlers import (
     domain_error_handler,
     duplicate_bale_number_handler,
     duplicate_shipment_number_handler,
 )
-from warehouse.adapters.http.raw_material.error_mapping import (
+from warehouse.bales.adapters.http.error_mapping import (
     error_json_response,
 )
-from warehouse.adapters.http.raw_material.error_response import (
+from warehouse.bales.adapters.http.error_response import (
     FieldErrorResponse,
 )
-from warehouse.application.raw_material.bale_reception_errors import (
+from warehouse.bales.application.errors import (
     DuplicateBaleNumberError,
     DuplicateShipmentNumberError,
 )
-from warehouse.domain.raw_material.domain_errors import DomainError
+from warehouse.bales.domain.domain_errors import DomainError
 
 
 logger = logging.getLogger(__name__)
