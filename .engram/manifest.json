@@ -2,52 +2,12 @@
   "version": 1,
   "chunks": [
     {
-      "id": "84803f0c",
+      "id": "c6478be0",
       "created_by": "luis-cm",
-      "created_at": "2026-06-10T14:59:53Z",
-      "sessions": 6,
-      "memories": 6,
-      "prompts": 124
-    },
-    {
-      "id": "b030c376",
-      "created_by": "luis-cm",
-      "created_at": "2026-07-09T19:16:57Z",
-      "sessions": 17,
-      "memories": 157,
-      "prompts": 637
-    },
-    {
-      "id": "48299dfa",
-      "created_by": "luis-cm",
-      "created_at": "2026-07-13T02:40:24Z",
-      "sessions": 4,
-      "memories": 120,
-      "prompts": 75
-    },
-    {
-      "id": "ec4906fb",
-      "created_by": "luis-cm",
-      "created_at": "2026-07-17T14:44:22Z",
-      "sessions": 20,
-      "memories": 125,
-      "prompts": 227
-    },
-    {
-      "id": "e9e80603",
-      "created_by": "luis-cm",
-      "created_at": "2026-07-25T13:54:39Z",
-      "sessions": 58,
-      "memories": 230,
-      "prompts": 194
-    },
-    {
-      "id": "d9745a95",
-      "created_by": "luis-cm",
-      "created_at": "2026-07-25T17:10:24Z",
-      "sessions": 2,
-      "memories": 23,
-      "prompts": 20
+      "created_at": "2026-07-26T13:51:42Z",
+      "sessions": 114,
+      "memories": 730,
+      "prompts": 1296
     }
   ]
 }
