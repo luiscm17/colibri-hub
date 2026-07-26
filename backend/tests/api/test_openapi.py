@@ -12,6 +12,8 @@ from warehouse.bales.application import (
 
 
 class SuccessfulUseCase:
+    """Stand-in use case that asserts OpenAPI generation never executes it."""
+    
     def execute(
         self, command: RegisterRawMaterialBatchCommand
     ) -> RegisterRawMaterialBatchResult:
@@ -20,6 +22,8 @@ class SuccessfulUseCase:
 
 
 class BaleRegistrationOpenApiTests(unittest.TestCase):
+    """OpenAPI schema contract tests for bale registration endpoint."""
+    
     def test_documents_only_the_current_post_route_and_contract_responses(self) -> None:
         app = FastAPI()
         register_exception_handlers(app)

@@ -14,7 +14,10 @@ OS_URL = "postgresql+psycopg://os-user:os-secret@os-host/test"
 
 
 class ApplicationSettingsTests(unittest.TestCase):
+    """Application settings contracts: env-file resolution, OS override, and secret redaction."""
+
     def test_explicit_env_file_is_used_and_os_environment_overrides_it(self) -> None:
+        """The explicit _env_file is read, and DATABASE_URL from os.environ takes precedence."""
         with tempfile.TemporaryDirectory() as directory:
             env_file = Path(directory) / "settings.env"
             env_file.write_text(f"DATABASE_URL={FILE_URL}\n", encoding="utf-8")
@@ -30,6 +33,7 @@ class ApplicationSettingsTests(unittest.TestCase):
                 )
 
     def test_absent_or_implicit_dotenv_never_overrides_isolated_os_environment(self) -> None:
+        """A missing env file falls through to OS environment; a present sibling .env does not override an explicit os.environ."""
         with tempfile.TemporaryDirectory() as directory:
             dotenv = Path(directory) / ".env"
             dotenv.write_text(f"DATABASE_URL={FILE_URL}\n", encoding="utf-8")
@@ -45,6 +49,7 @@ class ApplicationSettingsTests(unittest.TestCase):
         self.assertEqual(settings.database.url.get_secret_value(), OS_URL)
 
     def test_database_url_validation_and_secret_redaction_are_observable(self) -> None:
+        """DatabaseSettings validates the URL format, redacts secrets in repr, and includes the secret in the stored value."""
         secret_url = "postgresql+psycopg://user:private-password@host/database"
         settings = DatabaseSettings(url=secret_url)
 

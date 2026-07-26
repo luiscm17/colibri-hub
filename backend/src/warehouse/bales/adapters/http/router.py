@@ -17,6 +17,14 @@ UseCaseProvider = Callable[..., RegisterRawMaterialBatch]
 
 
 def create_router(use_case_provider: UseCaseProvider) -> APIRouter:
+    """Create the HTTP router for bale reception endpoints.
+    
+    Args:
+        use_case_provider: FastAPI dependency that resolves the use case.
+    
+    Returns:
+        Configured APIRouter with the bale registration endpoint.
+    """
     router = APIRouter(prefix="/bales")
 
     @router.post(
@@ -42,6 +50,12 @@ def create_router(use_case_provider: UseCaseProvider) -> APIRouter:
         request: BaleReceptionRequest,
         use_case: Annotated[RegisterRawMaterialBatch, Depends(use_case_provider)],
     ) -> BaleReceptionResponse:
+        """POST /bales — register a complete raw-material batch.
+        
+        Accepts the batch header and all its bales in one request.
+        Returns 201 on success, 409 on duplicate shipment number,
+        422 on validation errors, and 500 on unexpected errors.
+        """
         return bale_reception_to_response(use_case.execute(bale_reception_to_input(request)))
 
     return router

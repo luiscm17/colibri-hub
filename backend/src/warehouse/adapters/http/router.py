@@ -7,6 +7,16 @@ from warehouse.bales.adapters.http.router import (
 
 
 def create_router(use_case_provider: UseCaseProvider) -> APIRouter:
+    """Create the top-level Warehouse HTTP router.
+    
+    Composes all warehouse sub-domain routers under the /warehouse prefix.
+    
+    Args:
+        use_case_provider: FastAPI dependency for resolving the bale use case.
+    
+    Returns:
+        Configured APIRouter with warehouse sub-routes.
+    """
     router = APIRouter(prefix="/warehouse")
     router.include_router(create_bale_router(use_case_provider))
     return router

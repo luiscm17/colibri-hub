@@ -7,6 +7,8 @@ from warehouse.bales.domain.raw_material_batch import RawMaterialBatch
 
 
 class DeterministicIdentityGenerator:
+    """Identity generator double that yields pre-defined UUIDs in order."""
+
     def __init__(self, identifiers: Sequence[UUID]) -> None:
         self._identifiers = iter(identifiers)
 
@@ -15,6 +17,8 @@ class DeterministicIdentityGenerator:
 
 
 class RecordingBatchRepository:
+    """Batch repository double that records events and stores the last added batch."""
+
     def __init__(self, events: list[str]) -> None:
         self.events = events
         self.batch: RawMaterialBatch | None = None
@@ -25,6 +29,8 @@ class RecordingBatchRepository:
 
 
 class RecordingBaleRepository:
+    """Bale repository double that records events and stores the last added bales."""
+
     def __init__(self, events: list[str]) -> None:
         self.events = events
         self.bales: tuple[Bale, ...] = ()
@@ -35,6 +41,8 @@ class RecordingBaleRepository:
 
 
 class RecordingTransaction:
+    """Transaction double that records lifecycle events and can simulate a commit error."""
+
     def __init__(self, events: list[str], commit_error: Exception | None = None) -> None:
         self.events = events
         self.commit_error = commit_error

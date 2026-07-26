@@ -16,16 +16,25 @@ SHIPMENT_NUMBER_UNIQUE_CONSTRAINT = "uq_raw_material_batches_shipment_number"
 
 
 def violated_constraint(error: IntegrityError) -> str | None:
+    """Extract the violated constraint name from an IntegrityError."""
+
     diagnostic = getattr(error.orig, "diag", None)
     return getattr(diagnostic, "constraint_name", None)
 
 
 class TransactionAdapter(Transaction):
+    """SQLAlchemy-based unit-of-work adapter.
+    
+    Wraps an ORM session as a context manager. Rolls back on any exception
+    and maps known unique-constraint violations to domain port exceptions.
+    """
+    
     def __init__(self, session: Session) -> None:
         self._session = session
         self._rolled_back = False
 
     def __enter__(self) -> Self:
+        """Enter the transaction context and reset rollback flag."""
         self._rolled_back = False
         return self
 
@@ -35,12 +44,14 @@ class TransactionAdapter(Transaction):
         exception: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
+        """Exit the transaction; roll back on exception and map conflicts."""
         if exception is not None and not self._rolled_back:
             self._rollback()
         if isinstance(exception, IntegrityError):
             self._raise_conflict(exception)
 
     def commit(self) -> None:
+        """Commit the transaction or roll back and map conflicts."""
         try:
             self._session.commit()
         except IntegrityError as error:

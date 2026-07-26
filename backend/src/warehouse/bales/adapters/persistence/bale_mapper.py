@@ -10,10 +10,16 @@ from warehouse.bales.domain.raw_material_batch_id import RawMaterialBatchId
 
 
 class BaleMapper:
+    """Converts between Bale domain entities and ORM records."""
+    
     @staticmethod
     def to_record(bale: Bale) -> BaleRecord:
-        return BaleRecord(id=bale.id.value, raw_material_batch_id=bale.raw_material_batch_id.value, bale_number=bale.bale_number.value, material_type=bale.material.value, dtex=bale.dtex.value, gross_weight_kg=bale.weight.gross_kg, container_weight_kg=bale.weight.container_kg, status=bale.status.value)
+        """Map a domain bale to a persistence record."""
+        return BaleRecord(
+            id=bale.id.value,
+            raw_material_batch_id=bale.raw_material_batch_id.value, bale_number=bale.bale_number.value, material_type=bale.material.value, dtex=bale.dtex.value, gross_weight_kg=bale.weight.gross_kg, container_weight_kg=bale.weight.container_kg, status=bale.status.value)
 
     @staticmethod
     def to_domain(record: BaleRecord) -> Bale:
+        """Map a persistence record back to a domain bale."""
         return Bale(id=BaleId(record.id), raw_material_batch_id=RawMaterialBatchId(record.raw_material_batch_id), bale_number=BaleNumber(record.bale_number), material=MaterialType(record.material_type), dtex=Dtex(record.dtex), weight=BaleWeight(record.gross_weight_kg, record.container_weight_kg), status=BaleStatus(record.status))

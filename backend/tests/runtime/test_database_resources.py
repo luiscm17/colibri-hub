@@ -13,6 +13,8 @@ from infra.persistence.database_engine import create_db_engine
 
 
 class RecordingSession:
+    """Context-manager session double that records exit exception types."""
+
     def __init__(self) -> None:
         self.exit_types: list[type[BaseException] | None] = []
 
@@ -30,6 +32,8 @@ class RecordingSession:
 
 
 class RecordingSessionFactory:
+    """Callable factory double that records every session it creates."""
+
     def __init__(self) -> None:
         self.sessions: list[RecordingSession] = []
 
@@ -40,7 +44,10 @@ class RecordingSessionFactory:
 
 
 class DatabaseResourceTests(unittest.TestCase):
+    """Database resource contracts: engine creation, URL unwrapping, and session lifecycle."""
+
     def test_engine_unwraps_secret_at_creation_seam_without_connecting(self) -> None:
+        """create_db_engine constructs an engine with the unwrapped URL without establishing a connection."""
         connections: list[object] = []
 
         def record_connection(
@@ -59,12 +66,14 @@ class DatabaseResourceTests(unittest.TestCase):
             event.remove(Engine, "connect", record_connection)
 
     def test_engine_factory_receives_only_the_unwrapped_database_url(self) -> None:
+        """The engine factory callable is invoked with the unwrapped secret value, not the SecretStr."""
         settings = DatabaseSettings(url="postgresql+psycopg://user:secret@host/database")
         with patch("infra.persistence.database_engine.create_engine") as create_engine:
             create_db_engine(settings)
         create_engine.assert_called_once_with(settings.url.get_secret_value())
 
     def test_session_dependency_creates_and_closes_one_session_per_invocation(self) -> None:
+        """The session_dependency generator creates a new session per invocation and exits it on normal completion or exception."""
         factory = RecordingSessionFactory()
         provider = session_dependency(factory)
 

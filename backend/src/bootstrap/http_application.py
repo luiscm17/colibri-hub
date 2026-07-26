@@ -19,7 +19,10 @@ from infra.persistence.database_engine import create_db_engine
 from infra.persistence.database_session_factory import create_session_factory
 
 EngineFactory = Callable[[DatabaseSettings], Engine]
+"""Type alias for a factory that creates a database Engine from settings."""
+
 SessionFactoryBuilder = Callable[[Engine], Callable[[], Session]]
+"""Type alias for a factory that builds a session factory from an Engine."""
 
 
 def create_app(
@@ -31,6 +34,22 @@ def create_app(
     engine_factory: EngineFactory = create_db_engine,
     session_factory_builder: SessionFactoryBuilder = create_session_factory,
 ) -> FastAPI:
+    """Create and configure the FastAPI application.
+    
+    Composes settings, database engine, session factory, exception handlers,
+    and all API routes. Accepts optional overrides for testability.
+    
+    Args:
+        settings: Pre-resolved application settings. Resolved from env if omitted.
+        settings_env_file: Optional .env file path for settings resolution.
+        engine: Pre-built database engine. Created from settings if omitted.
+        session_factory: Pre-built session factory. Created from engine if omitted.
+        engine_factory: Factory to create an engine (injectable for testing).
+        session_factory_builder: Factory to create a session factory (injectable).
+    
+    Returns:
+        Configured FastAPI application ready to serve requests.
+    """
     if session_factory is None:
         if engine is None:
             resolved_settings = settings or ApplicationSettings(

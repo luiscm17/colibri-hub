@@ -15,11 +15,14 @@ from infra.configuration import ApplicationSettings, DatabaseSettings
 
 
 def session_factory() -> Session:
-    return cast(Session, Mock())
+    """Build a mock session factory for FastAPI dependency injection in tests."""
 
 
 class ApplicationCompositionTests(unittest.TestCase):
+    """Application composition contracts: settings loading, engine injection, and entrypoint wiring."""
+
     def test_default_settings_load_once_and_compose_router_and_handlers(self) -> None:
+        """Settings are loaded once from the env file; the application wires router and exception handlers."""
         database = DatabaseSettings(url="postgresql+psycopg://user:secret@host/database")
         default_settings = Mock(database=database)
         engine = cast(Engine, Mock())
@@ -35,6 +38,7 @@ class ApplicationCompositionTests(unittest.TestCase):
         self.assertIn(Exception, app.exception_handlers)
 
     def test_explicit_settings_and_engine_bypass_the_lower_unneeded_layer(self) -> None:
+        """Explicit settings or engine objects skip settings loading and engine construction."""
         settings = ApplicationSettings(
             database=DatabaseSettings(url="postgresql+psycopg://user:secret@host/database")
         )
@@ -49,6 +53,7 @@ class ApplicationCompositionTests(unittest.TestCase):
         engine_factory.assert_called_once_with(settings.database)
 
     def test_injected_session_factory_bypasses_all_settings_and_database_construction(self) -> None:
+        """A session_factory injected directly skips settings, engine, and session-factory builder entirely."""
         with patch("bootstrap.http_application.ApplicationSettings", side_effect=AssertionError):
             app = create_app(
                 session_factory=session_factory,
@@ -58,6 +63,7 @@ class ApplicationCompositionTests(unittest.TestCase):
         self.assertIn("/api/v1/warehouse/bales", app.openapi()["paths"])
 
     def test_entrypoint_passes_its_adjacent_env_path_without_reading_dotenv(self) -> None:
+        """The entrypoint main.py passes its sibling .env path to create_app without loading dotenv."""
         main_path = Path(__file__).parents[2] / "main.py"
         with tempfile.TemporaryDirectory() as directory:
             original_directory = Path.cwd()

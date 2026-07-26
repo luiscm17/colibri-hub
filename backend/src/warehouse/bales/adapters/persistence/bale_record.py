@@ -16,6 +16,14 @@ from infra.persistence.record_registry import RecordRegistry
 
 
 class BaleRecord(RecordRegistry):
+    """ORM record for the `raw_material_bales` table.
+    
+    Maps to an individual bale within a raw-material batch. The `bale_number`
+    is unique within a batch through 
+    `uq_raw_material_bales_raw_material_batch_bale_number`.
+    The `status` check constraint permits `in_warehouse` and `delivered`.
+    """
+    
     __tablename__ = "raw_material_bales"
     __table_args__ = (
         PrimaryKeyConstraint("id", name="pk_raw_material_bales"),

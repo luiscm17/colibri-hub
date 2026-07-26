@@ -8,6 +8,12 @@ from infra.persistence.record_registry import RecordRegistry
 
 
 class RawMaterialBatchRecord(RecordRegistry):
+    """ORM record for the `raw_material_batches` table.
+    
+    Maps to a raw-material batch header. The `shipment_number` is globally
+    unique through `uq_raw_material_batches_shipment_number`.
+    """
+    
     __tablename__ = "raw_material_batches"
     __table_args__ = (
         PrimaryKeyConstraint("id", name="pk_raw_material_batches"),

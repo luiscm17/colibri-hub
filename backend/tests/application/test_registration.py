@@ -16,7 +16,10 @@ from backend.tests.support.values import BALE_ID_1, BALE_ID_2, BATCH_ID, RECEIVE
 
 
 class RegistrationContractsTest(unittest.TestCase):
+    """Use-case contracts for RegisterRawMaterialBatch: persistence, validation, and error translation."""
+
     def test_registration_persists_batch_then_bales_and_returns_canonical_result(self) -> None:
+        """Registers bales through the use case and verifies the canonical result structure."""
         use_case, events, batches, bales = self._use_case()
 
         result = use_case.execute(registration_command(bales=(received_bale(" bale-01 "), received_bale("bale-02"))))
@@ -30,6 +33,7 @@ class RegistrationContractsTest(unittest.TestCase):
         self.assertEqual(batches.batch.bale_ids, tuple(bale.id for bale in bales.bales))
 
     def test_registration_rejects_missing_or_canonical_duplicate_bales_before_persistence(self) -> None:
+        """Rejects empty batches and duplicate bale numbers without persisting anything."""
         use_case, events, _, _ = self._use_case()
         with self.assertRaises(EmptyRawMaterialBatchError):
             use_case.execute(registration_command(bales=()))
@@ -39,6 +43,7 @@ class RegistrationContractsTest(unittest.TestCase):
         self.assertEqual(events, [])
 
     def test_registration_translates_known_conflicts_and_propagates_unknown_errors(self) -> None:
+        """Known persistence conflicts are translated to application errors; unknown ones propagate."""
         cases = (
             (DuplicateBaleNumberConflict(), DuplicateBaleNumberError),
             (DuplicateShipmentNumberConflict(), DuplicateShipmentNumberError),
@@ -52,6 +57,7 @@ class RegistrationContractsTest(unittest.TestCase):
 
     @staticmethod
     def _use_case(commit_error: Exception | None = None):
+        """Build a RegisterRawMaterialBatch use case with recording doubles."""
         events: list[str] = []
         batches = RecordingBatchRepository(events)
         bales = RecordingBaleRepository(events)

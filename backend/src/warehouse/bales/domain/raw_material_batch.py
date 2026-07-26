@@ -13,6 +13,20 @@ from warehouse.bales.domain.shipment_number import ShipmentNumber
 
 @dataclass(frozen=True, slots=True, eq=False)
 class RawMaterialBatch:
+    """A supplier-shipment grouping containing one or more raw-material bales.
+    
+    Represents a complete raw-material batch identified by a globally unique
+    shipment number. A batch groups one or more bales received from a provider,
+    along with their shared evidence or characteristics. It is not a production lot.
+    
+    Attributes:
+        id: Technical identity for the raw material batch.
+        received_at: Timestamp when the batch was received.
+        shipment_number: Business-visible identifier, globally unique.
+        provider_name: Provider name (stripped of whitespace, must be non-empty).
+        bale_ids: Collection of Bale identities belonging to this batch.
+    """
+    
     id: RawMaterialBatchId
     received_at: ReceptionDateTime
     shipment_number: ShipmentNumber

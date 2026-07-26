@@ -27,6 +27,8 @@ from backend.tests.support.values import (
 
 
 class RecordingSession:
+    """A session double that records added objects and flush calls."""
+
     def __init__(self) -> None:
         self.added: list[object] = []
         self.added_collections: list[list[object]] = []
@@ -43,7 +45,10 @@ class RecordingSession:
 
 
 class PersistenceRepositoryTest(unittest.TestCase):
+    """Repository adapter contracts: mapping, addition, and flush behaviour."""
+
     def test_batch_repository_maps_adds_then_flushes(self) -> None:
+        """Batch repository maps the domain object to a record, adds it to the session, and flushes."""
         session = RecordingSession()
         batch = RawMaterialBatch(
             id=RawMaterialBatchId(BATCH_ID),
@@ -59,6 +64,7 @@ class PersistenceRepositoryTest(unittest.TestCase):
         self.assertEqual(session.flush_count, 1)
 
     def test_bale_repository_adds_mapped_bales_in_input_order(self) -> None:
+        """Bale repository maps and adds bales via add_all, preserving input order."""
         session = RecordingSession()
         bales = (self._bale(BALE_ID_1, "bale-01"), self._bale(BALE_ID_2, "bale-02"))
 
@@ -71,6 +77,7 @@ class PersistenceRepositoryTest(unittest.TestCase):
 
     @staticmethod
     def _bale(identifier, number: str) -> Bale:
+        """Build a Bale with the given identifier and bale number for test reuse."""
         return Bale(
             id=BaleId(identifier),
             raw_material_batch_id=RawMaterialBatchId(BATCH_ID),

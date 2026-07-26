@@ -4,6 +4,15 @@ from pydantic import BaseModel, ConfigDict, SecretStr, field_validator
 
 
 class DatabaseSettings(BaseModel):
+    """Database connection settings with URL validation.
+    
+    The URL must be a valid connection string (e.g. 
+    ``postgresql+psycopg://user:pass@host/db``).
+    
+    Attributes:
+        url: Database connection URL, stored as a SecretStr for security.
+    """
+    
     model_config = ConfigDict(
         extra="forbid",
         frozen=True,

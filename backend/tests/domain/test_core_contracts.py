@@ -35,7 +35,10 @@ from backend.tests.support.values import (
 
 
 class CoreDomainContractsTest(unittest.TestCase):
+    """Domain value-object contracts: normalization, boundary validation, and state transitions."""
+
     def test_value_objects_normalize_and_reject_representative_invalid_values(self) -> None:
+        """Value objects normalize input and raise domain errors for invalid values."""
         for factory, value, expected in (
             (BaleNumber, " bale-01 ", "BALE-01"),
             (ShipmentNumber, " ship-01 ", "SHIP-01"),
@@ -49,6 +52,7 @@ class CoreDomainContractsTest(unittest.TestCase):
             Dtex(Decimal("0"))
 
     def test_weight_and_reception_boundaries(self) -> None:
+        """BaleWeight computes net weight and rejects equal gross/container; ReceptionDateTime validates timezone awareness."""
         weight = BaleWeight(GROSS_WEIGHT_KG, CONTAINER_WEIGHT_KG)
         self.assertEqual(weight.net_kg, Decimal("25.0"))
         with self.assertRaises(InvalidBaleWeightError):
@@ -58,6 +62,7 @@ class CoreDomainContractsTest(unittest.TestCase):
             ReceptionDateTime(datetime(2026, 7, 25, 10, 30))
 
     def test_bale_delivery_changes_availability_once(self) -> None:
+        """Delivering a bale transitions its status and marks it unavailable; a second delivery is rejected."""
         bale = self._bale()
         self.assertTrue(bale.is_available)
         bale.deliver()
@@ -67,6 +72,7 @@ class CoreDomainContractsTest(unittest.TestCase):
             bale.deliver()
 
     def test_batch_identity_and_bale_id_invariants(self) -> None:
+        """RawMaterialBatch enforces identity via provider/data equality, rejects empty or duplicate bale IDs."""
         batch = self._batch((BaleId(BALE_ID_1), BaleId(BALE_ID_2)))
         self.assertEqual(batch.provider_name, "Fiber Supplier")
         self.assertEqual(batch.bale_count, 2)
@@ -78,6 +84,7 @@ class CoreDomainContractsTest(unittest.TestCase):
 
     @staticmethod
     def _bale() -> Bale:
+        """Build a standard Bale instance for test reuse."""
         return Bale(
             id=BaleId(BALE_ID_1), raw_material_batch_id=RawMaterialBatchId(BATCH_ID),
             bale_number=BaleNumber("bale-01"), material=MaterialType("cotton"),
@@ -86,6 +93,7 @@ class CoreDomainContractsTest(unittest.TestCase):
 
     @staticmethod
     def _batch(bale_ids: tuple[BaleId, ...], identifier=BATCH_ID) -> RawMaterialBatch:
+        """Build a RawMaterialBatch with the given bale IDs and optional custom identifier."""
         return RawMaterialBatch(
             id=RawMaterialBatchId(identifier), received_at=ReceptionDateTime(RECEIVED_AT),
             shipment_number=ShipmentNumber("ship-01"), provider_name=" Fiber Supplier ",

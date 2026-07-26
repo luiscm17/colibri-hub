@@ -29,7 +29,10 @@ from backend.tests.support.values import (
 
 
 class PersistenceMapperTest(unittest.TestCase):
+    """ORM mapper contracts: dialect-neutral metadata and round-trip preservation of domain values."""
+
     def test_records_expose_dialect_neutral_table_column_metadata(self) -> None:
+        """Table and column metadata are dialect-neutral and match the expected schema."""
         self.assertEqual(RawMaterialBatchRecord.__table__.name, "raw_material_batches")
         self.assertEqual(BaleRecord.__table__.name, "raw_material_bales")
 
@@ -51,6 +54,7 @@ class PersistenceMapperTest(unittest.TestCase):
             self.assertFalse(bale_columns[column].nullable)
 
     def test_raw_material_batch_mapper_preserves_identity_values_and_bale_order(self) -> None:
+        """Batch mapper round-trips identity fields and preserves bale ID ordering."""
         batch = RawMaterialBatch(
             id=RawMaterialBatchId(BATCH_ID),
             received_at=ReceptionDateTime(RECEIVED_AT),
@@ -70,6 +74,7 @@ class PersistenceMapperTest(unittest.TestCase):
         self.assertEqual(restored.bale_ids, batch.bale_ids)
 
     def test_bale_mapper_preserves_decimal_values_and_delivered_status(self) -> None:
+        """Bale mapper round-trips Decimal values and preserves the delivered status."""
         bale = Bale(
             id=BaleId(BALE_ID_1),
             raw_material_batch_id=RawMaterialBatchId(BATCH_ID),

@@ -5,6 +5,14 @@ from warehouse.adapters.http.router import create_router as create_warehouse_rou
 
 
 def create_api_router(use_case_provider: UseCaseProvider) -> APIRouter:
+    """Create the top-level API router with version prefix.
+    
+    Args:
+        use_case_provider: FastAPI dependency for resolving use cases.
+    
+    Returns:
+        Configured APIRouter under /api/v1.
+    """
     router = APIRouter(prefix="/api/v1")
     router.include_router(create_warehouse_router(use_case_provider))
     return router

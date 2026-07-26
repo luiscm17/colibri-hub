@@ -9,6 +9,16 @@ class _HttpRequestModel(BaseModel):
 
 
 class ReceivedBaleRequest(_HttpRequestModel):
+    """HTTP request model for one bale in a reception payload.
+    
+    Attributes:
+        bale_number: Business-visible bale number.
+        material_type: Raw-material classification.
+        dtex: Technical linear-density value.
+        gross_weight_kg: Gross weight including container.
+        container_weight_kg: Container (tare) weight.
+    """
+    
     bale_number: str
     material_type: str
     dtex: Decimal
@@ -32,6 +42,15 @@ class ReceivedBaleRequest(_HttpRequestModel):
 
 
 class BaleReceptionRequest(_HttpRequestModel):
+    """HTTP request model for registering a complete raw-material batch.
+    
+    Attributes:
+        shipment_number: Globally unique shipment identifier.
+        received_at: Business timestamp of physical reception.
+        provider_name: Raw-material provider name.
+        bales: One or more bales in this batch (must not be empty).
+    """
+    
     shipment_number: str
     received_at: AwareDatetime
     provider_name: str

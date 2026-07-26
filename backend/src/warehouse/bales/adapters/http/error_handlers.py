@@ -13,6 +13,7 @@ from warehouse.bales.domain.domain_errors import DomainError
 async def duplicate_shipment_number_handler(
     request: Request, error: DuplicateShipmentNumberError
 ) -> JSONResponse:
+    """Handle duplicate shipment number errors (409 Conflict)."""
     del request
     return error_json_response(
         status_code=status.HTTP_409_CONFLICT,
@@ -25,6 +26,7 @@ async def duplicate_shipment_number_handler(
 async def duplicate_bale_number_handler(
     request: Request, error: DuplicateBaleNumberError
 ) -> JSONResponse:
+    """Handle duplicate bale number errors (422 Unprocessable Content)."""
     del request
     return error_json_response(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -35,6 +37,7 @@ async def duplicate_bale_number_handler(
 
 
 async def domain_error_handler(request: Request, error: DomainError) -> JSONResponse:
+    """Handle domain validation errors (422 Unprocessable Content)."""
     del request
     return error_json_response(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

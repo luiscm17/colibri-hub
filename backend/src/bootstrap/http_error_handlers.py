@@ -28,6 +28,14 @@ logger = logging.getLogger(__name__)
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    """Register HTTP exception handlers for domain and system errors.
+    
+    Maps application-layer and domain errors to structured JSON responses
+    with appropriate HTTP status codes.
+    
+    Args:
+        app: The FastAPI application to register handlers on.
+    """
     app.add_exception_handler(
         DuplicateShipmentNumberError,
         cast(ExceptionHandler, duplicate_shipment_number_handler),
@@ -54,6 +62,11 @@ async def request_validation_error_handler(
     request: Request,
     error: RequestValidationError,
 ) -> JSONResponse:
+    """Handle Pydantic request validation errors (422 Unprocessable Content).
+    
+    Translates each validation error item into a structured field error
+    with the JSON path and error message.
+    """
     del request
 
     fields = tuple(
@@ -76,6 +89,11 @@ async def unexpected_error_handler(
     request: Request,
     error: Exception,
 ) -> JSONResponse:
+    """Handle unexpected errors (500 Internal Server Error).
+    
+    Logs the full exception with request context and returns a generic
+    error response without exposing implementation details.
+    """
     logger.exception(
         "Unhandled error while processing HTTP request",
         extra={
@@ -93,5 +111,6 @@ async def unexpected_error_handler(
 
 
 def _validation_error_path(location: tuple[object, ...]) -> str:
+    """Convert a Pydantic error location tuple to a dot-separated JSON path."""
     parts = tuple(str(part) for part in location if part != "body")
     return ".".join(parts) or "body"

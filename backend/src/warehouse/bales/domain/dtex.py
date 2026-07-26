@@ -6,6 +6,19 @@ from warehouse.bales.domain.domain_errors import InvalidDtexError
 
 @dataclass(frozen=True, slots=True)
 class Dtex:
+    """Technical linear-density characteristic (DTEX).
+    
+    Represents the recorded linear-density value for a raw material bale, as
+    defined in the yarn count catalog. Must be a positive finite decimal.
+    
+    Attributes:
+        value: Linear-density value as a positive finite decimal.
+    
+    Raises:
+        InvalidDtexError: If value is not a valid finite decimal or
+            is less than or equal to zero.
+    """
+    
     value: Decimal
 
     def __post_init__(self) -> None:

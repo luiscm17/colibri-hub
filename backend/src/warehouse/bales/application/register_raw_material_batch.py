@@ -31,6 +31,13 @@ from warehouse.bales.ports import (
 
 
 class RegisterRawMaterialBatch:
+    """Use case: register a complete raw-material batch with its bales.
+    
+    Receives a raw-material shipment (one batch, one or more bales), validates
+    the input through domain value objects, persists the batch and bales in a
+    single transaction, and returns the registration result.
+    """
+    
     def __init__(
         self,
         reception_repository: RawMaterialBatchRepository,
@@ -47,6 +54,23 @@ class RegisterRawMaterialBatch:
         self,
         command: RegisterRawMaterialBatchCommand,
     ) -> RegisterRawMaterialBatchResult:
+        """Register the batch and its bales in a single transaction.
+        
+        Creates domain entities from command input, validates uniqueness
+        constraints, persists the batch header and all bales, and maps
+        known persistence conflicts to application errors.
+        
+        Args:
+            command: The input data for the batch and its bales.
+        
+        Returns:
+            Result containing the registered batch and bale identities.
+        
+        Raises:
+            DuplicateBaleNumberError: If bale numbers repeat within the batch.
+            DuplicateShipmentNumberError: If the shipment number is already
+                registered in the system.
+        """
         bale_numbers = self._canonical_bale_numbers(command.bales)
         self._ensure_unique_bale_numbers(bale_numbers)
         batch_id = RawMaterialBatchId(self._identity_generator.next_id())
@@ -97,6 +121,7 @@ class RegisterRawMaterialBatch:
         commands: tuple[ReceivedBaleCommand, ...],
         bale_numbers: tuple[BaleNumber, ...],
     ) -> tuple[Bale, ...]:
+        """Build domain Bale entities from command input."""
         return tuple(
             Bale(
                 id=BaleId(self._identity_generator.next_id()),
@@ -116,10 +141,12 @@ class RegisterRawMaterialBatch:
     def _canonical_bale_numbers(
         commands: tuple[ReceivedBaleCommand, ...],
     ) -> tuple[BaleNumber, ...]:
+        """Convert raw bale number strings to domain BaleNumber values."""
         return tuple(BaleNumber(command.bale_number) for command in commands)
 
     @staticmethod
     def _ensure_unique_bale_numbers(bale_numbers: tuple[BaleNumber, ...]) -> None:
+        """Validate that no bale number is duplicated in the batch."""
         if len(bale_numbers) != len(set(bale_numbers)):
             raise DuplicateBaleNumberError(
                 "Raw material reception cannot contain duplicate bale numbers."

@@ -15,6 +15,7 @@ from warehouse.bales.application.register_raw_material_batch_result import (
 
 
 def _bale_status(status: str) -> Literal["in_warehouse"]:
+    """Validate and cast bale status to the expected response literal."""
     if status != "in_warehouse":
         raise ValueError(f"Unexpected registered bale status: {status!r}.")
     return status
@@ -23,6 +24,14 @@ def _bale_status(status: str) -> Literal["in_warehouse"]:
 def bale_reception_to_input(
     request: BaleReceptionRequest,
 ) -> RegisterRawMaterialBatchCommand:
+    """Map an HTTP request to the application command.
+    
+    Args:
+        request: The validated HTTP request model.
+    
+    Returns:
+        Application command ready for use case execution.
+    """
     return RegisterRawMaterialBatchCommand(
         received_at=request.received_at,
         shipment_number=request.shipment_number,
@@ -43,6 +52,14 @@ def bale_reception_to_input(
 def bale_reception_to_response(
     result: RegisterRawMaterialBatchResult,
 ) -> BaleReceptionResponse:
+    """Map an application result to the HTTP response model.
+    
+    Args:
+        result: The use case execution result.
+    
+    Returns:
+        HTTP response model for the API client.
+    """
     return BaleReceptionResponse(
         raw_material_batch_id=result.raw_material_batch_id,
         shipment_number=result.shipment_number,

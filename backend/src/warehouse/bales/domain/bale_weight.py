@@ -6,6 +6,24 @@ from warehouse.bales.domain.domain_errors import InvalidBaleWeightError
 
 @dataclass(frozen=True, slots=True)
 class BaleWeight:
+    """Weight measurements for a raw material bale.
+    
+    Captures gross weight and container (tare) weight in kilograms, from which
+    the net weight is calculated. The gross weight must exceed the container
+    weight, and both must be finite positive decimals.
+    
+    Attributes:
+        gross_kg: Gross bale weight including container in kilograms.
+        container_kg: Container (tare) weight in kilograms.
+    
+    Properties:
+        net_kg: Calculated net weight (gross minus container) in kilograms.
+    
+    Raises:
+        InvalidBaleWeightError: If gross or container weights are invalid
+            (not finite decimals, zero or negative, or if gross <= container).
+    """
+    
     gross_kg: Decimal
     container_kg: Decimal
 

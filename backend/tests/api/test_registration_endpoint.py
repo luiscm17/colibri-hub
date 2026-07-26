@@ -25,6 +25,8 @@ from warehouse.bales.domain.domain_errors import InvalidDtexError
 
 
 class RecordingUseCase:
+    """Use case double that records commands and returns a pre-set outcome."""
+    
     def __init__(self, outcome: RegisterRawMaterialBatchResult | Exception) -> None:
         self.outcome = outcome
         self.commands: list[RegisterRawMaterialBatchCommand] = []
@@ -39,6 +41,7 @@ class RecordingUseCase:
 
 
 def registration_result() -> RegisterRawMaterialBatchResult:
+    """Build a standard successful registration result for test assertions."""
     return RegisterRawMaterialBatchResult(
         raw_material_batch_id=BATCH_ID,
         shipment_number="SHIP-01",
@@ -62,6 +65,7 @@ def registration_result() -> RegisterRawMaterialBatchResult:
 def client_for(
     outcome: RegisterRawMaterialBatchResult | Exception,
 ) -> tuple[TestClient, RecordingUseCase]:
+    """Create a test client and recording use case for endpoint tests."""
     use_case = RecordingUseCase(outcome)
     app = FastAPI()
     register_exception_handlers(app)
@@ -70,6 +74,8 @@ def client_for(
 
 
 class RegisterBaleEndpointTests(unittest.TestCase):
+    """HTTP endpoint contract tests for bale registration route."""
+    
     def test_post_registers_collective_payload_and_serializes_current_response(self) -> None:
         client, use_case = client_for(registration_result())
 
@@ -103,6 +109,7 @@ class RegisterBaleEndpointTests(unittest.TestCase):
         self.assertEqual(use_case.commands[0].bales[0].dtex, DTEX)
 
     def test_request_validation_rejects_representative_missing_extra_and_invalid_values(self) -> None:
+        """Rejects payloads with missing fields, unexpected keys, and invalid timestamps."""
         client, use_case = client_for(registration_result())
         invalid_payloads = (
             {key: value for key, value in bale_reception_payload().items() if key != "shipment_number"},
@@ -118,6 +125,7 @@ class RegisterBaleEndpointTests(unittest.TestCase):
         self.assertEqual(use_case.commands, [])
 
     def test_route_has_one_post_operation_and_trailing_slash_redirects_without_execution(self) -> None:
+        """Only the POST operation exists; trailing slash redirects without executing."""
         client, use_case = client_for(registration_result())
 
         response = client.post(
@@ -131,6 +139,7 @@ class RegisterBaleEndpointTests(unittest.TestCase):
         self.assertEqual(use_case.commands, [])
 
     def test_maps_domain_and_application_errors_to_documented_envelopes(self) -> None:
+        """Each known error type maps to the documented HTTP status, error code, and field path."""
         cases = (
             (
                 DuplicateShipmentNumberError("Shipment number is already registered."),
@@ -158,6 +167,7 @@ class RegisterBaleEndpointTests(unittest.TestCase):
                     self.assertEqual(body["fields"][0]["path"], field)
 
     def test_maps_unexpected_errors_without_exposing_exception_detail(self) -> None:
+        """Unexpected exceptions produce a generic 500 response and log the original error."""
         client, _ = client_for(RuntimeError("private diagnostic"))
 
         with self.assertLogs("bootstrap.http_error_handlers", level="ERROR"):
