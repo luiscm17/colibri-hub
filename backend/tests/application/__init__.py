@@ -1,0 +1,1 @@
+"""Warehouse application contract tests."""
