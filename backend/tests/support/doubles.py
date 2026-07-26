@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from types import TracebackType
 from uuid import UUID
 
 from warehouse.bales.domain.bale import Bale
@@ -42,7 +43,13 @@ class RecordingTransaction:
         self.events.append("enter")
         return self
 
-    def __exit__(self, *_: object) -> None:
+    def __exit__(
+        self,
+        exception_type: type[BaseException] | None,
+        exception: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        del exception_type, exception, traceback
         self.events.append("exit")
 
     def commit(self) -> None:
