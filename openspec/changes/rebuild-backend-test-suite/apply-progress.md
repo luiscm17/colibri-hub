@@ -2,8 +2,8 @@
 
 ## Slice 1 — Domain/Application
 
-**Status:** complete  
-**Mode:** Standard (`strict_tdd` configuration is absent; a unittest runner exists)  
+**Status:** complete
+**Mode:** Standard (`strict_tdd` configuration is absent; a unittest runner exists)
 **Delivery:** force-chained, `stacked-to-main`; base `5730050`; current boundary is Slice 1 only.
 
 ### Completed Tasks
@@ -38,8 +38,8 @@ Slices 2–6 remain pending and were not started.
 
 ## Slice 2 — Persistence
 
-**Status:** complete  
-**Mode:** Standard (`strict_tdd` configuration is absent; a unittest runner exists)  
+**Status:** complete
+**Mode:** Standard (`strict_tdd` configuration is absent; a unittest runner exists)
 **Delivery:** force-chained, `stacked-to-main`; immediate accepted parent `c72c92e`; current boundary is Slice 2 only.
 
 ### Completed Tasks
@@ -72,8 +72,8 @@ Slices 3–6 remain pending and were not started.
 
 ## Slice 3 — HTTP/OpenAPI
 
-**Status:** complete  
-**Mode:** Standard (`strict_tdd` configuration is absent; a unittest runner exists)  
+**Status:** complete
+**Mode:** Standard (`strict_tdd` configuration is absent; a unittest runner exists)
 **Delivery:** force-chained, `stacked-to-main`; immediate accepted parent `8b73723`; current boundary is Slice 3 only.
 
 ### Completed Tasks
@@ -107,8 +107,8 @@ Slices 4–6 remain pending and were not started.
 
 ## Slice 4 — Infrastructure/Bootstrap/Settings
 
-**Status:** complete  
-**Mode:** Standard  
+**Status:** complete
+**Mode:** Standard
 **Delivery:** force-chained, `stacked-to-main`; immediate accepted parent `e135667`; current boundary is Slice 4 only.
 
 ### Completed Tasks
@@ -142,8 +142,8 @@ Slices 5–6 remain pending and were not started.
 
 ## Slice 5 — PostgreSQL Schema/Security/Types
 
-**Status:** complete  
-**Mode:** Standard  
+**Status:** complete
+**Mode:** Standard
 **Delivery:** force-chained, `stacked-to-main`; immediate accepted parent `00ce2db`; current boundary is Slice 5 only. The parent is the accepted deletion-only prerequisite (five files, 616 lines), excluded from fresh evidence and this slice's budget.
 
 ### Completed Tasks
@@ -177,8 +177,8 @@ Superseded by the completed Slice 6 record below.
 
 ## Slice 6 — PostgreSQL Transactions/Registration
 
-**Status:** complete  
-**Mode:** Standard  
+**Status:** complete
+**Mode:** Standard
 **Delivery:** force-chained, `stacked-to-main`; immediate accepted parent `89d1f10`; committed slice `bed637a test(backend): rebuild PostgreSQL transaction coverage`; current boundary is Slice 6 only.
 
 ### Completed Tasks

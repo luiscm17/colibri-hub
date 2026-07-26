@@ -1,8 +1,8 @@
 # Verification Report
 
-**Change**: `rebuild-backend-test-suite`  
-**Mode**: Standard (`strict_tdd` is absent; `unittest` runner is configured)  
-**Verification basis**: committed tip `bed637a`; current production contracts, current OpenSpec artifacts, and current Engram SDD topics. Deleted tests, history content, `.kiro`, and failed-refactor artifacts were not used as authority.  
+**Change**: `rebuild-backend-test-suite`
+**Mode**: Standard (`strict_tdd` is absent; `unittest` runner is configured)
+**Verification basis**: committed tip `bed637a`; current production contracts, current OpenSpec artifacts, and current Engram SDD topics. Deleted tests, history content, `.kiro`, and failed-refactor artifacts were not used as authority.
 **Review exception**: Maintainer-approved manual independent verification. Native bounded review is unavailable because its authority graph is corrupted. No `gentle-ai review` command was invoked, `.git/gentle-ai` was not mutated, and no receipt is claimed.
 
 ## Completeness

@@ -1,8 +1,8 @@
 # SDD Exploration: Rebuild Backend Test Suite
 
-**Change:** `rebuild-backend-test-suite`  
-**Mode:** hybrid  
-**Delivery:** force-chained, stacked to `main`  
+**Change:** `rebuild-backend-test-suite`
+**Mode:** hybrid
+**Delivery:** force-chained, stacked to `main`
 **Review budget:** 400 changed lines; implementation slices must remain at or below 399
 
 ## Status
@@ -197,8 +197,8 @@ The rebuild is high-risk for review size and should use autonomous stacked slice
 
 Each slice should include its tests, fixtures/builders, and verification for the behavior it introduces; avoid a giant “tests only” PR. The expected reviewer burden is medium-to-high because the suite is a new specification, but stacked slices keep each diff focused. The 400-line guard is **High risk for the overall change, Low-to-medium per slice if enforced during task planning**.
 
-**Decision needed before apply: Yes**  
-**Chained PRs recommended: Yes**  
+**Decision needed before apply: Yes**
+**Chained PRs recommended: Yes**
 **400-line budget risk: High**
 
 ## Proposal Questions Requiring Confirmation
