@@ -24,7 +24,7 @@ It does **not** define database schema, APIs, or internal code structure.
 
 | Context | Why it exists | Core boundary |
 |---|---|---|
-| **Warehouse** | Owns warehouse custody, stock movements, production identity setup, and finished-product handling | Stops at warehouse-issued identity and warehouse-managed stock lifecycle |
+| **Warehouse** | Owns raw-material batch registration, Bale custody/lifecycle, stock movements, production identity setup, and finished-product handling | Stops at warehouse-issued identity and warehouse-managed stock lifecycle |
 | **Yarn Spinning** | Owns continuous spinning production records before Inventory assembles a lot | Stops at skein output and section/shift/machine records |
 | **Lot Processing** | Owns the operational stage history appended after Inventory assembles the lot | Stops when Quality Send hands the lot back to Warehouse |
 | **Access Control** | Owns authorization policy, scopes, and configurable permissions | Does not own business workflow semantics |
@@ -39,7 +39,7 @@ It does **not** define database schema, APIs, or internal code structure.
 ### 3.1 Warehouse
 
 - **Core responsibility:** manage physical custody and documentary control of raw material, finished product, and production supplies; define the production identity that later travels across contexts.
-- **Owns:** raw-material reception as **bales**; production identity definition; emission to production; finished-product reception; warehouse availability/disposition; physical presentation; stock movements; stock balances; supply movements.
+- **Owns:** `RawMaterialBatch` shipment grouping; independent **Bale** identity, custody, and lifecycle; the receiving application action; production identity definition; delivery to Production; finished-product reception; warehouse availability/disposition; physical presentation; stock movements; stock balances; supply movements.
 - **Does not own:** spinning production records; lot-stage progression; process quality execution; lot-stage waste; final production-stage decisions inside Operation.
 - **Inbound dependencies:** Access Control; Shared Reference Data; Quality's sent-lot documentation from Lot Processing.
 - **Outbound contracts / shared identifiers:** technical production identity, visible lot code, yarn count, color requirement, client/destination, and emitted quantity linkage needed by downstream contexts.
@@ -87,6 +87,10 @@ Warehouse defines the single lot through its technical `production_identity_id` 
 ### 4.2 Warehouse vs Yarn Spinning vs Lot Processing
 
 - **Warehouse** receives **bales**, not production lots.
+- A `RawMaterialBatch`, identified by `ShipmentNumber`, groups one or more bales
+  and shared receipt evidence. It is not a production lot.
+- Reception is an application action, not a `Reception` or `BaleReception`
+  aggregate. Each `Bale` owns its independent lifecycle.
 - **Yarn Spinning** transforms material continuously and does **not** own a lot entity or lot timeline.
 - **Lot Processing** starts when Inventory assembles skeins and from then on owns the lot timeline.
 - The lot history delivered back to Warehouse belongs to a broader **cross-context traceability chain**, not a new warehouse-only record detached from production. Lot Processing owns the operational stage history; Warehouse owns the warehouse-side records that continue the same business identity.
@@ -114,7 +118,8 @@ Shared Reference Data is a support context, not a dumping ground for business lo
 
 | Aggregate / record family | Owning context | Ownership note |
 |---|---|---|
-| Raw material reception (`bales`) | Warehouse | Initial physical receipt of MP |
+| Raw-material batch registration | Warehouse | Application action registers one complete `RawMaterialBatch` and one or more `Bale` aggregates in one transaction; persistence shape does not define this ownership |
+| Bale custody and delivery | Warehouse | Bale owns independent identity and the `IN_WAREHOUSE` to `DELIVERED` transition; delivery requires no timestamp and rejects repetition |
 | Lot identity definition | Warehouse | Defines the single lot before Inventory records its assembly facts |
 | MP emission to production | Warehouse | Stock movement plus production handoff |
 | Warehouse supply movement | Warehouse | Independent from production lot history |

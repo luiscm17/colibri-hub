@@ -1,0 +1,11 @@
+from datetime import UTC, datetime
+from decimal import Decimal
+from uuid import UUID
+
+BATCH_ID = UUID("00000000-0000-0000-0000-000000000001")
+BALE_ID_1 = UUID("00000000-0000-0000-0000-000000000002")
+BALE_ID_2 = UUID("00000000-0000-0000-0000-000000000003")
+RECEIVED_AT = datetime(2026, 7, 25, 10, 30, tzinfo=UTC)
+DTEX = Decimal("200.5")
+GROSS_WEIGHT_KG = Decimal("25.5")
+CONTAINER_WEIGHT_KG = Decimal("0.5")

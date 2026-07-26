@@ -1,0 +1,1 @@
+"""Warehouse-level HTTP composition."""
