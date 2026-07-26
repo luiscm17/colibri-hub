@@ -36,3 +36,16 @@ def cleanup_slice_five_rows(engine: Engine) -> None:
         connection.execute(
             text("DELETE FROM raw_material_batches WHERE provider_name = 'slice5-test'")
         )
+
+
+def cleanup_slice_six_rows(engine: Engine) -> None:
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "DELETE FROM raw_material_bales WHERE raw_material_batch_id IN ("
+                "SELECT id FROM raw_material_batches WHERE provider_name = 'slice6-test')"
+            )
+        )
+        connection.execute(
+            text("DELETE FROM raw_material_batches WHERE provider_name = 'slice6-test'")
+        )
