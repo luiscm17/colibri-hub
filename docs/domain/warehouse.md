@@ -1,3 +1,13 @@
+---
+document_type: domain
+status: active
+implementation: partial
+scope: warehouse
+authority: normative
+owner: architecture
+last_reviewed: 2026-07-27
+---
+
 # Warehouse Domain Map
 
 Warehouse owns physical custody and documentary control for raw-material bales,
@@ -30,24 +40,71 @@ expresses readiness for release or distribution.
 ## Core Concepts
 
 | Concept | Warehouse meaning |
-|---|---|
-| RawMaterialBatch | A supplier-shipment grouping identified by `ShipmentNumber`, containing one or more bales and shared evidence/characteristics. It is not a production lot. |
-| Bale | An independently identified raw-material unit and lifecycle owner. Its business-visible identity is `shipment_number` + `bale_number`. |
+| --- | --- |
+| RawMaterialBatch | A supplier-shipment grouping identified by `shipment_number`, containing one or more bales and shared evidence/characteristics. It is not a production lot. |
+| Bale | An independently identified raw-material unit and lifecycle owner. Its business-visible identity is `shipment_number` + `bale_number`. Attributes include `material_type`, `dtex`, `gross_weight_kg`, and `container_weight_kg`. Net weight is always derived. |
+| Reception | The business act (application action) of registering one complete raw-material batch and its bales. It is not a domain aggregate or entity. |
+| Delivery | The act of delivering a whole bale from Warehouse to Production. In practice, delivered = used — there is no intermediate state. Binary, irreversible. |
 | Production identity | The Warehouse-defined cross-context identity, represented by `production_identity_id` and `lot_code`. |
 | Finished product receipt | The single Warehouse acceptance of a production identity after its Quality Send. |
 | `availability_state` | Warehouse's operational disposition of accepted finished product. It is not quality or stock. |
 | `physical_presentation` | The physical form Warehouse receives or stores, kept separate from quality and availability. |
 | Supply | A Warehouse-managed production input with its own receipt, delivery, and stock history. |
 
+## Bale Lifecycle States
+
+Bales follow a simple, one-directional lifecycle:
+
+| State | Canonical value | Meaning |
+| --- | --- | --- |
+| In Warehouse | `in_warehouse` | Bale is under Warehouse custody |
+| Delivered | `delivered` | Bale has been physically transferred to Production |
+
+**Transition:** `in_warehouse → delivered` (one-way).
+
+- A newly received bale always starts in `in_warehouse`.
+- The only permitted transition is `in_warehouse → delivered`.
+- In the current scope, delivery is irreversible — no reversal mechanism exists.
+- Future controlled reversal (correction) may be introduced under Warehouse's
+  general correction policy (audited, authorized, reason documented).
+
+## Reception
+
+Reception is the business act of registering a supplier shipment into Warehouse
+custody. Key domain characteristics:
+
+- Registers exactly one `RawMaterialBatch` and one or more `Bale` records.
+- The entire operation is atomic — all or nothing.
+- `received_at` is a **business date** (calendar date of physical reception),
+  not a system timestamp.
+- All bales start with status `in_warehouse`.
+- Adding bales after initial registration is not part of the current flow.
+
+For complete reception rules and acceptance criteria, see the
+[Bale Management PRD](../prd/warehouse/bale-management.md) §7.
+
+## Delivery
+
+Delivery is the act of handing a whole bale from Warehouse to Production.
+In practice, delivery and consumption are the same event — once delivered,
+the bale is considered used.
+
+- A bale is always delivered whole — partial delivery is not supported.
+- Delivery records `delivered_at` — a business date entered by the user.
+- Delivery does not link the bale to any `production_identity_id` or `lot_code`.
+- No authorization workflow is modeled in the current scope.
+
+For complete delivery rules and acceptance criteria, see the
+[Bale Management PRD](../prd/warehouse/bale-management.md) §9.
+
 ## Business Flows
 
-1. **Raw-material custody:** The receiving application action registers one
-   complete `RawMaterialBatch` and one or more independently identified `Bale`
-    aggregates in one transaction. Reception is not a domain aggregate. A bale
-    can be delivered once, whole and only to Production. Delivery moves the bale
-    from `IN_WAREHOUSE` to `DELIVERED`; that resulting custody condition does not
-    mean consumed or processed. This
-   delivery never links the bale to a `production_identity_id` or `lot_code`.
+1. **Raw-material custody:** The receiving action registers one complete
+   `RawMaterialBatch` and one or more independently identified `Bale` records
+   in one transaction. A bale can be delivered once, whole and only to
+   Production. Delivery moves the bale from `in_warehouse` to `delivered`;
+   that custody condition means delivered and used by Production. Delivery never
+   links the bale to a `production_identity_id` or `lot_code`.
 2. **Production identity:** Separately from bale reception, Warehouse defines
    one `production_identity_id` and `lot_code` with the requested `yarn_count`
    and production requirements. Yarn Spinning and Lot Processing use that
@@ -65,7 +122,7 @@ expresses readiness for release or distribution.
    records returns to suppliers. Supplier, destination, and category remain
    labels until a justified catalog is needed.
 
-## Boundaries And Non-Goals
+## Boundaries and Non-Goals
 
 - Warehouse does not own Yarn Spinning production records, lot-stage history,
   process quality, final lot quality, or production waste.
@@ -78,15 +135,20 @@ expresses readiness for release or distribution.
   not introduce supplier, destination, or category catalogs without evidence.
 - This map does not prescribe tables, field dictionaries, APIs, identifier
   formats, or authorization assignments.
-- Persistence maps `RawMaterialBatch` and `Bale` through canonical batch/bale
-  names without defining the aggregate shape.
 
 ## Vocabulary
 
 | Term | Meaning in this map |
-|---|---|
+| --- | --- |
+| `shipment_number` | Business-visible identity of a `RawMaterialBatch`; globally unique. |
+| `bale_number` | Bale identifier within a batch; unique within its parent batch only. |
+| `received_at` | Business date (calendar date) of physical reception. |
+| `material_type` | Raw-material classification; normalized to uppercase. |
+| `dtex` | Linear density of the raw material. |
+| `gross_weight_kg` | Gross weight of a bale in kilograms. |
+| `container_weight_kg` | Tare/container weight in kilograms. |
+| `net_weight_kg` | Derived net weight (gross minus tare); never persisted. |
 | `yarn_count` | Canonical yarn count used when defining production identity. |
-| `ShipmentNumber` | Business-visible identity of a `RawMaterialBatch`; transported as `shipment_number`. |
 | `production_identity_id` | Warehouse-owned technical identity shared across the production flow. |
 | `lot_code` | Visible business code for the same production identity. |
 | `availability_state` | Warehouse operational readiness for release or distribution. |
@@ -94,9 +156,7 @@ expresses readiness for release or distribution.
 
 ## Sources
 
-- [Warehouse PRD](../prd/warehouse.md)
-- [Warehouse functional records](../prd/warehouse/warehouse-records.md)
-- [Context boundaries and ownership](../architecture/context-boundaries-and-ownership.md)
-- [Ubiquitous Language](ubiquitous-language.md)
-- [Warehouse DBML](../db/warehouse.dbml) and [dictionary](../db/warehouse-dictionary.md)
-- [Persistence decisions](../architecture/backend/persistence-decisions.md)
+- [Bale Management PRD](../prd/warehouse/bale-management.md) — normative source for bale business rules
+- [Warehouse Area PRD](../prd/warehouse/overview.md) — area-level scope and subdomain overview
+- [Ubiquitous Language](ubiquitous-language.md) — canonical naming contract
+- [Context Map](../architecture/context-map.md) — context ownership and boundaries

@@ -1,6 +1,16 @@
+---
+document_type: domain
+status: active
+implementation: not-started
+scope: operation/yarn-spinning
+authority: normative
+owner: architecture
+last_reviewed: 2026-07-27
+---
+
 # Domain Model: Yarn Spinning
 
-> **Part of:** Operation Unit — Yarn EPR
+> **Part of:** Operation Unit — Colibri Hub
 > **Source:** `docs/prd/operation/yarn-spinning.md`
 > **Related:** `docs/domain/operation/lot-processing.md` (downstream), `docs/domain/warehouse.md` (upstream)
 
@@ -228,13 +238,13 @@ Son datos maestros compartidos con otros contextos de Operation:
 7. **Madejeras es estructuralmente distinto.** No usa husos, tara, ni carro. Usa cantidad de madejas y peso unitario.
 8. **Desperdicio por grupo de máquinas.** No por máquina individual.
 9. **Madejeras fuera de especificación NO es desperdicio.** Vuelve a etapa anterior para reproceso.
-10. **Todos los registros son inmutables (append-only).** Las correcciones son nuevos registros con trazabilidad.
+10. **Records are editable under policy.** Corrections within the operational window preserve actor, timestamp, reason, and before/after values. The correction history is append-only.
 
 ---
 
 ## 6. Related Documents
 
 - `docs/prd/operation/yarn-spinning.md` — Source PRD
-- `docs/prd/operation.md` — Operation unit PRD
+- `docs/prd/operation/overview.md` — Operation unit PRD
 - `docs/domain/operation/lot-processing.md` — Downstream domain (Lot Processing)
 - `docs/domain/warehouse.md` — Upstream domain (Warehouse)

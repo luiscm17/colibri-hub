@@ -1,3 +1,13 @@
+---
+document_type: prd
+status: active
+implementation: not-started
+scope: operation/yarn-spinning
+authority: normative
+owner: product
+last_reviewed: 2026-07-27
+---
+
 # Hilatura (`Yarn Spinning`)
 
 > **Domain PRD — Hilatura (`Yarn Spinning`)**
@@ -6,7 +16,7 @@
 > de un título específico a través de 5 secciones productivas.
 >
 > Pertenece a la Unidad Operación. Para el contexto general, actores y
-> reglas transversales, ver [`docs/prd/operation.md`](../operation.md).
+> reglas transversales, ver [Operation Overview](./overview.md).
 >
 > **Siguiente:** `docs/domain/operation/yarn-spinning.md` (Modelo de Dominio)
 
@@ -111,7 +121,7 @@ o puede no tener ninguna.
 del turno (ej: 8:00 AM, 10:30 AM, 1:00 PM), el registro digital de **todas**
 se realiza al finalizar el turno (ej: 2:00 PM) en una sola sesión de captura.
 El sistema captura el timestamp real de cada descarga, pero no es un sistema
-en tiempo real. Ver [sección 2.4 del PRD maestro](../../prd.md#24-modelo-de-captura-de-datos).
+en tiempo real. Ver [sección 2.4 del PRD maestro](../product-overview.md#5-data-capture-model).
 
 ### 3.2 El Número de Husos
 
@@ -433,7 +443,7 @@ sección y el consolidado del Supervisor.
 
 | Métrica | Propósito |
 |---|---|
-| **Producción vs planificación** | Compara lo producido con la base planificada (ver [sección 5 de operation.md](../operation.md#5-planificación-de-la-producción)). Alerta si hay desviación significativa, especialmente en títulos 2/18 y 2/32 |
+| **Producción vs planificación** | Compara lo producido con la base planificada (ver [sección 3.5 de operation overview](./overview.md#35-production-planning)). Alerta si hay desviación significativa. **Note:** Specific baselines per title (kg/day targets) are a valid business rule deferred to a future version — not included in the current scope. |
 | **Utilización de husos** | Husos operativos / husos totales de la máquina. Porcentaje de capacidad utilizada |
 | **Consolidado por turno** | Producción, calidad y desperdicio agregado por Supervisor para su reporte diario |
 

@@ -4,6 +4,11 @@
 > findings from investigating existing systems, processes, and data sources
 > to inform system design and requirements.
 
+> **⚠️ Isolation boundary:** Research documents provide evidence and analysis only.
+> They do NOT define normative business rules, domain models, or architecture.
+> References to PRD, domain, or architecture docs are citations for context — not
+> authority claims. The normative sources are the PRDs, domain maps, and ADRs themselves.
+
 ---
 
 ## Warehouse (Almacén)

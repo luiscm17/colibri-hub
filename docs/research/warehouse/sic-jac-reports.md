@@ -1,3 +1,13 @@
+---
+document_type: research
+status: active
+implementation: not-started
+scope: warehouse/reports
+authority: evidence
+owner: product
+last_reviewed: 2026-07-27
+---
+
 # SISTEMA SIC JAC 1
 
 ## REPORTES

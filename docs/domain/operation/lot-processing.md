@@ -1,6 +1,16 @@
+---
+document_type: domain
+status: active
+implementation: not-started
+scope: operation/lot-processing
+authority: normative
+owner: architecture
+last_reviewed: 2026-07-27
+---
+
 # Domain Model: Lot Processing
 
-> **Part of:** Operation Unit — Yarn EPR
+> **Part of:** Operation Unit — Colibri Hub
 > **Source:** `docs/prd/operation/lot-processing.md`
 > **Next:** DB Schema → API Design → Tasks
 
@@ -59,9 +69,9 @@ and client, tracked through 6 sequential stages.
 | `client` | Destination client | From Warehouse |
 | `clientId` |   |  |
 | `specifications` | Order details from Warehouse | Read-only reference |
-| `currentStage` | Current stage in the lifecycle | Updated as lot advances |
+| `currentStage` | Current stage in the lifecycle | **Derived** from the last StageRecord that exists |
 | `qualityClassification` | Final quality verdict | Set by Quality at stage 6 |
-| `isClosed` | Whether the lot completed Operation | True when delivered to Warehouse |
+| `isClosed` | Whether the lot completed Operation | True when Warehouse registers PT reception |
 
 **Lifecycle stages:** `En_Almacen → En_Inventario → En_Tintoreria → En_Secado → En_Devanado → En_Embolsado → En_Calidad → En_Almacen_PT`
 
@@ -69,30 +79,31 @@ and client, tracked through 6 sequential stages.
 
 ### 2.2 StageRecord
 
-Records a lot's passage through one stage. Each lot has exactly 6 records, one
-per stage, created sequentially.
+Records a lot's passage through one stage. Each record is created when the
+responsible operator **finishes** their work and saves the stage data. The act
+of saving IS the state transition — it implicitly makes the lot available for
+the next stage.
 
 | Attribute | Description |
 |---|---|
 | `lot` | Reference to the Lot |
 | `stageType` | Which stage (Inventory, Dyeing, Drying, Winding, Bagging, Quality) |
 | `sequenceNumber` | Stage order (1-6), enforces sequential flow |
-| `entryTimestamp` | When the lot physically entered this stage |
-| `entryShift` | Shift when the lot was received |
-| `entryResponsible` | Person who received the lot |
-| `entrySupervisor` | Supervisor on duty at entry |
-| `exitTimestamp` | When the lot physically left this stage |
-| `exitShift` | Shift when the lot was delivered |
-| `exitResponsible` | Person who delivered the lot |
-| `exitSupervisor` | Supervisor on duty at exit |
+| `businessDate` | Calendar date when the work occurred (user input, no time component) |
+| `shift` | Shift when the work was performed (A, B, C) |
+| `responsible` | Person who performed and registered the work |
+| `supervisor` | Supervisor on duty |
 | `stageData` | Stage-specific technical data (see [section 3](#3-stage-specific-data-by-stagetype)) |
 | `observations` | 0..N observations recorded during this stage |
+| `createdAt` | System timestamp (date+time) — when the record was saved. This is the lot's transition moment. |
 
 **Rules:**
 
-- `entryTimestamp` must be >= previous stage's `exitTimestamp`
-- Stage N+1 cannot be created until Stage N has an `exitTimestamp`
-- Once `exitTimestamp` is set, stage data is immutable
+- A StageRecord for stage N can only be created if a StageRecord for stage N-1 already exists
+- The `createdAt` of each StageRecord serves as the timestamp of the lot's transition to the next stage
+- Each stage adds NEW data — it never modifies data from previous stages
+- The responsible can edit ONLY their own StageRecord, within the operational correction window, with full audit trail
+- Outside the window, only SysAdmin can edit
 - StageData structure varies by stageType
 
 ---
@@ -112,7 +123,7 @@ Documents an incident or defect found during a stage.
 - Category is mandatory when an observation exists
 - Details is optional
 - Categories are predefined per stage type (dropdown)
-- Observations are append-only once the stage is closed
+- Observations are append-only; existing observations are not deleted
 
 ---
 
@@ -145,6 +156,29 @@ The final quality verdict assigned by Quality Control at stage 6.
 - `FT` — Fuera de tabla (off-spec)
 - `VARR` — Con varilla (with rod)
 - `D` — Degradado (downgraded)
+
+---
+
+### 2.5 QualitySendNote
+
+When a lot is in "Espera Validación Almacén" state (after Quality Send), users
+from Operation can add notes documenting problems that were fixed, corrections
+that were applied, or conditions under which the lot is being delivered.
+
+| Attribute | Description |
+|---|---|
+| `lot` | Reference to the Lot |
+| `noteText` | Free-text description of what was fixed or what condition exists |
+| `author` | User who wrote this note |
+| `createdAt` | System timestamp (date+time) when the note was written |
+
+**Rules:**
+
+- Notes are **append-only** — once written, a note is never edited or deleted
+- Multiple notes can exist for the same lot (a thread of updates)
+- Each note has its own author and timestamp
+- Notes serve as evidence that issues were addressed before Warehouse acceptance
+- Warehouse reads these notes when deciding whether to accept the lot
 
 ---
 
@@ -227,21 +261,34 @@ they are **value objects** — a fixed catalog, not user-extensible.
 
 ## 5. Key Business Rules (enforced by the domain)
 
-1. **Sequential progression:** Stage N must be closed (have `exitTimestamp`) before
-   Stage N+1 can be created.
-2. **No backtracking:** Once a lot advances to the next stage, it cannot return
-   to a previous stage.
-3. **Immutability:** Once a StageRecord is closed (`exitTimestamp` is set), its
-   `stageData` and `observations` cannot be modified. Corrections are new Observations.
-4. **Mandatory delivery:** Every lot that completes the 6 stages is delivered
+1. **Registration IS transition:** Saving a StageRecord automatically makes the
+   lot available for the next stage. There is no separate "advance" action.
+2. **Sequential progression:** A StageRecord for stage N can only be created if
+   a StageRecord for stage N-1 already exists for this lot.
+3. **No backtracking:** Once a lot has a StageRecord for stage N, it cannot
+   return to a previous stage.
+4. **State is derived:** The lot's current stage is inferred from which
+   StageRecords exist — not from a manually-set field.
+5. **Each stage owns its data:** A stage never modifies data from a previous
+   stage. Each StageRecord adds a new layer of information.
+6. **Editable within window:** The responsible can correct their own StageRecord
+   within the operational time window (e.g. 24-48h). Full audit trail required.
+   Outside the window, only SysAdmin can edit.
+7. **Mandatory delivery:** Every lot that completes the 6 stages is delivered
    to Warehouse with full documentation, regardless of quality classification.
-5. **Quality is documentation, not a gate:** Quality classifies the final product,
-   but does not block delivery.
+8. **Quality is documentation, not a gate:** Quality classifies the final product
+   and documents conditions, but does not block delivery to Warehouse.
+9. **Quality Send is deliberate:** After Quality completes its StageRecord, a
+   separate Quality Send action marks the lot as ready for Warehouse acceptance.
+10. **Subsanation notes are append-only:** When a lot is "Observed" and awaiting
+    Warehouse acceptance, users add notes documenting what was fixed or what
+    conditions exist. Notes are never edited or deleted — only new notes are
+    appended, each with author and timestamp.
 
 ---
 
 ## 6. Related Documents
 
 - `docs/prd/operation/lot-processing.md` — Source PRD
-- `docs/prd/operation.md` — Operation unit PRD
-- `docs/prd/warehouse.md` — Warehouse PRD (defines lot code)
+- `docs/prd/operation/overview.md` — Operation unit PRD
+- `docs/prd/warehouse/overview.md` — Warehouse PRD (defines lot code)

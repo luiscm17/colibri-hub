@@ -1,10 +1,20 @@
-# RBAC Design — Yarn EPR
+---
+document_type: research
+status: active
+implementation: not-applicable
+scope: access-control
+authority: evidence
+owner: architecture
+last_reviewed: 2026-07-27
+---
+
+# RBAC Design — Colibri Hub
 
 > **Research document**
 > Propuesta de diseño para el sistema de autorización basado en RBAC con scopes
 > jerárquicos, inspirado en el modelo de Azure RBAC.
 >
-> **Contexto:** Yarn EPR es un sistema de gestión de producción textil con
+> **Contexto:** Colibri Hub es un sistema de gestión de producción textil con
 > múltiples direcciones (Producción, Administración, eventualmente
 > Comercialización), cada una con estructura jerárquica propia.
 
@@ -14,7 +24,7 @@
 
 ### 1.1 Autenticación vs Autorización
 
-| Concepto | Pregunta que responde | En Yarn EPR |
+| Concepto | Pregunta que responde | En Colibri Hub |
 |----------|----------------------|-------------|
 | **Autenticación** | ¿Quién sos? | Supabase Auth (email + password, JWT) |
 | **Autorización** | ¿Qué podés hacer? | El sistema que diseñamos acá — RBAC |

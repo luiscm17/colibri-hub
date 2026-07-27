@@ -1,7 +1,17 @@
+---
+document_type: prd
+status: active
+implementation: not-started
+scope: operation/lot-processing
+authority: normative
+owner: product
+last_reviewed: 2026-07-27
+---
+
 # PRD: Lot Processing — Proceso por Lotes
 
-> **Parte de:** Unidad Operación — Yarn EPR
-> **Dependencias:** `docs/prd/operation.md` (PRD de Operación), `docs/prd/warehouse.md` (PRD de Almacén)
+> **Parte de:** Unidad Operación — Colibri Hub
+> **Dependencias:** `docs/prd/operation/overview.md` (PRD de Operación), `docs/prd/warehouse/overview.md` (PRD de Almacén)
 > **Documentos relacionados:** `docs/prd/operation/yarn-spinning.md`
 > **Siguiente:** `docs/domain/operation/lot-processing.md` (Modelo de Dominio)
 
@@ -46,7 +56,7 @@ Almacén define la única identidad del lote mediante `production_identity_id` y
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Entrada**    | La identidad de producción definida por Almacén (`production_identity_id`, `lot_code`, título, color, cliente o destino y especificaciones del pedido) y las madejas producidas en Madejeras. Inventario recibe esa información digitalmente y registra el armado físico bajo la misma identidad, según el título y peso especificados. |
 | **Salida**     | Lote procesado, inspeccionado por Calidad con su documentación completa, entregado a Almacén para verificación física y disposición.                                                                                                                                                                                                                           |
-| **No incluye** | La asignación del código de lote, el enriquecimiento con datos del pedido ni la emisión de MP (documentado en `docs/prd/warehouse.md`). La verificación física final del PT, su clasificación en Almacén ni su almacenamiento/distribución (documentado en `docs/prd/warehouse.md`). La producción de hilado en las 5 secciones de Hilatura (`Yarn Spinning`) (documentado en `docs/prd/operation/yarn-spinning.md`). |
+| **No incluye** | La asignación del código de lote, el enriquecimiento con datos del pedido ni la emisión de MP (documentado en `docs/prd/warehouse/overview.md`). La verificación física final del PT, su clasificación en Almacén ni su almacenamiento/distribución (documentado en `docs/prd/warehouse/overview.md`). La producción de hilado en las 5 secciones de Hilatura (`Yarn Spinning`) (documentado en `docs/prd/operation/yarn-spinning.md`). |
 
 ### 1.4 Dependencias
 

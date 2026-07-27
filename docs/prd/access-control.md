@@ -1,3 +1,13 @@
+---
+document_type: prd
+status: active
+implementation: not-started
+scope: access-control
+authority: normative
+owner: product
+last_reviewed: 2026-07-27
+---
+
 # SISTEMA DE GESTIÓN DE PRODUCCIÓN TEXTIL — Control de Acceso
 
 > **Cross-cutting PRD — Roles, permisos y autorización**
@@ -288,17 +298,17 @@ Producción, Almacén u Operación.
 
 ## 8. Relación con los PRD de dominio
 
-### PRD maestro (`docs/prd.md`)
+### PRD maestro (`docs/prd/product-overview.md`)
 
 Define el marco organizacional, las unidades, los actores y las reglas
 transversales del sistema.
 
-### PRD de Operación (`docs/prd/operation.md`)
+### PRD de Operación (`docs/prd/operation/overview.md`)
 
 Describe la operación productiva, los turnos, los roles operativos y la
 asignación actual o esperada de responsabilidades dentro del proceso.
 
-### PRD de Almacén (`docs/prd/warehouse.md`)
+### PRD de Almacén (`docs/prd/warehouse/overview.md`)
 
 Describe la operación documental y física de Almacén, sus movimientos y sus
 actores.

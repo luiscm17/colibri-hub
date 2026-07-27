@@ -1,4 +1,4 @@
-# Yarn EPR Agent Guide
+# Colibri Hub Agent Guide
 
 ## Python workspace
 
