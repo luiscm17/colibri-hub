@@ -16,7 +16,7 @@ last_reviewed: 2026-07-27
 > de un título específico a través de 5 secciones productivas.
 >
 > Pertenece a la Unidad Operación. Para el contexto general, actores y
-> reglas transversales, ver [`docs/prd/operation.md`](../operation.md).
+> reglas transversales, ver [`docs/prd/operation.md`](./overview.md).
 >
 > **Siguiente:** `docs/domain/operation/yarn-spinning.md` (Modelo de Dominio)
 
@@ -443,7 +443,7 @@ sección y el consolidado del Supervisor.
 
 | Métrica | Propósito |
 |---|---|
-| **Producción vs planificación** | Compara lo producido con la base planificada (ver [sección 5 de operation.md](../operation.md#5-planificación-de-la-producción)). Alerta si hay desviación significativa, especialmente en títulos 2/18 y 2/32 |
+| **Producción vs planificación** | Compara lo producido con la base planificada (ver [sección 5 de operation.md](./overview.md#5-planificación-de-la-producción)). Alerta si hay desviación significativa, especialmente en títulos 2/18 y 2/32 |
 | **Utilización de husos** | Husos operativos / husos totales de la máquina. Porcentaje de capacidad utilizada |
 | **Consolidado por turno** | Producción, calidad y desperdicio agregado por Supervisor para su reporte diario |
 

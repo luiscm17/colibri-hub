@@ -166,5 +166,5 @@ Exit of supplies from Warehouse back to the original supplier (defective materia
 - [Bale Management PRD](./bale-management.md) — raw-material bale lifecycle (separate capability)
 - [Production Identity PRD](./production-identity.md) — production identity definition
 - [Finished Product PRD](./finished-product.md) — PT management
-- [Warehouse Area PRD](../warehouse.md) — area-level overview
+- [Warehouse Area PRD](./overview.md) — area-level overview
 - [Access Control](../access-control.md) — permission policies

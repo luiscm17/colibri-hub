@@ -308,6 +308,6 @@ Operations delivers PT
 
 - [Production Identity PRD](./production-identity.md) — identity definition that PT returns under
 - [Bale Management PRD](./bale-management.md) — raw-material lifecycle (separate capability)
-- [Warehouse Area PRD](../warehouse.md) — area-level overview
+- [Warehouse Area PRD](./overview.md) — area-level overview
 - [Access Control](../access-control.md) — permission policies
 - [Lot Processing Records](../operation/lot-processing-records.md) — Operations production data

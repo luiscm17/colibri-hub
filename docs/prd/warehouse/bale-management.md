@@ -460,7 +460,7 @@ This section documents contradictions found across source documents and their re
 
 ## References
 
-- [Warehouse Area PRD](../warehouse.md) — area-level overview and all subdomain scope
+- [Warehouse Area PRD](./overview.md) — area-level overview and all subdomain scope
 - [Warehouse Domain Map](../../domain/warehouse.md) — domain model and boundaries
 - [Ubiquitous Language](../../domain/ubiquitous-language.md) — canonical naming contract
 - [Warehouse Schema](../../../backend/docs/database/warehouse-schema.md) — physical schema documentation

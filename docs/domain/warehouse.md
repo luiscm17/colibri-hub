@@ -157,6 +157,6 @@ For complete delivery rules and acceptance criteria, see the
 ## Sources
 
 - [Bale Management PRD](../prd/warehouse/bale-management.md) — normative source for bale business rules
-- [Warehouse Area PRD](../prd/warehouse.md) — area-level scope and subdomain overview
+- [Warehouse Area PRD](../prd/warehouse/overview.md) — area-level scope and subdomain overview
 - [Ubiquitous Language](ubiquitous-language.md) — canonical naming contract
 - [Context Map](../architecture/context-map.md) — context ownership and boundaries

@@ -163,6 +163,6 @@ Neither domain overwrites the other's contributions to the shared history.
 
 - [Bale Management PRD](./bale-management.md) — raw-material bale lifecycle (separate capability)
 - [Finished Product PRD](./finished-product.md) — PT management under the same identity
-- [Warehouse Area PRD](../warehouse.md) — area-level overview
+- [Warehouse Area PRD](./overview.md) — area-level overview
 - [Access Control](../access-control.md) — permission policies
 - [Lot Processing Records](../operation/lot-processing-records.md) — Operations continuation of the lot history

@@ -8,12 +8,14 @@ These DBML files document conceptual designs for each bounded context in the Col
 
 ## Models
 
-| Context | Model | Dictionary |
-| --- | --- | --- |
-| Access Control | [access.dbml](../../db/access.dbml) | [access-dictionary.md](access-dictionary.md) |
-| Batch Processing (Lot Processing) | [batch-processing.dbml](../../db/batch-processing.dbml) | [batch-processing-dictionary.md](batch-processing-dictionary.md) |
-| Shared Catalogs | [catalogs.dbml](../../db/catalogs.dbml) | [catalogs-dictionary.md](catalogs-dictionary.md) |
-| Warehouse | [warehouse.dbml](../../db/warehouse.dbml) | — |
-| Yarn Production | [yarn-production.dbml](../../db/yarn-production.dbml) | [yarn-production-dictionary.md](yarn-production-dictionary.md) |
+| Context | Dictionary |
+| --- | --- |
+| Access Control | [access-dictionary.md](access-dictionary.md) |
+| Batch Processing (Lot Processing) | [batch-processing-dictionary.md](batch-processing-dictionary.md) |
+| Shared Catalogs | [catalogs-dictionary.md](catalogs-dictionary.md) |
+| Warehouse | — (promoted to [warehouse-schema.md](../../../backend/docs/database/warehouse-schema.md)) |
+| Yarn Production | [yarn-production-dictionary.md](yarn-production-dictionary.md) |
+
+> **Note:** DBML source files were retired from the active tree. Git history preserves them. The dictionaries above describe the conceptual structure for each context.
 
 > **Note:** The warehouse dictionary has been promoted to authoritative schema documentation at [`backend/docs/database/warehouse-schema.md`](../../../backend/docs/database/warehouse-schema.md) since its content reflects the implemented migrations.
