@@ -122,15 +122,9 @@ A **bale** (`Bale`) is an independently identified raw-material unit with its ow
 
 ### 5.3 Reception Date Semantics
 
-**Resolved contradiction:** The functional records document describes `received_at` as a "business date of reception" (fecha de negocio de recepción). The backend PRD explicitly targets `DATE` type. The current migration uses `timestamp with time zone`.
-
-**Normative decision:**
-
 - `received_at` is a **business date** — the calendar date when the physical reception occurred.
 - It does not carry a time component.
-- It does not represent when the system record was created (that is a separate technical concern).
-- The system registration timestamp, if needed in the future, would be a separate field (`created_at`).
-- This is not retroactive for existing data — migration strategy for converting existing timestamps to dates is an implementation concern documented in the backend specification.
+- It does not represent when the system record was created (that is a separate technical concern: `created_at`).
 
 ---
 
@@ -192,9 +186,7 @@ Reception is the physical arrival of raw material from a supplier. It is an **ap
 
 ### 7.4 Transport Fields
 
-**Resolved contradiction:** The functional records document mentions "número de camión cuando aplique" as optional header data. The backend specification explicitly excludes transport fields from the current contract.
-
-**Normative decision:** Transport information (truck number, license plate, driver) is **not part of the current bale management capability**. If these fields are needed in the future, they must be added through an explicit requirement with defined contract, validation, and persistence rules. The PRD does not commit to their inclusion.
+Transport information (truck number, license plate, driver) is **not part of the current bale management capability**. If needed in the future, it must be added through an explicit requirement.
 
 ---
 
@@ -205,12 +197,11 @@ Reception is the physical arrival of raw material from a supplier. It is an **ap
 | State | Persistence Value | Display (English) | Display (Spanish) | Meaning |
 |---|---|---|---|---|
 | In Warehouse | `in_warehouse` | In Warehouse | En almacén | Bale is under Warehouse custody |
-| Delivered | `delivered` | Delivered | Entregado | Bale has been delivered to Production |
+| Delivered | `delivered` | Delivered | Entregado | Bale has been delivered to and used by Production |
 
-**Resolved contradiction on naming:** The ubiquitous language defines enum code terms as `IN_WAREHOUSE` and `DELIVERED` (uppercase). The database check constraint and API contract use `in_warehouse` and `delivered` (lowercase). Both representations are valid in their respective layers:
-
-- **Database and API layer:** `in_warehouse`, `delivered` (lowercase, as persisted)
-- **Domain/enum code layer:** `IN_WAREHOUSE`, `DELIVERED` (uppercase constant naming)
+Layer conventions:
+- **Database and API layer:** `in_warehouse`, `delivered` (lowercase)
+- **Domain/enum code layer:** `IN_WAREHOUSE`, `DELIVERED` (uppercase constants)
 - **Business documentation and display:** "In Warehouse", "Delivered" / "En almacén", "Entregado"
 
 ### 8.2 Transition Rules
@@ -232,18 +223,9 @@ Reception is the physical arrival of raw material from a supplier. It is an **ap
 
 ### 8.3 Reversibility
 
-**Resolved contradiction:** The functional records document states "una reversión solo puede ocurrir como corrección controlada y auditada" (reversal can happen as a controlled, audited correction). The backend specification says the transition is "irreversible" (BR-10).
-
-**Normative decision:**
-
-- For the **current implementation scope**, the delivery transition is **irreversible**. There is no reversal mechanism.
-- As a **future capability**, a controlled reversal (correction) may be introduced. When it is, it must follow the general Warehouse correction rules: controlled by policy, audited with actor, timestamp, reason, authorization basis, and before/after values.
-- Technical specifications implementing the current scope treat delivery as irreversible and reject any attempt to set status back to `in_warehouse`.
-- This PRD does not commit to a timeline for implementing the reversal capability.
+The delivery transition is **irreversible** in the current scope. There is no reversal mechanism. A future controlled reversal may be introduced following the standard correction policy (audited, authorized, reason documented).
 
 ---
-
-## 9. Delivery Meaning
 
 ## 9. Delivery Meaning
 
@@ -397,60 +379,6 @@ A single bale is queried by its composite business identity:
 | 6 | **Provider catalog:** Should `provider_name` reference a managed supplier catalog or remain free text? | Product | Affects data quality and validation | Open |
 | 7 | **Material type catalog:** Should `material_type` reference a managed catalog or remain free text with normalization? | Product | Affects data quality and validation | Open |
 | 8 | **Batch size upper bound:** Is 100 bales per batch a hard business rule or an implementation safeguard? | Product | Affects validation rules and error messaging | Open |
-
----
-
-## 14. Contradiction Resolution Log
-
-This section documents contradictions found across source documents and their resolution.
-
-### 14.1 Delivery State Meaning
-
-| Source | Claim |
-|---|---|
-| Backend PRD (BR-12) | "delivered means entregado y utilizado por Producción" |
-| Warehouse Records (§5.3) | "la entrega es el hecho de negocio; su resultado es DELIVERED" |
-
-**Resolution:** Delivered means the bale has been delivered to and used by Production. This is a simplified binary fact for the current project scope — no intermediate state exists between in_warehouse and delivered.
-
-### 14.2 Reversal Rules
-
-| Source | Claim |
-|---|---|
-| Backend PRD (BR-10) | "Un fardo delivered no puede volver a in_warehouse ni entregarse nuevamente" (irreversible) |
-| Warehouse Records (§5.3) | "una reversión solo puede ocurrir como corrección controlada y auditada" (reversible under control) |
-
-**Resolution:** For current scope, delivery is irreversible. Future controlled reversal is acknowledged as a potential capability but is not implemented. Both claims are correct in their context: the backend implements irreversibility now; the business acknowledges future correction needs.
-
-### 14.3 Reception Date Semantics
-
-| Source | Claim |
-|---|---|
-| Current migration | `received_at timestamp with time zone` |
-| Backend PRD (§13.1) | Must be `DATE` type; fecha empresarial |
-| Warehouse Records (§5.1) | "fecha de negocio de recepción" |
-
-**Resolution:** `received_at` is a business date (calendar date only). The migration reflects the original implementation; the target is `DATE`. Migration strategy is an implementation detail for the backend specification.
-
-### 14.4 Transport Fields
-
-| Source | Claim |
-|---|---|
-| Warehouse Records (§5.1) | Lists "número de camión cuando aplique" in header data |
-| Backend PRD (§4.2) | Explicitly excluded from scope |
-| Frontend PRD (§6.1) | Explicitly removed from header |
-
-**Resolution:** Transport fields are not part of the current bale management capability. They are listed as an open item for future consideration.
-
-### 14.5 Canonical State Values (Casing)
-
-| Source | Representation |
-|---|---|
-| Ubiquitous Language | `IN_WAREHOUSE`, `DELIVERED` (enum constants) |
-| Migration check constraint | `in_warehouse`, `delivered` (persistence values) |
-| Backend/Frontend PRDs | `in_warehouse`, `delivered` (API contract) |
-
-**Resolution:** Both are correct in context. Persistence and API use lowercase (`in_warehouse`, `delivered`). Domain code may use uppercase enum constants (`IN_WAREHOUSE`, `DELIVERED`). Business documentation uses natural case ("In Warehouse", "Delivered"). No single casing is "wrong" — each layer follows its own convention.
 
 ---
 
