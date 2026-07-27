@@ -44,7 +44,7 @@ expresses readiness for release or distribution.
 | RawMaterialBatch | A supplier-shipment grouping identified by `shipment_number`, containing one or more bales and shared evidence/characteristics. It is not a production lot. |
 | Bale | An independently identified raw-material unit and lifecycle owner. Its business-visible identity is `shipment_number` + `bale_number`. Attributes include `material_type`, `dtex`, `gross_weight_kg`, and `container_weight_kg`. Net weight is always derived. |
 | Reception | The business act (application action) of registering one complete raw-material batch and its bales. It is not a domain aggregate or entity. |
-| Delivery | A custody transfer — the physical handoff of a whole bale from Warehouse to Production. It does not assert consumption, processing, or assignment to a production identity. |
+| Delivery | The act of delivering a whole bale from Warehouse to Production. In practice, delivered = used — there is no intermediate state. Binary, irreversible. |
 | Production identity | The Warehouse-defined cross-context identity, represented by `production_identity_id` and `lot_code`. |
 | Finished product receipt | The single Warehouse acceptance of a production identity after its Quality Send. |
 | `availability_state` | Warehouse's operational disposition of accepted finished product. It is not quality or stock. |
@@ -85,14 +85,14 @@ For complete reception rules and acceptance criteria, see the
 
 ## Delivery
 
-Delivery is the custody transfer of a whole bale from Warehouse to Production.
+Delivery is the act of handing a whole bale from Warehouse to Production.
+In practice, delivery and consumption are the same event — once delivered,
+the bale is considered used.
 
 - A bale is always delivered whole — partial delivery is not supported.
-- Delivery is a custody change only. It does **not** mean:
-  - The bale has been consumed or processed.
-  - The bale has been assigned to a production identity or lot.
+- Delivery records `delivered_at` — a business date entered by the user.
 - Delivery does not link the bale to any `production_identity_id` or `lot_code`.
-- What Production does with the bale after delivery is outside Warehouse scope.
+- No authorization workflow is modeled in the current scope.
 
 For complete delivery rules and acceptance criteria, see the
 [Bale Management PRD](../prd/warehouse/bale-management.md) §9.
@@ -103,7 +103,7 @@ For complete delivery rules and acceptance criteria, see the
    `RawMaterialBatch` and one or more independently identified `Bale` records
    in one transaction. A bale can be delivered once, whole and only to
    Production. Delivery moves the bale from `in_warehouse` to `delivered`;
-   that custody condition does not mean consumed or processed. Delivery never
+   that custody condition means delivered and used by Production. Delivery never
    links the bale to a `production_identity_id` or `lot_code`.
 2. **Production identity:** Separately from bale reception, Warehouse defines
    one `production_identity_id` and `lot_code` with the requested `yarn_count`

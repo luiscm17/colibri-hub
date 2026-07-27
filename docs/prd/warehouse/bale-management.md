@@ -245,17 +245,14 @@ Reception is the physical arrival of raw material from a supplier. It is an **ap
 
 ## 9. Delivery Meaning
 
-**Resolved contradiction:** The backend PRD states (BR-12): "delivered means entregado y utilizado por Producción" (delivered and used by Production). The functional records document and ubiquitous language explicitly state that delivery "does not mean consumed or processed" — it only records the custody transfer.
+## 9. Delivery Meaning
 
-**Normative decision:**
+`delivered` means that the bale has been **delivered to and used by Production**. In practice, delivery and consumption are treated as the same event — once a bale leaves Warehouse, it is considered used. The system models this as a binary, irreversible fact.
 
-`delivered` means that the bale has been **physically transferred from Warehouse custody to Production**. It is a custody change — the fact of delivery — and nothing more.
-
-- It does **not** assert that the bale has been consumed.
-- It does **not** assert that the bale has been processed.
-- It does **not** assert that the bale has been assigned to a production identity or lot.
-- It does **not** link the bale to any `production_identity_id` or `lot_code`.
-- What Production does with the bale after delivery is outside the scope of this capability.
+- Delivery is a **checklist-style operation**: the user marks which bales were delivered and when.
+- There is no intermediate state between "in warehouse" and "delivered/used".
+- No approval workflow, contract, or intermediary is modeled for this project.
+- Delivery does not link the bale to a production identity or lot code.
 
 ### 9.1 Delivery Rules
 
@@ -264,15 +261,15 @@ Reception is the physical arrival of raw material from a supplier. It is an **ap
 | DLV-01 | A bale is always delivered whole — partial delivery is not supported. |
 | DLV-02 | The delivery target is always Production — no other destination is required or persisted. |
 | DLV-03 | A bale can be delivered only once. A repeat delivery attempt must be rejected. |
-| DLV-04 | Delivery does not require or record a delivery date, destination, or responsible actors in the current scope. |
+| DLV-04 | Delivery records `delivered_at` — a business date (calendar day, no time component) entered by the user representing when the physical delivery occurred. |
 | DLV-05 | Delivery does not link the bale to a production identity or lot code. |
-| DLV-06 | The delivery act changes the bale's lifecycle state; it does not create a separate movement record in the current scope. |
+| DLV-06 | The delivery act changes the bale's lifecycle state; it does not create a separate movement record. |
+| DLV-07 | No authorization workflow is modeled in the current scope (the real-world authorization process is acknowledged but omitted from the system). |
 
 ### 9.2 Future Delivery Enhancements (Not in Current Scope)
 
 The following may be added through future explicit requirements:
 
-- Delivery date (business date)
 - Responsible actors (who delivers, who receives)
 - Delivery reference or authorization number
 - Reversal/correction capability
@@ -392,7 +389,7 @@ A single bale is queried by its composite business identity:
 
 | # | Item | Owner | Impact | Status |
 |---|---|---|---|---|
-| 1 | **Delivery date and actors:** Should delivery record a business date and responsible actors? | Product | Affects delivery contract and audit trail completeness | Open |
+| 1 | **Delivery actors:** Should delivery record responsible actors (who delivers, who receives)? | Product | Affects audit trail completeness | Open |
 | 2 | **Reversal capability:** When should controlled reversal (`delivered → in_warehouse`) be implemented? What authorization and audit requirements apply? | Product | Affects state machine design and correction policy | Open |
 | 3 | **Post-registration correction:** How should errors in already-registered batches be corrected? (typos in bale_number, wrong weights, etc.) | Product | Affects edit policy, audit requirements, and correction window rules | Open |
 | 4 | **Multi-bale delivery atomicity:** Should delivery of multiple bales in one operation be atomic (all-or-nothing) or individual? | Product | Affects future multi-bale delivery command design | Open |
@@ -412,10 +409,9 @@ This section documents contradictions found across source documents and their re
 | Source | Claim |
 |---|---|
 | Backend PRD (BR-12) | "delivered means entregado y utilizado por Producción" |
-| Warehouse Records (§5.3) | "la entrega es el hecho de negocio; su resultado es DELIVERED, sin afirmar consumo ni procesamiento" |
-| Ubiquitous Language | "Bale has been delivered to Production. Does not mean consumed or processed." |
+| Warehouse Records (§5.3) | "la entrega es el hecho de negocio; su resultado es DELIVERED" |
 
-**Resolution:** Delivered means custody transfer only — not consumption or processing. The backend PRD BR-12 wording was imprecise; this PRD establishes the normative definition.
+**Resolution:** Delivered means the bale has been delivered to and used by Production. This is a simplified binary fact for the current project scope — no intermediate state exists between in_warehouse and delivered.
 
 ### 14.2 Reversal Rules
 

@@ -85,7 +85,7 @@ For business users, bale identity is the composite of `shipment_number` + `bale_
 
 ### Status Lifecycle
 
-The bale `status` column permits only two values: `in_warehouse` and `delivered`. The transition is `in_warehouse → delivered`. Delivery does not mean consumed or processed. Repeat delivery is rejected at the application layer. The current baseline adds no delivery timestamp or actor column.
+The bale `status` column permits only two values: `in_warehouse` and `delivered`. The transition is `in_warehouse → delivered`. In practice, delivered means delivered and used by Production. Repeat delivery is rejected at the application layer. The `delivered_at` column (business date) should be added in a future migration.
 
 ### ON DELETE RESTRICT
 

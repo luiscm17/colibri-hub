@@ -49,9 +49,9 @@ For full business rules, attribute definitions, validation constraints, and acce
 | `número de envío` | Business-visible identifier of a raw-material batch | **shipment number** | `ShipmentNumber` | Transport and persistence expose `shipment_number`. Globally unique across all batches. |
 | `número de fardo` | Bale identifier within a batch | **bale number** | `bale_number` | Unique within its parent batch only; the same bale number is valid in different batches. |
 | `recepción de fardos` | Application action that registers one complete raw-material batch and one or more bales | **receiving action** | `ReceiveBales` or `RegisterRawMaterialBatch` | Reception is a business act, not a domain aggregate. Do not model `Reception` or `BaleReception` as an entity. |
-| `entrega de fardos a Producción` | Custody transfer of one or more independently loaded bales from Warehouse to Production | **delivery to Production** | `DeliverBales` | Delivery means custody transfer only — not consumption, processing, or assignment to a production identity. |
+| `entrega de fardos a Producción` | Custody transfer of one or more independently loaded bales from Warehouse to Production | **delivery to Production** | `DeliverBales` | Delivery means the bale has been delivered to and used by Production. Binary irreversible fact. |
 | `en Almacén` | Bale remains under Warehouse custody | **in Warehouse** | `IN_WAREHOUSE` | Bale lifecycle state. Persistence/API: `in_warehouse`. |
-| `entregado` | Bale has been physically transferred to Production | **delivered** | `DELIVERED` | Bale lifecycle state. Persistence/API: `delivered`. Does not mean consumed or processed. |
+| `entregado` | Bale has been physically transferred to Production | **delivered** | `DELIVERED` | Bale lifecycle state. Persistence/API: `delivered`. In practice, delivered = used by Production. |
 | `fecha de recepción` | Calendar date when the physical reception occurred | **reception date** | `received_at` | A business date (no time component). Not the system creation timestamp. |
 | `tipo de material` | Raw-material classification for a bale | **material type** | `material_type` | Normalized to uppercase before persistence. |
 | `dtex` | Linear density of the raw material | **dtex** | `dtex` | Decimal, finite, greater than zero. |
@@ -124,7 +124,7 @@ This is a hard rule to avoid one of the worst naming collisions in the current d
 
 ### Delivery meaning
 
-- `delivered` = custody transfer from Warehouse to Production.
+- `delivered` = delivered to and used by Production. Binary irreversible fact.
 - It does **not** assert consumption, processing, or assignment to a production identity.
 - What Production does with the bale after delivery is outside Warehouse scope.
 

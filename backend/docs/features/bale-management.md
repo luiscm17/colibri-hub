@@ -136,7 +136,7 @@ El repositorio contiene actualmente:
 ## 5. Reglas de negocio
 
 > For authoritative business rules, see the [normative PRD](../../../docs/prd/warehouse/bale-management.md).
-> The rules below are reproduced for implementation reference and may lag behind the PRD.
+> The rules below are reproduced for implementation reference. The [normative PRD](../../../docs/prd/warehouse/bale-management.md) is authoritative.
 
 | ID | Regla |
 |---|---|
