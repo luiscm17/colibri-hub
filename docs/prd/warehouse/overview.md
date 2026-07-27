@@ -113,4 +113,4 @@ Each capability is documented in its own PRD with detailed business rules, flows
 | **Warehouse** | Bale reception, production identity definition, emission to Operations, PT reception, exits, returns | The 6 productive stages, quality, real waste |
 | **Operations** | 6 lot stages, quality, nomenclatures, real waste | Internal Warehouse stock movements, clients, balances |
 
-The lot history is unique, but each domain writes and queries only its own information under the same `production_identity_id`.
+The lot history is unique, but each domain writes and queries only its own information under the same production identity.
