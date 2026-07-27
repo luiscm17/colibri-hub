@@ -1,3 +1,13 @@
+---
+document_type: research
+status: active
+implementation: not-started
+scope: warehouse/dyehouse
+authority: evidence
+owner: product
+last_reviewed: 2026-07-27
+---
+
 # SISTEMA SIC JAC - TINTORERIA
 
 El apartado de reportes que es enviado a Jhoselin de tintoreria es muy similar al resto consta de las mismas celdas pero trabajan con diferentes categorias, sub categorias e items

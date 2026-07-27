@@ -1,3 +1,13 @@
+---
+document_type: runbook
+status: active
+implementation: implemented
+scope: global
+authority: normative
+owner: architecture
+last_reviewed: 2026-07-27
+---
+
 # Naming Conventions
 
 > Consistent naming rules for directories, files, modules, functions, variables,

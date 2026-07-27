@@ -1,3 +1,13 @@
+---
+document_type: research
+status: active
+implementation: not-started
+scope: warehouse/packaging
+authority: evidence
+owner: product
+last_reviewed: 2026-07-27
+---
+
 # BOLSAS Y ETIQUETAS - SIC JAC
 
 En el sistema el apartado de bolsas y etiquetas controla las entradas de los diferentes proveedores para que el producto terminado sea mas facil de identificar, este de igual manera tiene un sistema muy similar de reportes pero manejan diferentes productos que el resto este se divide en las secciones de:

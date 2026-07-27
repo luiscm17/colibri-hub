@@ -1,3 +1,13 @@
+---
+document_type: runbook
+status: active
+implementation: implemented
+scope: global
+authority: normative
+owner: architecture
+last_reviewed: 2026-07-27
+---
+
 # Git Workflow
 
 > Branch strategy, commit convention, pull request process, and code review

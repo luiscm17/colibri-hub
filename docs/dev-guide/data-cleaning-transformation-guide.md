@@ -1,3 +1,13 @@
+---
+document_type: runbook
+status: active
+implementation: implemented
+scope: data-engineering
+authority: explanatory
+owner: backend
+last_reviewed: 2026-07-27
+---
+
 # Data Cleaning & Transformation Guide — Python for Data Engineering
 
 A practical reference for cleaning, exploring, and transforming datasets with **pandas**, **numpy**, and built-in Python tools. Each section includes **what it does**, **why you need it**, and **concrete examples**.

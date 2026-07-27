@@ -1,3 +1,13 @@
+---
+document_type: research
+status: active
+implementation: not-started
+scope: warehouse/finished-product
+authority: evidence
+owner: product
+last_reviewed: 2026-07-27
+---
+
 # Producto Terminado
 
 El Producto Terminado es el reporte que se encarga de llevar el control de los productos terminados en el almacen incluyendo informacion de Entrada (Recepcion de Amteria prima) y Salida (Materia Prima procesada y embolsada, disponible para la venta) este reporte se divide en tres categorias: Categoria, Sub Categoria e Item, cada una con un nivel de detalle diferente, el reporte se genera a partir de la fecha inicio y fecha fin del reporte, este reporte se divide en varias secciones:
