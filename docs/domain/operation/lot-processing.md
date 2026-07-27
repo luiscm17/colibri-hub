@@ -102,7 +102,7 @@ per stage, created sequentially.
 
 - `entryTimestamp` must be >= previous stage's `exitTimestamp`
 - Stage N+1 cannot be created until Stage N has an `exitTimestamp`
-- Once `exitTimestamp` is set, stage data is immutable
+- Once a stage is closed, corrections follow the standard policy (RBAC, reason, audit trail)
 - StageData structure varies by stageType
 
 ---
@@ -122,7 +122,7 @@ Documents an incident or defect found during a stage.
 - Category is mandatory when an observation exists
 - Details is optional
 - Categories are predefined per stage type (dropdown)
-- Observations are append-only once the stage is closed
+- Observations are append-only; existing observations are not deleted
 
 ---
 

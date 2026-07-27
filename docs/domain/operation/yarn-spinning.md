@@ -238,7 +238,7 @@ Son datos maestros compartidos con otros contextos de Operation:
 7. **Madejeras es estructuralmente distinto.** No usa husos, tara, ni carro. Usa cantidad de madejas y peso unitario.
 8. **Desperdicio por grupo de máquinas.** No por máquina individual.
 9. **Madejeras fuera de especificación NO es desperdicio.** Vuelve a etapa anterior para reproceso.
-10. **Todos los registros son inmutables (append-only).** Las correcciones son nuevos registros con trazabilidad.
+10. **Records are editable under policy.** Corrections within the operational window preserve actor, timestamp, reason, and before/after values. The correction history is append-only.
 
 ---
 

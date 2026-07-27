@@ -75,7 +75,7 @@ information to **Administration** as the formal liaison toward **Management**.
 | **Digital capture** | At shift end, the responsible person registers all shift data in a single session |
 | **Concurrency** | No simultaneous registration between shifts — each registers after the prior one finishes |
 | **Timestamps** | Reflect when events physically occurred, not when they were digitized |
-| **Immutability** | Once registered, data is not modified. Corrections are new records with traceability to the original |
+| **Controlled editing** | Registered data can be corrected within the operational window under RBAC policy. Every correction preserves actor, timestamp, reason, and before/after values. Identity fields and consumed events cannot be altered. |
 
 ## 6. Transversal Rules
 
