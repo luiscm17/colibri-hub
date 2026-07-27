@@ -1,7 +1,7 @@
 ---
 document_type: adr
 status: active
-implementation: implemented
+implementation: not-started
 scope: domain/operations
 authority: normative
 owner: architecture

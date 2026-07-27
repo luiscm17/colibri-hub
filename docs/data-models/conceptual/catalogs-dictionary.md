@@ -1,7 +1,7 @@
 ---
 document_type: conceptual-model
 status: active
-implementation: partial
+implementation: not-started
 scope: catalogs/shared-reference-data
 authority: conceptual
 owner: architecture

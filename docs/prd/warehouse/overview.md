@@ -75,7 +75,7 @@ Each capability is documented in its own PRD with detailed business rules, flows
 
 ### Cross-cutting concerns
 
-- **Movement history and auditability** — every stock movement is immutable; corrections create new auditable records
+- **Movement history and change tracking** — stock movements are editable under policy; every correction preserves actor, timestamp, reason, and before/after values
 - **Stock closings** — monthly, annual, and extraordinary closings freeze movements and compute balances using `(Previous Balance + Entries) − Exits = Balance`
 - **Configurable permissions** — registration, validation, authorization, and correction capabilities can be reassigned without altering functional flows
 

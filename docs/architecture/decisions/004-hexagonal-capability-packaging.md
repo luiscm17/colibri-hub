@@ -1,7 +1,7 @@
 ---
 document_type: adr
 status: active
-implementation: implemented
+implementation: partial
 scope: backend/architecture
 authority: normative
 owner: architecture

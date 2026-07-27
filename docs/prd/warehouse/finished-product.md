@@ -43,7 +43,7 @@ When Operations completes production, the finished product returns to Warehouse 
 
 1. A controlled acceptance process that validates PT delivery from Operations.
 2. Visibility into PT availability and condition for distribution decisions.
-3. An auditable dispatch process for sales and transfers.
+3. A traceable dispatch process for sales and transfers (with change history when edits occur).
 4. Traceability for returns of product that had already left Warehouse.
 
 Without these capabilities, Warehouse cannot manage PT inventory, fulfill client orders, or maintain traceability.

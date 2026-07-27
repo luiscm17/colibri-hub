@@ -45,7 +45,7 @@ Warehouse personnel receive raw-material bales from suppliers and must track the
 1. A reliable record of what was received, from whom, and when.
 2. Identity and weight traceability for each individual bale.
 3. Visibility into current stock (what is still in warehouse vs. already delivered).
-4. A controlled, auditable process for transferring bales to Production.
+4. A controlled process for recording bale deliveries to Production (date tracked; actor tracking is a future enhancement).
 
 Without this capability, stock discrepancies, lost traceability, and uncontrolled material flow create operational risk.
 
@@ -177,7 +177,7 @@ Reception is the physical arrival of raw material from a supplier. It is an **ap
 |---|---|
 | RCP-01 | A reception registers exactly one `RawMaterialBatch` and one or more `Bale` records. |
 | RCP-02 | The entire reception is atomic — if any bale fails validation, the entire batch is rejected. |
-| RCP-03 | A batch must contain between 1 and 100 bales. |
+| RCP-03 | The current reception contract accepts 1–100 bales per request. This is an operational safeguard, not an intrinsic business limit. |
 | RCP-04 | `shipment_number` must not already exist in the system. |
 | RCP-05 | Within the batch, all `bale_number` values must be unique. |
 | RCP-06 | The batch is inserted before its bales; the operation returns the batch technical identifier. |
@@ -328,7 +328,7 @@ A single bale is queried by its composite business identity:
 
 | ID | Criterion |
 |---|---|
-| AC-RCP-01 | A complete batch with 1 to 100 bales can be registered in one atomic operation. |
+| AC-RCP-01 | A complete batch with 1–100 bales can be registered in one atomic operation (operational safeguard; limit may be revised). |
 | AC-RCP-02 | `shipment_number` must be globally unique; a duplicate produces a clear conflict response. |
 | AC-RCP-03 | `bale_number` must be unique within the batch; a duplicate within the same registration is rejected. |
 | AC-RCP-04 | `received_at` accepts a date (no time component); values with a time component are rejected. |
@@ -378,7 +378,6 @@ A single bale is queried by its composite business identity:
 | 5 | **Transport fields:** Should truck number, license plate, or driver be added to the batch header? | Product | Affects reception contract | Open |
 | 6 | **Provider catalog:** Should `provider_name` reference a managed supplier catalog or remain free text? | Product | Affects data quality and validation | Open |
 | 7 | **Material type catalog:** Should `material_type` reference a managed catalog or remain free text with normalization? | Product | Affects data quality and validation | Open |
-| 8 | **Batch size upper bound:** Is 100 bales per batch a hard business rule or an implementation safeguard? | Product | Affects validation rules and error messaging | Open |
 
 ---
 

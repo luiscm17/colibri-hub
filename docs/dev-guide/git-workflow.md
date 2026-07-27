@@ -1,7 +1,7 @@
 ---
 document_type: runbook
 status: active
-implementation: implemented
+implementation: not-applicable
 scope: global
 authority: normative
 owner: architecture

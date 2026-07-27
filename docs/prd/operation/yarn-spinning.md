@@ -443,7 +443,7 @@ sección y el consolidado del Supervisor.
 
 | Métrica | Propósito |
 |---|---|
-| **Producción vs planificación** | Compara lo producido con la base planificada (ver [sección 5 de operation.md](./overview.md#35-production-planning)). Alerta si hay desviación significativa, especialmente en títulos 2/18 y 2/32 |
+| **Producción vs planificación** | Compara lo producido con la base planificada (ver [sección 3.5 de operation overview](./overview.md#35-production-planning)). Alerta si hay desviación significativa. **Note:** Specific baselines per title (kg/day targets) are a valid business rule deferred to a future version — not included in the current scope. |
 | **Utilización de husos** | Husos operativos / husos totales de la máquina. Porcentaje de capacidad utilizada |
 | **Consolidado por turno** | Producción, calidad y desperdicio agregado por Supervisor para su reporte diario |
 
