@@ -33,7 +33,7 @@ The Warehouse area covers:
 
 ### Out of scope
 
-- The 6 productive stages and their state machine (→ [`docs/prd/operation.md`](../operation/overview.md))
+- The 6 productive stages and their state machine (→ [Operation Overview](../operation/overview.md))
 - Process quality control and special PT nomenclatures (→ Operation)
 - Real and accumulated waste (→ Operation / Production Manager)
 - Invoicing, accounting, and fiscal books
@@ -94,7 +94,7 @@ Each capability is documented in its own PRD with detailed business rules, flows
 
 | Dependency | Reason |
 | --- | --- |
-| [`docs/prd/operation.md`](../operation/overview.md) | Receives PT from Operations; reads lot productive data |
+| [Operation Overview](../operation/overview.md) | Receives PT from Operations; reads lot productive data |
 | [`docs/prd/access-control.md`](../access-control.md) | Permission and authorization model |
 | Master PRD ([`docs/prd/product-overview.md`](../product-overview.md)) | Data capture model, organizational principles |
 

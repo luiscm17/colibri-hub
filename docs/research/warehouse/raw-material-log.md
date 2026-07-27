@@ -12,7 +12,7 @@ last_reviewed: 2026-07-27
 
 > **Purpose:** Understand what data is recorded when raw material arrives from a supplier, based on real Excel files (`CAMION 01-2026 HB.xlsx`, `RESUMEN MAT. PRIMA 2026.xlsx`) and knowledge of the current physical receipt.
 >
-> **Outcome:** Ground truth for the data model in `docs/domain/warehouse.md`.
+> **Outcome:** Evidence supporting the data model in `docs/domain/warehouse.md`. This document is research — it does not define or override the normative domain model.
 >
 > **Scope:** Strictly what happens at **reception** — when the truck arrives and bales enter the warehouse.
 > Downstream processes (enrichment, emission to production, bale delivery) are noted as references only.

@@ -83,4 +83,3 @@ adapters → ports → application → domain
 ## References
 
 - [Backend architecture overview](../../../backend/docs/architecture/overview.md)
-- [DDD Hexagonal skill reference](../../../.agents/skills/clean-ddd-hexagonal/references/HEXAGONAL.md)

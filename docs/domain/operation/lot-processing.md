@@ -253,5 +253,5 @@ they are **value objects** — a fixed catalog, not user-extensible.
 ## 6. Related Documents
 
 - `docs/prd/operation/lot-processing.md` — Source PRD
-- `docs/prd/operation.md` — Operation unit PRD
-- `docs/prd/warehouse.md` — Warehouse PRD (defines lot code)
+- `docs/prd/operation/overview.md` — Operation unit PRD
+- `docs/prd/warehouse/overview.md` — Warehouse PRD (defines lot code)

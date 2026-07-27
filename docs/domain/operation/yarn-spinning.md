@@ -245,6 +245,6 @@ Son datos maestros compartidos con otros contextos de Operation:
 ## 6. Related Documents
 
 - `docs/prd/operation/yarn-spinning.md` — Source PRD
-- `docs/prd/operation.md` — Operation unit PRD
+- `docs/prd/operation/overview.md` — Operation unit PRD
 - `docs/domain/operation/lot-processing.md` — Downstream domain (Lot Processing)
 - `docs/domain/warehouse.md` — Upstream domain (Warehouse)

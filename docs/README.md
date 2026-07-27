@@ -46,12 +46,6 @@ Conceptual data models (exploratory — not the implemented schema).
 
 - [Data Models Index](./data-models/README.md) — Conceptual model navigation
 
-## Research
-
-Investigations, evaluations, and design explorations.
-
-- [RBAC Design](./research/rbac-design.md) — Role-based access control research
-
 ## Templates
 
 Standard templates for new documentation.

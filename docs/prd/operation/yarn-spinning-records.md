@@ -11,7 +11,7 @@ last_reviewed: 2026-07-27
 # Registros Funcionales — Hilatura (`Yarn Spinning`)
 
 > **Encadenado desde:** `docs/prd/operation/yarn-spinning.md`
-> **Relacionados:** `docs/prd/operation.md`, `docs/prd/access-control.md`
+> **Relacionados:** `docs/prd/operation/overview.md`, `docs/prd/access-control.md`
 
 ---
 
