@@ -23,7 +23,7 @@ format.
 uv run --locked python -m unittest discover -s backend/tests -v
 
 # Single module
-uv run --locked python -m unittest backend.tests.test_warehouse.bales.domain.test_raw_material_batch -v
+uv run --locked python -m unittest backend.tests.domain.test_core_contracts -v
 
 # PostgreSQL integration tests (requires local Supabase)
 TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres \

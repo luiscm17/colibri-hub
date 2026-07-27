@@ -27,7 +27,7 @@ Additionally, the project organizes code by business capability (e.g., `warehous
 The architecture must support:
 
 - Testability without infrastructure (domain and application layers test in isolation)
-- Swappable adapters (SQLite for tests, PostgreSQL for production)
+- Swappable adapters (test doubles for unit tests, PostgreSQL for production)
 - Clear dependency direction (inward: adapters → ports → application → domain)
 
 ## Decision
@@ -60,7 +60,7 @@ adapters → ports → application → domain
 | Alternative | Pros | Cons | Reason Rejected |
 |-------------|------|------|-----------------|
 | Layer-first packaging (`models/`, `services/`, `repos/`) | Familiar to Django/Rails developers, simple initial structure | Scatters a single capability across many directories, makes it hard to understand a feature in isolation, couples unrelated capabilities at the layer level | Does not scale with multiple bounded contexts. A developer working on bales should not navigate through shared `models/` and `services/` directories containing unrelated domain code. |
-| Clean Architecture (strict 4-ring) | Well-documented, many examples | More layers than needed for this project's complexity, entities vs. use cases distinction adds ceremony without value given our domain model simplicity | Hexagonal achieves the same dependency inversion with fewer conceptual layers. The ports/adapters metaphor maps more naturally to our infrastructure swap needs (SQLite ↔ PostgreSQL). |
+| Clean Architecture (strict 4-ring) | Well-documented, many examples | More layers than needed for this project's complexity, entities vs. use cases distinction adds ceremony without value given our domain model simplicity | Hexagonal achieves the same dependency inversion with fewer conceptual layers. The ports/adapters metaphor maps more naturally to our infrastructure swap needs (test doubles ↔ PostgreSQL). |
 
 ## Consequences
 
@@ -68,7 +68,7 @@ adapters → ports → application → domain
 
 - Each capability is self-contained — navigate one directory to understand the entire feature
 - Domain and application logic test without any infrastructure
-- Adapters are swappable (SQLite adapter for unit tests, PostgreSQL adapter for production)
+- Adapters are swappable (test doubles for unit tests, PostgreSQL adapter for production)
 - New capabilities follow a predictable, repeatable structure
 
 **Negative:**

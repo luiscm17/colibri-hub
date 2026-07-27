@@ -513,7 +513,7 @@ La aplicación debe permitir llamadas desde el frontend mediante una lista confi
 - Persistencia del estado después del commit.
 - Rollback ante fallos.
 
-Las pruebas SQLite pueden continuar como soporte unitario, pero no sustituyen las verificaciones de tipos, restricciones, concurrencia, diagnósticos ni agregaciones reales en PostgreSQL.
+Las pruebas unitarias con test doubles pueden continuar como soporte, pero no sustituyen las verificaciones de tipos, restricciones, concurrencia, diagnósticos ni agregaciones reales en PostgreSQL.
 
 ## 18. Criterios de aceptación
 

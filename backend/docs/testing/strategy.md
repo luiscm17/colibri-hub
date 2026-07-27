@@ -34,7 +34,7 @@ uv run --locked python -m unittest discover -s backend/tests -v
 Run a specific module:
 
 ```bash
-uv run --locked python -m unittest backend.tests.test_warehouse.bales.domain.test_raw_material_batch -v
+uv run --locked python -m unittest backend.tests.domain.test_core_contracts -v
 ```
 
 Focus a class or method by appending its dotted name to the module command.
@@ -58,40 +58,37 @@ Integration tests:
 - Are guarded: they skip or fail clearly when `TEST_DATABASE_URL` is absent
 - Never fall back to `DATABASE_URL`
 
-## 3. SQLite Adapter for Unit Testing
+## 3. Test Doubles for Unit Testing
 
-The repository provides a SQLite adapter that implements persistence ports for
-unit testing. This allows domain and application tests to run without a
-PostgreSQL instance.
+Unit tests use **test doubles** (stubs, mocks, fakes) from `backend/tests/support/doubles.py`
+to satisfy port interfaces without a real database. There is no separate SQLite
+adapter — the repository pattern allows injecting in-memory or stub implementations
+directly into use cases for testing.
 
-**Important limitations** — SQLite adapter tests are NOT proof of:
+This means unit tests:
 
-- PostgreSQL constraint diagnostics
-- Migration shape or DDL compatibility
-- Timezone behavior
-- `Decimal` round-trips with `NUMERIC` columns
-- Concurrent transaction behavior
-- RLS or privilege enforcement
-
-Use integration tests against local PostgreSQL for these concerns.
+- Run without any database (no PostgreSQL, no SQLite)
+- Use `unittest.mock` and custom doubles to simulate persistence
+- Verify domain and application logic in isolation from infrastructure
 
 ## 4. Test Design Principles
 
 - Tests use stdlib `unittest.TestCase`
 - No mocking frameworks beyond `unittest.mock`
 - Domain tests verify business rules in isolation
-- Application tests verify use-case orchestration with in-memory adapters
-- Persistence tests verify ORM mapping and query correctness
-- Integration tests verify end-to-end behavior against real PostgreSQL
+- Application tests verify use-case orchestration with test doubles
+- Persistence tests verify ORM mapping and query correctness with controlled sessions
+- Integration tests verify persistence behavior against real PostgreSQL
 
 ## 5. What Each Layer Tests
 
 | Layer | Scope | Database Required |
 |-------|-------|-------------------|
 | Domain | Aggregates, value objects, invariants, state transitions | No |
-| Application | Use cases, error translation, transaction orchestration | No (SQLite adapter) |
-| Persistence | ORM mapping, query projections, constraint translation | No (SQLite adapter) |
-| Integration | Full stack: migration, constraints, concurrency, types | Yes (local PostgreSQL) |
+| Application | Use cases, error translation, transaction orchestration | No (test doubles) |
+| Persistence | ORM mapping, query projections, constraint translation | No (test doubles) |
+| API | HTTP routes, request validation, response shape | No (TestClient) |
+| Integration | Persistence + constraints against real PostgreSQL | Yes (local PostgreSQL) |
 
 ## 6. Running Before Commit
 

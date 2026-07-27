@@ -122,7 +122,7 @@ handlers, message consumers, external API clients.
 Key design rules:
 
 - Adapters depend on ports, never the reverse
-- Multiple adapters may satisfy the same port (e.g., SQLite for tests,
+- Multiple adapters may satisfy the same port (e.g., test doubles for tests,
   PostgreSQL for production)
 - Adapter-specific exceptions are translated into domain/application errors at
   the boundary
@@ -211,7 +211,7 @@ bale registration**.
 
 - SQLAlchemy ORM adapter implementing the repository port
 - PostgreSQL-backed persistence via Supabase migrations
-- SQLite adapter for unit testing
+- Test doubles for unit testing (stubs and fakes via `backend/tests/support/doubles.py`)
 - Named constraints: `uq_raw_material_batches_shipment_number`,
   `uq_raw_material_bales_raw_material_batch_bale_number`,
   `ck_raw_material_bales_status`
