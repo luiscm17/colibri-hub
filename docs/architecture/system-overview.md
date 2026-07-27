@@ -93,7 +93,7 @@ Access Control governs all business contexts through configurable RBAC. Organiza
 
 1. **PRDs are authoritative** — architecture follows product decisions; technical design does not redefine business ownership.
 2. **Boundaries follow meaning** — contexts stay separate because they own different identities, records, and timelines.
-3. **Single lot identity** — Warehouse defines `production_identity_id` and `lot_code`; downstream contexts append their facts to that same identity.
+3. **Single lot identity** — Warehouse defines the production identity and lot code; downstream contexts append their facts to that same identity.
 4. **Controlled edits with audit trail** — critical records support scoped edits within the correction window; full audit preserved.
 5. **Persistence shape ≠ aggregates** — normalized storage does not imply one-to-one aggregate mapping.
 
