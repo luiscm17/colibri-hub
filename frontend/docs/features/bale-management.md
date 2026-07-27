@@ -928,7 +928,7 @@ The form and grid are submitted together as a single atomic payload. The form is
 
 - Each row must have bale number + material type + dtex + gross weight + tare.
 - Bale numbers must be unique within the current reception (local duplicate detection).
-- Tare must be non-negative and strictly less than gross weight.
+- Tare must be greater than zero and strictly less than gross weight.
 - Net weight is a visual calculation only — excluded from the request payload.
 - Dtex and weights are edited and transmitted as strings to preserve decimal precision.
 
@@ -953,18 +953,16 @@ features/warehouse/
   pages/
     ReceptionPage.tsx             ← Full page (form + grid + toolbar)
   components/
-    TruckReceptionForm.tsx        ← Header form (Mantine)
+    BatchReceptionForm.tsx        ← Header form (Mantine)
     BaleReceptionGrid.tsx         ← react-data-grid wrapper with bale columns and summary
     editors/
       TextCellEditor.tsx          ← Text editor (reusable)
       NumberCellEditor.tsx        ← Numeric editor, string-based (reusable)
-      MaterialSelectEditor.tsx    ← Material type select (bale-specific)
   hooks/
     useBaleReceptionGrid.ts       ← Grid state (rows, local CRUD)
     useReceptionSubmit.ts         ← Validation + batch POST submission
-    useMaterialCatalog.ts         ← Fetch material catalog
   types/
-    reception-types.ts            ← BaleRow, TruckFormData, ReceptionPayload
+    reception-types.ts            ← BaleRow, BatchHeaderFormData, ReceptionPayload
   api/
     receptionApi.ts               ← POST /api/v1/warehouse/bales
 ```
