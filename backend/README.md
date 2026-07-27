@@ -1,41 +1,44 @@
-# Backend runtime configuration
+# Colibri Hub — Backend
 
-The backend reads one required setting: `DATABASE_URL`. Local development uses
-an ignored `backend/.env`; deployed environments use platform-injected values.
+REST API for the Colibri Hub platform. Built with FastAPI, SQLAlchemy (repository
+pattern), and Supabase-managed PostgreSQL.
 
-## Local quick path
-
-From the repository root:
+## Quick Start
 
 ```bash
-cp backend/.env.example backend/.env
-# Set DATABASE_URL in backend/.env for your local database.
-uv run fastapi dev
+# From the repository root
+cp backend/.env.example backend/.env   # Set DATABASE_URL for your local database
+uv sync --locked                       # Install all workspace dependencies
+uv run fastapi dev                     # Start the development server
 ```
 
-Do not pass `--env-file`. `backend/main.py` explicitly supplies its direct
-sibling `backend/.env`, so this works independently of the invoking directory.
-The file is optional: if it is absent, only operating-system environment
-variables are considered.
+The server reads `DATABASE_URL` from `backend/.env` (local) or from the
+operating-system environment (deployed). See `.env.example` for the expected
+format.
 
-## Source and safety rules
+## Tests
 
-| Topic | Runtime behavior |
-|---|---|
-| Settings owner | `infra.configuration.ApplicationSettings` is the only environment/dotenv reader. |
-| Precedence | An operating-system `DATABASE_URL` overrides the value in `backend/.env`. |
-| Validation | Missing, blank, whitespace-only, or malformed URLs fail before the application is healthy. |
-| Secrets | The URL is stored as `SecretStr`; configuration representations and validation messages redact it. |
-| Connection | Constructing settings and the SQLAlchemy engine does not connect. A session use performs database I/O. |
+```bash
+# Unit tests (no database required)
+uv run --locked python -m unittest discover -s backend/tests -v
 
-Use `DATABASE_URL` only for the backend application. Unit tests construct
-settings directly or disable dotenv sources. PostgreSQL integration tests use a
-separate, guarded `TEST_DATABASE_URL`; it never falls back to `DATABASE_URL`.
+# Single module
+uv run --locked python -m unittest backend.tests.test_warehouse.bales.domain.test_raw_material_batch -v
 
-## Boundaries
+# PostgreSQL integration tests (requires local Supabase)
+TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres \
+  uv run --locked python -m unittest discover -s backend/integration_tests -v
+```
 
-One deployment environment can supply both frontend and backend configuration,
-but their visibility differs: backend `DATABASE_URL` is secret, while Vite
-`VITE_*` values are public browser values. Do not put backend secrets in
-`VITE_*` variables. Frontend configuration and CORS behavior are outside this
-backend runtime-settings change.
+## Documentation
+
+Detailed backend documentation lives in [`backend/docs/`](docs/README.md):
+
+- [Architecture Overview](docs/architecture/overview.md)
+- [API Conventions](docs/api/conventions.md)
+- [Database & Migrations](docs/database/migrations.md)
+- [Testing Strategy](docs/testing/strategy.md)
+- [Deployment](docs/operations/deployment.md)
+
+For product-level business rules, PRDs, and system architecture see
+[docs/README.md](../docs/README.md).

@@ -33,6 +33,9 @@ Thumbs.db
 # Tooling
 .atl/
 
+# Retired documentation staging (local-only review before permanent deletion)
+archived/
+
 # Environment files: keep every real environment file out of version control.
 .env
 .env.*
