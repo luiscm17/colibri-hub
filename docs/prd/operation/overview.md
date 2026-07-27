@@ -40,7 +40,7 @@ It covers the entire productive operation of the textile plant:
 
 | Boundary | Detail |
 |----------|--------|
-| **Input** | Complete bales received from Warehouse, plus production identity (`production_identity_id`, `lot_code`, title, color, client/destination) defined by Warehouse. |
+| **Input** | Complete bales received from Warehouse, plus production identity (production identity, lot code, title, color, client/destination) defined by Warehouse. |
 | **Output** | Processed lots approved by Quality and delivered to Warehouse for PT physical verification. |
 | **Excluded** | MP/PT/supplies inventory management, valuation, costing, accounting closes (Warehouse and Administration responsibility). |
 
@@ -125,7 +125,7 @@ to Administration by the Production Manager.
 
 | Related Area | Relationship |
 |--------------|-------------|
-| **Warehouse** | Provides MP + production identity at input; receives approved PT at output. Warehouse defines lot identity (`production_identity_id`, `lot_code`); Operation never generates its own identities. |
+| **Warehouse** | Provides MP + production identity at input; receives approved PT at output. Warehouse defines lot identity (production identity, lot code); Operation never generates its own identities. |
 | **Access Control** | Governs which roles can register, validate, or approve at each section/stage. Operation documents current assignments; Access Control enables reassignment without process redesign. |
 | **Production Manager** | Supervises both Warehouse and Operation units. Authorizes MP emissions, plans production priorities, consolidates information for Administration. |
 | **Administration** | Receives consolidated daily production reports. Owns valuation and costing (outside Operation scope). |

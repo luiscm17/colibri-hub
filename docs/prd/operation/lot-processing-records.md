@@ -92,7 +92,7 @@ del historial del lote.
 
 ### Datos heredados o de referencia
 
-- `production_identity_id` definido por Almacén y su `lot_code` visible
+- identidad de producción definida por Almacén y su código de lote visible
 - título
 - color
 - cliente o destino
@@ -146,7 +146,7 @@ del historial del lote.
 
 ### Datos heredados o de referencia
 
-- `production_identity_id` y `lot_code` visible
+- identidad de producción y código de lote visible
 - título
 - color requerido
 - cantidad de madejas armadas por Inventario
@@ -217,7 +217,7 @@ del historial del lote.
 
 ### Datos heredados o de referencia
 
-- `production_identity_id` y `lot_code` visible
+- identidad de producción y código de lote visible
 - cantidad de madejas
 - información relevante de Tintorería
 
@@ -277,7 +277,7 @@ del historial del lote.
 
 ### Datos heredados o de referencia
 
-- `production_identity_id` y `lot_code` visible
+- identidad de producción y código de lote visible
 - cantidad de madejas provenientes de Secado
 - información de condición del lote
 
@@ -338,7 +338,7 @@ del historial del lote.
 
 ### Datos heredados o de referencia
 
-- `production_identity_id` y `lot_code` visible
+- identidad de producción y código de lote visible
 - cantidad de conos u ovillos provenientes de Devanado/Ovillado
 - información relevante de la etapa anterior
 
@@ -401,7 +401,7 @@ del historial del lote.
 
 ### Datos heredados o de referencia
 
-- `production_identity_id` y `lot_code` visible
+- identidad de producción y código de lote visible
 - historial completo del lote
 - datos relevantes de Embolsado
 
@@ -464,8 +464,8 @@ del historial del lote.
 
 1. **Nacimiento físico del lote:** el lote nace físicamente en este proceso,
    cuando Inventario arma el conjunto de madejas.
-2. **Identidad definida externamente:** Almacén define `production_identity_id`
-   y su `lot_code` visible; Operación no crea identidades ni códigos nuevos.
+2. **Identidad definida externamente:** Almacén define la identidad de producción
+   y su código de lote visible; Operación no crea identidades ni códigos nuevos.
 3. **Historial único del lote:** cada etapa complementa el mismo historial con
    nuevos datos; no se modela como pares separados de entrega/recepción.
 4. **Dato heredado vs dato verificado:** el sistema debe distinguir claramente

@@ -48,20 +48,20 @@ ALMACÉN                        OPERACIÓN (Lot Processing)               ALMAC�
                                                                              └── Clasificación y disposición
 ```
 
-Almacén define la única identidad del lote mediante `production_identity_id` y su código visible `lot_code`; ambos se mantienen durante todo este proceso. Operación no genera otra identidad ni códigos nuevos. Inventario registra el armado del conjunto de madejas que será procesado bajo esa identidad. El sistema es la fuente de toda esta información; cualquier respaldo físico (planilla, etiqueta) es solo una representación impresa de los datos del sistema.
+Almacén define la única identidad del lote mediante la identidad de producción y su código visible código de lote; ambos se mantienen durante todo este proceso. Operación no genera otra identidad ni códigos nuevos. Inventario registra el armado del conjunto de madejas que será procesado bajo esa identidad. El sistema es la fuente de toda esta información; cualquier respaldo físico (planilla, etiqueta) es solo una representación impresa de los datos del sistema.
 
 ### 1.3 Límites del sistema
 
 | Límite         | Detalle                                                                                                                                                                                                                                                                                                                                                        |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada**    | La identidad de producción definida por Almacén (`production_identity_id`, `lot_code`, título, color, cliente o destino y especificaciones del pedido) y las madejas producidas en Madejeras. Inventario recibe esa información digitalmente y registra el armado físico bajo la misma identidad, según el título y peso especificados. |
+| **Entrada**    | La identidad de producción definida por Almacén (identidad de producción, código de lote, título, color, cliente o destino y especificaciones del pedido) y las madejas producidas en Madejeras. Inventario recibe esa información digitalmente y registra el armado físico bajo la misma identidad, según el título y peso especificados. |
 | **Salida**     | Lote procesado, inspeccionado por Calidad con su documentación completa, entregado a Almacén para verificación física y disposición.                                                                                                                                                                                                                           |
 | **No incluye** | La asignación del código de lote, el enriquecimiento con datos del pedido ni la emisión de MP (documentado en `docs/prd/warehouse/overview.md`). La verificación física final del PT, su clasificación en Almacén ni su almacenamiento/distribución (documentado en `docs/prd/warehouse/overview.md`). La producción de hilado en las 5 secciones de Hilatura (`Yarn Spinning`) (documentado en `docs/prd/operation/yarn-spinning.md`). |
 
 ### 1.4 Dependencias
 
 - **Hilatura (`Yarn Spinning`):** Madejeras produce las madejas crudas que Inventario utiliza para armar los lotes físicos. Sin producción en Madejeras no hay lotes.
-- **Almacén:** Define `production_identity_id`, `lot_code` y las especificaciones del pedido (título, color, cliente o destino) en el sistema. Esa información guía el armado físico y el proceso productivo.
+- **Almacén:** Define la identidad de producción, código de lote y las especificaciones del pedido (título, color, cliente o destino) en el sistema. Esa información guía el armado físico y el proceso productivo.
 - **Roles de Operación:** Inventario, Personal de Tintorería, Embolsado y Calidad son los actores que registran datos en el sistema a lo largo del proceso.
 
 ---
@@ -74,13 +74,13 @@ The process usually lasts approximately one to two days, and a lot may physicall
 
 ### 2.1 Inventario — Armado del lote
 
-El lote ingresa formalmente al proceso cuando Inventario arma físicamente el conjunto de madejas bajo la identidad única que Almacén definió previamente (`production_identity_id` y `lot_code`, título, color, cliente o destino y especificaciones del pedido). Inventario consulta esa información, busca en las madejas crudas disponibles (producidas por Madejeras) y registra el armado físico según el **título** y **peso** especificados. El color es competencia de Almacén y Tintorería, no de Inventario.
+El lote ingresa formalmente al proceso cuando Inventario arma físicamente el conjunto de madejas bajo la identidad única que Almacén definió previamente (identidad de producción y código de lote, título, color, cliente o destino y especificaciones del pedido). Inventario consulta esa información, busca en las madejas crudas disponibles (producidas por Madejeras) y registra el armado físico según el **título** y **peso** especificados. El color es competencia de Almacén y Tintorería, no de Inventario.
 
 | Aspecto                     | Descripción                                                                                                                                                                                                                         |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Quién**                   | Inventario                                                                                                                                                                                                                          |
 | **Cuándo**                  | Cuando existe la identidad definida por Almacén y hay madejas del título requerido disponibles |
-| **Qué se registra**         | — `production_identity_id` y `lot_code` (definidos por Almacén)<br>— Fecha y turno de armado<br>— Responsable que armó el lote<br>— Supervisor a cargo<br>— Título del hilado<br>— Cantidad de madejas que componen el lote<br>— Peso total del lote |
+| **Qué se registra**         | — Identidad de producción y código de lote (definidos por Almacén)<br>— Fecha y turno de armado<br>— Responsable que armó el lote<br>— Supervisor a cargo<br>— Título del hilado<br>— Cantidad de madejas que componen el lote<br>— Peso total del lote |
 | **Inconvenientes posibles** | — Madejas insuficientes del título requerido<br>— Peso fuera del rango especificado<br>— Datos de emisión incompletos                                                                                                               |
 | **Resultado**               | El lote armado pasa a Tintorería                                                                                                                                                                                                    |
 
