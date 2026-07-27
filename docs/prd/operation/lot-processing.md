@@ -1,6 +1,16 @@
+---
+document_type: prd
+status: active
+implementation: not-started
+scope: operation/lot-processing
+authority: normative
+owner: product
+last_reviewed: 2026-07-27
+---
+
 # PRD: Lot Processing — Proceso por Lotes
 
-> **Parte de:** Unidad Operación — Yarn EPR
+> **Parte de:** Unidad Operación — Colibri Hub
 > **Dependencias:** `docs/prd/operation.md` (PRD de Operación), `docs/prd/warehouse.md` (PRD de Almacén)
 > **Documentos relacionados:** `docs/prd/operation/yarn-spinning.md`
 > **Siguiente:** `docs/domain/operation/lot-processing.md` (Modelo de Dominio)

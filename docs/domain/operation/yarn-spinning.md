@@ -1,6 +1,16 @@
+---
+document_type: domain
+status: active
+implementation: not-started
+scope: operation/yarn-spinning
+authority: normative
+owner: architecture
+last_reviewed: 2026-07-27
+---
+
 # Domain Model: Yarn Spinning
 
-> **Part of:** Operation Unit — Yarn EPR
+> **Part of:** Operation Unit — Colibri Hub
 > **Source:** `docs/prd/operation/yarn-spinning.md`
 > **Related:** `docs/domain/operation/lot-processing.md` (downstream), `docs/domain/warehouse.md` (upstream)
 

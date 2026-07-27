@@ -1,6 +1,16 @@
+---
+document_type: domain
+status: active
+implementation: not-started
+scope: operation/lot-processing
+authority: normative
+owner: architecture
+last_reviewed: 2026-07-27
+---
+
 # Domain Model: Lot Processing
 
-> **Part of:** Operation Unit — Yarn EPR
+> **Part of:** Operation Unit — Colibri Hub
 > **Source:** `docs/prd/operation/lot-processing.md`
 > **Next:** DB Schema → API Design → Tasks
 

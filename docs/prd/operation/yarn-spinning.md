@@ -1,3 +1,13 @@
+---
+document_type: prd
+status: active
+implementation: not-started
+scope: operation/yarn-spinning
+authority: normative
+owner: product
+last_reviewed: 2026-07-27
+---
+
 # Hilatura (`Yarn Spinning`)
 
 > **Domain PRD — Hilatura (`Yarn Spinning`)**
@@ -111,7 +121,7 @@ o puede no tener ninguna.
 del turno (ej: 8:00 AM, 10:30 AM, 1:00 PM), el registro digital de **todas**
 se realiza al finalizar el turno (ej: 2:00 PM) en una sola sesión de captura.
 El sistema captura el timestamp real de cada descarga, pero no es un sistema
-en tiempo real. Ver [sección 2.4 del PRD maestro](../../prd.md#24-modelo-de-captura-de-datos).
+en tiempo real. Ver [sección 2.4 del PRD maestro](../product-overview.md#24-modelo-de-captura-de-datos).
 
 ### 3.2 El Número de Husos
 

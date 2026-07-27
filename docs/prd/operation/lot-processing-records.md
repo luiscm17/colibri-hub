@@ -1,3 +1,13 @@
+---
+document_type: prd
+status: active
+implementation: not-started
+scope: operation/lot-processing
+authority: normative
+owner: product
+last_reviewed: 2026-07-27
+---
+
 # Registros Funcionales — Proceso por Lotes (`Lot Processing`)
 
 > **Encadenado desde:** `docs/prd/operation/lot-processing.md`
