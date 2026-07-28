@@ -53,7 +53,7 @@ Bounded context ownership, aggregate families, inter-context dependencies, and h
 
 ### 2.5 Shared Reference Data
 
-- Owns the canonical `yarn_counts` catalog.
+- Owns the canonical yarn-count catalog.
 - Acts as a **support context** — operational meaning stays in the owning business context.
 - Does **not** own: users, transactional records, lot timelines, stock balances, or permission decisions.
 
@@ -98,7 +98,7 @@ Bounded context ownership, aggregate families, inter-context dependencies, and h
 | Warehouse | Lot Processing | Quality Send documentation (validated lot history, quality state, delivery conditions) |
 | Yarn Spinning | Access Control | Authorization decisions |
 | Yarn Spinning | Shared Reference Data | Yarn-count identifiers and values |
-| Yarn Spinning | Warehouse | Production identity as external planning/reference context |
+| Yarn Spinning | Warehouse | Material availability (bale delivery information) |
 | Lot Processing | Access Control | Authorization decisions |
 | Lot Processing | Shared Reference Data | Yarn-count identifiers and values |
 | Lot Processing | Warehouse | Production identity, specifications, and lot code |
@@ -110,7 +110,7 @@ Bounded context ownership, aggregate families, inter-context dependencies, and h
 ┌─────────────────────────────────────────────────────────┐
 │ UPSTREAM (defines identity and material)                 │
 │                                                         │
-│   Warehouse ─── production identity + material ──►      │
+│   Warehouse ─── material availability ──►                │
 │       │                                                 │
 │       │                                                 │
 │       ▼                                                 │
@@ -138,7 +138,7 @@ Bounded context ownership, aggregate families, inter-context dependencies, and h
 
 | From | To | What Crosses the Boundary | Semantics |
 | --- | --- | --- | --- |
-| Warehouse | Yarn Spinning | Production identity and material availability | Yarn Spinning references warehouse-issued identity for planning/execution |
+| Warehouse | Yarn Spinning | Material availability | Yarn Spinning references warehouse-issued material for planning/execution |
 | Yarn Spinning | Lot Processing | Skein output and readiness for Inventory assembly | Lot Processing starts when Inventory assembles skeins into a lot |
 | Warehouse | Lot Processing | Shared production identity, specifications, and lot code | Lot Processing appends stage history to the same lot Warehouse defined |
 | Lot Processing | Warehouse | Quality Send: validated lot history, quality state, and delivery conditions | Warehouse accepts the same lot through its own receipt after physical verification |
@@ -156,7 +156,7 @@ flowchart LR
     SRD[Shared Reference Data]
     ALL[All business contexts]
 
-    W -->|Production identity and material availability| YS
+    W -->|Material availability| YS
     W -->|Shared production identity, specifications, and lot code| LP
     YS -->|Skein output and readiness for Inventory assembly| LP
     LP -->|Quality Send: validated lot history, quality state, delivery conditions| W
@@ -177,7 +177,7 @@ flowchart LR
 
 | Identifier | Defined By | Consumed By | Purpose |
 | --- | --- | --- | --- |
-| Production identity | Warehouse | Yarn Spinning, Lot Processing | Unique lot identity across the production chain |
+| Production identity | Warehouse | Lot Processing | Unique lot identity across the production chain |
 | Lot code (visible) | Warehouse | Lot Processing | Human-readable lot reference |
 | Yarn count ID | Shared Reference Data | Warehouse, Yarn Spinning, Lot Processing | Canonical product classification |
 | Shipment number | Warehouse | — (internal) | Globally unique batch identification |
