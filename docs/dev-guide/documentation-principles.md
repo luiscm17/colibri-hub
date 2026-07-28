@@ -88,3 +88,41 @@ Code-level names — class names, snake_case field names, enum values, type anno
 - **Readability**: A product owner or new team member should be able to read a PRD without needing to understand code naming conventions.
 - **Single source of truth**: The ubiquitous language is the ONE place where business terms map to code terms. Duplicating that mapping inside PRDs creates drift.
 - **Separation of concerns**: Business rules define WHAT the system must do. Technical specs define HOW. Mixing them creates documents that are too coupled to be useful as either.
+
+---
+
+## Temporal Content Policy
+
+### Core Rule: No Implementation Status in Core Documentation
+
+Core Documentation describes **permanent system rules and explicit exclusions** — what a capability does and what it does not do. It never describes the temporal state of implementation because the code is the single source of truth for what is currently built.
+
+### Prohibited Patterns
+
+| Pattern | Why Prohibited | Correct Alternative |
+|---------|---------------|---------------------|
+| `implementation:` frontmatter field | Goes stale silently; the code is the source of implementation status | Remove from Core Documentation |
+| "Open Items" / "Pending Decisions" / "Future Enhancements" sections | Tracks temporal work state; belongs in the product backlog | Migrate items to `docs/backlog.md` and remove the section |
+| "not in current scope" | Implies a scope boundary that is temporal | State the exclusion permanently: "X is excluded from this capability" |
+| "not yet implemented" | Conflates scope exclusion with implementation timing | "X requires a separate capability" or "X is not modeled" |
+| "future capability" | Implies an implementation roadmap | "A separate capability is required for X" |
+| "may be added later" | Suggests temporal deferral | "X requires an explicit separate requirement" |
+
+### What IS Permitted
+
+- **Negative rules**: "Delivery does not link to a production identity" — states a permanent boundary.
+- **Conditional requirements**: "Controlled reversal requires a separate capability following the correction policy" — states what would be needed without implying timing.
+- **Boundary declarations**: "This capability does not cover production supplies" — permanent scope statement.
+
+### What Core Documentation Does NOT Know
+
+Core Documentation has no awareness of:
+- Future enhancements or planned improvements
+- The product backlog or any temporal tracking artifact
+- Whether something is "partially implemented" or "not started"
+
+If a capability does not exist in the PRD, it does not exist for the purposes of Core Documentation. Period.
+
+### Exemption
+
+The Technology Baseline document (`docs/architecture/technology-baseline.md`) is exempt from this rule. Its stated purpose is to document what exists versus what does not exist in the codebase, making temporal status references appropriate for that specific document.
