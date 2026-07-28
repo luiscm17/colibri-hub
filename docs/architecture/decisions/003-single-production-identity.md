@@ -33,15 +33,17 @@ The system needs to support:
 
 ## Decision
 
-The Warehouse context defines `production_identity_id` and `lot_code` as the canonical production identity. Downstream contexts (Yarn Spinning, Lot Processing) reference this identity and append their own history records, but they do not redefine or fork the identity.
+The Warehouse context defines `production_identity_id` and `lot_code` as the canonical production identity. Lot Processing references this identity and appends its own history records, but it does not redefine or fork the identity.
+
+Yarn Spinning does not reference production identity. Skeins produced by Yarn Spinning are later assembled into a lot at the Inventory stage within Lot Processing — that is where production identity first becomes relevant.
 
 Identity flow:
 
 ```text
-Warehouse (defines) → Yarn Spinning (references, appends) → Lot Processing (references, appends)
+Warehouse (defines) → Lot Processing (references, appends)
 ```
 
-Each downstream context may add context-specific attributes (e.g., spinning parameters, treatment records) linked to the Warehouse-defined identity, but the identity itself — its code, its creation timestamp, its batch association — is immutable once defined by Warehouse.
+Lot Processing may add context-specific attributes (e.g., treatment records, quality classification) linked to the Warehouse-defined identity, but the identity itself — its code, its creation timestamp, its batch association — is immutable once defined by Warehouse.
 
 ## Alternatives Considered
 
