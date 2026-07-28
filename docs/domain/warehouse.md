@@ -1,7 +1,6 @@
 ---
 document_type: domain
 status: active
-implementation: partial
 scope: warehouse
 authority: normative
 owner: architecture
@@ -64,8 +63,8 @@ Bales follow a simple, one-directional lifecycle:
 
 - A newly received bale always starts in In Warehouse.
 - The only permitted transition is In Warehouse → Delivered.
-- In the current scope, delivery is irreversible — no reversal mechanism exists.
-- Future controlled reversal (correction) may be introduced under Warehouse's
+- Delivery is irreversible — no reversal mechanism exists.
+- Controlled reversal (correction) requires a separate capability under Warehouse's
   general correction policy (audited, authorized, reason documented).
 
 ## Reception
@@ -78,7 +77,7 @@ custody. Key domain characteristics:
 - The reception date is a **business date** (calendar date of physical reception),
   not a system timestamp.
 - All bales start with status In Warehouse.
-- Adding bales after initial registration is not part of the current flow.
+- Adding bales after initial registration requires a separate correction capability.
 
 For complete reception rules and acceptance criteria, see the
 [Bale Management PRD](../prd/warehouse/bale-management.md) §7.
@@ -92,7 +91,7 @@ the bale is considered used.
 - A bale is always delivered whole — partial delivery is not supported.
 - Delivery records the delivery date — a business date entered by the user.
 - Delivery does not link the bale to any production identity or lot code.
-- No authorization workflow is modeled in the current scope.
+- No authorization workflow is modeled.
 
 For complete delivery rules and acceptance criteria, see the
 [Bale Management PRD](../prd/warehouse/bale-management.md) §9.

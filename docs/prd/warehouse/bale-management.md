@@ -1,7 +1,6 @@
 ---
 document_type: prd
 status: active
-implementation: partial
 scope: warehouse/bales
 authority: normative
 owner: product
@@ -45,7 +44,7 @@ Warehouse personnel receive raw-material bales from suppliers and must track the
 1. A reliable record of what was received, from whom, and when.
 2. Identity and weight traceability for each individual bale.
 3. Visibility into current stock (what is still in warehouse vs. already delivered).
-4. A controlled process for recording bale deliveries to Production (date tracked; actor tracking is a future enhancement).
+4. A controlled process for recording bale deliveries to Production (date tracked; actor tracking requires a separate requirement).
 
 Without this capability, stock discrepancies, lost traceability, and uncontrolled material flow create operational risk.
 
@@ -60,7 +59,7 @@ Without this capability, stock discrepancies, lost traceability, and uncontrolle
 | Production Manager | Authorizer | Authorizes deliveries to Production |
 | System | Automated | Generates timestamps, enforces constraints, calculates derived values |
 
-> **Note on permissions:** These actors describe current operational practice. The assignment of who registers, validates, authorizes, or corrects is configurable by access policy (see `docs/prd/access-control.md`). This PRD does not fix permissions rigidly to roles.
+> **Note on permissions:** These actors describe operational practice. The assignment of who registers, validates, authorizes, or corrects is configurable by access policy (see `docs/prd/access-control.md`). This PRD does not fix permissions rigidly to roles.
 
 ---
 
@@ -176,16 +175,16 @@ Reception is the physical arrival of raw material from a supplier. It is an **ap
 |---|---|
 | RCP-01 | A reception registers exactly one raw-material batch and one or more bale records. |
 | RCP-02 | The entire reception is atomic — if any bale fails validation, the entire batch is rejected. |
-| RCP-03 | The current reception contract accepts 1–100 bales per request. This is an operational safeguard, not an intrinsic business limit. |
+| RCP-03 | The reception contract accepts 1–100 bales per request. This is an operational safeguard, not an intrinsic business limit. |
 | RCP-04 | The shipment number must not already exist in the system. |
 | RCP-05 | Within the batch, all bale number values must be unique. |
 | RCP-06 | The batch is inserted before its bales; the operation returns the batch technical identifier. |
-| RCP-07 | Adding bales to an already-registered batch is not part of the current flow. A future correction capability must be explicit and audited. |
+| RCP-07 | Adding bales to an already-registered batch requires a separate correction capability (explicit, audited). |
 | RCP-08 | Business identifiers (shipment number, bale number, material type) are normalized (uppercase) before persistence. |
 
 ### 7.4 Transport Fields
 
-Transport information (truck number, license plate, driver) is **not part of the current bale management capability**. If needed in the future, it must be added through an explicit requirement.
+Transport information (truck number, license plate, driver) is **not part of the bale management capability**. Adding transport fields requires an explicit separate requirement.
 
 ---
 
@@ -217,7 +216,7 @@ Transport information (truck number, license plate, driver) is **not part of the
 
 ### 8.3 Reversibility
 
-The delivery transition is **irreversible** in the current scope. There is no reversal mechanism. A future controlled reversal may be introduced following the standard correction policy (audited, authorized, reason documented).
+The delivery transition is **irreversible**. No reversal mechanism exists. A controlled reversal requires a separate capability following the standard correction policy (audited, authorized, reason documented).
 
 ---
 
@@ -227,7 +226,7 @@ Delivered means that the bale has been **delivered to and used by Production**. 
 
 - Delivery is a **checklist-style operation**: the user marks which bales were delivered and when.
 - There is no intermediate state between In Warehouse and Delivered.
-- No approval workflow, contract, or intermediary is modeled for this project.
+- No approval workflow, contract, or intermediary is modeled.
 - Delivery does not link the bale to a production identity or lot code.
 
 ### 9.1 Delivery Rules
@@ -240,11 +239,11 @@ Delivered means that the bale has been **delivered to and used by Production**. 
 | DLV-04 | Delivery records the delivery date — a business date (calendar day, no time component) entered by the user representing when the physical delivery occurred. |
 | DLV-05 | Delivery does not link the bale to a production identity or lot code. |
 | DLV-06 | The delivery act changes the bale's lifecycle state; it does not create a separate movement record. |
-| DLV-07 | No authorization workflow is modeled in the current scope (the real-world authorization process is acknowledged but omitted from the system). |
+| DLV-07 | No authorization workflow is modeled. The real-world authorization process is acknowledged but excluded from this capability. |
 
-### 9.2 Future Delivery Enhancements (Not in Current Scope)
+### 9.2 Delivery Exclusions
 
-The following may be added through future explicit requirements:
+The following are excluded from this capability. Each requires an explicit separate requirement:
 
 - Responsible actors (who delivers, who receives)
 - Delivery reference or authorization number
@@ -322,7 +321,7 @@ A single bale is queried by its composite business identity:
 
 | ID | Criterion |
 |---|---|
-| AC-RCP-01 | A complete batch with 1–100 bales can be registered in one atomic operation (operational safeguard; limit may be revised). |
+| AC-RCP-01 | A complete batch with 1–100 bales can be registered in one atomic operation (operational safeguard, not an intrinsic business limit). |
 | AC-RCP-02 | Shipment number must be globally unique; a duplicate produces a clear conflict response. |
 | AC-RCP-03 | Bale number must be unique within the batch; a duplicate within the same registration is rejected. |
 | AC-RCP-04 | Reception date accepts a date (no time component); values with a time component are rejected. |
@@ -358,20 +357,6 @@ A single bale is queried by its composite business identity:
 | AC-INT-01 | Net weight is never persisted — it is always derived from gross minus tare. |
 | AC-INT-02 | Decimal precision is preserved end-to-end (input, persistence, calculation, output). |
 | AC-INT-03 | All writes are transactional — partial persistence never occurs. |
-
----
-
-## 13. Open Items and Pending Decisions
-
-| # | Item | Owner | Impact | Status |
-|---|---|---|---|---|
-| 1 | **Delivery actors:** Should delivery record responsible actors (who delivers, who receives)? | Product | Affects audit trail completeness | Open |
-| 2 | **Reversal capability:** When should controlled reversal (Delivered → In Warehouse) be implemented? What authorization and audit requirements apply? | Product | Affects state machine design and correction policy | Open |
-| 3 | **Post-registration correction:** How should errors in already-registered batches be corrected? (typos in bale number, wrong weights, etc.) | Product | Affects edit policy, audit requirements, and correction window rules | Open |
-| 4 | **Multi-bale delivery atomicity:** Should delivery of multiple bales in one operation be atomic (all-or-nothing) or individual? | Product | Affects future multi-bale delivery command design | Open |
-| 5 | **Transport fields:** Should truck number, license plate, or driver be added to the batch header? | Product | Affects reception contract | Open |
-| 6 | **Provider catalog:** Should provider name reference a managed supplier catalog or remain free text? | Product | Affects data quality and validation | Open |
-| 7 | **Material type catalog:** Should material type reference a managed catalog or remain free text with normalization? | Product | Affects data quality and validation | Open |
 
 ---
 

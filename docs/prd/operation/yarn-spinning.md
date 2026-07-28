@@ -1,7 +1,6 @@
 ---
 document_type: prd
 status: active
-implementation: not-started
 scope: operation/yarn-spinning
 authority: normative
 owner: product
@@ -443,7 +442,7 @@ sección y el consolidado del Supervisor.
 
 | Métrica | Propósito |
 |---|---|
-| **Producción vs planificación** | Compara lo producido con la base planificada (ver [sección 3.5 de operation overview](./overview.md#35-production-planning)). Alerta si hay desviación significativa. **Note:** Specific baselines per title (kg/day targets) are a valid business rule deferred to a future version — not included in the current scope. |
+| **Producción vs planificación** | Compara lo producido con la base planificada (ver [sección 3.5 de operation overview](./overview.md#35-production-planning)). Alerta si hay desviación significativa. **Note:** Specific baselines per title (kg/day targets) are a valid business rule excluded from this capability. |
 | **Utilización de husos** | Husos operativos / husos totales de la máquina. Porcentaje de capacidad utilizada |
 | **Consolidado por turno** | Producción, calidad y desperdicio agregado por Supervisor para su reporte diario |
 
@@ -453,16 +452,7 @@ sección y el consolidado del Supervisor.
 
 ---
 
-## 10. Decisiones Diferidas
-
-| Decisión                                               | Estado                                                                                                                                                                            |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Granularidad exacta de datos por máquina en Bobinados** | Pendiente. Confirmar si el registro body/km/cortes se captura por descarga, por máquina/turno o por otro corte operativo. |
-| **Frecuencia exacta de muestreo aleatorio**            | Pendiente. Definir la frecuencia mínima de pruebas aleatorias en Retorcido y Madejeras (ej. N pruebas por semana, o por cada N kg producidos).                                    |
-
----
-
-## 11. Glosario
+## 10. Glosario
 
 | Término                   | Definición                                                                                                                      |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
