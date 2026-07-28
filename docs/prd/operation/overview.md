@@ -1,7 +1,6 @@
 ---
 document_type: prd
 status: active
-implementation: not-started
 scope: operation
 authority: normative
 owner: product
@@ -141,11 +140,3 @@ to Administration by the Production Manager.
 | Process Quality | Included in yarn-spinning.md | Active |
 | Waste | Distributed across both detail PRDs | Active |
 | Lot Quality | Included in lot-processing.md | Active |
-
----
-
-## 6. Deferred Decisions
-
-| Decision | Status |
-|----------|--------|
-| _(none at this time)_ | — |

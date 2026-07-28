@@ -1,7 +1,6 @@
 ---
 document_type: product-overview
 status: active
-implementation: partial
 scope: global
 authority: normative
 owner: product
@@ -36,7 +35,7 @@ information to **Administration** as the formal liaison toward **Management**.
 
 - Commercialization and sales
 - Direct Management operations (receives consolidated reports only)
-- Costing methodology (deferred — placeholder for future definition)
+- Costing methodology (excluded from this system; requires a separate capability definition)
 
 ## 3. Business Areas
 
@@ -110,16 +109,6 @@ handoffs, see:
 
 - [`../architecture/system-overview.md`](../architecture/system-overview.md)
 - [`../architecture/context-map.md`](../architecture/context-map.md) _(Phase 3)_
-
-## 8. Risks and Open Items
-
-| Item | Risk | Impact |
-|------|------|--------|
-| Supplies detail (Dyeing + Packaging) | Defined but not implemented | Warehouse module must cover all 4 subdomains |
-| Commercialization integration | Out of scope, but finished product feeds their process | Define boundary and output format |
-| Production Manager bottleneck | If system demands too much interaction | Dashboard UX must be immediate, not demanding |
-| Adoption | Users come from Excel and paper | UX must prioritize simplicity |
-| Historical migration | Data in Excel, papers, various spreadsheets | Requires separate plan |
 
 ## 9. Related Documents
 

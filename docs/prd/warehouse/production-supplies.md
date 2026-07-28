@@ -1,7 +1,6 @@
 ---
 document_type: prd
 status: active
-implementation: not-started
 scope: warehouse/production-supplies
 authority: normative
 owner: product
@@ -148,16 +147,6 @@ Exit of supplies from Warehouse back to the original supplier (defective materia
 | AC-SUP-05 | All business dates accept calendar dates (no time component). |
 | AC-SUP-06 | All registration timestamps are system-generated. |
 | AC-SUP-07 | Stock traceability is independent from the lot history of bales or finished product. |
-
----
-
-## 10. Open Items and Pending Decisions
-
-| # | Item | Owner | Impact | Status |
-|---|---|---|---|---|
-| 1 | **Supply catalog:** Should supply items reference a managed catalog or remain free text? | Product | Affects data quality and reporting | Open |
-| 2 | **Stock levels and alerts:** Should the system maintain running stock levels per item and trigger alerts? | Product | Affects inventory visibility | Open |
-| 3 | **Batch/lot tracking for supplies:** Should certain supplies (e.g., dyes, chemicals) track supplier batch numbers for quality traceability? | Product | Affects traceability depth | Open |
 
 ---
 
