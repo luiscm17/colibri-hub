@@ -62,6 +62,7 @@ Standard templates for new documentation.
 
 Conventions and workflows for developers.
 
+- [Documentation Principles](./dev-guide/documentation-principles.md) — Business vocabulary rules for Core Documentation
 - [Git Workflow](./dev-guide/git-workflow.md) — Branches, commits, PRs, code review
 - [Naming Conventions](./dev-guide/naming-conventions.md) — Naming for files, code, database, API
 - [Backend Runtime Configuration](./dev-guide/backend-runtime-configuration.md) — Environment and settings

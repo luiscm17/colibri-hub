@@ -1,7 +1,6 @@
 ---
 document_type: prd
 status: active
-implementation: not-started
 scope: warehouse/finished-product
 authority: normative
 owner: product
@@ -291,16 +290,6 @@ Operations delivers PT
 | AC-PT-08 | Returns do not create a new production identity. |
 | AC-PT-09 | All business dates accept calendar dates (no time component). |
 | AC-PT-10 | All registration timestamps are system-generated. |
-
----
-
-## 11. Open Items and Pending Decisions
-
-| # | Item | Owner | Impact | Status |
-|---|---|---|---|---|
-| 1 | **Availability catalog detail:** The initial catalog of availability states needs further definition of transition rules between them. | Product | Affects state machine design | Open |
-| 2 | **Return reclassification:** Should returned PT always go through a new classification review, or can it return to its prior classification? | Product | Affects return flow and availability logic | Open |
-| 3 | **Partial dispatch:** Should partial dispatch of a lot be supported, or is dispatch always the full lot? | Product | Affects dispatch granularity | Open |
 
 ---
 

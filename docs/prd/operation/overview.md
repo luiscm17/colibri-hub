@@ -1,7 +1,6 @@
 ---
 document_type: prd
 status: active
-implementation: not-started
 scope: operation
 authority: normative
 owner: product
@@ -40,7 +39,7 @@ It covers the entire productive operation of the textile plant:
 
 | Boundary | Detail |
 |----------|--------|
-| **Input** | Complete bales received from Warehouse, plus production identity (`production_identity_id`, `lot_code`, title, color, client/destination) defined by Warehouse. |
+| **Input** | Complete bales received from Warehouse, plus production identity (production identity, lot code, title, color, client/destination) defined by Warehouse. |
 | **Output** | Processed lots approved by Quality and delivered to Warehouse for PT physical verification. |
 | **Excluded** | MP/PT/supplies inventory management, valuation, costing, accounting closes (Warehouse and Administration responsibility). |
 
@@ -54,7 +53,7 @@ Each shift has its own Supervisor and dependent roles.
 | Actor | Reports to | Scope |
 |-------|-----------|-------|
 | **Supervisor** | Production Manager | Full responsibility for MP processing during shift; coordinates operational staff; consolidates production records. Does not act as direct registrar unless explicitly enabled by access policy. |
-| **Quality Control** | Supervisor | Quality testing across ALL plant sections and machines. Approves lots for Warehouse delivery. Registers production/progress for Preparation and Ring Spinning. |
+| **Quality Control** | Supervisor | Quality testing across ALL plant sections and machines. Documents lot quality state and performs Quality Send to Warehouse. Registers production/progress for Preparation and Ring Spinning. |
 | **Inventory** | Supervisor | Physical lot assembly under Warehouse-defined identity; tracking through delivery. Registers production/progress for Twisting and Skeining. Registers real waste across all sections. Receives daily MP from Warehouse. |
 | **Dyeing Personnel** | Supervisor | Operates the dyeing process within the lot lifecycle. |
 | **Packaging** | Supervisor | Coordinates and registers winding, balling, and packaging operations. Reports to Supervision. |
@@ -125,7 +124,7 @@ to Administration by the Production Manager.
 
 | Related Area | Relationship |
 |--------------|-------------|
-| **Warehouse** | Provides MP + production identity at input; receives approved PT at output. Warehouse defines lot identity (`production_identity_id`, `lot_code`); Operation never generates its own identities. |
+| **Warehouse** | Provides MP + production identity at input; receives approved PT at output. Warehouse defines lot identity (production identity, lot code); Operation never generates its own identities. |
 | **Access Control** | Governs which roles can register, validate, or approve at each section/stage. Operation documents current assignments; Access Control enables reassignment without process redesign. |
 | **Production Manager** | Supervises both Warehouse and Operation units. Authorizes MP emissions, plans production priorities, consolidates information for Administration. |
 | **Administration** | Receives consolidated daily production reports. Owns valuation and costing (outside Operation scope). |
@@ -141,11 +140,3 @@ to Administration by the Production Manager.
 | Process Quality | Included in yarn-spinning.md | Active |
 | Waste | Distributed across both detail PRDs | Active |
 | Lot Quality | Included in lot-processing.md | Active |
-
----
-
-## 6. Deferred Decisions
-
-| Decision | Status |
-|----------|--------|
-| _(none at this time)_ | — |

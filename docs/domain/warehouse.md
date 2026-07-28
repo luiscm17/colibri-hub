@@ -1,7 +1,6 @@
 ---
 document_type: domain
 status: active
-implementation: partial
 scope: warehouse
 authority: normative
 owner: architecture
@@ -19,8 +18,8 @@ identity used across Warehouse and Lot Processing.
 - Owns raw-material bale custody, whole-bale delivery to Production, production
   identity definition, finished-product acceptance, availability, physical
   presentation, stock movements, supplies, and corrections of Warehouse records.
-- Defines the technical `production_identity_id` and visible `lot_code` before
-  production. `yarn_count` is the canonical shared reference used in that
+- Defines the production identity and visible lot code before
+  production. Yarn count is the canonical shared reference used in that
   definition.
 - Consumes Lot Processing's Quality Send, quality state, delivery conditions,
   and route-sheet facts as upstream context. It does not own or snapshot quality.
@@ -34,38 +33,38 @@ auditable correction history. Corrections are controlled by policy and retain
 the actor, system time, reason, authorization basis when relevant, and before/
 after values. They are not modeled as a blanket append-only prohibition.
 
-Warehouse stock is a custody quantity, distinct from `availability_state`, which
+Warehouse stock is a custody quantity, distinct from availability state, which
 expresses readiness for release or distribution.
 
 ## Core Concepts
 
 | Concept | Warehouse meaning |
 | --- | --- |
-| RawMaterialBatch | A supplier-shipment grouping identified by `shipment_number`, containing one or more bales and shared evidence/characteristics. It is not a production lot. |
-| Bale | An independently identified raw-material unit and lifecycle owner. Its business-visible identity is `shipment_number` + `bale_number`. Attributes include `material_type`, `dtex`, `gross_weight_kg`, and `container_weight_kg`. Net weight is always derived. |
+| Raw-material batch | A supplier-shipment grouping identified by shipment number, containing one or more bales and shared evidence/characteristics. It is not a production lot. |
+| Bale | An independently identified raw-material unit and lifecycle owner. Its business-visible identity is shipment number + bale number. Attributes include material type, dtex, gross weight, and container weight. Net weight is always derived. |
 | Reception | The business act (application action) of registering one complete raw-material batch and its bales. It is not a domain aggregate or entity. |
 | Delivery | The act of delivering a whole bale from Warehouse to Production. In practice, delivered = used — there is no intermediate state. Binary, irreversible. |
-| Production identity | The Warehouse-defined cross-context identity, represented by `production_identity_id` and `lot_code`. |
+| Production identity | The Warehouse-defined cross-context identity, represented by production identity and lot code. |
 | Finished product receipt | The single Warehouse acceptance of a production identity after its Quality Send. |
-| `availability_state` | Warehouse's operational disposition of accepted finished product. It is not quality or stock. |
-| `physical_presentation` | The physical form Warehouse receives or stores, kept separate from quality and availability. |
+| Availability state | Warehouse's operational disposition of accepted finished product. It is not quality or stock. |
+| Physical presentation | The physical form Warehouse receives or stores, kept separate from quality and availability. |
 | Supply | A Warehouse-managed production input with its own receipt, delivery, and stock history. |
 
 ## Bale Lifecycle States
 
 Bales follow a simple, one-directional lifecycle:
 
-| State | Canonical value | Meaning |
-| --- | --- | --- |
-| In Warehouse | `in_warehouse` | Bale is under Warehouse custody |
-| Delivered | `delivered` | Bale has been physically transferred to Production |
+| State | Meaning |
+| --- | --- |
+| In Warehouse | Bale is under Warehouse custody |
+| Delivered | Bale has been physically transferred to Production |
 
-**Transition:** `in_warehouse → delivered` (one-way).
+**Transition:** In Warehouse → Delivered (one-way).
 
-- A newly received bale always starts in `in_warehouse`.
-- The only permitted transition is `in_warehouse → delivered`.
-- In the current scope, delivery is irreversible — no reversal mechanism exists.
-- Future controlled reversal (correction) may be introduced under Warehouse's
+- A newly received bale always starts in In Warehouse.
+- The only permitted transition is In Warehouse → Delivered.
+- Delivery is irreversible — no reversal mechanism exists.
+- Controlled reversal (correction) requires a separate capability under Warehouse's
   general correction policy (audited, authorized, reason documented).
 
 ## Reception
@@ -73,12 +72,12 @@ Bales follow a simple, one-directional lifecycle:
 Reception is the business act of registering a supplier shipment into Warehouse
 custody. Key domain characteristics:
 
-- Registers exactly one `RawMaterialBatch` and one or more `Bale` records.
+- Registers exactly one raw-material batch and one or more bale records.
 - The entire operation is atomic — all or nothing.
-- `received_at` is a **business date** (calendar date of physical reception),
+- The reception date is a **business date** (calendar date of physical reception),
   not a system timestamp.
-- All bales start with status `in_warehouse`.
-- Adding bales after initial registration is not part of the current flow.
+- All bales start with status In Warehouse.
+- Adding bales after initial registration requires a separate correction capability.
 
 For complete reception rules and acceptance criteria, see the
 [Bale Management PRD](../prd/warehouse/bale-management.md) §7.
@@ -90,9 +89,9 @@ In practice, delivery and consumption are the same event — once delivered,
 the bale is considered used.
 
 - A bale is always delivered whole — partial delivery is not supported.
-- Delivery records `delivered_at` — a business date entered by the user.
-- Delivery does not link the bale to any `production_identity_id` or `lot_code`.
-- No authorization workflow is modeled in the current scope.
+- Delivery records the delivery date — a business date entered by the user.
+- Delivery does not link the bale to any production identity or lot code.
+- No authorization workflow is modeled.
 
 For complete delivery rules and acceptance criteria, see the
 [Bale Management PRD](../prd/warehouse/bale-management.md) §9.
@@ -100,23 +99,23 @@ For complete delivery rules and acceptance criteria, see the
 ## Business Flows
 
 1. **Raw-material custody:** The receiving action registers one complete
-   `RawMaterialBatch` and one or more independently identified `Bale` records
+   raw-material batch and one or more independently identified bale records
    in one transaction. A bale can be delivered once, whole and only to
-   Production. Delivery moves the bale from `in_warehouse` to `delivered`;
+   Production. Delivery moves the bale from In Warehouse to Delivered;
    that custody condition means delivered and used by Production. Delivery never
-   links the bale to a `production_identity_id` or `lot_code`.
+   links the bale to a production identity or lot code.
 2. **Production identity:** Separately from bale reception, Warehouse defines
-   one `production_identity_id` and `lot_code` with the requested `yarn_count`
+   one production identity and lot code with the requested yarn count
    and production requirements. Yarn Spinning and Lot Processing use that
    identity as shared context; Lot Processing appends the operational stage
    history.
 3. **Finished-product handoff:** One Quality Send places the identity pending
    Warehouse validation. Warehouse verifies the existing route-sheet facts and
    accepts the finished product once. It records acceptance, differences, and
-   `physical_presentation`; it does not recapture Operational weight, bag count,
+   physical presentation; it does not recapture Operational weight, bag count,
    unit count, or quality state.
 4. **Finished-product lifecycle:** After acceptance, Warehouse manages
-   `availability_state`, physical presentation, delivery by direct sale or
+   availability state, physical presentation, delivery by direct sale or
    Commercialization transfer, and returns that reference the original delivery.
 5. **Supplies:** Warehouse receives supplies, delivers them to Production, and
    records returns to suppliers. Supplier, destination, and category remain
@@ -128,10 +127,10 @@ For complete delivery rules and acceptance criteria, see the
   process quality, final lot quality, or production waste.
 - A cross-context traceability view may show the full journey, but each context
   writes only its own records.
-- Quality state, `availability_state`, and `physical_presentation` are separate
+- Quality state, availability state, and physical presentation are separate
   dimensions. Warehouse reads quality as context and does not persist a quality
   snapshot.
-- Shared Reference Data owns the minimal `yarn_counts` catalog. Warehouse does
+- Shared Reference Data owns the minimal yarn counts catalog. Warehouse does
   not introduce supplier, destination, or category catalogs without evidence.
 - This map does not prescribe tables, field dictionaries, APIs, identifier
   formats, or authorization assignments.
@@ -140,19 +139,19 @@ For complete delivery rules and acceptance criteria, see the
 
 | Term | Meaning in this map |
 | --- | --- |
-| `shipment_number` | Business-visible identity of a `RawMaterialBatch`; globally unique. |
-| `bale_number` | Bale identifier within a batch; unique within its parent batch only. |
-| `received_at` | Business date (calendar date) of physical reception. |
-| `material_type` | Raw-material classification; normalized to uppercase. |
-| `dtex` | Linear density of the raw material. |
-| `gross_weight_kg` | Gross weight of a bale in kilograms. |
-| `container_weight_kg` | Tare/container weight in kilograms. |
-| `net_weight_kg` | Derived net weight (gross minus tare); never persisted. |
-| `yarn_count` | Canonical yarn count used when defining production identity. |
-| `production_identity_id` | Warehouse-owned technical identity shared across the production flow. |
-| `lot_code` | Visible business code for the same production identity. |
-| `availability_state` | Warehouse operational readiness for release or distribution. |
-| `physical_presentation` | Physical finished-product form under Warehouse handling. |
+| shipment number | Business-visible identity of a raw-material batch; globally unique. |
+| bale number | Bale identifier within a batch; unique within its parent batch only. |
+| reception date | Business date (calendar date) of physical reception. |
+| material type | Raw-material classification; normalized to uppercase. |
+| dtex | Linear density of the raw material. |
+| gross weight | Gross weight of a bale in kilograms. |
+| container weight | Tare/container weight in kilograms. |
+| net weight | Derived net weight (gross minus tare); never persisted. |
+| yarn count | Canonical yarn count used when defining production identity. |
+| production identity | Warehouse-owned technical identity shared across the production flow. |
+| lot code | Visible business code for the same production identity. |
+| availability state | Warehouse operational readiness for release or distribution. |
+| physical presentation | Physical finished-product form under Warehouse handling. |
 
 ## Sources
 

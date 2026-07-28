@@ -1,7 +1,6 @@
 ---
 document_type: architecture
 status: active
-implementation: partial
 scope: global
 authority: normative
 owner: architecture
@@ -32,7 +31,7 @@ Bounded context ownership, aggregate families, inter-context dependencies, and h
 
 ### 2.1 Warehouse
 
-- Manages `RawMaterialBatch` shipment grouping and independent `Bale` identity, custody, and lifecycle.
+- Manages raw-material batch shipment grouping and independent bale identity, custody, and lifecycle.
 - Owns the receiving application action, production identity definition, delivery to Production, finished-product reception, warehouse availability/disposition, physical presentation, stock movements, and stock balances.
 - Does **not** own: spinning production records, lot-stage progression, process quality execution, lot-stage waste, or final production-stage decisions inside Operation.
 
@@ -54,7 +53,7 @@ Bounded context ownership, aggregate families, inter-context dependencies, and h
 
 ### 2.5 Shared Reference Data
 
-- Owns the canonical `yarn_counts` catalog.
+- Owns the canonical yarn-count catalog.
 - Acts as a **support context** — operational meaning stays in the owning business context.
 - Does **not** own: users, transactional records, lot timelines, stock balances, or permission decisions.
 
@@ -64,8 +63,8 @@ Bounded context ownership, aggregate families, inter-context dependencies, and h
 
 | Aggregate / Record Family | Owning Context |
 | --- | --- |
-| Raw-material batch registration (`RawMaterialBatch` + `Bale` aggregates) | Warehouse |
-| Bale custody and delivery (independent lifecycle, `IN_WAREHOUSE` → `DELIVERED`) | Warehouse |
+| Raw-material batch registration and bale identity | Warehouse |
+| Bale custody and delivery (independent lifecycle, In Warehouse → Delivered) | Warehouse |
 | Lot identity definition (production identity before assembly) | Warehouse |
 | MP emission to production (stock movement + handoff) | Warehouse |
 | Warehouse supply movement | Warehouse |
@@ -99,7 +98,7 @@ Bounded context ownership, aggregate families, inter-context dependencies, and h
 | Warehouse | Lot Processing | Quality Send documentation (validated lot history, quality state, delivery conditions) |
 | Yarn Spinning | Access Control | Authorization decisions |
 | Yarn Spinning | Shared Reference Data | Yarn-count identifiers and values |
-| Yarn Spinning | Warehouse | Production identity as external planning/reference context |
+| Yarn Spinning | Warehouse | Material availability (bale delivery information) |
 | Lot Processing | Access Control | Authorization decisions |
 | Lot Processing | Shared Reference Data | Yarn-count identifiers and values |
 | Lot Processing | Warehouse | Production identity, specifications, and lot code |
@@ -111,7 +110,7 @@ Bounded context ownership, aggregate families, inter-context dependencies, and h
 ┌─────────────────────────────────────────────────────────┐
 │ UPSTREAM (defines identity and material)                 │
 │                                                         │
-│   Warehouse ─── production identity + material ──►      │
+│   Warehouse ─── material availability ──►                │
 │       │                                                 │
 │       │                                                 │
 │       ▼                                                 │
@@ -139,7 +138,7 @@ Bounded context ownership, aggregate families, inter-context dependencies, and h
 
 | From | To | What Crosses the Boundary | Semantics |
 | --- | --- | --- | --- |
-| Warehouse | Yarn Spinning | Production identity and material availability | Yarn Spinning references warehouse-issued identity for planning/execution |
+| Warehouse | Yarn Spinning | Material availability | Yarn Spinning references warehouse-issued material for planning/execution |
 | Yarn Spinning | Lot Processing | Skein output and readiness for Inventory assembly | Lot Processing starts when Inventory assembles skeins into a lot |
 | Warehouse | Lot Processing | Shared production identity, specifications, and lot code | Lot Processing appends stage history to the same lot Warehouse defined |
 | Lot Processing | Warehouse | Quality Send: validated lot history, quality state, and delivery conditions | Warehouse accepts the same lot through its own receipt after physical verification |
@@ -157,7 +156,7 @@ flowchart LR
     SRD[Shared Reference Data]
     ALL[All business contexts]
 
-    W -->|Production identity and material availability| YS
+    W -->|Material availability| YS
     W -->|Shared production identity, specifications, and lot code| LP
     YS -->|Skein output and readiness for Inventory assembly| LP
     LP -->|Quality Send: validated lot history, quality state, delivery conditions| W
@@ -170,7 +169,7 @@ flowchart LR
 - No handoff changes ownership retroactively. A receiving context may reference prior data, but writes only its own part.
 - Lot Processing owns the operational stage history; Warehouse owns the warehouse-side records that continue the same business identity.
 - The lot history delivered back to Warehouse belongs to a cross-context traceability chain — not a new warehouse-only record detached from production.
-- Single lot identity: Warehouse defines the lot through `production_identity_id` and visible `lot_code`; Inventory records assembled weight/skein count; each Lot Processing stage appends history to that same lot.
+- Single lot identity: Warehouse defines the lot through the production identity and visible lot code; Inventory records assembled weight/skein count; each Lot Processing stage appends history to that same lot.
 
 ---
 
@@ -178,10 +177,10 @@ flowchart LR
 
 | Identifier | Defined By | Consumed By | Purpose |
 | --- | --- | --- | --- |
-| `production_identity_id` | Warehouse | Yarn Spinning, Lot Processing | Unique lot identity across the production chain |
-| `lot_code` (visible) | Warehouse | Lot Processing | Human-readable lot reference |
+| Production identity | Warehouse | Lot Processing | Unique lot identity across the production chain |
+| Lot code (visible) | Warehouse | Lot Processing | Human-readable lot reference |
 | Yarn count ID | Shared Reference Data | Warehouse, Yarn Spinning, Lot Processing | Canonical product classification |
-| `shipment_number` | Warehouse | — (internal) | Globally unique batch identification |
-| Bale number | Warehouse | — (internal) | Unique within a `RawMaterialBatch` |
+| Shipment number | Warehouse | — (internal) | Globally unique batch identification |
+| Bale number | Warehouse | — (internal) | Unique within a raw-material batch |
 
 ---

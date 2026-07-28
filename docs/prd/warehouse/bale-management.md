@@ -1,7 +1,6 @@
 ---
 document_type: prd
 status: active
-implementation: partial
 scope: warehouse/bales
 authority: normative
 owner: product
@@ -45,7 +44,7 @@ Warehouse personnel receive raw-material bales from suppliers and must track the
 1. A reliable record of what was received, from whom, and when.
 2. Identity and weight traceability for each individual bale.
 3. Visibility into current stock (what is still in warehouse vs. already delivered).
-4. A controlled process for recording bale deliveries to Production (date tracked; actor tracking is a future enhancement).
+4. A controlled process for recording bale deliveries to Production (date tracked; actor tracking requires a separate requirement).
 
 Without this capability, stock discrepancies, lost traceability, and uncontrolled material flow create operational risk.
 
@@ -60,7 +59,7 @@ Without this capability, stock discrepancies, lost traceability, and uncontrolle
 | Production Manager | Authorizer | Authorizes deliveries to Production |
 | System | Automated | Generates timestamps, enforces constraints, calculates derived values |
 
-> **Note on permissions:** These actors describe current operational practice. The assignment of who registers, validates, authorizes, or corrects is configurable by access policy (see `docs/prd/access-control.md`). This PRD does not fix permissions rigidly to roles.
+> **Note on permissions:** These actors describe operational practice. The assignment of who registers, validates, authorizes, or corrects is configurable by access policy (see `docs/prd/access-control.md`). This PRD does not fix permissions rigidly to roles.
 
 ---
 
@@ -68,34 +67,33 @@ Without this capability, stock discrepancies, lost traceability, and uncontrolle
 
 ### 4.1 Raw-Material Batch Identity
 
-A **raw-material batch** (`RawMaterialBatch`) represents a supplier shipment grouping one or more bales.
+A **raw-material batch** represents a supplier shipment grouping one or more bales.
 
 | Rule | Description |
 |---|---|
-| Identifier | `shipment_number` |
+| Identifier | Shipment number |
 | Uniqueness | Globally unique across all batches |
-| Format | String, maximum 10 characters after normalization |
+| Format | Text, maximum 10 characters after normalization |
 | Normalization | Uppercase; applied before persistence and comparison |
 
 ### 4.2 Bale Identity
 
-A **bale** (`Bale`) is an independently identified raw-material unit with its own lifecycle.
+A **bale** is an independently identified raw-material unit with its own lifecycle.
 
 | Rule | Description |
 |---|---|
-| Identifier within batch | `bale_number` |
+| Identifier within batch | Bale number |
 | Uniqueness | Unique within the parent batch; the same canonical bale number is valid in different batches |
-| Format | String, maximum 10 characters after normalization |
+| Format | Text, maximum 10 characters after normalization |
 | Normalization | Uppercase; applied before persistence and comparison |
-| Business-visible identity | `shipment_number` + `bale_number` (composite) |
-| Technical identity | Independent UUID (`id`); used for write operations |
+| Business-visible identity | Shipment number + bale number (composite) |
 
 ### 4.3 Identity Invariants
 
 1. A bale always belongs to exactly one raw-material batch.
-2. The composite identity `shipment_number` + `bale_number` uniquely identifies a bale across the entire system.
-3. `bale_number` alone is insufficient for identification — it may repeat across batches.
-4. Technical identifiers (`id`) are never exposed as primary identity to business users.
+2. The composite identity (shipment number + bale number) uniquely identifies a bale across the entire system.
+3. Bale number alone is insufficient for identification — it may repeat across batches.
+4. Technical identifiers are never exposed as primary identity to business users.
 
 ---
 
@@ -103,28 +101,28 @@ A **bale** (`Bale`) is an independently identified raw-material unit with its ow
 
 ### 5.1 Raw-Material Batch Attributes
 
-| Attribute | Type | Required | Description |
+| Attribute | Format | Required | Description |
 |---|---|---|---|
-| `shipment_number` | String(10) | Yes | Globally unique batch identifier |
-| `received_at` | Date | Yes | Business date of reception (see §5.3) |
-| `provider_name` | String | Yes | Supplier name |
+| Shipment number | text, up to 10 characters | Yes | Globally unique batch identifier |
+| Reception date | calendar date (no time component) | Yes | Business date of reception (see §5.3) |
+| Provider name | text | Yes | Supplier name |
 
 ### 5.2 Bale Attributes
 
-| Attribute | Type | Required | Description |
+| Attribute | Format | Required | Description |
 |---|---|---|---|
-| `bale_number` | String(10) | Yes | Bale identifier within batch |
-| `material_type` | String(20) | Yes | Raw-material classification; normalized to uppercase |
-| `dtex` | Decimal | Yes | Linear density; finite, greater than zero |
-| `gross_weight_kg` | Decimal | Yes | Gross weight in kilograms; finite, greater than zero |
-| `container_weight_kg` | Decimal | Yes | Tare/container weight in kilograms; finite, greater than zero, less than gross weight |
-| `status` | Enum | Yes | Lifecycle state: `in_warehouse` or `delivered` |
+| Bale number | text, up to 10 characters | Yes | Bale identifier within batch |
+| Material type | text, up to 20 characters | Yes | Raw-material classification; normalized to uppercase |
+| Dtex | numeric (decimal precision) | Yes | Linear density; finite, greater than zero |
+| Gross weight | numeric (decimal precision), in kilograms | Yes | Gross weight; finite, greater than zero |
+| Container weight | numeric (decimal precision), in kilograms | Yes | Tare/container weight; finite, greater than zero, less than gross weight |
+| Status | one of the defined states | Yes | Lifecycle state: In Warehouse or Delivered |
 
 ### 5.3 Reception Date Semantics
 
-- `received_at` is a **business date** — the calendar date when the physical reception occurred.
+- The reception date is a **business date** — the calendar date when the physical reception occurred.
 - It does not carry a time component.
-- It does not represent when the system record was created (that is a separate technical concern: `created_at`).
+- It does not represent when the system record was created (that is a separate technical concern: the system registration timestamp).
 
 ---
 
@@ -132,15 +130,15 @@ A **bale** (`Bale`) is an independently identified raw-material unit with its ow
 
 ### 6.1 Weight Attributes
 
-| Weight | Canonical Name | Source | Persistence |
+| Weight | Business name | Source | Persistence |
 |---|---|---|---|
-| Gross weight | `gross_weight_kg` | User-provided at reception | Persisted |
-| Tare weight | `container_weight_kg` | User-provided at reception | Persisted |
-| Net weight | `net_weight_kg` | Calculated | Derived, not persisted |
+| Gross weight | gross weight | User-provided at reception | Persisted |
+| Tare weight | container weight | User-provided at reception | Persisted |
+| Net weight | net weight | Calculated | Derived, not persisted |
 
 ### 6.2 Calculation Rules
 
-1. **Net weight = gross weight − tare weight** (`net_weight_kg = gross_weight_kg - container_weight_kg`).
+1. **Net weight equals gross weight minus tare weight** (net weight = gross weight − container weight).
 2. Net weight is always calculated, never accepted as direct input from users or external systems.
 3. Gross weight must be strictly greater than tare weight (ensuring net weight is always positive).
 4. All weights use kilograms as the unit of measure.
@@ -150,7 +148,7 @@ A **bale** (`Bale`) is an independently identified raw-material unit with its ow
 
 When computing aggregate weights (e.g., inventory summary):
 
-1. Aggregation is performed in the persistence layer (SQL), not in application memory.
+1. The system groups bales by batch for aggregate queries.
 2. When no bales match the filter criteria, aggregate weights are zero (not null).
 3. Aggregates respect the same filter conjunction as counts (see §11).
 
@@ -160,33 +158,33 @@ When computing aggregate weights (e.g., inventory summary):
 
 ### 7.1 Business Act
 
-Reception is the physical arrival of raw material from a supplier. It is an **application action** (use case), not a domain aggregate. The system does not model a `Reception` entity.
+Reception is the act of recording the physical arrival of raw material from a supplier. The system registers a raw-material batch and its bales — it does not model a separate Reception entity. See [ADR-005](../../architecture/decisions/005-reception-as-application-action.md) for implementation approach.
 
 ### 7.2 Steps
 
-1. Warehouse personnel identify the incoming shipment and determine the `shipment_number`.
+1. Warehouse personnel identify the incoming shipment and determine the shipment number.
 2. The operator registers one complete raw-material batch with all its bales in a single operation.
 3. The system validates all data before persisting.
 4. The system creates the batch header and all bale records in one atomic transaction.
-5. All bales are registered with initial status `in_warehouse`.
+5. All bales are registered with initial status In Warehouse.
 6. The system returns a confirmation with batch summary.
 
 ### 7.3 Reception Rules
 
 | ID | Rule |
 |---|---|
-| RCP-01 | A reception registers exactly one `RawMaterialBatch` and one or more `Bale` records. |
+| RCP-01 | A reception registers exactly one raw-material batch and one or more bale records. |
 | RCP-02 | The entire reception is atomic — if any bale fails validation, the entire batch is rejected. |
-| RCP-03 | The current reception contract accepts 1–100 bales per request. This is an operational safeguard, not an intrinsic business limit. |
-| RCP-04 | `shipment_number` must not already exist in the system. |
-| RCP-05 | Within the batch, all `bale_number` values must be unique. |
-| RCP-06 | The batch is inserted before its bales; the operation returns the batch technical identifier. |
-| RCP-07 | Adding bales to an already-registered batch is not part of the current flow. A future correction capability must be explicit and audited. |
-| RCP-08 | Business identifiers (`shipment_number`, `bale_number`, `material_type`) are normalized (uppercase) before persistence. |
+| RCP-03 | The reception contract accepts 1–100 bales per request. This is an operational safeguard, not an intrinsic business limit. |
+| RCP-04 | The shipment number must not already exist in the system. |
+| RCP-05 | Within the batch, all bale number values must be unique. |
+| RCP-06 | The system creates the batch record before its bale records and returns a unique batch identifier. |
+| RCP-07 | Adding bales to an already-registered batch requires a separate correction capability (explicit, audited). |
+| RCP-08 | Business identifiers (shipment number, bale number, material type) are normalized (uppercase) before persistence. |
 
 ### 7.4 Transport Fields
 
-Transport information (truck number, license plate, driver) is **not part of the current bale management capability**. If needed in the future, it must be added through an explicit requirement.
+Transport information (truck number, license plate, driver) is **not part of the bale management capability**. Adding transport fields requires an explicit separate requirement.
 
 ---
 
@@ -194,46 +192,41 @@ Transport information (truck number, license plate, driver) is **not part of the
 
 ### 8.1 Canonical State Names
 
-| State | Persistence Value | Display (English) | Display (Spanish) | Meaning |
-|---|---|---|---|---|
-| In Warehouse | `in_warehouse` | In Warehouse | En almacén | Bale is under Warehouse custody |
-| Delivered | `delivered` | Delivered | Entregado | Bale has been delivered to and used by Production |
-
-Layer conventions:
-- **Database and API layer:** `in_warehouse`, `delivered` (lowercase)
-- **Domain/enum code layer:** `IN_WAREHOUSE`, `DELIVERED` (uppercase constants)
-- **Business documentation and display:** "In Warehouse", "Delivered" / "En almacén", "Entregado"
+| State | Display (English) | Display (Spanish) | Meaning |
+|---|---|---|---|
+| In Warehouse | In Warehouse | En almacén | Bale is under Warehouse custody |
+| Delivered | Delivered | Entregado | Bale has been delivered to and used by Production |
 
 ### 8.2 Transition Rules
 
 ```text
-┌──────────────┐         deliver()         ┌──────────────┐
-│ in_warehouse │ ────────────────────────► │  delivered   │
+┌──────────────┐          deliver           ┌──────────────┐
+│ In Warehouse │ ────────────────────────► │   Delivered  │
 └──────────────┘                           └──────────────┘
 ```
 
 | ID | Rule |
 |---|---|
-| ST-01 | A newly created bale always starts in `in_warehouse`. |
-| ST-02 | The only permitted transition is `in_warehouse → delivered`. |
-| ST-03 | A bale in `delivered` cannot transition to any other state. |
+| ST-01 | A newly created bale always starts in In Warehouse. |
+| ST-02 | The only permitted transition is In Warehouse → Delivered. |
+| ST-03 | A bale in Delivered cannot transition to any other state. |
 | ST-04 | There are no additional states beyond these two. |
-| ST-05 | The transition is enforced by domain logic, not by direct status-string manipulation. |
+| ST-05 | The system enforces the valid-transition constraint on every state change. |
 | ST-06 | Two concurrent delivery attempts for the same bale must result in exactly one success; the other receives a conflict. |
 
 ### 8.3 Reversibility
 
-The delivery transition is **irreversible** in the current scope. There is no reversal mechanism. A future controlled reversal may be introduced following the standard correction policy (audited, authorized, reason documented).
+The delivery transition is **irreversible**. No reversal mechanism exists. A controlled reversal requires a separate capability following the standard correction policy (audited, authorized, reason documented).
 
 ---
 
 ## 9. Delivery Meaning
 
-`delivered` means that the bale has been **delivered to and used by Production**. In practice, delivery and consumption are treated as the same event — once a bale leaves Warehouse, it is considered used. The system models this as a binary, irreversible fact.
+Delivered means that the bale has been **delivered to and used by Production**. In practice, delivery and consumption are treated as the same event — once a bale leaves Warehouse, it is considered used. The system models this as a binary, irreversible fact.
 
 - Delivery is a **checklist-style operation**: the user marks which bales were delivered and when.
-- There is no intermediate state between "in warehouse" and "delivered/used".
-- No approval workflow, contract, or intermediary is modeled for this project.
+- There is no intermediate state between In Warehouse and Delivered.
+- No approval workflow, contract, or intermediary is modeled.
 - Delivery does not link the bale to a production identity or lot code.
 
 ### 9.1 Delivery Rules
@@ -243,14 +236,14 @@ The delivery transition is **irreversible** in the current scope. There is no re
 | DLV-01 | A bale is always delivered whole — partial delivery is not supported. |
 | DLV-02 | The delivery target is always Production — no other destination is required or persisted. |
 | DLV-03 | A bale can be delivered only once. A repeat delivery attempt must be rejected. |
-| DLV-04 | Delivery records `delivered_at` — a business date (calendar day, no time component) entered by the user representing when the physical delivery occurred. |
+| DLV-04 | Delivery records the delivery date — a business date (calendar day, no time component) entered by the user representing when the physical delivery occurred. |
 | DLV-05 | Delivery does not link the bale to a production identity or lot code. |
 | DLV-06 | The delivery act changes the bale's lifecycle state; it does not create a separate movement record. |
-| DLV-07 | No authorization workflow is modeled in the current scope (the real-world authorization process is acknowledged but omitted from the system). |
+| DLV-07 | No authorization workflow is modeled. The real-world authorization process is acknowledged but excluded from this capability. |
 
-### 9.2 Future Delivery Enhancements (Not in Current Scope)
+### 9.2 Delivery Exclusions
 
-The following may be added through future explicit requirements:
+The following are excluded from this capability. Each requires an explicit separate requirement:
 
 - Responsible actors (who delivers, who receives)
 - Delivery reference or authorization number
@@ -270,8 +263,8 @@ The inventory summary provides aggregated visibility into bale stock without req
 | Metric | Description |
 |---|---|
 | Total bale count | Count of all bales matching current filters |
-| In-warehouse bale count | Count of filtered bales with status `in_warehouse` |
-| Delivered bale count | Count of filtered bales with status `delivered` |
+| In-warehouse bale count | Count of filtered bales with status In Warehouse |
+| Delivered bale count | Count of filtered bales with status Delivered |
 | Total net weight (kg) | Sum of net weights for all filtered bales |
 | In-warehouse net weight (kg) | Sum of net weights for filtered bales in warehouse |
 | Delivered net weight (kg) | Sum of net weights for filtered delivered bales |
@@ -280,10 +273,10 @@ The inventory summary provides aggregated visibility into bale stock without req
 
 | ID | Rule |
 |---|---|
-| INV-01 | Summary metrics are computed in the persistence layer, not by loading all bales into memory. |
+| INV-01 | Net weight is always derived from gross weight minus container weight. |
 | INV-02 | When no bales match the filters, all counts are zero and all weights are zero (not null, not an error). |
 | INV-03 | When a status filter is applied, the total represents only that subset and the other status counter is zero. |
-| INV-04 | Net weight for summary purposes is calculated as `gross_weight_kg - container_weight_kg` per bale. |
+| INV-04 | Net weight for summary purposes is calculated as gross weight minus container weight per bale. |
 
 ---
 
@@ -293,23 +286,23 @@ The inventory summary provides aggregated visibility into bale stock without req
 
 Filters all combine by conjunction (AND): a bale must satisfy all provided filters.
 
-| Filter | Type | Semantics |
+| Filter | Format | Semantics |
 |---|---|---|
-| Received from | Date | Inclusive lower bound on `received_at` |
-| Received to | Date | Inclusive upper bound on `received_at` |
-| Shipment number | String | Exact match after normalization |
-| Status | Enum | `in_warehouse` or `delivered` |
-| Provider name | String | Case-insensitive exact match, trimmed |
-| Material type | String | Exact match after normalization |
-| Dtex | Decimal | Exact decimal match |
+| Received from | date | Inclusive lower bound on reception date |
+| Received to | date | Inclusive upper bound on reception date |
+| Shipment number | text | Exact match after normalization |
+| Status | one of the defined states | In Warehouse or Delivered |
+| Provider name | text | Case-insensitive exact match, trimmed |
+| Material type | text | Exact match after normalization |
+| Dtex | numeric (decimal) | Exact decimal match |
 
-All filters are optional. When both date bounds are provided, `received_from` must not be after `received_to`.
+All filters are optional. When both date bounds are provided, received from must not be after received to.
 
 ### 11.2 Individual Bale Query (Detail)
 
 A single bale is queried by its composite business identity:
 
-- **Required:** `shipment_number` AND `bale_number`
+- **Required:** shipment number AND bale number
 - **Semantics:** Values are normalized before lookup
 - **Result:** Full bale detail including batch-level attributes, bale attributes, calculated net weight, and current status
 - **Not found:** A missing combination produces a "not found" result without revealing whether the batch exists
@@ -318,7 +311,7 @@ A single bale is queried by its composite business identity:
 
 - There is no paginated list of all bales.
 - There is no full-text search.
-- There is no query by technical UUID (UUID is used only for write operations after discovery).
+- There is no query by system-generated unique identifier (the internal identifier is used only for write operations after discovery).
 
 ---
 
@@ -328,11 +321,11 @@ A single bale is queried by its composite business identity:
 
 | ID | Criterion |
 |---|---|
-| AC-RCP-01 | A complete batch with 1–100 bales can be registered in one atomic operation (operational safeguard; limit may be revised). |
-| AC-RCP-02 | `shipment_number` must be globally unique; a duplicate produces a clear conflict response. |
-| AC-RCP-03 | `bale_number` must be unique within the batch; a duplicate within the same registration is rejected. |
-| AC-RCP-04 | `received_at` accepts a date (no time component); values with a time component are rejected. |
-| AC-RCP-05 | All registered bales start with status `in_warehouse`. |
+| AC-RCP-01 | A complete batch with 1–100 bales can be registered in one atomic operation (operational safeguard, not an intrinsic business limit). |
+| AC-RCP-02 | Shipment number must be globally unique; a duplicate produces a clear conflict response. |
+| AC-RCP-03 | Bale number must be unique within the batch; a duplicate within the same registration is rejected. |
+| AC-RCP-04 | Reception date accepts a date (no time component); values with a time component are rejected. |
+| AC-RCP-05 | All registered bales start with status In Warehouse. |
 | AC-RCP-06 | If any bale in the batch fails validation, the entire batch is not persisted. |
 | AC-RCP-07 | Weight validation enforces: gross > 0, tare > 0, tare < gross. |
 | AC-RCP-08 | Business identifiers are normalized before persistence. |
@@ -343,7 +336,7 @@ A single bale is queried by its composite business identity:
 |---|---|
 | AC-INV-01 | The aggregate summary respects all active filters conjunctively. |
 | AC-INV-02 | A query with no matching results returns zero metrics, not an error. |
-| AC-INV-03 | Individual query requires both `shipment_number` and `bale_number`. |
+| AC-INV-03 | Individual query requires both shipment number and bale number. |
 | AC-INV-04 | An existing bale returns full detail including calculated net weight. |
 | AC-INV-05 | A non-existing composite identity returns a "not found" result. |
 
@@ -351,11 +344,12 @@ A single bale is queried by its composite business identity:
 
 | ID | Criterion |
 |---|---|
-| AC-DLV-01 | A bale in `in_warehouse` can be transitioned to `delivered`. |
-| AC-DLV-02 | A bale already in `delivered` cannot be delivered again; the attempt is rejected with a conflict response. |
-| AC-DLV-03 | Only the value `delivered` is accepted as a target status; no other value is permitted. |
+| AC-DLV-01 | A bale in In Warehouse can be transitioned to Delivered. |
+| AC-DLV-02 | A bale already in Delivered cannot be delivered again; the attempt is rejected with a conflict response. |
+| AC-DLV-03 | Only the state Delivered is accepted as a target status; no other value is permitted. |
 | AC-DLV-04 | Concurrent delivery attempts for the same bale result in exactly one success. |
-| AC-DLV-05 | The transition is enforced through domain logic, not direct string manipulation. |
+| AC-DLV-05 | The system enforces the valid-transition constraint on every delivery attempt. |
+| AC-DLV-06 | GIVEN a delivery is being recorded, WHEN the user submits the form, THEN the system requires a delivery date as a business date (calendar day, no time component) entered by the user (validates DLV-04). |
 
 ### 12.4 Data Integrity
 
@@ -364,20 +358,6 @@ A single bale is queried by its composite business identity:
 | AC-INT-01 | Net weight is never persisted — it is always derived from gross minus tare. |
 | AC-INT-02 | Decimal precision is preserved end-to-end (input, persistence, calculation, output). |
 | AC-INT-03 | All writes are transactional — partial persistence never occurs. |
-
----
-
-## 13. Open Items and Pending Decisions
-
-| # | Item | Owner | Impact | Status |
-|---|---|---|---|---|
-| 1 | **Delivery actors:** Should delivery record responsible actors (who delivers, who receives)? | Product | Affects audit trail completeness | Open |
-| 2 | **Reversal capability:** When should controlled reversal (`delivered → in_warehouse`) be implemented? What authorization and audit requirements apply? | Product | Affects state machine design and correction policy | Open |
-| 3 | **Post-registration correction:** How should errors in already-registered batches be corrected? (typos in bale_number, wrong weights, etc.) | Product | Affects edit policy, audit requirements, and correction window rules | Open |
-| 4 | **Multi-bale delivery atomicity:** Should delivery of multiple bales in one operation be atomic (all-or-nothing) or individual? | Product | Affects future multi-bale delivery command design | Open |
-| 5 | **Transport fields:** Should truck number, license plate, or driver be added to the batch header? | Product | Affects reception contract | Open |
-| 6 | **Provider catalog:** Should `provider_name` reference a managed supplier catalog or remain free text? | Product | Affects data quality and validation | Open |
-| 7 | **Material type catalog:** Should `material_type` reference a managed catalog or remain free text with normalization? | Product | Affects data quality and validation | Open |
 
 ---
 

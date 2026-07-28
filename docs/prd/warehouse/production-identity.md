@@ -1,7 +1,6 @@
 ---
 document_type: prd
 status: active
-implementation: not-started
 scope: warehouse/production-identity
 authority: normative
 owner: product
@@ -148,14 +147,6 @@ Neither domain overwrites the other's contributions to the shared history.
 | AC-PID-06 | Once defined, the identity is available for Operations to continue the lot history. |
 
 ---
-
-## 10. Open Items and Pending Decisions
-
-| # | Item | Owner | Impact | Status |
-|---|---|---|---|---|
-| 1 | **Lot code format:** What format rules apply to the production identifier? (length, allowed characters, prefix conventions) | Product | Affects validation rules | Open |
-| 2 | **Catalog references:** Should client, color, or title reference managed catalogs? | Product | Affects data quality and validation | Open |
-| 3 | **Link to bales:** Should a future capability allow explicit linking of specific bales to a production identity? | Product | Affects delivery flow and traceability | Open |
 
 ---
 

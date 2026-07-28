@@ -1,300 +1,299 @@
 ---
 document_type: prd
 status: active
-implementation: not-started
 scope: operation/lot-processing
 authority: normative
 owner: product
 last_reviewed: 2026-07-27
 ---
 
-# PRD: Lot Processing — Proceso por Lotes
+# PRD: Lot Processing
 
-> **Parte de:** Unidad Operación — Colibri Hub
-> **Dependencias:** `docs/prd/operation/overview.md` (PRD de Operación), `docs/prd/warehouse/overview.md` (PRD de Almacén)
-> **Documentos relacionados:** `docs/prd/operation/yarn-spinning.md`
-> **Siguiente:** `docs/domain/operation/lot-processing.md` (Modelo de Dominio)
+> **Part of:** Operation Unit — Colibri Hub
+> **Dependencies:** `docs/prd/operation/overview.md` (Operation PRD), `docs/prd/warehouse/overview.md` (Warehouse PRD)
+> **Related documents:** `docs/prd/operation/yarn-spinning.md`
+> **Next:** `docs/domain/operation/lot-processing.md` (Domain Model)
 
 ---
 
-## 1. Propósito y Alcance
+## 1. Purpose and Scope
 
-### 1.1 Propósito
+### 1.1 Purpose
 
-Definir el proceso de transformación de las madejas provenientes de Hilatura / `Yarn Spinning` en Producto Terminado (PT) listo para verificación física, a través de un flujo secuencial de 6 etapas con trazabilidad individual por lote.
+Define the transformation process that converts skeins from Yarn Spinning into Finished Product (PT) ready for physical verification, through a sequential flow of 6 stages with individual traceability per lot.
 
-### 1.2 Ciclo de vida del lote en el sistema
+### 1.2 Lot lifecycle in the system
 
-El lote recorre tres dominios durante su vida en el sistema. Este PRD cubre el tramo de Operación:
+The lot traverses three domains during its life in the system. This PRD covers the Operation segment:
 
 ```
-ALMACÉN                        OPERACIÓN (Lot Processing)               ALMACÉN
+WAREHOUSE                      OPERATION (Lot Processing)                WAREHOUSE
    │                                │                                       │
-   ├── Asigna código único de lote │                                       │
-   ├── Define: título, color,      │                                       │
-   │   cliente, especificaciones   │                                       │
-   └── Emite a Operación ─────────►│                                       │
+   ├── Assigns unique lot code     │                                       │
+   ├── Defines: yarn count, color, │                                       │
+   │   customer, specifications    │                                       │
+   └── Issues to Operation ────────►│                                       │
                                     │                                       │
-                                    ├── Inventario (arma lote físico)       │
-                                    ├── Tintorería (aplica color)           │
-                                    ├── Secado                              │
-                                    ├── Devanado / Ovillado                 │
-                                    ├── Embolsado                           │
-                                    └── Calidad (evalúa y observa)          │
+                                    ├── Inventory (assembles physical lot)  │
+                                    ├── Dyeing (applies color)              │
+                                    ├── Drying                              │
+                                    ├── Winding / Ball Winding              │
+                                    ├── Bagging                             │
+                                    └── Quality (evaluates and documents)   │
                                          │                                  │
-                                         └── Entrega a Almacén ────────────►│
-                                       (con documentación de calidad)       │
-                                                                             ├── Verificación física
-                                                                             └── Clasificación y disposición
+                                         └── Delivery to Warehouse ────────►│
+                                       (with quality documentation)         │
+                                                                             ├── Physical verification
+                                                                             └── Classification and disposition
 ```
 
-Almacén define la única identidad del lote mediante `production_identity_id` y su código visible `lot_code`; ambos se mantienen durante todo este proceso. Operación no genera otra identidad ni códigos nuevos. Inventario registra el armado del conjunto de madejas que será procesado bajo esa identidad. El sistema es la fuente de toda esta información; cualquier respaldo físico (planilla, etiqueta) es solo una representación impresa de los datos del sistema.
+Warehouse defines the sole lot identity through the production identity and its visible lot code; both are maintained throughout this entire process. Operation does not generate any other identity or new codes. Inventory records the assembly of the set of skeins that will be processed under that identity. The system is the source of all this information; any physical backup (form, label) is merely a printed representation of the system data.
 
-### 1.3 Límites del sistema
+### 1.3 System boundaries
 
-| Límite         | Detalle                                                                                                                                                                                                                                                                                                                                                        |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada**    | La identidad de producción definida por Almacén (`production_identity_id`, `lot_code`, título, color, cliente o destino y especificaciones del pedido) y las madejas producidas en Madejeras. Inventario recibe esa información digitalmente y registra el armado físico bajo la misma identidad, según el título y peso especificados. |
-| **Salida**     | Lote procesado, inspeccionado por Calidad con su documentación completa, entregado a Almacén para verificación física y disposición.                                                                                                                                                                                                                           |
-| **No incluye** | La asignación del código de lote, el enriquecimiento con datos del pedido ni la emisión de MP (documentado en `docs/prd/warehouse/overview.md`). La verificación física final del PT, su clasificación en Almacén ni su almacenamiento/distribución (documentado en `docs/prd/warehouse/overview.md`). La producción de hilado en las 5 secciones de Hilatura (`Yarn Spinning`) (documentado en `docs/prd/operation/yarn-spinning.md`). |
+| Boundary        | Detail                                                                                                                                                                                                                                                                                                                                                        |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Input**       | The production identity defined by Warehouse (production identity, lot code, yarn count, color, customer or destination, and order specifications) and the skeins produced in Madejeras (Skeining). Inventory receives that information digitally and records the physical assembly under the same identity, according to the yarn count and weight specified. |
+| **Output**      | Processed lot, inspected by Quality with complete documentation, delivered to Warehouse for physical verification and disposition.                                                                                                                                                                                                                             |
+| **Not included** | Assignment of the lot code, enrichment with order data, or raw-material issuance (documented in `docs/prd/warehouse/overview.md`). Final physical verification of PT, its classification in Warehouse, or its storage/distribution (documented in `docs/prd/warehouse/overview.md`). Yarn production in the 5 sections of Yarn Spinning (documented in `docs/prd/operation/yarn-spinning.md`). |
 
-### 1.4 Dependencias
+### 1.4 Dependencies
 
-- **Hilatura (`Yarn Spinning`):** Madejeras produce las madejas crudas que Inventario utiliza para armar los lotes físicos. Sin producción en Madejeras no hay lotes.
-- **Almacén:** Define `production_identity_id`, `lot_code` y las especificaciones del pedido (título, color, cliente o destino) en el sistema. Esa información guía el armado físico y el proceso productivo.
-- **Roles de Operación:** Inventario, Personal de Tintorería, Embolsado y Calidad son los actores que registran datos en el sistema a lo largo del proceso.
+- **Yarn Spinning:** Madejeras (Skeining) produces the raw skeins that Inventory uses to assemble physical lots. Without production in Madejeras (Skeining) there are no lots.
+- **Warehouse:** Defines the production identity, lot code, and order specifications (yarn count, color, customer or destination) in the system. That information guides the physical assembly and the production process.
+- **Operation roles:** Inventory, Dyeing personnel, Bagging, and Quality are the actors that record data in the system throughout the process.
 
 ---
 
-## 2. Las 6 Etapas del Proceso
+## 2. The 6 Process Stages
 
-Cada lote atraviesa las siguientes etapas en orden secuencial estricto. No se puede registrar una etapa si la anterior no está completada.
+Each lot goes through the following stages in strict sequential order. A stage cannot be recorded if the previous one is not completed.
 
 The process usually lasts approximately one to two days, and a lot may physically cross multiple shifts. Each intervention records only the work actually performed at that moment. A lot may have multiple legitimate records in the same stage, business date, or shift, including records by different users or at different times. Business date, shift, actors, and system timestamps describe process history; they do not define uniqueness. The use-case/domain layer rejects a later-stage intervention until the prior stage is complete; this cross-table invariant is not a DBML constraint. Controlled edits remain subject to the existing audit policy.
 
-### 2.1 Inventario — Armado del lote
+### 2.1 Inventory — Lot assembly
 
-El lote ingresa formalmente al proceso cuando Inventario arma físicamente el conjunto de madejas bajo la identidad única que Almacén definió previamente (`production_identity_id` y `lot_code`, título, color, cliente o destino y especificaciones del pedido). Inventario consulta esa información, busca en las madejas crudas disponibles (producidas por Madejeras) y registra el armado físico según el **título** y **peso** especificados. El color es competencia de Almacén y Tintorería, no de Inventario.
+The lot formally enters the process when Inventory physically assembles the set of skeins under the unique identity previously defined by Warehouse (production identity and lot code, yarn count, color, customer or destination, and order specifications). Inventory queries that information, searches among the available raw skeins (produced by Madejeras (Skeining)), and records the physical assembly according to the **yarn count** and **weight** specified. Color is the responsibility of Warehouse and Dyeing, not Inventory.
 
-| Aspecto                     | Descripción                                                                                                                                                                                                                         |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Quién**                   | Inventario                                                                                                                                                                                                                          |
-| **Cuándo**                  | Cuando existe la identidad definida por Almacén y hay madejas del título requerido disponibles |
-| **Qué se registra**         | — `production_identity_id` y `lot_code` (definidos por Almacén)<br>— Fecha y turno de armado<br>— Responsable que armó el lote<br>— Supervisor a cargo<br>— Título del hilado<br>— Cantidad de madejas que componen el lote<br>— Peso total del lote |
-| **Inconvenientes posibles** | — Madejas insuficientes del título requerido<br>— Peso fuera del rango especificado<br>— Datos de emisión incompletos                                                                                                               |
-| **Resultado**               | El lote armado pasa a Tintorería                                                                                                                                                                                                    |
+| Aspect                    | Description                                                                                                                                                                                                                        |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Who**                   | Inventory                                                                                                                                                                                                                          |
+| **When**                  | When the identity defined by Warehouse exists and skeins of the required yarn count are available |
+| **What is recorded**      | — Production identity and lot code (defined by Warehouse)<br>— Assembly date and shift<br>— Person who assembled the lot<br>— Supervisor in charge<br>— Yarn count<br>— Number of skeins composing the lot<br>— Total lot weight |
+| **Possible issues**       | — Insufficient skeins of the required yarn count<br>— Weight outside the specified range<br>— Incomplete issuance data                                                                                                            |
+| **Result**                | The assembled lot moves to Dyeing                                                                                                                                                                                                  |
 
-### 2.2 Tintorería — Aplicación de color
+### 2.2 Dyeing — Color application
 
-Las madejas del lote ingresan a las tinas para ser teñidas según el color especificado por Almacén en el sistema.
+The skeins of the lot enter the vats to be dyed according to the color specified by Warehouse in the system.
 
-| Aspecto                     | Descripción                                                                                                                                                                                                                                                              |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Quién**                   | Personal de Tintorería                                                                                                                                                                                                                                                   |
-| **Cuándo**                  | Cuando las madejas ingresan a las tinas                                                                                                                                                                                                                                  |
-| **Qué se registra**         | — Fecha y turno de ingreso<br>— Responsable que recibe el lote<br>— Supervisor a cargo<br>— Cantidad de madejas recibidas<br>— Peso neto del lote al ingresar<br>— Número de tina utilizada<br>— Temperatura del proceso<br>— Observaciones categorizadas si corresponde |
-| **Inconvenientes posibles** | — Reteñir (color no conforme, requiere un segundo baño)<br>— Temperatura fuera de rango<br>— Tina incorrecta o contaminada<br>— Material (tipo de fibra) no coincide con el proceso                                                                                      |
-| **Resultado**               | El lote teñido pasa a Secado                                                                                                                                                                                                                                             |
+| Aspect                    | Description                                                                                                                                                                                                                                                             |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Who**                   | Dyeing personnel                                                                                                                                                                                                                                                        |
+| **When**                  | When the skeins enter the vats                                                                                                                                                                                                                                          |
+| **What is recorded**      | — Entry date and shift<br>— Person who receives the lot<br>— Supervisor in charge<br>— Number of skeins received<br>— Net lot weight at entry<br>— Vat number used<br>— Process temperature<br>— Categorized observations if applicable |
+| **Possible issues**       | — Re-dyeing (non-conforming color, requires a second bath)<br>— Temperature out of range<br>— Incorrect or contaminated vat<br>— Material (fiber type) does not match the process                                                                                      |
+| **Result**                | The dyed lot moves to Drying                                                                                                                                                                                                                                            |
 
-### 2.3 Secado — Eliminación de humedad
+### 2.3 Drying — Moisture removal
 
-Las madejas teñidas pasan al proceso de secado para eliminar la humedad residual.
+The dyed skeins go through the drying process to eliminate residual moisture.
 
-| Aspecto                     | Descripción                                                                                                                                                     |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Quién**                   | Personal de Tintorería                                                                                                                                          |
-| **Cuándo**                  | Cuando las madejas salen del proceso de tintorería                                                                                                              |
-| **Qué se registra**         | — Fecha y turno de ingreso<br>— Responsable que recibe el lote<br>— Supervisor a cargo<br>— Cantidad de madejas ingresadas<br>— Peso total del lote al ingresar |
-| **Inconvenientes posibles** | — Lote no viene de Tintorería (control de secuencia)<br>— Peso inconsistentemente alto (exceso de humedad)                                                      |
-| **Resultado**               | El lote seco pasa a Devanado u Ovillado                                                                                                                         |
+| Aspect                    | Description                                                                                                                                                    |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Who**                   | Dyeing personnel                                                                                                                                               |
+| **When**                  | When the skeins come out of the dyeing process                                                                                                                 |
+| **What is recorded**      | — Entry date and shift<br>— Person who receives the lot<br>— Supervisor in charge<br>— Number of skeins entered<br>— Total lot weight at entry |
+| **Possible issues**       | — Lot does not come from Dyeing (sequence control)<br>— Inconsistently high weight (excess moisture)                                                           |
+| **Result**                | The dried lot moves to Winding or Ball Winding                                                                                                                 |
 
-### 2.4 Devanado / Ovillado — Conversión a formato final
+### 2.4 Winding / Ball Winding — Conversion to final format
 
-Las madejas secas se convierten al formato final según el destino del producto. Son dos variantes del mismo tipo de proceso:
+The dried skeins are converted to the final format according to the product destination. These are two variants of the same type of process:
 
-| Variante     | Destino                          | Producto        |
-| ------------ | -------------------------------- | --------------- |
-| **Devanado** | Cliente industrial               | Conos de hilado |
-| **Ovillado** | Venta directa / Comercialización | Ovillos         |
+| Variant           | Destination                      | Product         |
+| ----------------- | -------------------------------- | --------------- |
+| **Winding**       | Industrial customer              | Yarn cones      |
+| **Ball Winding**  | Direct sale / Retail             | Yarn balls      |
 
-| Aspecto                     | Descripción                                                                                                                                                                                                       |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Quién**                   | Responsable operativo asignado a Devanado/Ovillado según la política vigente. Hoy puede coincidir con el mismo responsable que atiende Embolsado.                                                               |
-| **Cuándo**                  | Cuando las madejas secas están listas para procesar                                                                                                                                                               |
-| **Qué se registra**         | — Fecha y turno de proceso<br>— Responsable que recibe el lote<br>— Supervisor a cargo<br>— Cantidad de madejas procesadas<br>— Cantidad de conos u ovillos producidos<br>— Desperdicio generado en la conversión, con registro en el historial del lote |
-| **Inconvenientes posibles** | — Conos dañados<br>— Título incorrecto<br>— Equipo no calibrado para el título<br>— Desperdicio excesivo                                                                                                          |
-| **Resultado**               | El lote en conos u ovillos pasa a Embolsado                                                                                                                                                                       |
+| Aspect                    | Description                                                                                                                                                                                                      |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Who**                   | Operative responsible assigned to Winding/Ball Winding according to current policy. Today this may coincide with the same person handling Bagging.                                                               |
+| **When**                  | When the dried skeins are ready for processing                                                                                                                                                                   |
+| **What is recorded**      | — Process date and shift<br>— Person who receives the lot<br>— Supervisor in charge<br>— Number of skeins processed<br>— Number of cones or balls produced<br>— Waste generated during conversion, recorded in the lot history |
+| **Possible issues**       | — Damaged cones<br>— Incorrect yarn count<br>— Equipment not calibrated for the yarn count<br>— Excessive waste                                                                                                 |
+| **Result**                | The lot in cones or balls moves to Bagging                                                                                                                                                                       |
 
-### 2.5 Embolsado — Empaque del producto final
+### 2.5 Bagging — Final product packaging
 
-Los conos u ovillos se empacan en bolsas con sus etiquetas y fichas correspondientes.
+The cones or balls are packed into bags with their corresponding labels and data sheets.
 
-| Aspecto                     | Descripción                                                                                                                                                                                    |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Quién**                   | Embolsado                                                                                                                                                                                      |
-| **Cuándo**                  | Cuando los conos u ovillos están listos para empacar                                                                                                                                           |
-| **Qué se registra**         | — Fecha y turno de empaque<br>— Responsable que recibe el lote<br>— Supervisor a cargo<br>— Cantidad de bolsas utilizadas<br>— Cantidad de conos u ovillos por bolsa<br>— Desperdicio generado en Embolsado, con registro en el historial del lote |
-| **Inconvenientes posibles** | — Bolsas dañadas<br>— Etiqueta o ficha incorrecta<br>— Conos dañados detectados al empacar<br>— Cantidad de conos no coincide con lo registrado en Devanado                                    |
-| **Resultado**               | El lote empacado pasa a Control de Calidad                                                                                                                                                     |
+| Aspect                    | Description                                                                                                                                                                                   |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Who**                   | Bagging                                                                                                                                                                                       |
+| **When**                  | When the cones or balls are ready for packaging                                                                                                                                               |
+| **What is recorded**      | — Packaging date and shift<br>— Person who receives the lot<br>— Supervisor in charge<br>— Number of bags used<br>— Number of cones or balls per bag<br>— Waste generated in Bagging, recorded in the lot history |
+| **Possible issues**       | — Damaged bags<br>— Incorrect label or data sheet<br>— Damaged cones detected during packaging<br>— Cone count does not match what was recorded in Winding                                   |
+| **Result**                | The packaged lot moves to Quality Control                                                                                                                                                     |
 
-### 2.6 Calidad — Inspección final y clasificación
+### 2.6 Quality — Final inspection and classification
 
-Calidad inspecciona el lote completo, verifica parámetros, documenta defectos y deja registrado el **estado de calidad** en el que el lote será entregado a Almacén, incluyendo nomenclaturas especiales si corresponde. Si el lote no cumple parámetros mínimos, queda **observado** y dentro de Operación se deben agotar las instancias viables de solución antes de reportar sus condiciones de entrega a Almacén. El lote sale de Operación hacia Almacén con su historial completo de calidad.
+Quality inspects the complete lot, verifies parameters, documents defects, and records the **quality state** in which the lot will be delivered to Warehouse, including special nomenclatures if applicable. If the lot does not meet minimum parameters, it is **flagged** and within Operation all viable resolution options must be exhausted before reporting its delivery conditions to Warehouse. The lot leaves Operation toward Warehouse with its complete quality history.
 
-| Aspecto             | Descripción                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Quién**           | Control de Calidad                                                                                                                                                                                                                                                                                                                                                                                                   |
-| **Cuándo**          | Antes de entregar el lote a Almacén                                                                                                                                                                                                                                                                                                                                                                                  |
-| **Qué se registra** | — Fecha y turno de inspección<br>— Responsable que inspecciona<br>— Supervisor a cargo<br>— Defectos visuales detectados (doble tono, manchado, varilla, madejas picadas, colas, flames, baja/alta torsión, mezcla)<br>— Defectos internos detectados (purgado, parafinado, ficha, doble cabo, malos amarres, cantidad de amarres, contaminación, etc)<br>— Nomenclatura especial si corresponde<br>— Estado de calidad del lote al momento de entrega<br>— Condiciones de entrega si corresponde |
-| **Resultado**       | El lote sale de Operación hacia Almacén con su documentación completa de calidad y el estado en que se entrega                                                                                                                                                                                                                                                                                                                                     |
-
----
-
-## 3. Inconvenientes y Documentación
-
-### 3.1 Observaciones categorizadas
-
-Cada etapa puede reportar inconvenientes mediante un conjunto predefinido de categorías. Esto permite filtrar, reportar y analizar problemas sin recurrir a texto libre ambiguo.
-
-La categoría se selecciona de un listado específico para cada etapa. Si no aplica ninguna, simplemente no se selecciona.
-
-| Etapa                 | Categorías de inconveniente                                                                                                                                                           |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Inventario**        | Madejas insuficientes del título requerido / Peso fuera de rango / Datos de emisión incompletos                                                                                       |
-| **Tintorería**        | Reteñir (color no conforme) / Temperatura fuera de rango / Tina contaminada / Material incorrecto                                                                                     |
-| **Secado**            | Peso fuera de rango / Humedad excesiva                                                                                                                                                |
-| **Devanado/Ovillado** | Conos dañados / Título incorrecto / Equipo no calibrado / Desperdicio excesivo                                                                                                        |
-| **Embolsado**         | Bolsas dañadas / Etiqueta incorrecta / Conteo no coincide                                                                                                                             |
-| **Calidad**           | Doble tono / Manchado / Varilla / Madejas picadas / Colas / Flames / Baja torsión / Alta torsión / Mezcla / Purgado / Parafinado / Ficha / Doble cabo / Malos amarres / Contaminación |
-
-Además de la categoría, se puede incluir un campo opcional de **detalles** en texto libre para contexto adicional (ej: "la tina T-03 presentó residuos del lote anterior").
-
-### 3.2 Registro de historial
-
-Cada intervención conserva fecha de negocio, turno, responsables aplicables y timestamps del sistema. No se persisten pares de timestamps físicos de entrada/salida en el modelo actual. La duración física por etapa queda diferida hasta que el negocio defina qué evento inicia y termina esa medición, cómo se capturará y qué decisiones la usarán.
-
-Esto permite mantener trazabilidad de responsabilidad y de registro, incluso cuando el lote cruza múltiples turnos, sin inferir una duración física que el negocio aún no definió.
-
-El lote avanza cuando **físicamente** cambia de etapa. No existen estados intermedios formales fuera de estas etapas; si el lote está en Tintorería esperando una decisión sobre un reteñir, sigue estando en Tintorería hasta que sale a Secado. Las demoras, observaciones o decisiones pendientes se registran como parte de la etapa actual.
+| Aspect              | Description                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Who**             | Quality Control                                                                                                                                                                                                                                                                                                                                                                                                      |
+| **When**            | Before delivering the lot to Warehouse                                                                                                                                                                                                                                                                                                                                                                               |
+| **What is recorded** | — Inspection date and shift<br>— Person who inspects<br>— Supervisor in charge<br>— Visual defects detected (double tone, staining, rod marks, nicked skeins, tails, slubs, low/high twist, blend)<br>— Internal defects detected (purging, paraffining, data sheet, double strand, bad ties, tie count, contamination, etc.)<br>— Special nomenclature if applicable<br>— Lot quality state at the time of delivery<br>— Delivery conditions if applicable |
+| **Result**          | The lot leaves Operation toward Warehouse with its complete quality documentation and the state in which it is delivered                                                                                                                                                                                                                                                                                              |
 
 ---
 
-## 4. Ciclo de Vida y Estados del Lote
+## 3. Issues and Documentation
 
-### 4.1 Diagrama de estados
+### 3.1 Categorized observations
+
+Each stage can report issues through a predefined set of categories. This allows filtering, reporting, and analyzing problems without resorting to ambiguous free text.
+
+The category is selected from a specific list for each stage. If none applies, none is selected.
+
+| Stage                 | Issue categories                                                                                                                                                                              |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Inventory**         | Insufficient skeins of the required yarn count / Weight out of range / Incomplete issuance data                                                                                               |
+| **Dyeing**            | Re-dyeing (non-conforming color) / Temperature out of range / Contaminated vat / Incorrect material                                                                                           |
+| **Drying**            | Weight out of range / Excessive moisture                                                                                                                                                      |
+| **Winding/Ball Winding** | Damaged cones / Incorrect yarn count / Equipment not calibrated / Excessive waste                                                                                                          |
+| **Bagging**           | Damaged bags / Incorrect label / Count does not match                                                                                                                                         |
+| **Quality**           | Double tone / Staining / Rod marks / Nicked skeins / Tails / Slubs / Low twist / High twist / Blend / Purging / Paraffining / Data sheet / Double strand / Bad ties / Contamination           |
+
+In addition to the category, an optional **details** field in free text may be included for additional context (e.g., "vat T-03 had residues from the previous lot").
+
+### 3.2 History recording
+
+Each intervention preserves business date, shift, applicable persons responsible, and system timestamps. Pairs of physical entry/exit timestamps are not persisted in the current model. Physical duration per stage is deferred until the business defines what event starts and ends that measurement, how it will be captured, and what decisions will use it.
+
+This allows maintaining responsibility and recording traceability, even when the lot crosses multiple shifts, without inferring a physical duration that the business has not yet defined.
+
+The lot advances when it **physically** changes stage. No formal intermediate states exist outside these stages; if the lot is in Dyeing waiting for a decision about re-dyeing, it remains in Dyeing until it moves to Drying. Delays, observations, or pending decisions are recorded as part of the current stage.
+
+---
+
+## 4. Lot Lifecycle and States
+
+### 4.1 State diagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> En_Almacen: Definición de código único
-    En_Almacen --> En_Inventario: Armado del lote
-    En_Inventario --> En_Tintoreria
-    En_Tintoreria --> En_Secado
-    En_Secado --> En_Devanado
-    En_Devanado --> En_Embolsado
-    En_Embolsado --> En_Calidad
-    En_Calidad --> En_Espera_Validacion_Almacen: Quality Send
-    En_Espera_Validacion_Almacen --> En_Almacen_PT: Recepción de Almacén
-    En_Almacen_PT --> [*]
+    [*] --> In_Warehouse: Unique code definition
+    In_Warehouse --> In_Inventory: Lot assembly
+    In_Inventory --> In_Dyeing
+    In_Dyeing --> In_Drying
+    In_Drying --> In_Winding
+    In_Winding --> In_Bagging
+    In_Bagging --> In_Quality
+    In_Quality --> Awaiting_Warehouse_Receipt: Quality Send
+    Awaiting_Warehouse_Receipt --> In_Warehouse_PT: Warehouse reception
+    In_Warehouse_PT --> [*]
 ```
 
-### 4.2 Estados
+### 4.2 States
 
-| Estado            | Significado                                                                                     |
-| ----------------- | ----------------------------------------------------------------------------------------------- |
-| **En_Almacen**    | Lote registrado por Almacén, con código asignado. Pendiente de emisión a Operación. |
-| **En_Inventario** | Lote armado por Inventario, primer registro en el sistema de Operación.                         |
-| **En_Tintoreria** | Lote en proceso de teñido.                                                                      |
-| **En_Secado**     | Lote en proceso de secado.                                                                      |
-| **En_Devanado**   | Lote en proceso de devanado u ovillado.                                                         |
-| **En_Embolsado**  | Lote en proceso de empaque.                                                                     |
-| **En_Calidad**    | Lote en inspección final.                                                                       |
-| **En_Espera_Validacion_Almacen** | Quality realizó el único envío permitido; el mismo lote espera la validación y recepción de Almacén. Las notas breves de coordinación no son aceptación ni generan otro envío. |
-| **En_Almacen_PT** | Almacén registró la recepción del mismo lote después de la validación física. |
+| State            | Meaning                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| **In_Warehouse**    | Lot registered by Warehouse, with assigned code. Pending issuance to Operation. |
+| **In_Inventory** | Lot assembled by Inventory, first record in the Operation system.                           |
+| **In_Dyeing**    | Lot in dyeing process.                                                                      |
+| **In_Drying**    | Lot in drying process.                                                                      |
+| **In_Winding**   | Lot in winding or ball winding process.                                                     |
+| **In_Bagging**   | Lot in packaging process.                                                                   |
+| **In_Quality**   | Lot in final inspection.                                                                    |
+| **Awaiting_Warehouse_Receipt** | Quality performed the single permitted send; the lot awaits Warehouse validation and reception. Brief coordination notes are neither acceptance nor another send. |
+| **In_Warehouse_PT** | Warehouse registered reception of the lot after physical validation. |
 
-### 4.3 Reglas de transición
+### 4.3 Transition rules
 
-1. **Secuencial obligatorio:** No se puede registrar una etapa si el lote no completó la anterior. Para registrar en Devanado, el estado actual debe ser `En_Secado`.
-2. **Sin retroceso:** Una vez que el lote avanza a la siguiente etapa, no se retrocede. El lote siempre sigue adelante en el flujo.
-3. **Edición controlada con auditoría:** Los datos de una etapa pueden corregirse si hubo error de carga, pero toda edición debe dejar trazabilidad completa de quién editó, cuándo, qué cambió y por qué.
-4. **Ventana operativa de corrección:** La edición puede permitirse durante una ventana definida posterior al turno o al cierre de la etapa (por ejemplo 24 o 48 horas, según la política vigente).
-5. **Edición restringida fuera de ventana:** Una vez vencida la ventana operativa, solo el rol **SysAdmin** puede editar registros de etapas, manteniendo la misma trazabilidad obligatoria.
-6. **Quality Send único:** Todo lote que completa las 6 etapas puede realizar un único Quality Send hacia Almacén con su documentación completa, incluyendo defectos y condiciones de entrega si existieran. El envío deja al lote en espera de validación de Almacén; no se repite ni ocurre concurrentemente para la misma identidad.
-7. **Recepción de Almacén:** La aceptación se evidencia solo cuando Almacén registra la recepción para la misma identidad del lote. Las notas breves durante la espera no son aceptación ni otro envío.
+1. **Mandatory sequential:** A stage cannot be recorded if the lot has not completed the previous one. To record in Winding, the current state must be `In_Drying`.
+2. **No rollback:** Once the lot advances to the next stage, it does not go back. The lot always moves forward in the flow.
+3. **Controlled edit with audit:** Data from a stage may be corrected if there was a data-entry error, but every edit must leave complete traceability of who edited, when, what changed, and why.
+4. **Operational correction window:** Editing may be allowed during a defined window after the shift or stage closure (for example 24 or 48 hours, according to current policy).
+5. **Restricted editing outside the window:** Once the operational window expires, only the **SysAdmin** role may edit stage records, maintaining the same mandatory traceability.
+6. **Single Quality Send:** Every lot that completes the 6 stages may perform a single Quality Send toward Warehouse with its complete documentation, including defects and delivery conditions if any. The send places the lot in awaiting Warehouse receipt; it is not repeated nor does it occur concurrently for the same identity.
+7. **Warehouse reception:** Acceptance is evidenced only when Warehouse registers reception for the same lot identity. Brief notes during the wait are neither acceptance nor another send.
 
-### 4.4 Clasificación de Calidad
+### 4.4 Quality classification
 
-Calidad documenta el estado de calidad del lote al momento de la entrega. Esa información permite que Almacén verifique lo recibido y luego defina, por separado, su disponibilidad operativa, su disposición y su presentación física según corresponda. El lote siempre se entrega a Almacén, aun cuando llegue con observaciones o condiciones especiales.
+Quality documents the quality state of the lot at the time of delivery. That information allows Warehouse to verify what was received and then separately define its operational availability, disposition, and physical presentation as appropriate. The lot is always delivered to Warehouse, even when it arrives with observations or special conditions.
 
-| Clasificación         | Significado                                                                                     | Ejemplo de uso                                                                |
-| --------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| **Estándar**          | PT sin defectos o con defectos menores dentro de tolerancia                                     | Lote que cumple especificaciones                                              |
-| **Con nomenclatura**  | PT con características especiales que modifican su clasificación o valor                        | Lote con una designación especial definida por calidad según la política vigente |
-| **Observado**         | PT con defectos o condiciones documentadas que obligan a tomar decisiones dentro de Operación o a informar condiciones de entrega a Almacén | Doble tono, manchado, conos dañados, defectos que requieren definir salida    |
-
----
-
-## 5. Reglas de Negocio
-
-### 5.1 Trazabilidad multi-turno
-
-El proceso completo del lote puede durar entre 1 y 2 días, cruzando múltiples turnos. Cada registro de etapa captura:
-
-- La fecha de negocio y el turno de la intervención
-- El responsable que recibe, entrega o ejecuta, según corresponda a la etapa
-- El supervisor a cargo
-- Los timestamps de registro y corrección del sistema
-
-Esto permite responder quién hizo qué y en qué turno. La duración física de cada etapa no se calcula ni se infiere hasta que exista una definición de negocio aprobada.
-
-### 5.2 Peso por etapa
-
-El peso del lote se mide al inicio de cada etapa para calcular la merma acumulada. La diferencia entre etapas consecutivas revela pérdidas de material durante el proceso.
-
-### 5.3 Corrección de registros
-
-Los registros de cada etapa (fechas, responsables, datos técnicos) pueden corregirse si hubo error de carga, pero toda corrección debe dejar auditoría completa: usuario editor, fecha/hora, valores anteriores, valores nuevos y motivo del cambio. La edición operativa puede permitirse dentro de una ventana definida; fuera de esa ventana, solo **SysAdmin** puede editar.
-
-### 5.4 Validación antes de avanzar
-
-Antes de registrar una etapa, el sistema verifica:
-
-- Que el lote existe y tiene un código válido
-- Que la etapa anterior está completada
-- Que los datos obligatorios están presentes (turno, supervisor, responsable, peso/cantidad)
-
-### 5.5 Cierre del ciclo del lote en Operación
-
-El tramo de Operación concluye cuando Calidad completa su inspección y realiza el único Quality Send. El mismo lote queda en espera de validación de Almacén hasta que Almacén registra su recepción. A partir de esa aceptación, Almacén verifica lo recibido, clasifica el estado del PT y decide su disposición. Esa decisión ya corresponde al dominio de Almacén, no al de Operación.
+| Classification         | Meaning                                                                                     | Usage example                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **Standard**           | PT without defects or with minor defects within tolerance                                   | Lot that meets specifications                                                |
+| **With nomenclature**  | PT with special characteristics that modify its classification or value                     | Lot with a special designation defined by Quality according to current policy |
+| **Flagged**            | PT with documented defects or conditions that require decisions within Operation or reporting delivery conditions to Warehouse | Double tone, staining, damaged cones, defects that require defining disposition |
 
 ---
 
-## 6. Visibilidad por Rol
+## 5. Business Rules
 
-La siguiente visibilidad describe la operación actual esperada. La política exacta de permisos puede cambiar según RBAC. Cada rol ve la información necesaria para su trabajo, más la etapa inmediatamente anterior para validar consistencia. Calidad ve el historial del lote y sus características de calidad; Supervisor puede ver la información de ambos procesos para consolidación operativa.
+### 5.1 Multi-shift traceability
 
-| Rol                          | Ve sus datos          | Ve (lectura)                                     |
-| ---------------------------- | --------------------- | ------------------------------------------------ |
-| **Inventario**               | Inventario (armado y seguimiento)   | Información de Almacén: código, título, cliente  |
-| **Personal de Tintorería**   | Tintorería, Secado    | Inventario: madejas, peso total                  |
-| **Responsable operativo de Devanado/Ovillado** | Devanado/Ovillado     | Secado: madejas, peso total                      |
-| **Embolsado**                | Embolsado             | Devanado/Ovillado: conos, desperdicio            |
-| **Calidad**                  | Calidad               | Historial del lote y sus características registradas |
-| **Supervisor**               | Todas (solo lectura)  | Todas (solo lectura). No registra como regla general; supervisa y consolida.    |
-| **Jefe de Producción**       | Dashboard consolidado | Todas las etapas de todos los lotes activos      |
-| **Almacén**                  | Sus movimientos       | Datos productivos del lote (solo lectura)        |
+The complete lot process may last between 1 and 2 days, crossing multiple shifts. Each stage record captures:
+
+- The business date and shift of the intervention
+- The person who receives, delivers, or executes, as applicable to the stage
+- The supervisor in charge
+- System registration and correction timestamps
+
+This allows answering who did what and in which shift. The physical duration of each stage is not calculated or inferred until an approved business definition exists.
+
+### 5.2 Weight per stage
+
+The lot weight is measured at the beginning of each stage to calculate accumulated waste. The difference between consecutive stages reveals material losses during the process.
+
+### 5.3 Record correction
+
+The records of each stage (dates, persons responsible, technical data) may be corrected if there was a data-entry error, but every correction must leave complete audit: editing user, date/time, previous values, new values, and reason for the change. Operational editing may be allowed within a defined window; outside that window, only **SysAdmin** may edit.
+
+### 5.4 Validation before advancing
+
+Before recording a stage, the system verifies:
+
+- That the lot exists and has a valid code
+- That the previous stage is completed
+- That mandatory data is present (shift, supervisor, person responsible, weight/quantity)
+
+### 5.5 Closure of the lot cycle in Operation
+
+The Operation segment concludes when Quality completes its inspection and performs the single Quality Send. The lot remains in awaiting Warehouse receipt until Warehouse registers its reception. From that acceptance onward, Warehouse verifies what was received, classifies the PT state, and decides its disposition. That decision belongs to the Warehouse domain, not to Operation.
 
 ---
 
-## 7. Glosario
+## 6. Visibility by Role
 
-| Término                       | Definición                                                                                                                                |
+The following visibility describes the current expected operation. The exact permissions policy may change according to RBAC. Each role sees the information necessary for its work, plus the immediately preceding stage for consistency validation. Quality sees the lot history and its quality characteristics; Supervisor can see information from both processes for operational consolidation.
+
+| Role                          | Sees own data          | Sees (read-only)                                 |
+| ----------------------------- | ---------------------- | ------------------------------------------------ |
+| **Inventory**                 | Inventory (assembly and tracking)   | Warehouse information: code, yarn count, customer |
+| **Dyeing personnel**          | Dyeing, Drying         | Inventory: skeins, total weight                  |
+| **Winding/Ball Winding operative** | Winding/Ball Winding   | Drying: skeins, total weight                     |
+| **Bagging**                   | Bagging                | Winding/Ball Winding: cones, waste               |
+| **Quality**                   | Quality                | Lot history and its recorded characteristics     |
+| **Supervisor**                | All (read-only)        | All (read-only). Does not record as a general rule; supervises and consolidates. |
+| **Production Manager**        | Consolidated dashboard | All stages of all active lots                    |
+| **Warehouse**                 | Own movements          | Lot production data (read-only)                  |
+
+---
+
+## 7. Glossary
+
+| Term                          | Definition                                                                                                                                |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| **Lote**                      | Conjunto físico de madejas que comparten título, color y destino, armado en este proceso e identificado por el código definido por Almacén                                       |
-| **Código de lote**            | Identificador único asignado por Almacén al definir el pedido. Su formato podrá rediseñarse más adelante                                                                               |
-| **Especificaciones del lote** | Información definida por Almacén en el sistema: código de lote, título, color, cliente y datos del pedido                           |
-| **Armado de lote**            | Proceso por el cual Inventario selecciona madejas crudas producidas en Madejeras para formar un lote según el título y peso especificados |
-| **Clasificación de calidad**  | Categoría asignada por Calidad al PT (estándar, con nomenclatura u observado) que documenta su estado de calidad al momento de la entrega                   |
-| **Nomenclatura**              | Designación especial asignada por Calidad al PT que modifica su clasificación según la política vigente                                       |
-| **Merma**                     | Diferencia de peso entre etapas consecutivas que revela pérdida de material                                                               |
-| **Devanado**                  | Conversión de madejas en conos (formato para cliente industrial)                                                                          |
-| **Ovillado**                  | Conversión de madejas en ovillos (formato para venta directa)                                                                             |
+| **Lot**                       | Physical set of skeins sharing yarn count, color, and destination, assembled in this process and identified by the code defined by Warehouse |
+| **Lot code**                  | Unique identifier assigned by Warehouse when defining the order. Its format may be redesigned later                                       |
+| **Lot specifications**        | Information defined by Warehouse in the system: lot code, yarn count, color, customer, and order data                                     |
+| **Lot assembly**              | Process by which Inventory selects raw skeins produced in Madejeras (Skeining) to form a lot according to the yarn count and weight specified |
+| **Quality classification**    | Category assigned by Quality to the PT (standard, with nomenclature, or flagged) documenting its quality state at the time of delivery    |
+| **Nomenclature**              | Special designation assigned by Quality to the PT that modifies its classification according to current policy                             |
+| **Waste**                     | Weight difference between consecutive stages revealing material loss                                                                      |
+| **Winding**                   | Conversion of skeins into cones (format for industrial customer)                                                                          |
+| **Ball Winding**              | Conversion of skeins into yarn balls (format for direct sale)                                                                             |
