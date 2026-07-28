@@ -50,6 +50,14 @@ Dependency direction is strictly inward:
 adapters → ports → application → domain
 ```
 
+> **Notation:** Arrows represent layer ordering from outermost to innermost (not import direction). The allowed import direction is **inward only**:
+>
+> - `domain/` imports nothing from other layers
+> - `application/` may import from `domain/` and `ports/`
+> - `ports/` defines abstract interfaces (no external imports)
+> - `adapters/` may import from `ports/` (and transitively from `domain/` via ports)
+> - `bootstrap/` (composition root) may import from all layers to wire adapters to ports
+
 - `domain/` has zero imports from other layers
 - `application/` imports from `domain/` and `ports/` only
 - `ports/` defines abstract interfaces (protocols/ABCs)
