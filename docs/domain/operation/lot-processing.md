@@ -134,7 +134,7 @@ The final quality verdict assigned by Quality Control at stage 6.
 | Attribute | Description |
 |---|---|
 | `lot` | Reference to the Lot |
-| `classification` | One of: `Standard`, `WithNomenclature`, `WithObservations`, `Rejected` |
+| `classification` | One of: `Standard`, `WithNomenclature`, `Flagged` |
 | `nomenclature` | Optional special designation |
 | `visualDefects` | List of visual defects found |
 | `internalDefects` | List of internal defects found |
@@ -147,8 +147,7 @@ The final quality verdict assigned by Quality Control at stage 6.
 |---|---|
 | `Standard` | No defects or minor defects within tolerance |
 | `WithNomenclature` | Special designation affecting classification/value |
-| `WithObservations` | Documented defects that don't prevent use but affect quality |
-| `Rejected` | Significant defects preventing first-quality commercialization |
+| `Flagged` | Documented defects or conditions requiring decisions within Operation or informing delivery conditions to Warehouse |
 
 **Nomenclatures:**
 
@@ -246,7 +245,7 @@ Covers both Devanado (cones) and Ovillado (skeins for retail).
 ## 4. Observation Categories (per stage type)
 
 These are the predefined categories available per stage. In the domain model,
-they are **value objects** — a fixed catalog, not user-extensible.
+they are **value objects** — a closed enumeration defined within Lot Processing, not user-extensible.
 
 | StageType | Categories |
 |---|---|
