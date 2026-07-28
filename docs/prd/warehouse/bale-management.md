@@ -148,7 +148,7 @@ A **bale** is an independently identified raw-material unit with its own lifecyc
 
 When computing aggregate weights (e.g., inventory summary):
 
-1. Aggregation is performed in the persistence layer (SQL), not in application memory.
+1. The system groups bales by batch for aggregate queries.
 2. When no bales match the filter criteria, aggregate weights are zero (not null).
 3. Aggregates respect the same filter conjunction as counts (see §11).
 
@@ -158,7 +158,7 @@ When computing aggregate weights (e.g., inventory summary):
 
 ### 7.1 Business Act
 
-Reception is the physical arrival of raw material from a supplier. It is an **application action** (use case), not a domain aggregate. The system does not model a Reception entity.
+Reception is the act of recording the physical arrival of raw material from a supplier. The system registers a raw-material batch and its bales — it does not model a separate Reception entity. See [ADR-005](../../architecture/decisions/005-reception-as-application-action.md) for implementation approach.
 
 ### 7.2 Steps
 
@@ -178,7 +178,7 @@ Reception is the physical arrival of raw material from a supplier. It is an **ap
 | RCP-03 | The reception contract accepts 1–100 bales per request. This is an operational safeguard, not an intrinsic business limit. |
 | RCP-04 | The shipment number must not already exist in the system. |
 | RCP-05 | Within the batch, all bale number values must be unique. |
-| RCP-06 | The batch is inserted before its bales; the operation returns the batch technical identifier. |
+| RCP-06 | The system creates the batch record before its bale records and returns a unique batch identifier. |
 | RCP-07 | Adding bales to an already-registered batch requires a separate correction capability (explicit, audited). |
 | RCP-08 | Business identifiers (shipment number, bale number, material type) are normalized (uppercase) before persistence. |
 
@@ -211,7 +211,7 @@ Transport information (truck number, license plate, driver) is **not part of the
 | ST-02 | The only permitted transition is In Warehouse → Delivered. |
 | ST-03 | A bale in Delivered cannot transition to any other state. |
 | ST-04 | There are no additional states beyond these two. |
-| ST-05 | The transition is enforced by domain logic, not by direct status-string manipulation. |
+| ST-05 | The system enforces the valid-transition constraint on every state change. |
 | ST-06 | Two concurrent delivery attempts for the same bale must result in exactly one success; the other receives a conflict. |
 
 ### 8.3 Reversibility
@@ -273,7 +273,7 @@ The inventory summary provides aggregated visibility into bale stock without req
 
 | ID | Rule |
 |---|---|
-| INV-01 | Summary metrics are computed in the persistence layer, not by loading all bales into memory. |
+| INV-01 | Net weight is always derived from gross weight minus container weight. |
 | INV-02 | When no bales match the filters, all counts are zero and all weights are zero (not null, not an error). |
 | INV-03 | When a status filter is applied, the total represents only that subset and the other status counter is zero. |
 | INV-04 | Net weight for summary purposes is calculated as gross weight minus container weight per bale. |
@@ -311,7 +311,7 @@ A single bale is queried by its composite business identity:
 
 - There is no paginated list of all bales.
 - There is no full-text search.
-- There is no query by technical UUID (UUID is used only for write operations after discovery).
+- There is no query by system-generated unique identifier (the internal identifier is used only for write operations after discovery).
 
 ---
 
@@ -348,7 +348,8 @@ A single bale is queried by its composite business identity:
 | AC-DLV-02 | A bale already in Delivered cannot be delivered again; the attempt is rejected with a conflict response. |
 | AC-DLV-03 | Only the state Delivered is accepted as a target status; no other value is permitted. |
 | AC-DLV-04 | Concurrent delivery attempts for the same bale result in exactly one success. |
-| AC-DLV-05 | The transition is enforced through domain logic, not direct string manipulation. |
+| AC-DLV-05 | The system enforces the valid-transition constraint on every delivery attempt. |
+| AC-DLV-06 | GIVEN a delivery is being recorded, WHEN the user submits the form, THEN the system requires a delivery date as a business date (calendar day, no time component) entered by the user (validates DLV-04). |
 
 ### 12.4 Data Integrity
 
