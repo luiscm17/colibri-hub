@@ -9,63 +9,62 @@ last_reviewed: 2026-07-27
 
 # Colibri Hub — UI Requirements
 
-> Requisitos de interfaz de usuario para el sistema de gestión de producción textil.
-> Este documento define qué pantallas, navegación y patrones de UI necesita el
-> sistema, sin prescribir tecnologías ni contratos de API.
+> User interface requirements for the textile production management system.
+> This document defines which screens, navigation, and UI patterns the system
+> needs, without prescribing technologies or API contracts.
 
 ---
 
-## 1. Principios de UI
+## 1. UI Principles
 
-1. **Cada contexto de negocio es una sección de navegación independiente.**
-   Almacén, Hilatura y Proceso por Lotes aparecen como áreas separadas porque
-   sus conceptos, timelines y usuarios son distintos.
+1. **Each business context is an independent navigation section.**
+   Warehouse, Yarn Spinning, and Lot Processing appear as separate areas because
+   their concepts, timelines, and users are distinct.
 
-2. **La fecha de negocio y el turno son estado de sesión.** La mayor parte de la
-   captura ocurre al cierre del turno, no en tiempo real. El turno y la fecha
-   de negocio se proveen mediante contexto compartido, y cada pantalla los
-   incorpora según los necesite (dashboard, formularios, reportes). No forman
-   parte del chrome global (top bar).
+2. **The business date and shift are session state.** Most data capture occurs at
+   shift close, not in real time. The shift and business date are provided via
+   shared context, and each screen incorporates them as needed (dashboard, forms,
+   reports). They are not part of the global chrome (top bar).
 
-3. **La captura tipo planilla es el modo principal para datos repetitivos.**
-   Hilatura (descargas por máquina) y ciertos registros de calidad requieren
-   ingreso de múltiples filas en una sesión. La UI debe priorizar navegación
-   por teclado, entrada rápida y feedback inline.
+3. **Spreadsheet-style capture is the primary mode for repetitive data.**
+   Yarn Spinning (production discharges per machine) and certain quality records
+   require multi-row entry in a session. The UI must prioritize keyboard
+   navigation, rapid entry, and inline feedback.
 
-4. **Los formularios guiados corresponden a objetos de negocio ricos.**
-   Recepciones, identidad de producción, movimientos de Almacén y registros
-   de etapa de lote tienen estructura compleja y campos condicionales.
+4. **Guided forms correspond to rich business objects.**
+   Receptions, production identity, Warehouse movements, and lot stage records
+   have complex structure and conditional fields.
 
-5. **La edición controlada es visible, no silenciosa.** El usuario debe saber
-   si un registro es editable, si requiere motivo de corrección y cuándo la
-   ventana operativa está cerrada.
+5. **Controlled editing is visible, not silent.** The user must know whether a
+   record is editable, whether a correction reason is required, and when the
+   operational window is closed.
 
-6. **La autorización se expresa como capacidades, no como roles fijos.** La UI
-   puede ocultar o deshabilitar acciones según permisos, pero nunca asumir
-   que un rol específico (Supervisor, Calidad) es el único que puede hacer X.
+6. **Authorization is expressed as capabilities, not fixed roles.** The UI may
+   hide or disable actions based on permissions, but must never assume that a
+   specific role (Supervisor, Quality) is the only one that can perform X.
 
-7. **Los estados del producto se muestran como dimensiones separadas.**
-   Calidad, disponibilidad en Almacén y presentación física son conceptos
-   distintos y deben aparecer como campos o badges separados, no como un
-   único estado compuesto.
+7. **Product states are displayed as separate dimensions.**
+   Quality, Warehouse availability, and physical presentation are distinct
+   concepts and must appear as separate fields or badges, not as a single
+   compound state.
 
 ---
 
-## 2. Layout global
+## 2. Global Layout
 
-El layout se organiza en tres zonas permanentes:
+The layout is organized into three permanent zones:
 
 ```
 ┌─────────────────────────────────────────────────┐
 │  Top bar                                         │
-│ [☰] [Logo]                  [🌙] [Usuario ▼] │
+│ [☰] [Logo]                  [🌙] [User ▼]    │
 ├──────────┬──────────────────────────────────────┤
 │ Sidebar  │  Main content area                    │
 │          │                                       │
-│ Almacén  │  (ruta activa)                        │
-│ Hilatura │                                       │
-│ Lotes    │                                       │
-│ Reportes │                                       │
+│ Warehouse│  (active route)                       │
+│ Spinning │                                       │
+│ Lots     │                                       │
+│ Reports  │                                       │
 │ Admin    │                                       │
 │          │                                       │
 └──────────┴──────────────────────────────────────┘
@@ -73,352 +72,368 @@ El layout se organiza en tres zonas permanentes:
 
 ### 2.1 Top bar
 
-| Elemento | Comportamiento |
+| Element | Behavior |
 |---|---|
-| Logo / nombre del sistema | Enlace a dashboard o ruta por defecto |
-| Toggle sidebar | Botón para colapsar/expandir la navegación |
-| Toggle de tema | Modo claro / oscuro |
-| Usuario actual | Nombre + avatar. Menú de perfil/cierre de sesión |
+| Logo / system name | Link to dashboard or default route |
+| Sidebar toggle | Button to collapse/expand navigation |
+| Theme toggle | Light / dark mode |
+| Current user | Name + avatar. Profile/logout menu |
 
 ### 2.2 Sidebar
 
-Navegación principal organizada por bounded context. Cada contexto puede
-expandir sub-ítems. La sección activa se resalta visualmente.
+Main navigation organized by bounded context. Each context may expand
+sub-items. The active section is visually highlighted.
 
-- **Almacén**
-  - Recepción de fardos
-  - Identidad de producción
-  - Emisión a Operación
-  - Recepción de PT
-  - Clasificación / disponibilidad
-  - Salidas y devoluciones
-  - Insumos
-  - Stock e historial
+- **Warehouse**
+  - Bale reception
+  - Production identity
+  - Delivery to Production
+  - Finished-product reception
+  - Classification / availability
+  - Outbound movements and returns
+  - Supplies
+  - Stock and history
 
-- **Hilatura**
-  - Dashboard por sección
-  - Descargas (producción)
-  - Avance
-  - Calidad de proceso
-  - Desperdicio
-  - Disponibilidad de madejas
-  - Consolidado por turno
+- **Yarn Spinning**
+  - Dashboard by section
+  - Production discharges
+  - Progress records
+  - Process quality
+  - Waste
+  - Skein availability
+  - Shift summary
 
-- **Proceso por Lotes**
-  - Cola de lotes
-  - Detalle del lote
+- **Lot Processing**
+  - Lot queue
+  - Lot detail
 
-- **Reportes**
-  - Consolidado diario
-  - Producción vs plan
-  - Trazabilidad de lote
+- **Reports**
+  - Daily summary
+  - Production vs plan
+  - Lot traceability
 
 - **Admin**
-  - Datos maestros
+  - Master data
 
 ### 2.3 Main content
 
-Área variable donde se renderiza la pantalla activa. Soporta:
-- Vista de lista/tabla con filtros
-- Formulario de captura
-- Detalle de registro
-- Dashboard con métricas
+Variable area where the active screen is rendered. Supports:
+- List/table view with filters
+- Data capture form
+- Record detail
+- Dashboard with metrics
 
 ---
 
-## 3. Pantallas por contexto
+## 3. Screens by Context
 
-### 3.1 Almacén
+### 3.1 Warehouse
 
-#### Recepción de fardos
+#### Bale reception
 
-Registro de ingreso de materia prima desde proveedor.
+Registration of raw-material intake from supplier.
 
-- Formulario con: proveedor, factura, peso bruto, título, color/fibra,
-  número de camión, fecha de recepción
-- Tabla de fardos ingresados con historial filtrable
-- Cada fardo es una fila. Se pueden registrar múltiples fardos por camión
+- See [Bale Management PRD](./warehouse/bale-management.md) §7 for reception fields.
+- Table of received bales with filterable history
+- Each bale is a row. Multiple bales can be registered per batch
 
-#### Identidad de producción
+#### Production identity
 
-Definición de la identidad única del lote antes de que exista físicamente.
+Definition of the unique lot identity before it physically exists.
 
-- Formulario con: `lot_code`, `production_identity_id`, título, color,
-  cliente/destino, especificaciones del pedido
-- Lista de identidades definidas con su estado (pendiente de emisión, etc.)
+> Business rules for this capability are defined in [Production Identity PRD](./warehouse/production-identity.md). This section defines only cross-cutting UI patterns.
 
-#### Emisión a Operación
+- Form with: `lot_code`, `production_identity_id`, yarn count, color,
+  customer/destination, order specifications
+- List of defined identities with their state (pending delivery, etc.)
 
-Registro de salida de MP desde Almacén hacia Producción.
+#### Delivery to Production
 
-- Selector de fardo a emitir (solo fardos completos, no emitidos antes)
-- Fecha, responsable que entrega, responsable que recibe
-- Confirmación: una vez emitido, no se revierte sin corrección controlada
+Registration of raw-material departure from Warehouse to Production.
 
-#### Recepción de PT
+- Bale selector (only complete bales, not previously delivered)
 
-Recepción de producto terminado desde Operación.
+See [Bale Management PRD](./warehouse/bale-management.md) §12 for delivery rules.
 
-- Lista de lotes en espera de validación (enviados por Calidad)
-- Detalle del lote con datos de operación (solo lectura)
-- Verificación física: documentar inconsistencias si las hay
-- Confirmación de recepción
+#### Finished-product reception
 
-#### Clasificación / disponibilidad
+Reception of finished product from Operations.
 
-Gestión de estado operativo del PT en Almacén.
+> Business rules for this capability are defined in [Finished Product PRD](./warehouse/finished-product.md). This section defines only cross-cutting UI patterns.
 
-- Selector de lote
-- Campos separados para:
-  - Estado de calidad (heredado de Operación, solo lectura)
-  - Disponibilidad en Almacén (disponible, observado, disponible con
-    condición, defectuoso, entregado)
-  - Presentación física (bolsa, suelto, cono, ovillo)
-- Historial de cambios de estado
+- List of lots awaiting Warehouse receipt (sent by Quality)
+- Lot detail with operation data (read-only)
+- Physical verification: document inconsistencies if any
+- Reception confirmation
 
-#### Salidas y devoluciones
+#### Classification / availability
 
-Registro de venta directa, transferencia a Comercialización y devoluciones.
+Management of the operational state of finished product in Warehouse.
 
-- Selector de tipo de movimiento
-- Formulario según tipo: cliente, cantidad (kg), factura, fecha
-- Devolución referencia a la venta original
-- Autorización visible (requiere Jefe de Producción)
+> Business rules for this capability are defined in [Finished Product PRD](./warehouse/finished-product.md). This section defines only cross-cutting UI patterns.
 
-#### Insumos
+- Lot selector
+- Separate fields for:
+  - Quality state (inherited from Operations, read-only)
+  - Warehouse availability (available, flagged, available with
+    condition, defective, delivered)
+  - Physical presentation (bag, bulk, cone, ball)
+- State change history
 
-Gestión de insumos de producción (colorantes, químicos, empaque, etc.).
+#### Outbound movements and returns
 
-- Categorías configurables
-- Recepción, consumo y devolución por categoría
-- Tabla de existencias por categoría
+Registration of direct sales, transfers to Commercialization, and returns.
 
-#### Stock e historial
+> Business rules for this capability are defined in [Finished Product PRD](./warehouse/finished-product.md). This section defines only cross-cutting UI patterns.
 
-Consulta de saldos y movimientos.
+- Movement type selector
+- Form by type: customer, quantity (kg), invoice, date
+- Return references the original sale
+- Visible authorization (requires Production Manager)
 
-- Filtros por subdominio (MP, PT, insumos), fecha, lote
-- Saldo calculado: anterior + entradas − salidas
-- Historial de movimientos por lote o ítem
+#### Supplies
 
----
+Management of production supplies (dyes, chemicals, packaging, etc.).
 
-### 3.2 Hilatura
+> Business rules for this capability are defined in [Production Supplies PRD](./warehouse/production-supplies.md). This section defines only cross-cutting UI patterns.
 
-#### Dashboard por sección
+- Configurable categories
+- Reception, consumption, and return by category
+- Stock table by category
 
-Vista resumen de producción por sección, turno y fecha.
+#### Stock and history
 
-- Tarjetas o tabla por sección (Preparación, Continuas, Bobinados,
-  Retorcido, Madejeras)
-- Métricas por sección: total descargado, productividad (kg/h), merma
-- Selector de turno y fecha (usa el contexto de sesión)
+Balance and movement queries.
 
-#### Descargas (producción)
+> Business rules for this capability are defined in [Warehouse Overview](./warehouse/overview.md). This section defines only cross-cutting UI patterns.
 
-Captura tipo planilla de descargas por máquina.
-
-- Tabla editable donde cada fila es una descarga:
-  Máquina, título, peso bruto, No. husos, tara por huso, peso carro,
-  peso neto (calculado automáticamente)
-- Madejeras tiene filas distintas: madejas, peso unitario
-- Soporta agregar múltiples filas en una sesión
-- Validación inline: neto > 0, husos > 0
-- Totales calculados al pie
-
-#### Avance
-
-Resumen por máquina al finalizar el turno.
-
-- Formulario por máquina: entrada, salida, peso descargado (suma de
-  descargas del turno), horas trabajadas
-- Peso de muestra bruto y tara para cálculo de salida
-- Solo aplica a Preparación, Continuas y Retorcido (Bobinados y Madejeras
-  no tienen avance)
-
-#### Calidad de proceso
-
-Registro de controles de calidad por sección y máquina.
-
-- Selector de sección y máquina
-- Campos dinámicos según el método:
-  - **Muestras** (Preparación, Continuas): valores individuales, CV%
-  - **Registro de máquina** (Bobinados): body, km, cortes
-  - **Aleatorio** (Retorcido, Madejeras): resultado de prueba
-- Historial de controles por máquina
-
-#### Desperdicio
-
-Registro de desperdicio por grupo de máquinas.
-
-- Selector de sección, grupo de máquinas
-- Peso, tipo (real / acumulado)
-- Madejeras fuera de especificación: no se registra como desperdicio,
-  se marca para reproceso
-
-#### Disponibilidad de madejas
-
-Vista de madejas producidas disponibles para armado de lotes.
-
-- Tabla por título: cantidad de madejas, peso total
-- Filtro por fecha de producción
-
-#### Consolidado por turno
-
-Resumen de producción del turno para el Supervisor.
-
-- Producción total por sección
-- Calidad: controles realizados, resultados
-- Desperdicio total
-- Vista imprimible o exportable
+- Filters by subdomain (raw material, finished product, supplies), date, lot
+- Calculated balance: previous + inbound − outbound
+- Movement history by lot or item
 
 ---
 
-### 3.3 Proceso por Lotes
+### 3.2 Yarn Spinning
 
-#### Cola de lotes
+> Business rules for Yarn Spinning capabilities are defined in [Yarn Spinning PRD](./operation/yarn-spinning.md). This section defines only cross-cutting UI patterns.
 
-Lista de lotes activos organizados por etapa actual.
+#### Dashboard by section
 
-- Tabla con: código de lote, título, etapa actual, responsable,
-  última actualización
-- Filtros por etapa, título, fecha
-- Click en un lote abre su detalle
+Production summary view by section, shift, and date.
 
-#### Detalle del lote
+- Cards or table by section (Preparación (Preparation), Continuas (Ring Spinning),
+  Bobinados (Bobbin Winding), Retorcido (Twisting), Madejeras (Skeining))
+- Metrics by section: total discharged, productivity (kg/h), waste
+- Shift and date selector (uses the session context)
 
-Vista unificada del historial completo del lote.
+#### Production discharges
 
-- Timeline vertical con las 6 etapas
-- Cada etapa muestra: responsable, fecha/turno, datos técnicos,
-  observaciones
-- La etapa activa (actual) está resaltada y permite edición/ingreso
-- Etapas completadas son solo lectura
-- Botón para registrar avance a la siguiente etapa
+Spreadsheet-style capture of production discharges per machine.
 
-#### Registro por etapa
+- Editable table where each row is a production discharge:
+  Machine, yarn count, gross weight, No. spindles, tare per spindle,
+  cart weight, net weight (calculated automatically)
+- Madejeras (Skeining) has distinct rows: skeins, unit weight
+- Supports adding multiple rows in a session
+- Inline validation: net > 0, spindles > 0
+- Calculated totals at the bottom
 
-Cada etapa tiene su propio formulario especializado. Todos comparten:
+#### Progress records
 
-- Fecha de negocio y turno
-- Responsable y supervisor
-- Datos técnicos específicos de la etapa
-- Selector de categoría de inconveniente (opcional)
-- Campo de detalle para observaciones (texto libre opcional)
+Per-machine summary at shift end.
 
-**Inventario** — armado del lote:
-- Título (heredado), cantidad de madejas, peso total
+- Form per machine: input, output, discharged weight (sum of shift
+  discharges), hours worked
+- Gross sample weight and tare for output calculation
+- Applies only to Preparación (Preparation), Continuas (Ring Spinning),
+  and Retorcido (Twisting) (Bobinados (Bobbin Winding) and Madejeras (Skeining)
+  do not have progress records)
 
-**Tintorería** — aplicación de color:
-- Madejas recibidas, peso neto, número de tina, temperatura
+#### Process quality
 
-**Secado** — eliminación de humedad:
-- Madejas ingresadas, peso total
+Quality control records by section and machine.
 
-**Devanado / Ovillado** — conversión a formato final:
-- Formato (cono / ovillo), madejas procesadas, unidades producidas,
-  desperdicio en kg
+- Section and machine selector
+- Dynamic fields by method:
+  - **Samples** (Preparación (Preparation), Continuas (Ring Spinning)): individual values, CV%
+  - **Machine record** (Bobinados (Bobbin Winding)): body, km, cuts
+  - **Random** (Retorcido (Twisting), Madejeras (Skeining)): test result
+- Quality control history by machine
 
-**Embolsado** — empaque:
-- Bolsas utilizadas, unidades por bolsa, desperdicio en kg
+#### Waste
 
-**Calidad** — inspección final:
-- Defectos visuales e internos (checkboxes categorizados)
-- Nomenclatura especial (si aplica)
-- Clasificación final: estándar, con nomenclatura, observado
-- Confirmación de envío a Almacén
+Waste recording by machine group.
 
----
+- Section, machine group selector
+- Weight, type (real / accumulated)
+- Madejeras (Skeining) out of specification: not recorded as waste,
+  marked for reprocessing
 
-### 3.4 Reportes
+#### Skein availability
 
-#### Consolidado diario
+View of produced skeins available for lot assembly.
 
-Vista del Jefe de Producción con producción del día.
+- Table by yarn count: skein quantity, total weight
+- Filter by production date
 
-- Producción por sección vs. plan
-- Estado de lotes activos
-- Desperdicio acumulado
-- Alertas de desviación significativa
+#### Shift summary
 
-#### Producción vs plan
+Shift production summary for the Supervisor.
 
-Comparativa por título y período.
-
-- Gráfico de barras o tabla: planificado vs real
-- Filtro por título, rango de fechas
-- Métrica principal: kg producidos vs kg planificados
-
-#### Trazabilidad de lote
-
-Recorrido completo del lote cross-context.
-
-- Timeline desde definición en Almacén hasta estado actual
-- Datos de Almacén y Operación combinados en vista de solo lectura
+- Total production by section
+- Quality: controls performed, results
+- Total waste
+- Printable or exportable view
 
 ---
 
-## 4. Patrones de UI
+### 3.3 Lot Processing
 
-### 4.1 Captura tipo planilla (spreadsheet)
+> Business rules for Lot Processing capabilities are defined in [Lot Processing PRD](./operation/lot-processing.md). This section defines only cross-cutting UI patterns.
 
-Para Hilatura — descargas, avance, desperdicio.
+#### Lot queue
 
-- Tabla con filas agregables dinámicamente
-- Navegación por teclado (Tab, Enter, flechas)
-- Celdas con validación inline al perder el foco
-- Totales calculados automáticamente al pie
-- Botón "Agregar fila" y "Eliminar fila"
-- Paste desde portapapeles externo
+List of active lots organized by current stage.
 
-### 4.2 Timeline de lote
+- Table with: lot code, yarn count, current stage, responsible operator,
+  last update
+- Filters by stage, yarn count, date
+- Click on a lot opens its detail
 
-Para Proceso por Lotes — historial visual.
+#### Lot detail
 
-- Línea vertical con nodos para cada etapa
-- Nodos: completado (check), activo (resaltado), pendiente (atenuado)
-- Click en nodo completado expande detalle
-- Nodo activo muestra formulario de registro
+Unified view of the complete lot history.
 
-### 4.3 Formulario guiado
+- Vertical timeline with the 6 stages
+- Each stage shows: responsible operator, date/shift, technical data,
+  observations
+- The active (current) stage is highlighted and allows editing/entry
+- Completed stages are read-only
+- Button to register advancement to the next stage
 
-Para Almacén y registros de etapa.
+#### Stage registration
 
-- Paso único o multi-sección en una página
-- Campos obligatorios marcados
-- Validación al enviar, no en cada campo
-- Resumen antes de confirmar cuando el registro es crítico
+Each stage has its own specialized form. All share:
 
-### 4.4 Edición controlada
+- Business date and shift
+- Responsible operator and supervisor
+- Stage-specific technical data
+- Issue category selector (optional)
+- Detail field for observations (optional free text)
 
-Para corrección de registros existentes.
+**Inventory stage** — lot assembly:
+- Yarn count (inherited), skein quantity, total weight
 
-- Indicador visual de editable / no editable
-- Modal de corrección con:
-  - Valores anteriores visibles
-  - Campos editables
-  - Campo obligatorio de motivo de corrección
-  - Confirmación con advertencia de auditoría
+**Dyeing** — color application:
+- Skeins received, net weight, vat number, temperature
 
-### 4.5 Selector de turno y fecha
+**Drying** — moisture removal:
+- Skeins entered, total weight
 
-Componente de contexto de sesión. Cada pantalla lo ubica donde corresponda
-(junto a formularios, en dashboard o en encabezados de sección). No forma
-parte del chrome global.
+**Winding / Ball Winding** — conversion to final format:
+- Format (cone / ball), skeins processed, units produced,
+  waste in kg
 
-- Turno: dropdown con A/B/C y opción de "todos"
-- Fecha negocio: date picker con atajo para "hoy"
-- Cambios actualizan todas las pantallas que usan estos valores mediante
-  un contexto de sesión compartido
+**Bagging** — packaging:
+- Bags used, units per bag, waste in kg
+
+**Quality stage** — final inspection:
+- Visual and internal defects (categorized checkboxes)
+- Special nomenclature (if applicable)
+- Final classification: standard, with nomenclature, flagged
+- Confirmation of Quality Send to Warehouse
 
 ---
 
-## 5. Estados globales de UI
+### 3.4 Reports
 
-| Estado | Ámbito | Propósito |
+#### Daily summary
+
+Production Manager view with the day's production.
+
+- Production by section vs. plan
+- Active lot status
+- Accumulated waste
+- Significant deviation alerts
+
+#### Production vs plan
+
+Comparison by yarn count and period.
+
+- Bar chart or table: planned vs actual
+- Filter by yarn count, date range
+- Main metric: kg produced vs kg planned
+
+#### Lot traceability
+
+Complete lot journey cross-context.
+
+- Timeline from definition in Warehouse to current state
+- Warehouse and Operations data combined in a read-only view
+
+---
+
+## 4. UI Patterns
+
+### 4.1 Spreadsheet-style capture
+
+For Yarn Spinning — production discharges, progress records, waste.
+
+- Table with dynamically addable rows
+- Keyboard navigation (Tab, Enter, arrows)
+- Cells with inline validation on blur
+- Automatically calculated totals at the bottom
+- "Add row" and "Delete row" buttons
+- Paste from external clipboard
+
+### 4.2 Lot timeline
+
+For Lot Processing — visual history.
+
+- Vertical line with nodes for each stage
+- Nodes: completed (check), active (highlighted), pending (dimmed)
+- Click on completed node expands detail
+- Active node shows the registration form
+
+### 4.3 Guided form
+
+For Warehouse and stage records.
+
+- Single step or multi-section on one page
+- Required fields marked
+- Validation on submit, not on every field
+- Summary before confirmation when the record is critical
+
+### 4.4 Controlled editing
+
+For correction of existing records.
+
+- Visual indicator of editable / not editable
+- Correction modal with:
+  - Previous values visible
+  - Editable fields
+  - Required correction reason field
+  - Confirmation with audit warning
+
+### 4.5 Shift and date selector
+
+Session context component. Each screen places it where appropriate
+(next to forms, in dashboard, or in section headers). It is not part of
+the global chrome.
+
+- Shift: dropdown with A/B/C and "all" option
+- Business date: date picker with shortcut for "today"
+- Changes update all screens that use these values through a shared
+  session context
+
+---
+
+## 5. Global UI States
+
+| State | Scope | Purpose |
 |---|---|---|
-| `activeShift` | Sesión | Turno activo para captura y consultas |
-| `businessDate` | Sesión | Fecha de negocio activa |
-| `currentUser` | Sesión | Usuario autenticado con capacidades |
-| `sidebarCollapsed` | UI local | Estado de la barra lateral |
-| `filters` | Por pantalla | Filtros activos (sección, título, fecha, etc.) |
+| `activeShift` | Session | Active shift for capture and queries |
+| `businessDate` | Session | Active business date |
+| `currentUser` | Session | Authenticated user with capabilities |
+| `sidebarCollapsed` | Local UI | Sidebar state |
+| `filters` | Per screen | Active filters (section, yarn count, date, etc.) |
