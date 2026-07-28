@@ -53,7 +53,7 @@ Each shift has its own Supervisor and dependent roles.
 | Actor | Reports to | Scope |
 |-------|-----------|-------|
 | **Supervisor** | Production Manager | Full responsibility for MP processing during shift; coordinates operational staff; consolidates production records. Does not act as direct registrar unless explicitly enabled by access policy. |
-| **Quality Control** | Supervisor | Quality testing across ALL plant sections and machines. Approves lots for Warehouse delivery. Registers production/progress for Preparation and Ring Spinning. |
+| **Quality Control** | Supervisor | Quality testing across ALL plant sections and machines. Documents lot quality state and performs Quality Send to Warehouse. Registers production/progress for Preparation and Ring Spinning. |
 | **Inventory** | Supervisor | Physical lot assembly under Warehouse-defined identity; tracking through delivery. Registers production/progress for Twisting and Skeining. Registers real waste across all sections. Receives daily MP from Warehouse. |
 | **Dyeing Personnel** | Supervisor | Operates the dyeing process within the lot lifecycle. |
 | **Packaging** | Supervisor | Coordinates and registers winding, balling, and packaging operations. Reports to Supervision. |
