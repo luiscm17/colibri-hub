@@ -51,7 +51,7 @@ For full business rules, attribute definitions, validation constraints, and acce
 | `recepción de fardos` | Application action that registers one complete raw-material batch and one or more bales | **receiving action** | `ReceiveBales` or `RegisterRawMaterialBatch` | Reception is a business act, not a domain aggregate. Do not model `Reception` or `BaleReception` as an entity. |
 | `entrega de fardos a Producción` | Custody transfer of one or more independently loaded bales from Warehouse to Production | **delivery to Production** | `DeliverBales` | Delivery means the bale has been delivered to and used by Production. Binary irreversible fact. |
 | `en Almacén` | Bale remains under Warehouse custody | **in Warehouse** | `IN_WAREHOUSE` | Bale lifecycle state. Persistence/API: `in_warehouse`. |
-| `entregado` | Bale has been physically transferred to Production | **delivered** | `DELIVERED` | Bale lifecycle state. Persistence/API: `delivered`. In practice, delivered = used by Production. |
+| `entregado` | Bale has been physically transferred to Production. The system assumes immediate use upon delivery — delivery is the terminal fact. The system does not model or verify subsequent processing stages. | **delivered** | `DELIVERED` | Bale lifecycle state. Persistence/API: `delivered`. Delivery is the terminal recorded fact; no post-delivery states exist. |
 | `fecha de recepción` | Calendar date when the physical reception occurred | **reception date** | `received_at` | A business date (no time component). Not the system creation timestamp. |
 | `tipo de material` | Raw-material classification for a bale | **material type** | `material_type` | Normalized to uppercase before persistence. |
 | `dtex` | Linear density of the raw material | **dtex** | `dtex` | Decimal, finite, greater than zero. |
@@ -75,6 +75,8 @@ For full business rules, attribute definitions, validation constraints, and acce
 | `presentación` | Physical form in which PT is stored or handled, such as bagged/bulk or cone/ball form | **physical presentation** | `physicalPresentation` | Prefer `physicalPresentation` in code and schemas; avoid generic `presentation`. |
 | `Inventario` (rol / etapa en Operación) | Operational role and first stage in Lot Processing where the physical lot is assembled | **Inventory stage / Inventory operator** | `inventoryStage`, `inventoryOperator` | Never use bare `inventory` to mean Warehouse stock in the same model. |
 | `inventario` / `existencias` (Almacén) | Warehouse stock, balances, and custody quantities | **stock** | `stock` | Prefer `stock` for Warehouse quantities. Reserve `inventory` for the Operation role/stage or clearly qualified technical names. |
+| `envío de calidad` | Domain event: Quality completes inspection and sends the lot toward Warehouse. Mandatory, unilateral, irrevocable once the 6 stages are complete. The lot ALWAYS goes to Warehouse regardless of quality classification. | **Quality Send** | `qualitySend` | Avoid "approval", "Quality approval", "Warehouse delivery". Quality Send is documentation and handoff, not a gate. |
+| `en espera de validación de Almacén` | Intermediate lot state between Quality Send and Warehouse reception. The lot has been sent but Warehouse has not yet registered physical receipt. | **awaiting Warehouse receipt** | `awaitingWarehouseReceipt` | Avoid "pending validation", "en espera de validación". |
 
 ---
 
@@ -131,8 +133,8 @@ This is a hard rule to avoid one of the worst naming collisions in the current d
 ### Bale lifecycle states
 
 - `in_warehouse` / `delivered` are the only canonical states.
-- The transition is `in_warehouse → delivered` (one-way in current scope).
-- No reversal mechanism exists in the current implementation; future controlled correction may be introduced.
+- The transition is `in_warehouse → delivered` (one-way).
+- No reversal mechanism exists. Controlled reversal requires a separate capability following the correction policy.
 - Layer conventions: persistence/API use lowercase (`in_warehouse`, `delivered`); domain code uses uppercase enum constants (`IN_WAREHOUSE`, `DELIVERED`).
 
 ### Availability state vs stock
