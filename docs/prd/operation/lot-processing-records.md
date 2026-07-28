@@ -1,7 +1,6 @@
 ---
 document_type: prd
 status: active
-implementation: not-started
 scope: operation/lot-processing
 authority: normative
 owner: product

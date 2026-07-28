@@ -1,7 +1,6 @@
 ---
 document_type: prd
 status: active
-implementation: partial
 scope: warehouse
 authority: normative
 owner: product

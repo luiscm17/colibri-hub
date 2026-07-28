@@ -1,7 +1,6 @@
 ---
 document_type: architecture
 status: active
-implementation: partial
 scope: global
 authority: normative
 owner: architecture

@@ -1,7 +1,6 @@
 ---
 document_type: prd
 status: active
-implementation: not-started
 scope: access-control
 authority: normative
 owner: product

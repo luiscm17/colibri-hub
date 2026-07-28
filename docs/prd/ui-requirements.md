@@ -1,7 +1,6 @@
 ---
 document_type: prd
 status: active
-implementation: partial
 scope: global/ui
 authority: normative
 owner: product

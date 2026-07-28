@@ -1,7 +1,6 @@
 ---
 document_type: prd
 status: active
-implementation: not-started
 scope: operation/yarn-spinning
 authority: normative
 owner: product
