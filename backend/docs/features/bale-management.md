@@ -5,7 +5,7 @@ implementation: partial
 scope: warehouse/bales
 authority: explanatory
 owner: backend
-last_reviewed: 2026-07-27
+last_reviewed: 2026-07-28
 ---
 
 # Technical Specification — Backend Bale Management
@@ -18,159 +18,159 @@ last_reviewed: 2026-07-27
 **Status:** Partially implemented  
 **Technical baseline:** Repository `luiscm17/colibri-hub`, branch `main`, commit `447ee79`  
 **Complementary spec:** Frontend bale management technical specification  
-**Date:** 26 de julio de 2026
+**Date:** 2026-07-28
 
 ---
 
-## 1. Resumen ejecutivo
+## 1. Executive summary
 
 > This document is a **technical specification** describing how the backend implements the bale management capability. Business rules and acceptance criteria are defined in the [normative PRD](../../../docs/prd/warehouse/bale-management.md); this specification details the implementation approach, API contracts, and architecture.
 
-El backend de Warehouse ya permite registrar una partida de materia prima y todos sus fardos mediante una operación transaccional. La capacidad está implementada con FastAPI, Pydantic, SQLAlchemy, PostgreSQL y migraciones Supabase, siguiendo una arquitectura hexagonal orientada al dominio `warehouse.bales`.
+The Warehouse backend already supports registering a raw-material batch and all its bales through a transactional operation. The capability is implemented with FastAPI, Pydantic, SQLAlchemy, PostgreSQL, and Supabase migrations, following a hexagonal architecture scoped to `warehouse.bales`.
 
-Esta especificación técnica define la evolución necesaria para completar el flujo de gestión de fardos requerido por el frontend:
+This technical specification defines the evolution required to complete the bale management flow consumed by the frontend:
 
-1. Ajustar el registro masivo existente para trabajar con una fecha empresarial y una respuesta resumida.
-2. Consultar indicadores agregados del inventario mediante filtros.
-3. Consultar un fardo mediante la identidad empresarial compuesta por `shipment_number` y `bale_number`.
-4. Cambiar de manera irreversible el estado de un fardo de `in_warehouse` a `delivered`.
+1. Adjust the existing batch registration to work with a business date and a summary response.
+2. Query aggregated inventory indicators through filters.
+3. Query a single bale by its composite business identity (`shipment_number + bale_number`).
+4. Irreversibly transition a bale from `in_warehouse` to `delivered`.
 
-El alcance mantiene el modelo de negocio actual: los fardos son unidades discretas, se entregan completos, `delivered` representa entregado/utilizado por Producción y no existen devoluciones ni estados adicionales.
+The scope preserves the current business model: bales are discrete units, delivered whole, `delivered` means delivered to and used by Production, and no reversals or additional states exist.
 
-## 2. Situación actual del backend
+## 2. Current backend state
 
 > **Implementation status**: This section describes both the **current implementation** and the **target state**. Section 2.1 documents what is already built; section 2.2 lists the gaps that remain to reach the target state defined in the normative PRD.
 
-### 2.1 Capacidades disponibles
+### 2.1 Available capabilities
 
-El repositorio contiene actualmente:
+The repository currently contains:
 
 - Endpoint `POST /api/v1/warehouse/bales`.
-- Registro atómico de una cabecera `RawMaterialBatch` y uno o más `Bale`.
-- Identificación global de la partida mediante `shipment_number`.
-- Identificación empresarial del fardo mediante `shipment_number + bale_number`.
-- Normalización a mayúsculas de `shipment_number`, `bale_number` y `material_type`.
-- Estados `in_warehouse` y `delivered`.
-- Regla de dominio `Bale.deliver()` para la transición irreversible a `delivered`.
-- Cálculo de peso neto en el dominio como peso bruto menos tara.
-- Puertos de repositorio, identidad y transacción.
-- Adaptadores SQLAlchemy y composición de dependencias en FastAPI.
-- Tablas `raw_material_batches` y `raw_material_bales`.
-- Restricciones nombradas de integridad, índice por partida, RLS habilitado y privilegios revocados.
-- Contrato común de errores con `code`, `message` y `fields`.
-- Pruebas unitarias con `unittest` y pruebas de integración protegidas para PostgreSQL.
+- Atomic registration of a `RawMaterialBatch` header and one or more `Bale` records.
+- Global identification of the batch via `shipment_number`.
+- Business identity of the bale via `shipment_number + bale_number`.
+- Uppercase normalization of `shipment_number`, `bale_number`, and `material_type`.
+- States `in_warehouse` and `delivered`.
+- Domain rule `Bale.deliver()` for the irreversible transition to `delivered`.
+- Net weight calculation in the domain as gross weight minus container weight.
+- Repository, identity, and transaction ports.
+- SQLAlchemy adapters and FastAPI dependency composition.
+- Tables `raw_material_batches` and `raw_material_bales`.
+- Named integrity constraints, batch index, RLS enabled, and privileges revoked.
+- Common error contract with `code`, `message`, and `fields`.
+- Unit tests with `unittest` and guarded PostgreSQL integration tests.
 
-### 2.2 Brechas respecto al producto objetivo
+### 2.2 Gaps relative to target state
 
-| Área | Estado actual | Estado objetivo |
+| Area | Current state | Target state |
 |---|---|---|
-| Fecha de recepción | Fecha y hora con zona (`datetime` / `timestamptz`) | Fecha empresarial (`date` / `DATE`) |
-| Cantidad de fardos por partida | Uno o más, sin máximo explícito | Entre 1 y 100 |
-| Respuesta del registro | Incluye todos los fardos registrados | Incluye solo resumen y `bale_count` |
-| Consulta agregada | No disponible | Resumen filtrable calculado en PostgreSQL |
-| Consulta individual | No disponible | Búsqueda por partida y número de fardo |
-| Actualización de estado | Regla de dominio disponible, sin caso de uso ni endpoint | `PATCH` irreversible a `delivered` |
-| Lectura de repositorios | Solo inserción | Proyecciones de consulta y carga de fardo para transición |
-| Integración navegador | Sin política CORS configurada | Orígenes permitidos mediante configuración |
+| Reception date | Datetime with timezone (`datetime` / `timestamptz`) | Business date (`date` / `DATE`) |
+| Bales per batch | One or more, no explicit maximum | Between 1 and 100 |
+| Registration response | Includes all registered bales | Summary only with `bale_count` |
+| Aggregate query | Not available | Filterable summary computed in PostgreSQL |
+| Individual query | Not available | Lookup by shipment number and bale number |
+| State update | Domain rule available, no use case or endpoint | Irreversible `PATCH` to `delivered` |
+| Repository reads | Insert only | Query projections and bale loading for transition |
+| Browser integration | No CORS policy configured | Allowed origins via configuration |
 
-## 3. Objetivos
+## 3. Objectives
 
 > For authoritative business rules, see the [normative PRD](../../../docs/prd/warehouse/bale-management.md).
 > Objectives below reflect implementation targets derived from the PRD.
 
-### 3.1 Objetivos funcionales
+### 3.1 Functional objectives
 
-- Registrar en una sola transacción una partida de entre 1 y 100 fardos.
-- Tratar `received_at` como fecha de negocio sin inventar una hora.
-- Entregar al frontend una respuesta de registro breve y estable.
-- Calcular en backend cantidades y pesos agregados sobre datos persistidos.
-- Localizar inequívocamente un fardo con `shipment_number + bale_number`.
-- Exponer los datos completos necesarios para la pantalla de detalle.
-- Permitir únicamente la transición `in_warehouse → delivered`.
-- Mantener contratos de errores utilizables por popups generales y errores de campo o celda.
+- Register between 1 and 100 bales in a single transaction.
+- Treat `received_at` as a business date without inventing a time component.
+- Return a brief and stable registration response to the frontend.
+- Compute aggregated counts and weights on persisted data in the backend.
+- Unambiguously locate a bale with `shipment_number + bale_number`.
+- Expose the complete data required by the detail screen.
+- Allow only the `in_warehouse → delivered` transition.
+- Maintain error contracts usable for both global notifications and field/cell-level errors.
 
-### 3.2 Objetivos técnicos
+### 3.2 Technical objectives
 
-- Extender el límite de capacidad existente `warehouse.bales`.
-- Mantener la dirección de dependencias de la arquitectura hexagonal.
-- Reutilizar el comportamiento de dominio ya implementado para la entrega.
-- Separar comandos de escritura de consultas de lectura sin incorporar una plataforma CQRS.
-- Conservar precisión decimal en entrada, persistencia, cálculos y respuestas.
-- Proteger la atomicidad del registro y la exclusividad de la transición de estado.
-- Documentar todos los contratos mediante OpenAPI y pruebas automatizadas.
+- Extend the existing `warehouse.bales` capability boundary.
+- Preserve the hexagonal architecture dependency direction.
+- Reuse the already-implemented domain behavior for delivery.
+- Separate write commands from read queries without introducing a CQRS platform.
+- Preserve decimal precision across input, persistence, computation, and responses.
+- Protect registration atomicity and state-transition exclusivity.
+- Document all contracts via OpenAPI and automated tests.
 
-## 4. Alcance
+## 4. Scope
 
 > For authoritative business rules, see the [normative PRD](../../../docs/prd/warehouse/bale-management.md).
 > Scope boundaries below describe the technical implementation scope.
 
-### 4.1 Incluido
+### 4.1 Included
 
-- Ajustes al endpoint de registro existente.
-- Migración de `received_at` a tipo fecha.
-- Endpoint de resumen agregado.
-- Endpoint de detalle individual.
-- Endpoint de actualización parcial del estado.
-- Nuevos casos de uso, puertos, adaptadores, modelos HTTP y composición.
-- Extensión del contrato de errores.
-- Índices necesarios para las consultas aprobadas.
-- Configuración CORS para la aplicación web.
-- Pruebas de dominio, aplicación, persistencia, HTTP, OpenAPI e integración PostgreSQL.
-- Actualización de documentación técnica y de negocio afectada.
+- Adjustments to the existing registration endpoint.
+- Migration of `received_at` to date type.
+- Aggregate summary endpoint.
+- Individual detail endpoint.
+- Partial state-update endpoint.
+- New use cases, ports, adapters, HTTP models, and composition.
+- Error contract extension.
+- Indexes required for approved queries.
+- CORS configuration for the web application.
+- Domain, application, persistence, HTTP, OpenAPI, and PostgreSQL integration tests.
+- Update of affected technical and business documentation.
 
-### 4.2 Fuera de alcance
+### 4.2 Out of scope
 
-- Autenticación, RBAC y políticas de autorización por usuario.
-- Integración del backend con Supabase Auth.
-- Nuevos estados de fardo.
-- Entregas parciales.
-- Devoluciones a almacén.
-- Historial o auditoría de movimientos.
-- Fecha, responsable, destino o referencia de entrega.
-- Listado general o paginado de fardos.
-- Edición de pesos, material, Dtex, proveedor, partida o número de fardo.
-- Eliminación de partidas o fardos.
-- Métricas del contexto Producción distintas del estado `delivered`.
-- Totales enviados por el frontend durante el registro.
+- Authentication, RBAC, and per-user authorization policies.
+- Backend integration with Supabase Auth.
+- New bale states.
+- Partial deliveries.
+- Returns to warehouse.
+- Movement history or audit trail.
+- Delivery date, responsible actor, destination, or delivery reference.
+- General or paginated bale listing.
+- Editing weights, material, dtex, provider, batch, or bale number.
+- Deletion of batches or bales.
+- Production-context metrics other than `delivered` status.
+- Totals sent by the frontend during registration.
 
-## 5. Reglas de negocio
+## 5. Business rules
 
 > For authoritative business rules, see the [normative PRD](../../../docs/prd/warehouse/bale-management.md).
 > The rules below are reproduced for implementation reference. The [normative PRD](../../../docs/prd/warehouse/bale-management.md) is authoritative.
 
-| ID | Regla |
+| ID | Rule |
 |---|---|
-| BR-01 | Una partida contiene entre 1 y 100 fardos. |
-| BR-02 | `shipment_number` es único globalmente. |
-| BR-03 | `bale_number` es único dentro de una partida y puede repetirse en partidas distintas. |
-| BR-04 | La identidad empresarial de un fardo es `shipment_number + bale_number`. |
-| BR-05 | Los identificadores empresariales y el tipo de material se normalizan según las reglas existentes del dominio. |
-| BR-06 | `received_at` representa únicamente la fecha empresarial de recepción. |
-| BR-07 | Todo fardo nuevo se registra con estado `in_warehouse`. |
-| BR-08 | Los únicos estados permitidos son `in_warehouse` y `delivered`. |
-| BR-09 | La única transición admitida es `in_warehouse → delivered`. |
-| BR-10 | Un fardo `delivered` no puede volver a `in_warehouse` ni entregarse nuevamente. |
-| BR-11 | La entrega afecta siempre a un fardo completo. |
-| BR-12 | Para este alcance, `delivered` significa entregado y utilizado por Producción. |
-| BR-13 | El peso neto es `gross_weight_kg - container_weight_kg` y nunca se recibe como dato persistible del cliente. |
-| BR-14 | Dtex y pesos se manejan como decimales finitos; el peso bruto debe ser mayor que la tara. |
-| BR-15 | El registro de la partida y todos sus fardos es atómico. |
-| BR-16 | Los filtros de una consulta se combinan mediante conjunción: un fardo debe cumplir todos los filtros proporcionados. |
+| BR-01 | A raw-material batch contains between 1 and 100 bales. |
+| BR-02 | `shipment_number` is globally unique. |
+| BR-03 | `bale_number` is unique within a batch and may repeat across different batches. |
+| BR-04 | The business identity of a bale is `shipment_number + bale_number`. |
+| BR-05 | Business identifiers and material type are normalized per existing domain rules. |
+| BR-06 | `received_at` represents only the business date of reception. |
+| BR-07 | Every new bale is registered with status `in_warehouse`. |
+| BR-08 | The only permitted states are `in_warehouse` and `delivered`. |
+| BR-09 | The only permitted transition is `in_warehouse → delivered`. |
+| BR-10 | A `delivered` bale cannot return to `in_warehouse` or be delivered again. |
+| BR-11 | Delivery always affects the entire bale. |
+| BR-12 | For this scope, `delivered` means delivered to and used by Production. |
+| BR-13 | Net weight is `gross_weight_kg - container_weight_kg` and is never received as persistable client input. |
+| BR-14 | Dtex and weights are handled as finite decimals; gross weight must exceed container weight. |
+| BR-15 | Registration of the batch and all its bales is atomic. |
+| BR-16 | Query filters combine via conjunction: a bale must satisfy all provided filters. |
 
-## 6. Diseño funcional de la API
+## 6. API functional design
 
-### 6.1 Inventario de operaciones
+### 6.1 Operation inventory
 
-| Capacidad | Método | Ruta | Resultado principal |
+| Capability | Method | Path | Primary result |
 |---|---|---|---|
-| Registrar partida | `POST` | `/api/v1/warehouse/bales` | Resumen de la partida creada |
-| Consultar resumen | `GET` | `/api/v1/warehouse/bales/summary` | Cantidades y pesos agregados |
-| Consultar fardo | `GET` | `/api/v1/warehouse/bales/detail` | Detalle de un fardo |
-| Cambiar estado | `PATCH` | `/api/v1/warehouse/bales/{bale_id}/status` | Confirmación del estado actualizado |
+| Register batch | `POST` | `/api/v1/warehouse/bales` | Summary of the created batch |
+| Query summary | `GET` | `/api/v1/warehouse/bales/summary` | Aggregated counts and weights |
+| Query bale | `GET` | `/api/v1/warehouse/bales/detail` | Single bale detail |
+| Update state | `PATCH` | `/api/v1/warehouse/bales/{bale_id}/status` | Confirmation of updated state |
 
-`summary` y `detail` son recursos de consulta diferentes. El primero devuelve agregados; el segundo devuelve un único fardo. Ninguno reemplaza al otro ni devuelve un listado exhaustivo.
+`summary` and `detail` are different query resources. The former returns aggregates; the latter returns a single bale. Neither replaces the other nor returns an exhaustive listing.
 
-## 7. Registro masivo de una partida
+## 7. Batch registration
 
 ### 7.1 Endpoint
 
@@ -178,408 +178,468 @@ El repositorio contiene actualmente:
 
 ### 7.2 Request
 
-| Campo | Tipo de contrato | Requerido | Regla |
+| Field | Contract type | Required | Rule |
 |---|---|---:|---|
-| `shipment_number` | String | Sí | No vacío, máximo 10 caracteres tras normalización, único globalmente |
-| `received_at` | Fecha ISO `YYYY-MM-DD` | Sí | Fecha empresarial válida |
-| `provider_name` | String | Sí | No vacío después de eliminar espacios exteriores |
-| `bales` | Colección | Sí | Entre 1 y 100 elementos |
-| `bales.n.bale_number` | String | Sí | Máximo 10 caracteres; único dentro de la partida |
-| `bales.n.material_type` | String | Sí | Máximo 20 caracteres; normalizado por dominio |
-| `bales.n.dtex` | String decimal | Sí | Finito y mayor que cero |
-| `bales.n.gross_weight_kg` | String decimal | Sí | Finito y mayor que cero |
-| `bales.n.container_weight_kg` | String decimal | Sí | Finito, mayor que cero y menor que el peso bruto |
+| `shipment_number` | String | Yes | Non-empty, max 10 characters after normalization, globally unique |
+| `received_at` | ISO date `YYYY-MM-DD` | Yes | Valid business date |
+| `provider_name` | String | Yes | Non-empty after trimming |
+| `bales` | Collection | Yes | Between 1 and 100 elements |
+| `bales.n.bale_number` | String | Yes | Max 10 characters; unique within the batch |
+| `bales.n.material_type` | String | Yes | Max 20 characters; normalized by domain |
+| `bales.n.dtex` | Decimal string | Yes | Finite and greater than zero |
+| `bales.n.gross_weight_kg` | Decimal string | Yes | Finite and greater than zero |
+| `bales.n.container_weight_kg` | Decimal string | Yes | Finite, greater than zero, and less than gross weight |
 
-No se aceptan campos adicionales. Los decimales continúan enviándose como strings JSON para conservar precisión.
+No extra fields are accepted. Decimals continue to be sent as JSON strings to preserve precision.
 
-### 7.3 Response exitoso
+### 7.3 Successful response
 
-**Estado:** `201 Created`
+**Status:** `201 Created`
 
-| Campo | Tipo |
+| Field | Type |
 |---|---|
 | `raw_material_batch_id` | UUID |
-| `shipment_number` | String normalizado |
-| `received_at` | Fecha ISO |
+| `shipment_number` | Normalized string |
+| `received_at` | ISO date |
 | `provider_name` | String |
-| `bale_count` | Entero |
+| `bale_count` | Integer |
 
-La respuesta no incluye el arreglo `bales`, peso neto ni identificadores temporales del frontend.
+The response does not include the `bales` array, net weight, or frontend temporary identifiers.
 
-### 7.4 Comportamiento requerido
+### 7.4 Required behavior
 
-- Validar toda la entrada antes de persistir.
-- Generar identidades técnicas en backend.
-- Insertar primero la partida y después sus fardos dentro de una única transacción.
-- Revertir la operación completa ante cualquier error.
-- Mantener la traducción estable del conflicto de `shipment_number`.
-- Producir rutas indexadas para errores asociados a un fardo cuando pueda identificarse el elemento, por ejemplo `bales.17.gross_weight_kg`.
+- Validate all input before persisting.
+- Generate technical identities in the backend.
+- Insert the batch first, then its bales within a single transaction.
+- Roll back the entire operation on any error.
+- Maintain stable translation of the `shipment_number` conflict.
+- Produce indexed paths for errors associated with identifiable bales, e.g. `bales.17.gross_weight_kg`.
 
-## 8. Resumen agregado del inventario
+## 8. Aggregate inventory summary
 
 ### 8.1 Endpoint
 
 `GET /api/v1/warehouse/bales/summary`
 
-### 8.2 Filtros
+### 8.2 Filters
 
-Todos los filtros son opcionales.
+All filters are optional.
 
-| Query parameter | Tipo | Semántica |
+| Query parameter | Type | Semantics |
 |---|---|---|
-| `received_from` | Fecha ISO | Incluye recepciones desde esta fecha |
-| `received_to` | Fecha ISO | Incluye recepciones hasta esta fecha |
-| `shipment_number` | String | Coincidencia exacta tras normalización |
-| `status` | Enum | `in_warehouse` o `delivered` |
-| `provider_name` | String | Coincidencia exacta sin distinguir mayúsculas, ignorando espacios exteriores |
-| `material_type` | String | Coincidencia exacta tras normalización |
-| `dtex` | String decimal | Coincidencia decimal exacta |
+| `received_from` | ISO date | Inclusive lower bound on reception date |
+| `received_to` | ISO date | Inclusive upper bound on reception date |
+| `shipment_number` | String | Exact match after normalization |
+| `status` | Enum | `in_warehouse` or `delivered` |
+| `provider_name` | String | Case-insensitive exact match after trimming |
+| `material_type` | String | Exact match after normalization |
+| `dtex` | Decimal string | Exact decimal match |
 
-Los límites de fecha son inclusivos. Si se proporcionan ambos, `received_from` no puede ser posterior a `received_to`.
+Date bounds are inclusive. If both are provided, `received_from` must not be later than `received_to`.
 
-### 8.3 Response exitoso
+### 8.3 Successful response
 
-**Estado:** `200 OK`
+**Status:** `200 OK`
 
-| Campo | Tipo | Definición |
+| Field | Type | Definition |
 |---|---|---|
-| `total_bale_count` | Entero | Fardos que cumplen los filtros |
-| `in_warehouse_bale_count` | Entero | Fardos filtrados actualmente en almacén |
-| `delivered_bale_count` | Entero | Fardos filtrados entregados/utilizados |
-| `net_weight_total_kg` | String decimal | Peso neto total filtrado |
-| `net_weight_in_warehouse_kg` | String decimal | Peso neto filtrado en almacén |
-| `net_weight_delivered_kg` | String decimal | Peso neto filtrado entregado/utilizado |
+| `total_bale_count` | Integer | Bales matching the filters |
+| `in_warehouse_bale_count` | Integer | Filtered bales currently in warehouse |
+| `delivered_bale_count` | Integer | Filtered bales delivered/used |
+| `net_weight_total_kg` | Decimal string | Total filtered net weight |
+| `net_weight_in_warehouse_kg` | Decimal string | Filtered net weight in warehouse |
+| `net_weight_delivered_kg` | Decimal string | Filtered net weight delivered/used |
 
-Si no existen coincidencias, las cantidades deben ser `0` y los pesos deben serializarse como cero decimal; no se responde `404`.
+When no matches exist, counts must be `0` and weights must be serialized as zero decimals; the response is not `404`.
 
-Cuando se aplica un filtro de estado, el total representa únicamente ese subconjunto y el contador del estado contrario es cero. Los pesos deben calcularse en PostgreSQL sobre datos persistidos; el backend no debe cargar todos los fardos para agregarlos en memoria.
+When a status filter is applied, the total represents only that subset and the counter for the other status is zero. Weights must be computed in PostgreSQL on persisted data; the backend must not load all bales to aggregate them in memory.
 
-## 9. Consulta individual de un fardo
+## 9. Individual bale query
 
 ### 9.1 Endpoint
 
 `GET /api/v1/warehouse/bales/detail`
 
-### 9.2 Parámetros requeridos
+### 9.2 Required parameters
 
-| Query parameter | Tipo | Regla |
+| Query parameter | Type | Rule |
 |---|---|---|
-| `shipment_number` | String | Identificador de partida normalizado |
-| `bale_number` | String | Identificador del fardo normalizado |
+| `shipment_number` | String | Normalized batch identifier |
+| `bale_number` | String | Normalized bale identifier |
 
-La consulta utiliza ambos valores. No se admite buscar únicamente por `bale_number`, porque este puede repetirse en distintas partidas.
+The query uses both values. Searching by `bale_number` alone is not permitted because it may repeat across different batches.
 
-### 9.3 Response exitoso
+### 9.3 Successful response
 
-**Estado:** `200 OK`
+**Status:** `200 OK`
 
-| Campo | Tipo |
+| Field | Type |
 |---|---|
 | `id` | UUID |
 | `shipment_number` | String |
 | `bale_number` | String |
-| `received_at` | Fecha ISO |
+| `received_at` | ISO date |
 | `provider_name` | String |
 | `material_type` | String |
-| `dtex` | String decimal |
-| `gross_weight_kg` | String decimal |
-| `container_weight_kg` | String decimal |
-| `net_weight_kg` | String decimal calculado |
-| `status` | `in_warehouse` o `delivered` |
+| `dtex` | Decimal string |
+| `gross_weight_kg` | Decimal string |
+| `container_weight_kg` | Decimal string |
+| `net_weight_kg` | Computed decimal string |
+| `status` | `in_warehouse` or `delivered` |
+| `delivery_date` | ISO date or `null` |
 
-### 9.4 No encontrado
+### 9.4 Not found
 
-Si la combinación no existe, el backend responde `404 Not Found` con código `bale_not_found`. No debe revelar si existía la partida pero no el fardo, porque para el consumidor ambos valores forman una sola identidad de búsqueda.
+When the composite identity does not exist, the backend responds `404 Not Found` with code `bale_not_found`. It must not reveal whether the batch existed but the bale did not, because both values form a single lookup identity for the consumer.
 
-## 10. Actualización del estado
+## 10. State update
 
 ### 10.1 Endpoint
 
 `PATCH /api/v1/warehouse/bales/{bale_id}/status`
 
-El UUID se obtiene previamente mediante el endpoint de detalle. Se usa como identidad técnica inequívoca para la escritura.
+The UUID is obtained previously via the detail endpoint. It is used as the unambiguous technical identity for writes.
 
 ### 10.2 Request
 
-| Campo | Tipo | Valor admitido |
+| Field | Type | Allowed value |
 |---|---|---|
-| `status` | Enum | Únicamente `delivered` |
+| `status` | Enum | Only `delivered` |
+| `delivery_date` | ISO date `YYYY-MM-DD` | Business date of delivery; required |
 
-No se aceptan campos adicionales. El endpoint no funciona como editor genérico de estados.
+No extra fields are accepted. The endpoint does not act as a generic state editor.
 
-### 10.3 Response exitoso
+### 10.3 Successful response
 
-**Estado:** `200 OK`
+**Status:** `200 OK`
 
-| Campo | Tipo |
+| Field | Type |
 |---|---|
 | `id` | UUID |
 | `shipment_number` | String |
 | `bale_number` | String |
 | `status` | `delivered` |
+| `delivery_date` | ISO date |
 
-### 10.4 Comportamiento requerido
+### 10.4 Required behavior
 
-- Cargar la entidad `Bale` por su UUID.
-- Ejecutar la transición mediante la regla existente del dominio.
-- Persistir exclusivamente el estado modificado.
-- Confirmar la operación en una transacción.
-- Responder `404` si el UUID no existe.
-- Responder `409` con código `bale_already_delivered` si el estado ya es `delivered`.
-- Rechazar cualquier intento de establecer `in_warehouse` u otro valor.
-- Impedir que dos solicitudes concurrentes confirmen la entrega del mismo fardo. Solo una puede resultar exitosa; la otra debe recibir `409`.
+- Load the `Bale` entity by its UUID.
+- Execute the transition via the existing domain rule: `bale.deliver(delivery_date)`.
+- Persist `status` and `delivery_date` together in the same transaction.
+- Commit in an independent transaction.
+- Respond `404` if the UUID does not exist.
+- Respond `409` with code `bale_already_delivered` if the status is already `delivered`.
+- Reject any attempt to set `in_warehouse` or another value.
+- Reject requests without `delivery_date` or with datetime format.
+- Prevent two concurrent requests from both confirming delivery of the same bale. Only one may succeed; the other must receive `409`.
 
-## 11. Contrato de errores
+## 11. Error contract
 
-Todas las operaciones mantienen el envelope actual:
+All operations maintain the current envelope:
 
-| Campo | Uso |
+| Field | Usage |
 |---|---|
-| `error.code` | Código estable y procesable por el cliente |
-| `error.message` | Resumen legible de la causa |
-| `error.fields` | Errores asociados a rutas concretas; colección vacía cuando no aplica |
+| `error.code` | Stable, client-processable code |
+| `error.message` | Human-readable cause summary |
+| `error.fields` | Errors associated with concrete paths; empty collection when not applicable |
 
-### 11.1 Matriz mínima
+### 11.1 Minimum matrix
 
-| Estado | Código | Caso |
+| Status | Code | Case |
 |---:|---|---|
-| 404 | `bale_not_found` | No existe el fardo solicitado |
-| 409 | `duplicate_shipment_number` | La partida ya fue registrada |
-| 409 | `bale_already_delivered` | El fardo ya no está disponible en almacén |
-| 422 | `request_validation_error` | Tipo, campo requerido, valor o filtro inválido |
-| 422 | `duplicate_bale_number` | Número repetido dentro de la partida |
-| 422 | `domain_validation_error` | Regla de dominio incumplida |
-| 500 | `internal_server_error` | Fallo no previsto sin detalles internos |
+| 404 | `bale_not_found` | Requested bale does not exist |
+| 409 | `duplicate_shipment_number` | Batch already registered |
+| 409 | `bale_already_delivered` | Bale is no longer available in warehouse |
+| 422 | `request_validation_error` | Type, required field, value, or filter invalid |
+| 422 | `duplicate_bale_number` | Bale number repeated within the batch |
+| 422 | `domain_validation_error` | Domain invariant violated |
+| 500 | `internal_server_error` | Unexpected failure without internal details |
 
-### 11.2 Rutas de campo
+### 11.2 Field paths
 
-- Los errores Pydantic deben conservar rutas concretas como `received_at`, `status` o `bales.17.dtex`.
-- Los errores generales de una partida pueden señalar `shipment_number`.
-- Cuando el backend conozca el índice del fardo inválido, debe evitar rutas genéricas como `bales[].campo`.
-- Los mensajes internos de base de datos, trazas, SQL y secretos nunca se incluyen en el response.
+- Pydantic errors must preserve concrete paths such as `received_at`, `status`, or `bales.17.dtex`.
+- General batch errors may point to `shipment_number`.
+- When the backend knows the index of the invalid bale, it must avoid generic paths like `bales[].field`.
+- Internal database messages, traces, SQL, and secrets are never included in responses.
 
-## 12. Arquitectura de aplicación
+## 12. Application architecture
 
-### 12.1 Principios
+### 12.1 Principles
 
-- La capacidad continúa bajo `warehouse.bales`.
-- Los modelos HTTP no ingresan al dominio ni a los puertos.
-- SQLAlchemy permanece restringido a adaptadores de persistencia e infraestructura.
-- Las escrituras usan entidades y reglas de dominio.
-- Las consultas devuelven proyecciones de lectura específicas para cada caso de uso.
-- No se incorpora event sourcing, bus de comandos ni una base de datos de lectura separada.
+- The capability remains under `warehouse.bales`.
+- HTTP models do not enter the domain or ports.
+- SQLAlchemy remains restricted to persistence adapters and infrastructure.
+- Writes use domain entities and rules.
+- Queries return read projections specific to each use case.
+- No event sourcing, command bus, or separate read database is introduced.
 
-### 12.2 Casos de uso requeridos
+### 12.2 Required use cases
 
-| Tipo | Responsabilidad |
+| Type | Responsibility |
 |---|---|
-| Comando | Registrar una partida completa |
-| Consulta | Obtener resumen agregado con filtros |
-| Consulta | Obtener detalle por identidad empresarial |
-| Comando | Entregar un fardo a Producción |
+| Command | Register a complete raw-material batch |
+| Query | Get aggregate summary with filters |
+| Query | Get detail by business identity |
+| Command | Deliver a bale to Production |
 
-El caso de entrega debe reutilizar `Bale.deliver()`. No debe modificar directamente el string de estado en el router o en el repositorio.
+The delivery use case must reuse `Bale.deliver()`. It must not directly modify the status string in the router or repository.
 
-### 12.3 Puertos y adaptadores
+### 12.3 Ports and adapters
 
-El diseño debe incorporar:
+The design must incorporate:
 
-- Un puerto de lectura para resumen agregado.
-- Un puerto de lectura para detalle por `shipment_number + bale_number`.
-- Capacidad del repositorio de fardos para cargar una entidad por UUID.
-- Capacidad para persistir el estado actualizado con control de concurrencia.
-- Adaptadores SQLAlchemy que implementen las consultas y modificaciones.
-- Proveedores de dependencias diferenciados por caso de uso, evitando que un único proveedor quede acoplado solo al registro.
+- A read port for the aggregate summary.
+- A read port for detail by `shipment_number + bale_number`.
+- Bale repository capability to load an entity by UUID.
+- Capability to persist the updated state with concurrency control.
+- SQLAlchemy adapters implementing queries and modifications.
+- Differentiated dependency providers per use case, avoiding coupling a single provider only to registration.
 
-Las consultas pueden leer directamente proyecciones construidas mediante joins y agregados. No necesitan reconstruir `RawMaterialBatch` ni todos los agregados `Bale` cuando no se ejecuta comportamiento de dominio.
+Queries may read directly from projections built with joins and aggregates. They do not need to reconstruct `RawMaterialBatch` or full `Bale` aggregates when no domain behavior is executed.
 
-## 13. Persistencia y migraciones
+### 12.4 Domain model contracts
 
-### 13.1 Fecha empresarial
+The domain layer must expose the following contracts, independent of FastAPI, Pydantic, and SQLAlchemy:
 
-- La columna `raw_material_batches.received_at` debe pasar de `timestamp with time zone` a `DATE`.
-- El record SQLAlchemy debe utilizar un tipo de fecha.
-- El dominio debe reemplazar la semántica `ReceptionDateTime` por un valor de fecha empresarial.
-- Comandos, resultados, mappers, requests, responses y pruebas deben usar el mismo tipo.
-- La migración debe definir explícitamente cómo preservar la fecha empresarial de cualquier dato preexistente y validar el resultado antes de eliminar la semántica temporal.
-- La fecha de auditoría técnica, si se requiere en el futuro, será otro campo como `created_at`; no forma parte de este alcance.
+**ReceptionDate** — Business date value object:
 
-### 13.2 Índices
+- Accepts only `datetime.date` (calendar date).
+- Rejects `datetime.datetime` and timezone-aware values.
+- Does not convert to UTC or invent a time component.
+- Used by the registration command and persisted as `DATE`.
 
-Además de la unicidad e índice actuales, deben evaluarse y verificarse índices para:
+**DeliveryDate** — Business date value object:
 
-- Fecha de recepción de la partida.
-- Estado del fardo.
-- Tipo de material.
-- Consultas combinadas por partida y número de fardo, ya cubiertas parcialmente por las restricciones actuales.
+- Accepts only a valid calendar date.
+- Rejects datetime and timezone values.
+- Required by the delivery transition; cannot be null when status is `delivered`.
+- Independent of HTTP framework concerns.
 
-La selección final debe justificarse con los planes de consulta reales de `summary` y `detail`. No se crearán índices para filtros que no formen parte del contrato aprobado.
+**Bale entity** — State and transition:
 
-### 13.3 Integridad
+```python
+class Bale:
+    status: BaleStatus          # in_warehouse | delivered
+    delivery_date: DeliveryDate | None
 
-- Se conservan las restricciones nombradas de clave primaria, clave foránea, unicidad y estado.
-- La migración nueva debe mantener RLS habilitado y la política actual de privilegios.
-- No se agregan políticas de acceso mientras autenticación y autorización permanezcan fuera de alcance.
-- Los pesos y Dtex permanecen en columnas `NUMERIC`.
+    def deliver(self, delivery_date: DeliveryDate) -> None:
+        """Irreversible transition. Raises on second call."""
+```
 
-## 14. Concurrencia y transacciones
+Invariants:
 
-- El registro masivo conserva una sola transacción para partida y fardos.
-- El cambio de estado utiliza una transacción independiente.
-- La entrega debe aplicar bloqueo de fila o actualización condicional equivalente para asegurar que el estado esperado sea `in_warehouse`.
-- Un conflicto concurrente se traduce al mismo contrato `bale_already_delivered`.
-- Las consultas no deben efectuar commits ni modificar entidades.
-- Toda excepción durante una escritura debe provocar rollback.
+- `status = in_warehouse` implies `delivery_date is None`.
+- `status = delivered` implies `delivery_date is not None`.
+- A second `deliver()` call raises a transition error.
+- `delivery_date` is set atomically with the status change.
 
-## 15. Seguridad e integración
+## 13. Persistence and migrations
+
+### 13.1 Business date
+
+- Column `raw_material_batches.received_at` must change from `timestamp with time zone` to `DATE`.
+- The SQLAlchemy record must use a date type.
+- The domain must replace `ReceptionDateTime` semantics with a business date value.
+- Commands, results, mappers, requests, responses, and tests must use the same type.
+- The migration must explicitly define how to preserve the business date of any pre-existing data and validate the result before removing temporal semantics.
+- Technical audit date, if required in the future, will be a separate field such as `created_at`; it is not part of this scope.
+
+### 13.2 Delivery date column
+
+The `raw_material_bales` table must include:
+
+```sql
+delivery_date DATE NULL
+```
+
+A named CHECK constraint must enforce the state-date invariant:
+
+```sql
+CONSTRAINT ck_raw_material_bales_status_delivery_date CHECK (
+    (status = 'in_warehouse' AND delivery_date IS NULL)
+    OR
+    (status = 'delivered' AND delivery_date IS NOT NULL)
+)
+```
+
+The existing `ck_raw_material_bales_status` constraint (allowed values) is preserved alongside this new constraint.
+
+### 13.3 Indexes
+
+In addition to the current uniqueness and index constraints, indexes must be evaluated and verified for:
+
+- Batch reception date.
+- Bale status.
+- Material type.
+- Combined queries by shipment number and bale number, partially covered by existing constraints.
+
+Final selection must be justified with actual query plans from `summary` and `detail`. Indexes must not be created for filters that are not part of the approved contract.
+
+### 13.4 Integrity
+
+- Named primary key, foreign key, uniqueness, and status constraints are preserved.
+- The new migration must maintain RLS enabled and the current privilege policy.
+- Access policies are not added while authentication and authorization remain out of scope.
+- Weights and dtex remain in `NUMERIC` columns.
+
+## 14. Concurrency and transactions
+
+- Batch registration preserves a single transaction for batch and bales.
+- State change uses an independent transaction.
+- Delivery must apply row locking or equivalent conditional update to ensure the expected state is `in_warehouse`.
+- A concurrent conflict translates to the same `bale_already_delivered` contract.
+- Queries must not perform commits or modify entities.
+- Any exception during a write must trigger rollback.
+
+## 15. Security and integration
 
 ### 15.1 CORS
 
-La aplicación debe permitir llamadas desde el frontend mediante una lista configurable de orígenes:
+The application must allow calls from the frontend via a configurable list of origins:
 
-- Los orígenes se obtienen de configuración de entorno tipada.
-- Desarrollo local admite únicamente los orígenes declarados para Vite.
-- Producción no utiliza wildcard.
-- No se exponen credenciales ni `DATABASE_URL` al navegador.
+- Origins are obtained from typed environment configuration.
+- Local development allows only the origins declared for Vite.
+- Production does not use wildcard.
+- Credentials and `DATABASE_URL` are not exposed to the browser.
+- Invalid or missing CORS configuration must cause the application to fail at startup, not silently allow all origins.
 
-### 15.2 Seguridad de datos
+### 15.2 Data security
 
-- Se conserva la validación estricta y la prohibición de campos extra.
-- Se mantienen respuestas genéricas para errores inesperados.
-- Los logs pueden contener contexto técnico, pero no secretos ni payloads completos sensibles.
-- RLS y privilegios existentes no deben debilitarse para facilitar el desarrollo.
+- Strict validation and prohibition of extra fields are preserved.
+- Generic responses are maintained for unexpected errors.
+- Logs may contain technical context but not secrets or complete sensitive payloads.
+- RLS and existing privileges must not be weakened to facilitate development.
 
-## 16. Requisitos no funcionales
+## 16. Non-functional requirements
 
-| ID | Requisito |
+| ID | Requirement |
 |---|---|
-| NFR-01 | Las operaciones deben conservar exactitud decimal de extremo a extremo. |
-| NFR-02 | El resumen debe resolverse mediante agregación SQL, sin materializar todos los fardos en memoria. |
-| NFR-03 | El POST debe admitir 100 fardos dentro de los límites operativos normales del servicio. |
-| NFR-04 | La API debe mantener contratos deterministas y documentados en OpenAPI. |
-| NFR-05 | Ningún error `500` debe exponer excepciones, SQL, rutas internas o secretos. |
-| NFR-06 | Las escrituras deben ser atómicas y seguras ante concurrencia. |
-| NFR-07 | Las consultas deben aprovechar índices compatibles con sus filtros y joins. |
-| NFR-08 | Los cambios no deben introducir dependencias de framework en dominio o aplicación. |
-| NFR-09 | La configuración debe fallar tempranamente cuando un valor obligatorio sea inválido. |
-| NFR-10 | La solución debe conservar Python 3.13, `uv`, `unittest`, FastAPI, SQLAlchemy, Psycopg y migraciones Supabase ya adoptados. |
+| NFR-01 | Operations must preserve end-to-end decimal accuracy. |
+| NFR-02 | Summary must be resolved via SQL aggregation without materializing all bales in memory. |
+| NFR-03 | POST must support 100 bales within normal service operational limits. |
+| NFR-04 | The API must maintain deterministic contracts documented in OpenAPI. |
+| NFR-05 | No `500` error may expose exceptions, SQL, internal paths, or secrets. |
+| NFR-06 | Writes must be atomic and concurrency-safe. |
+| NFR-07 | Queries must leverage indexes compatible with their filters and joins. |
+| NFR-08 | Changes must not introduce framework dependencies in domain or application. |
+| NFR-09 | Configuration must fail early when a required value is invalid. |
+| NFR-10 | The solution must preserve Python 3.13, `uv`, `unittest`, FastAPI, SQLAlchemy, Psycopg, and Supabase migrations as already adopted. |
 
-## 17. Estrategia de pruebas
+## 17. Testing strategy
 
-### 17.1 Dominio
+### 17.1 Domain
 
-- Fecha empresarial válida e inválida.
-- Transición exitosa a `delivered`.
-- Rechazo de una segunda entrega.
-- Conservación de reglas de identificadores, Dtex y peso.
+- Valid and invalid business date.
+- Successful transition to `delivered`.
+- Rejection of a second delivery.
+- Preservation of identifier, dtex, and weight rules.
 
-### 17.2 Aplicación
+### 17.2 Application
 
-- Registro de 1 y 100 fardos.
-- Rechazo de 0 y más de 100 fardos.
-- Resultado resumido sin colección de fardos.
-- Construcción correcta de filtros.
-- Detalle encontrado y no encontrado.
-- Entrega exitosa, fardo inexistente y fardo ya entregado.
-- Rollback y traducción de conflictos.
+- Registration of 1 and 100 bales.
+- Rejection of 0 and more than 100 bales.
+- Summary result without bale collection.
+- Correct filter construction.
+- Detail found and not found.
+- Successful delivery, non-existent bale, and already-delivered bale.
+- Rollback and conflict translation.
 
-### 17.3 Persistencia unitaria
+### 17.3 Unit persistence
 
-- Mapeo de fecha.
-- Proyección de detalle con join.
-- Agregados y ceros cuando no existen coincidencias.
-- Combinación de filtros.
-- Carga y actualización del fardo.
+- Date mapping.
+- Detail projection with join.
+- Aggregates and zeros when no matches exist.
+- Filter combination.
+- Bale loading and update.
 
-### 17.4 API y OpenAPI
+### 17.4 API and OpenAPI
 
-- Métodos, rutas, parámetros, status codes y modelos.
-- Fecha ISO sin componente de hora.
-- Decimales serializados como strings.
-- Response del POST sin `bales`.
-- Errores indexados por campo.
-- Rechazo de campos extra y estados no permitidos.
-- CORS para origen permitido y rechazo de origen no autorizado.
+- Methods, paths, parameters, status codes, and models.
+- ISO date without time component.
+- Decimals serialized as strings.
+- POST response without `bales`.
+- Indexed field error paths.
+- Rejection of extra fields and disallowed states.
+- CORS for allowed origin and rejection of unauthorized origin.
 
-### 17.5 Integración PostgreSQL
+### 17.5 PostgreSQL integration
 
-- Migración de `received_at` a `DATE`.
-- Round-trip de fecha y decimales.
-- Registro atómico de 100 fardos.
-- Resumen correcto con cada filtro y combinaciones representativas.
-- Consulta por identidad compuesta.
-- Planes de consulta e índices esperados.
-- Transición concurrente: una solicitud exitosa y una en conflicto.
-- Persistencia del estado después del commit.
-- Rollback ante fallos.
+- Migration of `received_at` to `DATE`.
+- Date and decimal round-trips.
+- Atomic registration of 100 bales.
+- Correct summary with each filter and representative combinations.
+- Query by composite identity.
+- Expected query plans and indexes.
+- Concurrent transition: one successful request and one conflict.
+- State persistence after commit.
+- Rollback on failures.
 
-Las pruebas unitarias con test doubles pueden continuar como soporte, pero no sustituyen las verificaciones de tipos, restricciones, concurrencia, diagnósticos ni agregaciones reales en PostgreSQL.
+Unit tests with test doubles may continue as support but do not substitute verifications of types, constraints, concurrency, diagnostics, and real aggregations in PostgreSQL.
 
-## 18. Criterios de aceptación
+## 18. Acceptance criteria
 
 > For authoritative business rules, see the [normative PRD](../../../docs/prd/warehouse/bale-management.md).
 > The acceptance criteria below are implementation-level verification points derived from the PRD.
 
-| ID | Criterio |
+| ID | Criterion |
 |---|---|
-| AC-01 | El POST acepta `received_at` como `YYYY-MM-DD` y rechaza valores con hora. |
-| AC-02 | La columna persistida de recepción es `DATE`. |
-| AC-03 | El POST acepta entre 1 y 100 fardos y rechaza colecciones fuera de ese rango. |
-| AC-04 | El response `201` contiene únicamente los cinco campos resumidos aprobados. |
-| AC-05 | Un `shipment_number` duplicado produce `409 duplicate_shipment_number`. |
-| AC-06 | Los errores de fardo identificables incluyen una ruta indexada compatible con la grilla. |
-| AC-07 | El endpoint de resumen aplica todos los filtros opcionales de forma conjuntiva. |
-| AC-08 | El resumen devuelve cantidades y pesos correctos calculados por PostgreSQL. |
-| AC-09 | Un resumen sin coincidencias devuelve ceros y estado `200`. |
-| AC-10 | El detalle requiere `shipment_number` y `bale_number`. |
-| AC-11 | El detalle devuelve el UUID, cabecera, atributos, peso neto y estado del fardo. |
-| AC-12 | Una identidad empresarial inexistente produce `404 bale_not_found`. |
-| AC-13 | El PATCH admite exclusivamente el valor `delivered`. |
-| AC-14 | El PATCH ejecuta la transición mediante el dominio y persiste el cambio. |
-| AC-15 | Un fardo ya entregado produce `409 bale_already_delivered`. |
-| AC-16 | Dos entregas concurrentes no pueden confirmarse ambas. |
-| AC-17 | Todas las rutas y respuestas están representadas correctamente en OpenAPI. |
-| AC-18 | El frontend puede consumir la API desde un origen CORS expresamente configurado. |
-| AC-19 | Las suites unitarias e integración PostgreSQL aprobadas finalizan sin fallos. |
-| AC-20 | La documentación de Warehouse, arquitectura, persistencia y contratos queda alineada con la implementación. |
+| AC-01 | POST accepts `received_at` as `YYYY-MM-DD` and rejects values with time. |
+| AC-02 | The persisted reception column is `DATE`. |
+| AC-03 | POST accepts between 1 and 100 bales and rejects collections outside that range. |
+| AC-04 | The `201` response contains only the five approved summary fields. |
+| AC-05 | A duplicate `shipment_number` produces `409 duplicate_shipment_number`. |
+| AC-06 | Identifiable bale errors include an indexed path compatible with the grid. |
+| AC-07 | The summary endpoint applies all optional filters conjunctively. |
+| AC-08 | Summary returns correct counts and weights computed by PostgreSQL. |
+| AC-09 | A summary with no matches returns zeros and status `200`. |
+| AC-10 | Detail requires `shipment_number` and `bale_number`. |
+| AC-11 | Detail returns the UUID, header, attributes, net weight, status, and delivery date. |
+| AC-12 | A non-existent business identity produces `404 bale_not_found`. |
+| AC-13 | PATCH accepts only the value `delivered` and requires `delivery_date`. |
+| AC-14 | PATCH executes the transition via the domain and persists the change. |
+| AC-15 | An already-delivered bale produces `409 bale_already_delivered`. |
+| AC-16 | Two concurrent deliveries cannot both succeed. |
+| AC-17 | All paths and responses are correctly represented in OpenAPI. |
+| AC-18 | The frontend can consume the API from an explicitly configured CORS origin. |
+| AC-19 | Unit and PostgreSQL integration suites pass without failures. |
+| AC-20 | Repository documentation remains aligned with the implementation. |
 
-## 19. Secuencia recomendada de implementación
+## 19. Recommended implementation sequence
 
-1. Alinear fecha empresarial, límite de 100 fardos y response resumido del registro.
-2. Incorporar la migración de fecha y los índices iniciales.
-3. Implementar la consulta individual y su proyección de lectura.
-4. Implementar el cambio irreversible de estado con control de concurrencia.
-5. Implementar el resumen agregado y sus filtros.
-6. Ampliar composición, contratos HTTP, errores y OpenAPI.
-7. Configurar CORS.
-8. Completar pruebas PostgreSQL y validar la integración con el frontend.
+1. Align business date, 100-bale limit, and summary response for registration.
+2. Incorporate the date migration and initial indexes.
+3. Implement the individual query and its read projection.
+4. Implement the irreversible state change with concurrency control.
+5. Implement the aggregate summary and its filters.
+6. Extend composition, HTTP contracts, errors, and OpenAPI.
+7. Configure CORS.
+8. Complete PostgreSQL tests and validate integration with the frontend.
 
-Cada bloque debe conservar el endpoint de registro funcional y mantener alineados dominio, aplicación, adaptadores, migraciones, OpenAPI y pruebas.
+Each block must keep the registration endpoint functional and maintain alignment across domain, application, adapters, migrations, OpenAPI, and tests.
 
-## 20. Riesgos y decisiones pendientes de implementación
+## 20. Implementation risks and pending decisions
 
-| Riesgo | Tratamiento |
+| Risk | Treatment |
 |---|---|
-| Conversión de timestamps existentes a fecha | Definir y probar una regla explícita de preservación de fecha antes de ejecutar la migración |
-| Doble entrega concurrente | Bloqueo de fila o actualización condicional con estado esperado |
-| Sumatorias nulas | Normalizar agregados sin resultados a cero decimal |
-| Filtros que degraden rendimiento | Verificar planes reales y añadir únicamente índices justificados |
-| Errores de dominio sin índice de fardo | Conservar el índice durante la construcción/validación para producir una ruta útil |
-| Divergencia entre ORM y migración | Mantener pruebas de contrato de esquema en PostgreSQL |
-| CORS permisivo | Usar lista explícita por entorno y prohibir wildcard en producción |
+| Conversion of existing timestamps to date | Define and test an explicit date-preservation rule before executing the migration |
+| Concurrent double delivery | Row lock or conditional update with expected state |
+| Null summations | Normalize aggregates without results to zero decimal |
+| Filters degrading performance | Verify real plans and add only justified indexes |
+| Domain errors without bale index | Preserve the index during construction/validation to produce a useful path |
+| ORM and migration divergence | Maintain schema contract tests in PostgreSQL |
+| Permissive CORS | Use explicit per-environment list and prohibit wildcard in production |
 
-## 21. Definición de terminado
+## 21. Definition of done
 
-La capacidad se considera terminada cuando:
+The capability is considered done when:
 
-- Los cuatro endpoints cumplen los contratos de esta especificación técnica.
-- El POST utiliza fecha simple, limita la carga y devuelve un resumen.
-- Dashboard, consulta individual y actualización de estado pueden integrarse sin datos simulados.
-- La transición irreversible es correcta incluso bajo concurrencia.
-- Migraciones, records, mappers y dominio usan tipos consistentes.
-- Los errores permiten al frontend diferenciar fallos globales y de campo.
-- OpenAPI refleja el comportamiento real.
-- Las pruebas unitarias y PostgreSQL cubren los criterios de aceptación.
-- La configuración CORS permite la integración autorizada con el frontend.
-- La documentación del repositorio no conserva descripciones incompatibles con la implementación.
-
+- All four endpoints meet the contracts of this technical specification.
+- Registration uses simple dates, limits the collection, and returns a summary.
+- Summary, individual query, and state update can integrate without simulated data.
+- The irreversible transition is correct even under concurrency.
+- Migrations, records, mappers, and domain use consistent types.
+- Errors allow the frontend to differentiate global failures from field-level errors.
+- OpenAPI reflects actual behavior.
+- Unit and PostgreSQL tests cover the acceptance criteria.
+- CORS configuration permits authorized integration with the frontend.
+- Repository documentation preserves no descriptions incompatible with the implementation.
