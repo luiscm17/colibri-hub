@@ -38,7 +38,6 @@ export const navData: NavItem[] = [
     resourceType: 'warehouse',
     children: [
       { label: 'Gestión de fardos', path: '/warehouse/bales', icon: <IconPackage size={16} />, resourceType: 'warehouse:bales' },
-      { label: 'Recepción de fardos', path: '/warehouse/reception', icon: <IconPackage size={16} />, resourceType: 'warehouse:reception' },
       { label: 'Identidad de producción', path: '/warehouse/identity', icon: <IconBarcode size={16} />, resourceType: 'warehouse:identity' },
       { label: 'Emisión a Operación', path: '/warehouse/issue', icon: <IconTruckDelivery size={16} />, resourceType: 'warehouse:issue' },
       { label: 'Recepción de PT', path: '/warehouse/finished-product', icon: <IconPackageImport size={16} />, resourceType: 'warehouse:finished-product' },

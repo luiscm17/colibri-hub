@@ -1,22 +1,26 @@
-import { ApiError, isApiError, type ApiFieldError } from '@/api/httpError'
+import { ApiError, isApiError, type ApiErrorKind, type ApiFieldError } from '@/api/httpError'
 
 export type BaleApiErrorKind = 'aborted' | 'conflict' | 'not_found' | 'validation' | 'unavailable' | 'unexpected'
 
 export class BaleApiError extends Error {
   readonly kind: BaleApiErrorKind
   readonly fields: readonly ApiFieldError[]
+  readonly source?: ApiErrorKind
+  readonly status?: number
 
-  constructor(kind: BaleApiErrorKind, message: string, fields: readonly ApiFieldError[] = []) {
+  constructor(kind: BaleApiErrorKind, message: string, fields: readonly ApiFieldError[] = [], source?: ApiErrorKind, status?: number) {
     super(message)
     this.name = 'BaleApiError'
     this.kind = kind
     this.fields = fields
+    this.source = source
+    this.status = status
   }
 }
 
 export function toBaleApiError(error: unknown): BaleApiError {
   if (!isApiError(error)) return new BaleApiError('unexpected', 'The request could not be completed.')
-  return new BaleApiError(errorKind(error), error.message, error.fields)
+  return new BaleApiError(errorKind(error), error.message, error.fields, error.kind, error.status)
 }
 
 function errorKind(error: ApiError): BaleApiErrorKind {
