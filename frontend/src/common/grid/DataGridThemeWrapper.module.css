@@ -1,0 +1,10 @@
+.root {
+  --rdg-color: var(--mantine-color-text);
+  --rdg-background-color: var(--mantine-color-body);
+  --rdg-header-background-color: var(--mantine-color-default-hover);
+  --rdg-row-hover-background-color: var(--mantine-primary-color-light);
+  --rdg-selection-color: var(--mantine-primary-color-filled);
+  --rdg-border-color: var(--mantine-color-default-border);
+  --rdg-font-size: var(--mantine-font-size-sm);
+  --rdg-cell-padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+}
