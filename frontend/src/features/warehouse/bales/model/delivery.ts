@@ -16,6 +16,13 @@ export interface DeliveryInput {
 export interface DeliveryOutcome {
   shipmentNumber: string
   baleNumber: string
-  result: Exclude<DeliveryResult, 'pending' | 'error'>
-  message?: string
+  status: Exclude<DeliveryResult, 'pending' | 'error'>
+  error?: { readonly code: string; readonly message: string }
+}
+
+export interface DeliveryResponse {
+  deliveryDate: string
+  deliveredCount: number
+  failedCount: number
+  results: readonly DeliveryOutcome[]
 }

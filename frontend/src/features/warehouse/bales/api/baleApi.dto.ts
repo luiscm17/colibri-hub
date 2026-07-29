@@ -55,6 +55,18 @@ export interface BaleIdentityDto {
 }
 
 export interface DeliveryOutcomeDto extends BaleIdentityDto {
-  result: 'delivered' | 'already_delivered' | 'not_found'
-  message?: string
+  status: 'delivered' | 'already_delivered' | 'not_found'
+  error?: DeliveryErrorDto | null
+}
+
+export interface DeliveryErrorDto {
+  code: string
+  message: string
+}
+
+export interface DeliveryResponseDto {
+  delivery_date: string
+  delivered_count: number
+  failed_count: number
+  results: readonly DeliveryOutcomeDto[]
 }
