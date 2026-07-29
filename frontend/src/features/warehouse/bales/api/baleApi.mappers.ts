@@ -1,8 +1,8 @@
-import type { DeliveryInput, DeliveryOutcome } from '../model/delivery'
+import type { DeliveryInput, DeliveryOutcome, DeliveryResponse } from '../model/delivery'
 import { normalizeIdentifier } from '../model/validation'
 import type { RegisterBatchInput, RegisteredBatch } from '../model/reception'
 import type { BaleDetail, StockFilters, StockSummary } from '../model/stock'
-import type { BaleDetailDto, DeliverBalesDto, DeliveryOutcomeDto, RegisterBatchDto, RegisteredBatchDto, StockSummaryDto } from './baleApi.dto'
+import type { BaleDetailDto, DeliverBalesDto, DeliveryOutcomeDto, DeliveryResponseDto, RegisterBatchDto, RegisteredBatchDto, StockSummaryDto } from './baleApi.dto'
 
 export function toRegisterBatchDto(input: RegisterBatchInput): RegisterBatchDto {
   return {
@@ -40,5 +40,9 @@ export function toDeliverBalesDto(input: DeliveryInput): DeliverBalesDto {
 }
 
 export function toDeliveryOutcome(dto: DeliveryOutcomeDto): DeliveryOutcome {
-  return { shipmentNumber: dto.shipment_number, baleNumber: dto.bale_number, result: dto.result, message: dto.message }
+  return { shipmentNumber: dto.shipment_number, baleNumber: dto.bale_number, status: dto.status, error: dto.error ?? undefined }
+}
+
+export function toDeliveryResponse(dto: DeliveryResponseDto): DeliveryResponse {
+  return { deliveryDate: dto.delivery_date, deliveredCount: dto.delivered_count, failedCount: dto.failed_count, results: dto.results.map(toDeliveryOutcome) }
 }

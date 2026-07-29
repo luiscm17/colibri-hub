@@ -1,10 +1,10 @@
 import { httpJson } from '@/api/httpClient'
-import type { DeliveryInput, DeliveryOutcome } from '../model/delivery'
+import type { DeliveryInput, DeliveryResponse } from '../model/delivery'
 import type { RegisterBatchInput, RegisteredBatch } from '../model/reception'
 import type { BaleDetail, StockFilters, StockSummary } from '../model/stock'
 import { toBaleApiError } from './baleApi.errors'
-import type { BaleDetailDto, DeliveryOutcomeDto, RegisteredBatchDto, StockSummaryDto } from './baleApi.dto'
-import { toBaleDetail, toDeliverBalesDto, toDeliveryOutcome, toRegisterBatchDto, toRegisteredBatch, toStockQuery, toStockSummary } from './baleApi.mappers'
+import type { BaleDetailDto, DeliveryResponseDto, RegisteredBatchDto, StockSummaryDto } from './baleApi.dto'
+import { toBaleDetail, toDeliverBalesDto, toDeliveryResponse, toRegisterBatchDto, toRegisteredBatch, toStockQuery, toStockSummary } from './baleApi.mappers'
 
 const BALES_PATH = '/warehouse/bales'
 
@@ -36,10 +36,10 @@ export async function getBaleDetail(shipmentNumber: string, baleNumber: string, 
   }
 }
 
-export async function deliverBales(input: DeliveryInput, signal?: AbortSignal): Promise<readonly DeliveryOutcome[]> {
+export async function deliverBales(input: DeliveryInput, signal?: AbortSignal): Promise<DeliveryResponse> {
   try {
-    const response = await httpJson<readonly DeliveryOutcomeDto[]>(`${BALES_PATH}/deliver`, { method: 'POST', body: toDeliverBalesDto(input), signal })
-    return response.map(toDeliveryOutcome)
+    const response = await httpJson<DeliveryResponseDto>(`${BALES_PATH}/deliver`, { method: 'POST', body: toDeliverBalesDto(input), signal })
+    return toDeliveryResponse(response)
   } catch (error) {
     throw toBaleApiError(error)
   }
