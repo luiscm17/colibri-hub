@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (username: string, _password: string) => {
     // Mock login — en producción reemplazar con llamada a API
+    void _password
     await new Promise((r) => setTimeout(r, 400))
 
     // TODO: el backend devolverá allowedResources basado en roles + scopes
@@ -60,5 +61,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   )
 }
-
 
