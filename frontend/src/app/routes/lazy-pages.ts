@@ -4,6 +4,7 @@ export const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'))
 export const NotFoundPage = lazy(() => import('@/features/not-found/pages/NotFoundPage'))
 export const WarehousePage = lazy(() => import('@/features/warehouse/pages/WarehousePage'))
 export const BaleReceptionPage = lazy(() => import('@/features/warehouse/bales/pages/BaleReceptionPage'))
+export const BaleStockPage = lazy(() => import('@/features/warehouse/bales/pages/BaleStockPage'))
 export const BaleManagementPage = lazy(
   () => import('@/features/warehouse/bales/pages/BaleManagementPage'),
 )
