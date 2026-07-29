@@ -8,7 +8,7 @@ import {
   LotsPage,
   NotFoundPage,
   ProfilePage,
-  ReceptionPage,
+  BaleReceptionPage,
   ReportsPage,
   SpinningPage,
   WarehousePage,
@@ -29,7 +29,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/warehouse/bales" replace /> },
       { path: 'warehouse/bales', element: <BaleManagementPage /> },
-      { path: 'warehouse/reception', element: <ReceptionPage /> },
+      { path: 'warehouse/bales/reception', element: <BaleReceptionPage /> },
       { path: 'warehouse/identity', element: <WarehousePage /> },
       { path: 'warehouse/issue', element: <WarehousePage /> },
       { path: 'warehouse/finished-product', element: <WarehousePage /> },
