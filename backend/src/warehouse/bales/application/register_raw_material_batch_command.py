@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date
 from decimal import Decimal
 
 
@@ -36,7 +36,7 @@ class RegisterRawMaterialBatchCommand:
         bales: Tuple of individual bale input commands.
     """
     
-    received_at: datetime
+    received_at: date
     shipment_number: str
     provider_name: str
     bales: tuple[ReceivedBaleCommand, ...]
