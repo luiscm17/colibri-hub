@@ -31,9 +31,9 @@ The Warehouse backend already supports registering a raw-material batch and all 
 This technical specification defines the evolution required to complete the bale management flow consumed by the frontend:
 
 1. Adjust the existing batch registration to work with a business date and a summary response.
-2. Query aggregated inventory indicators through filters.
+2. Query aggregated stock indicators through filters.
 3. Query a single bale by its composite business identity (`shipment_number + bale_number`).
-4. Irreversibly transition a bale from `in_warehouse` to `delivered`.
+4. Deliver one or more bales to Production in a single batch operation with per-bale results.
 
 The scope preserves the current business model: bales are discrete units, delivered whole, `delivered` means delivered to and used by Production, and no reversals or additional states exist.
 
@@ -63,13 +63,13 @@ The repository currently contains:
 ### 2.2 Gaps relative to target state
 
 | Area | Current state | Target state |
-|---|---|---|
+| --- | --- | --- |
 | Reception date | Datetime with timezone (`datetime` / `timestamptz`) | Business date (`date` / `DATE`) |
 | Bales per batch | One or more, no explicit maximum | Between 1 and 100 |
 | Registration response | Includes all registered bales | Summary only with `bale_count` |
-| Aggregate query | Not available | Filterable summary computed in PostgreSQL |
+| Aggregate query | Not available | Filterable stock summary computed in PostgreSQL |
 | Individual query | Not available | Lookup by shipment number and bale number |
-| State update | Domain rule available, no use case or endpoint | Irreversible `PATCH` to `delivered` |
+| State update | Domain rule available, no use case or endpoint | Batch delivery endpoint with per-bale results |
 | Repository reads | Insert only | Query projections and bale loading for transition |
 | Browser integration | No CORS policy configured | Allowed origins via configuration |
 
@@ -86,8 +86,9 @@ The repository currently contains:
 - Compute aggregated counts and weights on persisted data in the backend.
 - Unambiguously locate a bale with `shipment_number + bale_number`.
 - Expose the complete data required by the detail screen.
+- Deliver multiple bales in a single batch request with a shared business date.
 - Allow only the `in_warehouse → delivered` transition.
-- Maintain error contracts usable for both global notifications and field/cell-level errors.
+- Report per-bale results including conflicts and not-found identities.
 
 ### 3.2 Technical objectives
 
@@ -108,9 +109,9 @@ The repository currently contains:
 
 - Adjustments to the existing registration endpoint.
 - Migration of `received_at` to date type.
-- Aggregate summary endpoint.
+- Aggregate stock summary endpoint.
 - Individual detail endpoint.
-- Partial state-update endpoint.
+- Batch delivery endpoint (multiple bales, single request, per-bale results).
 - New use cases, ports, adapters, HTTP models, and composition.
 - Error contract extension.
 - Indexes required for approved queries.
@@ -126,7 +127,7 @@ The repository currently contains:
 - Partial deliveries.
 - Returns to warehouse.
 - Movement history or audit trail.
-- Delivery date, responsible actor, destination, or delivery reference.
+- Responsible actor, destination, or delivery reference.
 - General or paginated bale listing.
 - Editing weights, material, dtex, provider, batch, or bale number.
 - Deletion of batches or bales.
@@ -139,7 +140,7 @@ The repository currently contains:
 > The rules below are reproduced for implementation reference. The [normative PRD](../../../docs/prd/warehouse/bale-management.md) is authoritative.
 
 | ID | Rule |
-|---|---|
+| --- | --- |
 | BR-01 | A raw-material batch contains between 1 and 100 bales. |
 | BR-02 | `shipment_number` is globally unique. |
 | BR-03 | `bale_number` is unique within a batch and may repeat across different batches. |
@@ -159,16 +160,18 @@ The repository currently contains:
 
 ## 6. API functional design
 
-### 6.1 Operation inventory
+### 6.1 Endpoint catalog
 
 | Capability | Method | Path | Primary result |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Register batch | `POST` | `/api/v1/warehouse/bales` | Summary of the created batch |
-| Query summary | `GET` | `/api/v1/warehouse/bales/summary` | Aggregated counts and weights |
-| Query bale | `GET` | `/api/v1/warehouse/bales/detail` | Single bale detail |
-| Update state | `PATCH` | `/api/v1/warehouse/bales/{bale_id}/status` | Confirmation of updated state |
+| Query stock summary | `GET` | `/api/v1/warehouse/bales` | Aggregated counts and weights |
+| Query bale detail | `GET` | `/api/v1/warehouse/bales/{shipment_number}/{bale_number}` | Single bale detail |
+| Batch delivery | `POST` | `/api/v1/warehouse/bales/deliver` | Per-bale delivery results |
 
-`summary` and `detail` are different query resources. The former returns aggregates; the latter returns a single bale. Neither replaces the other nor returns an exhaustive listing.
+`GET /bales` without path parameters returns the stock summary (aggregated metrics). `GET /bales/{shipment_number}/{bale_number}` returns a single bale by its business identity. Neither returns an exhaustive listing.
+
+The batch delivery endpoint accepts multiple bales from different batches in a single request. The individual PATCH is removed — a batch delivery with one element covers that case.
 
 ## 7. Batch registration
 
@@ -179,7 +182,7 @@ The repository currently contains:
 ### 7.2 Request
 
 | Field | Contract type | Required | Rule |
-|---|---|---:|---|
+| --- | --- | ---: | --- |
 | `shipment_number` | String | Yes | Non-empty, max 10 characters after normalization, globally unique |
 | `received_at` | ISO date `YYYY-MM-DD` | Yes | Valid business date |
 | `provider_name` | String | Yes | Non-empty after trimming |
@@ -197,7 +200,7 @@ No extra fields are accepted. Decimals continue to be sent as JSON strings to pr
 **Status:** `201 Created`
 
 | Field | Type |
-|---|---|
+| --- | --- |
 | `raw_material_batch_id` | UUID |
 | `shipment_number` | Normalized string |
 | `received_at` | ISO date |
@@ -215,18 +218,18 @@ The response does not include the `bales` array, net weight, or frontend tempora
 - Maintain stable translation of the `shipment_number` conflict.
 - Produce indexed paths for errors associated with identifiable bales, e.g. `bales.17.gross_weight_kg`.
 
-## 8. Aggregate inventory summary
+## 8. Aggregate stock summary
 
 ### 8.1 Endpoint
 
-`GET /api/v1/warehouse/bales/summary`
+`GET /api/v1/warehouse/bales`
 
 ### 8.2 Filters
 
 All filters are optional.
 
 | Query parameter | Type | Semantics |
-|---|---|---|
+| --- | --- | --- |
 | `received_from` | ISO date | Inclusive lower bound on reception date |
 | `received_to` | ISO date | Inclusive upper bound on reception date |
 | `shipment_number` | String | Exact match after normalization |
@@ -242,7 +245,7 @@ Date bounds are inclusive. If both are provided, `received_from` must not be lat
 **Status:** `200 OK`
 
 | Field | Type | Definition |
-|---|---|---|
+| --- | --- | --- |
 | `total_bale_count` | Integer | Bales matching the filters |
 | `in_warehouse_bale_count` | Integer | Filtered bales currently in warehouse |
 | `delivered_bale_count` | Integer | Filtered bales delivered/used |
@@ -258,23 +261,23 @@ When a status filter is applied, the total represents only that subset and the c
 
 ### 9.1 Endpoint
 
-`GET /api/v1/warehouse/bales/detail`
+`GET /api/v1/warehouse/bales/{shipment_number}/{bale_number}`
 
-### 9.2 Required parameters
+The path uses the business identity directly. Both values are normalized before lookup. This avoids exposing internal UUIDs to the operator, who identifies bales by the labels on physical bales.
 
-| Query parameter | Type | Rule |
-|---|---|---|
+### 9.2 Path parameters
+
+| Parameter | Type | Rule |
+| --- | --- | --- |
 | `shipment_number` | String | Normalized batch identifier |
-| `bale_number` | String | Normalized bale identifier |
-
-The query uses both values. Searching by `bale_number` alone is not permitted because it may repeat across different batches.
+| `bale_number` | String | Normalized bale identifier within that batch |
 
 ### 9.3 Successful response
 
 **Status:** `200 OK`
 
 | Field | Type |
-|---|---|
+| --- | --- |
 | `id` | UUID |
 | `shipment_number` | String |
 | `bale_number` | String |
@@ -292,53 +295,109 @@ The query uses both values. Searching by `bale_number` alone is not permitted be
 
 When the composite identity does not exist, the backend responds `404 Not Found` with code `bale_not_found`. It must not reveal whether the batch existed but the bale did not, because both values form a single lookup identity for the consumer.
 
-## 10. State update
+## 10. Batch delivery
 
 ### 10.1 Endpoint
 
-`PATCH /api/v1/warehouse/bales/{bale_id}/status`
+`POST /api/v1/warehouse/bales/deliver`
 
-The UUID is obtained previously via the detail endpoint. It is used as the unambiguous technical identity for writes.
+This is the primary delivery interface for the frontend checklist workflow. The operator prepares a list of bales read from physical labels and submits them in a single request with a shared delivery date.
 
 ### 10.2 Request
 
-| Field | Type | Allowed value |
-|---|---|---|
-| `status` | Enum | Only `delivered` |
-| `delivery_date` | ISO date `YYYY-MM-DD` | Business date of delivery; required |
+| Field | Type | Required | Rule |
+| --- | --- | ---: | --- |
+| `delivery_date` | ISO date `YYYY-MM-DD` | Yes | Business date when the physical delivery occurred |
+| `bales` | Collection | Yes | Between 1 and 50 elements |
+| `bales.n.shipment_number` | String | Yes | Batch identifier; normalized before lookup |
+| `bales.n.bale_number` | String | Yes | Bale identifier within batch; normalized before lookup |
 
-No extra fields are accepted. The endpoint does not act as a generic state editor.
+No extra fields are accepted. The endpoint uses the business identity (not UUID) because the operator reads these values from physical labels.
+
+Duplicates within the same request (same `shipment_number + bale_number` after normalization) must be rejected with `422 duplicate_delivery_identity`.
 
 ### 10.3 Successful response
 
-**Status:** `200 OK`
+**Status:** `200 OK` (all delivered) or `207 Multi-Status` (partial results)
 
-| Field | Type |
-|---|---|
-| `id` | UUID |
-| `shipment_number` | String |
-| `bale_number` | String |
-| `status` | `delivered` |
-| `delivery_date` | ISO date |
+```json
+{
+  "delivery_date": "2026-07-28",
+  "delivered_count": 2,
+  "failed_count": 1,
+  "results": [
+    {
+      "shipment_number": "PART-001",
+      "bale_number": "F-01",
+      "status": "delivered",
+      "error": null
+    },
+    {
+      "shipment_number": "PART-001",
+      "bale_number": "F-02",
+      "status": "already_delivered",
+      "error": { "code": "bale_already_delivered", "message": "Bale was already delivered." }
+    },
+    {
+      "shipment_number": "PART-003",
+      "bale_number": "F-99",
+      "status": "not_found",
+      "error": { "code": "bale_not_found", "message": "Bale identity does not exist." }
+    }
+  ]
+}
+```
 
-### 10.4 Required behavior
+### 10.4 Per-bale result statuses
 
-- Load the `Bale` entity by its UUID.
-- Execute the transition via the existing domain rule: `bale.deliver(delivery_date)`.
-- Persist `status` and `delivery_date` together in the same transaction.
-- Commit in an independent transaction.
-- Respond `404` if the UUID does not exist.
-- Respond `409` with code `bale_already_delivered` if the status is already `delivered`.
-- Reject any attempt to set `in_warehouse` or another value.
-- Reject requests without `delivery_date` or with datetime format.
-- Prevent two concurrent requests from both confirming delivery of the same bale. Only one may succeed; the other must receive `409`.
+| Status | Meaning |
+| --- | --- |
+| `delivered` | Successfully transitioned to delivered in this request |
+| `already_delivered` | Bale exists but was already delivered (no change made) |
+| `not_found` | Business identity does not exist in the system |
+
+### 10.5 Response status code logic
+
+- `200 OK` — All bales in the request were successfully delivered.
+- `207 Multi-Status` — At least one bale failed (not_found or already_delivered) while others succeeded or all failed.
+- `422` — Request-level validation failure (empty collection, invalid date, duplicate identities). No bales are processed.
+
+### 10.6 Required behavior
+
+- Validate the request structure before processing any bale.
+- Reject duplicate identities within the same request (after normalization).
+- For each bale in order:
+  1. Resolve the business identity (`shipment_number + bale_number`) to the internal record.
+  2. If not found → record `not_found` result, continue to next bale.
+  3. If already `delivered` → record `already_delivered` result, continue to next bale.
+  4. Execute `bale.deliver(delivery_date)` via the domain rule.
+  5. Record `delivered` result.
+- Persist all successful transitions. Failed bales do not block successful ones.
+- A bale that succeeds within this request must not be rolled back due to a later bale failing.
+- Concurrency: if two requests overlap on the same bale, exactly one succeeds; the other receives `already_delivered` for that bale.
+
+### 10.7 Atomicity model
+
+This endpoint uses **best-effort with per-bale reporting** (not all-or-nothing):
+
+- Each bale is processed independently.
+- A failure in bale N does not prevent bale N+1 from being processed.
+- Successfully delivered bales are committed regardless of other failures.
+- The frontend uses the per-bale results to show which deliveries succeeded and which need attention.
+
+This matches the operational reality: the physical delivery already happened. The system records facts; a conflict on one bale does not undo the physical delivery of another.
+
+### 10.8 Limits
+
+- Maximum 50 bales per request (operational safeguard, not a business limit).
+- No minimum other than 1.
 
 ## 11. Error contract
 
 All operations maintain the current envelope:
 
 | Field | Usage |
-|---|---|
+| --- | --- |
 | `error.code` | Stable, client-processable code |
 | `error.message` | Human-readable cause summary |
 | `error.fields` | Errors associated with concrete paths; empty collection when not applicable |
@@ -346,14 +405,16 @@ All operations maintain the current envelope:
 ### 11.1 Minimum matrix
 
 | Status | Code | Case |
-|---:|---|---|
-| 404 | `bale_not_found` | Requested bale does not exist |
+| ---: | --- | --- |
+| 404 | `bale_not_found` | Requested bale does not exist (detail query) |
 | 409 | `duplicate_shipment_number` | Batch already registered |
-| 409 | `bale_already_delivered` | Bale is no longer available in warehouse |
 | 422 | `request_validation_error` | Type, required field, value, or filter invalid |
-| 422 | `duplicate_bale_number` | Bale number repeated within the batch |
+| 422 | `duplicate_bale_number` | Bale number repeated within a registration batch |
+| 422 | `duplicate_delivery_identity` | Same bale identity repeated within a delivery request |
 | 422 | `domain_validation_error` | Domain invariant violated |
 | 500 | `internal_server_error` | Unexpected failure without internal details |
+
+Note: per-bale delivery failures (`already_delivered`, `not_found`) are reported within the `207` response body, not as top-level HTTP error codes.
 
 ### 11.2 Field paths
 
@@ -376,11 +437,11 @@ All operations maintain the current envelope:
 ### 12.2 Required use cases
 
 | Type | Responsibility |
-|---|---|
+| --- | --- |
 | Command | Register a complete raw-material batch |
-| Query | Get aggregate summary with filters |
-| Query | Get detail by business identity |
-| Command | Deliver a bale to Production |
+| Query | Get aggregate stock summary with filters |
+| Query | Get bale detail by business identity |
+| Command | Deliver multiple bales in a batch (best-effort, per-bale results) |
 
 The delivery use case must reuse `Bale.deliver()`. It must not directly modify the status string in the router or repository.
 
@@ -388,9 +449,9 @@ The delivery use case must reuse `Bale.deliver()`. It must not directly modify t
 
 The design must incorporate:
 
-- A read port for the aggregate summary.
-- A read port for detail by `shipment_number + bale_number`.
-- Bale repository capability to load an entity by UUID.
+- A read port for the aggregate stock summary.
+- A read port for bale detail by `shipment_number + bale_number`.
+- Bale repository capability to resolve a business identity to a bale record.
 - Capability to persist the updated state with concurrency control.
 - SQLAlchemy adapters implementing queries and modifications.
 - Differentiated dependency providers per use case, avoiding coupling a single provider only to registration.
@@ -485,11 +546,11 @@ Final selection must be justified with actual query plans from `summary` and `de
 ## 14. Concurrency and transactions
 
 - Batch registration preserves a single transaction for batch and bales.
-- State change uses an independent transaction.
+- Batch delivery processes each bale independently; a failure on one bale does not roll back others.
 - Delivery must apply row locking or equivalent conditional update to ensure the expected state is `in_warehouse`.
-- A concurrent conflict translates to the same `bale_already_delivered` contract.
+- A concurrent conflict produces `already_delivered` in the per-bale result.
 - Queries must not perform commits or modify entities.
-- Any exception during a write must trigger rollback.
+- Any exception during a write must trigger rollback for the affected bale.
 
 ## 15. Security and integration
 
@@ -513,9 +574,9 @@ The application must allow calls from the frontend via a configurable list of or
 ## 16. Non-functional requirements
 
 | ID | Requirement |
-|---|---|
+| --- | --- |
 | NFR-01 | Operations must preserve end-to-end decimal accuracy. |
-| NFR-02 | Summary must be resolved via SQL aggregation without materializing all bales in memory. |
+| NFR-02 | Stock summary must be resolved via SQL aggregation without materializing all bales in memory. |
 | NFR-03 | POST must support 100 bales within normal service operational limits. |
 | NFR-04 | The API must maintain deterministic contracts documented in OpenAPI. |
 | NFR-05 | No `500` error may expose exceptions, SQL, internal paths, or secrets. |
@@ -541,7 +602,9 @@ The application must allow calls from the frontend via a configurable list of or
 - Summary result without bale collection.
 - Correct filter construction.
 - Detail found and not found.
-- Successful delivery, non-existent bale, and already-delivered bale.
+- Batch delivery: all succeed, partial success, all not found, all already delivered.
+- Batch delivery: duplicate identity rejection.
+- Single-bale delivery: successful, non-existent, and already-delivered.
 - Rollback and conflict translation.
 
 ### 17.3 Unit persistence
@@ -582,35 +645,37 @@ Unit tests with test doubles may continue as support but do not substitute verif
 > The acceptance criteria below are implementation-level verification points derived from the PRD.
 
 | ID | Criterion |
-|---|---|
+| --- | --- |
 | AC-01 | POST accepts `received_at` as `YYYY-MM-DD` and rejects values with time. |
 | AC-02 | The persisted reception column is `DATE`. |
 | AC-03 | POST accepts between 1 and 100 bales and rejects collections outside that range. |
 | AC-04 | The `201` response contains only the five approved summary fields. |
 | AC-05 | A duplicate `shipment_number` produces `409 duplicate_shipment_number`. |
 | AC-06 | Identifiable bale errors include an indexed path compatible with the grid. |
-| AC-07 | The summary endpoint applies all optional filters conjunctively. |
-| AC-08 | Summary returns correct counts and weights computed by PostgreSQL. |
-| AC-09 | A summary with no matches returns zeros and status `200`. |
+| AC-07 | The stock summary endpoint applies all optional filters conjunctively. |
+| AC-08 | Stock summary returns correct counts and weights computed by PostgreSQL. |
+| AC-09 | A stock summary with no matches returns zeros and status `200`. |
 | AC-10 | Detail requires `shipment_number` and `bale_number`. |
 | AC-11 | Detail returns the UUID, header, attributes, net weight, status, and delivery date. |
 | AC-12 | A non-existent business identity produces `404 bale_not_found`. |
-| AC-13 | PATCH accepts only the value `delivered` and requires `delivery_date`. |
-| AC-14 | PATCH executes the transition via the domain and persists the change. |
-| AC-15 | An already-delivered bale produces `409 bale_already_delivered`. |
-| AC-16 | Two concurrent deliveries cannot both succeed. |
-| AC-17 | All paths and responses are correctly represented in OpenAPI. |
-| AC-18 | The frontend can consume the API from an explicitly configured CORS origin. |
-| AC-19 | Unit and PostgreSQL integration suites pass without failures. |
-| AC-20 | Repository documentation remains aligned with the implementation. |
+| AC-13 | Batch delivery accepts 1–50 bales identified by business identity. |
+| AC-14 | Batch delivery returns per-bale results with `delivered`, `already_delivered`, or `not_found`. |
+| AC-15 | Batch delivery uses `200` for all-success and `207` for partial results. |
+| AC-16 | A successful bale in a batch is not rolled back due to another bale failing. |
+| AC-17 | Two concurrent deliveries of the same bale cannot both succeed. |
+| AC-18 | Duplicate identities within a batch delivery request produce `422`. |
+| AC-19 | All paths and responses are correctly represented in OpenAPI. |
+| AC-20 | The frontend can consume the API from an explicitly configured CORS origin. |
+| AC-21 | Unit and PostgreSQL integration suites pass without failures. |
+| AC-22 | Repository documentation remains aligned with the implementation. |
 
 ## 19. Recommended implementation sequence
 
 1. Align business date, 100-bale limit, and summary response for registration.
 2. Incorporate the date migration and initial indexes.
-3. Implement the individual query and its read projection.
-4. Implement the irreversible state change with concurrency control.
-5. Implement the aggregate summary and its filters.
+3. Implement the individual bale query by business identity path parameters.
+4. Implement the batch delivery endpoint with per-bale resolution and results.
+5. Implement the aggregate stock summary and its filters.
 6. Extend composition, HTTP contracts, errors, and OpenAPI.
 7. Configure CORS.
 8. Complete PostgreSQL tests and validate integration with the frontend.
@@ -620,7 +685,7 @@ Each block must keep the registration endpoint functional and maintain alignment
 ## 20. Implementation risks and pending decisions
 
 | Risk | Treatment |
-|---|---|
+| --- | --- |
 | Conversion of existing timestamps to date | Define and test an explicit date-preservation rule before executing the migration |
 | Concurrent double delivery | Row lock or conditional update with expected state |
 | Null summations | Normalize aggregates without results to zero decimal |
@@ -635,10 +700,11 @@ The capability is considered done when:
 
 - All four endpoints meet the contracts of this technical specification.
 - Registration uses simple dates, limits the collection, and returns a summary.
-- Summary, individual query, and state update can integrate without simulated data.
+- Stock summary, individual bale query, and batch delivery can integrate without simulated data.
 - The irreversible transition is correct even under concurrency.
+- Batch delivery reports per-bale results without rolling back successful bales.
 - Migrations, records, mappers, and domain use consistent types.
-- Errors allow the frontend to differentiate global failures from field-level errors.
+- Errors allow the frontend to differentiate request-level failures from per-bale results.
 - OpenAPI reflects actual behavior.
 - Unit and PostgreSQL tests cover the acceptance criteria.
 - CORS configuration permits authorized integration with the frontend.
