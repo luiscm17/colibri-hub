@@ -29,7 +29,6 @@ class RegistrationContractsTest(unittest.TestCase):
         self.assertEqual(result.received_at, RECEIVED_AT)
         self.assertEqual(result.provider_name, "Fiber Supplier")
         self.assertEqual(result.bale_count, 2)
-        self.assertEqual(tuple(bale.bale_number for bale in result.bales), ("BALE-01", "BALE-02"))
         self.assertEqual(batches.batch.bale_ids, tuple(bale.id for bale in bales.bales))
 
     def test_registration_rejects_missing_or_canonical_duplicate_bales_before_persistence(self) -> None:

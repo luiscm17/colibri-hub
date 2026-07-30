@@ -1,6 +1,7 @@
 import unittest
+from datetime import date
 
-from sqlalchemy import DateTime, Numeric, String, Text
+from sqlalchemy import Date, Numeric, String, Text
 
 from warehouse.bales.adapters.persistence.bale_mapper import BaleMapper
 from warehouse.bales.adapters.persistence.bale_record import BaleRecord
@@ -10,11 +11,12 @@ from warehouse.bales.domain.bale import Bale
 from warehouse.bales.domain.bale_id import BaleId
 from warehouse.bales.domain.bale_number import BaleNumber
 from warehouse.bales.domain.bale_weight import BaleWeight
+from warehouse.bales.domain.delivery_date import DeliveryDate
 from warehouse.bales.domain.dtex import Dtex
 from warehouse.bales.domain.material_type import MaterialType
 from warehouse.bales.domain.raw_material_batch import RawMaterialBatch
 from warehouse.bales.domain.raw_material_batch_id import RawMaterialBatchId
-from warehouse.bales.domain.reception_datetime import ReceptionDateTime
+from warehouse.bales.domain.reception_date import ReceptionDate
 from warehouse.bales.domain.shipment_number import ShipmentNumber
 
 from backend.tests.support.values import (
@@ -37,8 +39,7 @@ class PersistenceMapperTest(unittest.TestCase):
         self.assertEqual(BaleRecord.__table__.name, "raw_material_bales")
 
         batch_columns = RawMaterialBatchRecord.__table__.c
-        self.assertIsInstance(batch_columns.received_at.type, DateTime)
-        self.assertTrue(batch_columns.received_at.type.timezone)
+        self.assertIsInstance(batch_columns.received_at.type, Date)
         self.assertIsInstance(batch_columns.shipment_number.type, String)
         self.assertEqual(batch_columns.shipment_number.type.length, 10)
         self.assertIsInstance(batch_columns.provider_name.type, Text)
@@ -57,7 +58,7 @@ class PersistenceMapperTest(unittest.TestCase):
         """Batch mapper round-trips identity fields and preserves bale ID ordering."""
         batch = RawMaterialBatch(
             id=RawMaterialBatchId(BATCH_ID),
-            received_at=ReceptionDateTime(RECEIVED_AT),
+            received_at=ReceptionDate(RECEIVED_AT),
             shipment_number=ShipmentNumber("ship-01"),
             provider_name="Fiber Supplier",
             bale_ids=(BaleId(BALE_ID_1), BaleId(BALE_ID_2)),
@@ -75,6 +76,7 @@ class PersistenceMapperTest(unittest.TestCase):
 
     def test_bale_mapper_preserves_decimal_values_and_delivered_status(self) -> None:
         """Bale mapper round-trips Decimal values and preserves the delivered status."""
+        delivery_date = DeliveryDate(date(2026, 8, 1))
         bale = Bale(
             id=BaleId(BALE_ID_1),
             raw_material_batch_id=RawMaterialBatchId(BATCH_ID),
@@ -83,7 +85,7 @@ class PersistenceMapperTest(unittest.TestCase):
             dtex=Dtex(DTEX),
             weight=BaleWeight(GROSS_WEIGHT_KG, CONTAINER_WEIGHT_KG),
         )
-        bale.deliver()
+        bale.deliver(delivery_date)
 
         record = BaleMapper.to_record(bale)
         restored = BaleMapper.to_domain(record)

@@ -3,7 +3,7 @@ from copy import deepcopy
 
 VALID_BALE_RECEPTION_PAYLOAD: dict[str, object] = {
     "shipment_number": "ship-01",
-    "received_at": "2026-07-25T10:30:00Z",
+    "received_at": "2026-07-25",
     "provider_name": "Fiber Supplier",
     "bales": [
         {

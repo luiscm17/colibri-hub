@@ -5,21 +5,18 @@ from fastapi.testclient import TestClient
 
 from backend.tests.support.http_payloads import bale_reception_payload
 from backend.tests.support.values import (
-    BALE_ID_1,
     BATCH_ID,
-    CONTAINER_WEIGHT_KG,
     DTEX,
-    GROSS_WEIGHT_KG,
     RECEIVED_AT,
 )
 from bootstrap.api_router import create_api_router
 from bootstrap.http_error_handlers import register_exception_handlers
+from warehouse.bales.adapters.http.router import BaleUseCases
 from warehouse.bales.application import (
     DuplicateBaleNumberError,
     DuplicateShipmentNumberError,
     RegisterRawMaterialBatchCommand,
     RegisterRawMaterialBatchResult,
-    RegisteredBaleResult,
 )
 from warehouse.bales.domain.domain_errors import InvalidDtexError
 
@@ -40,6 +37,13 @@ class RecordingUseCase:
         return self.outcome
 
 
+class _StubUseCase:
+    """Stub use case that raises NotImplementedError. Used for unused slots."""
+
+    def execute(self, *args: object, **kwargs: object) -> None:
+        raise NotImplementedError("Stub use case — should not be called.")
+
+
 def registration_result() -> RegisterRawMaterialBatchResult:
     """Build a standard successful registration result for test assertions."""
     return RegisterRawMaterialBatchResult(
@@ -48,17 +52,6 @@ def registration_result() -> RegisterRawMaterialBatchResult:
         received_at=RECEIVED_AT,
         provider_name="Fiber Supplier",
         bale_count=1,
-        bales=(
-            RegisteredBaleResult(
-                id=BALE_ID_1,
-                bale_number="BALE-01",
-                material_type="COTTON",
-                dtex=DTEX,
-                gross_weight_kg=GROSS_WEIGHT_KG,
-                container_weight_kg=CONTAINER_WEIGHT_KG,
-                status="in_warehouse",
-            ),
-        ),
     )
 
 
@@ -67,9 +60,16 @@ def client_for(
 ) -> tuple[TestClient, RecordingUseCase]:
     """Create a test client and recording use case for endpoint tests."""
     use_case = RecordingUseCase(outcome)
+    stub = _StubUseCase()
+    use_cases = BaleUseCases(
+        register=use_case,  # type: ignore[arg-type]
+        stock_summary=stub,  # type: ignore[arg-type]
+        bale_detail=stub,  # type: ignore[arg-type]
+        deliver=stub,  # type: ignore[arg-type]
+    )
     app = FastAPI()
     register_exception_handlers(app)
-    app.include_router(create_api_router(lambda: use_case))
+    app.include_router(create_api_router(lambda: use_cases))
     return TestClient(app, raise_server_exceptions=False), use_case
 
 
@@ -87,22 +87,12 @@ class RegisterBaleEndpointTests(unittest.TestCase):
             {
                 "raw_material_batch_id": str(BATCH_ID),
                 "shipment_number": "SHIP-01",
-                "received_at": "2026-07-25T10:30:00Z",
+                "received_at": "2026-07-25",
                 "provider_name": "Fiber Supplier",
                 "bale_count": 1,
-                "bales": [
-                    {
-                        "id": str(BALE_ID_1),
-                        "bale_number": "BALE-01",
-                        "material_type": "COTTON",
-                        "dtex": "200.5",
-                        "gross_weight_kg": "25.5",
-                        "container_weight_kg": "0.5",
-                        "status": "in_warehouse",
-                    }
-                ],
             },
         )
+        self.assertNotIn("bales", response.json())
         self.assertNotIn("reception_id", response.json())
         self.assertEqual(len(use_case.commands), 1)
         self.assertEqual(use_case.commands[0].received_at, RECEIVED_AT)
