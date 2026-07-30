@@ -25,12 +25,13 @@ export interface StockSummaryDto {
   total_bale_count: number
   in_warehouse_bale_count: number
   delivered_bale_count: number
-  total_net_weight_kg: string
-  in_warehouse_net_weight_kg: string
-  delivered_net_weight_kg: string
+  net_weight_total_kg: string
+  net_weight_in_warehouse_kg: string
+  net_weight_delivered_kg: string
 }
 
 export interface BaleDetailDto {
+  id: string
   shipment_number: string
   bale_number: string
   received_at: string
@@ -41,7 +42,7 @@ export interface BaleDetailDto {
   container_weight_kg: string
   net_weight_kg: string
   status: 'in_warehouse' | 'delivered'
-  delivered_at?: string
+  delivery_date: string | null
 }
 
 export interface DeliverBalesDto {

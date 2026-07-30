@@ -20,6 +20,7 @@ export interface StockSummary {
 }
 
 export interface BaleDetail {
+  id: string
   shipmentNumber: string
   baleNumber: string
   receptionDate: string
