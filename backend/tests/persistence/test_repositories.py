@@ -12,7 +12,7 @@ from warehouse.bales.domain.dtex import Dtex
 from warehouse.bales.domain.material_type import MaterialType
 from warehouse.bales.domain.raw_material_batch import RawMaterialBatch
 from warehouse.bales.domain.raw_material_batch_id import RawMaterialBatchId
-from warehouse.bales.domain.reception_datetime import ReceptionDateTime
+from warehouse.bales.domain.reception_date import ReceptionDate
 from warehouse.bales.domain.shipment_number import ShipmentNumber
 
 from backend.tests.support.values import (
@@ -52,7 +52,7 @@ class PersistenceRepositoryTest(unittest.TestCase):
         session = RecordingSession()
         batch = RawMaterialBatch(
             id=RawMaterialBatchId(BATCH_ID),
-            received_at=ReceptionDateTime(RECEIVED_AT),
+            received_at=ReceptionDate(RECEIVED_AT),
             shipment_number=ShipmentNumber("ship-01"),
             provider_name="Fiber Supplier",
             bale_ids=(BaleId(BALE_ID_1),),

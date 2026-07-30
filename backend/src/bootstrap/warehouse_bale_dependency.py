@@ -1,62 +1,77 @@
-from typing import Annotated, Protocol
+from typing import Annotated
 
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from bootstrap.database_session_dependency import SessionProvider
+from warehouse.bales.adapters.http.router import BaleUseCases, UseCaseProvider
 from warehouse.bales.adapters.identity.identity_generator import Uuid4IdentityGenerator
+from warehouse.bales.adapters.persistence.bale_detail_query_adapter import (
+    BaleDetailQueryAdapter,
+)
 from warehouse.bales.adapters.persistence.bale_repository import BaleRepositoryAdapter
 from warehouse.bales.adapters.persistence.raw_material_batch_repository import (
     RawMaterialBatchRepositoryAdapter,
 )
+from warehouse.bales.adapters.persistence.stock_summary_query_adapter import (
+    StockSummaryQueryAdapter,
+)
 from warehouse.bales.adapters.persistence.transaction import TransactionAdapter
+from warehouse.bales.application.deliver_bales import DeliverBales
+from warehouse.bales.application.get_bale_detail import GetBaleDetail
+from warehouse.bales.application.get_stock_summary import GetStockSummary
 from warehouse.bales.application.register_raw_material_batch import (
     RegisterRawMaterialBatch,
 )
 
 
-class UseCaseProvider(Protocol):
-    """FastAPI-compatible protocol for resolving the bale use case."""
-    
-    def __call__(self, session: Session) -> RegisterRawMaterialBatch: ...
+def build_use_cases(session: Session) -> BaleUseCases:
+    """Build all bale use cases with their adapter dependencies.
 
+    Wires the session into repository, transaction, identity, and query adapters
+    and returns the typed container.
 
-def build_use_case(session: Session) -> RegisterRawMaterialBatch:
-    """Build the register-raw-material-batch use case with all adapters.
-    
-    Wires the session into repository, transaction, and identity adapters.
-    
     Args:
         session: A SQLAlchemy session.
-    
+
     Returns:
-        A configured RegisterRawMaterialBatch use case.
+        A configured BaleUseCases container with all four use cases.
     """
-    return RegisterRawMaterialBatch(
-        reception_repository=RawMaterialBatchRepositoryAdapter(session),
-        bale_repository=BaleRepositoryAdapter(session),
-        warehouse_transaction=TransactionAdapter(session),
-        identity_generator=Uuid4IdentityGenerator(),
+    bale_repo = BaleRepositoryAdapter(session)
+    batch_repo = RawMaterialBatchRepositoryAdapter(session)
+    transaction = TransactionAdapter(session)
+    identity = Uuid4IdentityGenerator()
+
+    return BaleUseCases(
+        register=RegisterRawMaterialBatch(
+            reception_repository=batch_repo,
+            bale_repository=bale_repo,
+            warehouse_transaction=transaction,
+            identity_generator=identity,
+        ),
+        stock_summary=GetStockSummary(StockSummaryQueryAdapter(session)),
+        bale_detail=GetBaleDetail(BaleDetailQueryAdapter(session)),
+        deliver=DeliverBales(bale_repo, transaction),
     )
 
 
 def use_case_dependency(
     session_provider: SessionProvider,
 ) -> UseCaseProvider:
-    """Build a FastAPI dependency that resolves the bale use case.
-    
+    """Build a FastAPI dependency that resolves the bale use cases container.
+
     Wraps the session factory into a FastAPI-compatible dependency
-    chain: session → use case.
-    
+    chain: session → BaleUseCases.
+
     Args:
         session_provider: A FastAPI session dependency.
-    
+
     Returns:
         A callable that FastAPI can use as a Depends target.
     """
-    def provide_use_case(
+    def provide_use_cases(
         session: Annotated[Session, Depends(session_provider)],
-    ) -> RegisterRawMaterialBatch:
-        return build_use_case(session)
+    ) -> BaleUseCases:
+        return build_use_cases(session)
 
-    return provide_use_case
+    return provide_use_cases

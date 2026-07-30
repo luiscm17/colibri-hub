@@ -1,8 +1,10 @@
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import (
     CheckConstraint,
+    Date,
     ForeignKeyConstraint,
     Index,
     Numeric,
@@ -42,6 +44,11 @@ class BaleRecord(RecordRegistry):
             "status IN ('in_warehouse', 'delivered')",
             name="ck_raw_material_bales_status",
         ),
+        CheckConstraint(
+            "(status = 'in_warehouse' AND delivery_date IS NULL) "
+            "OR (status = 'delivered' AND delivery_date IS NOT NULL)",
+            name="ck_raw_material_bales_status_delivery_date",
+        ),
         Index(
             "ix_raw_material_bales_raw_material_batch_id",
             "raw_material_batch_id",
@@ -55,3 +62,4 @@ class BaleRecord(RecordRegistry):
     gross_weight_kg: Mapped[Decimal] = mapped_column(Numeric(), nullable=False)
     container_weight_kg: Mapped[Decimal] = mapped_column(Numeric(), nullable=False)
     status: Mapped[str] = mapped_column(String(40), nullable=False)
+    delivery_date: Mapped[date | None] = mapped_column(Date, nullable=True)

@@ -1,5 +1,5 @@
 import unittest
-from datetime import UTC, datetime
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
@@ -61,7 +61,6 @@ class PostgreSQLRegistrationTests(unittest.TestCase):
             rows = connection.execute(text("SELECT shipment_number, bale_number FROM raw_material_batches JOIN raw_material_bales ON raw_material_bales.raw_material_batch_id = raw_material_batches.id WHERE raw_material_batches.id = :id ORDER BY bale_number"), {"id": batch_id}).all()
         self.assertEqual(result.raw_material_batch_id, batch_id)
         self.assertEqual(result.bale_count, 2)
-        self.assertEqual([bale.status for bale in result.bales], ["in_warehouse", "in_warehouse"])
         self.assertEqual(rows, [("S6SUCCESS", "S6BALE01"), ("S6SUCCESS", "S6BALE02")])
 
     def test_duplicate_shipment_rolls_back_and_maps_the_database_diagnostic(self) -> None:
@@ -102,7 +101,7 @@ class PostgreSQLRegistrationTests(unittest.TestCase):
     @staticmethod
     def _command(shipment_number: str, *bale_numbers: str) -> RegisterRawMaterialBatchCommand:
         return RegisterRawMaterialBatchCommand(
-            received_at=datetime(2026, 7, 26, tzinfo=UTC), shipment_number=shipment_number,
+            received_at=date(2026, 7, 26), shipment_number=shipment_number,
             provider_name="slice6-test", bales=tuple(
                 ReceivedBaleCommand(number, "cotton", Decimal("200"), Decimal("25"), Decimal("1"))
                 for number in bale_numbers

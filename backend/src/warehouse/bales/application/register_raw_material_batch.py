@@ -8,7 +8,6 @@ from warehouse.bales.application.register_raw_material_batch_command import (
 )
 from warehouse.bales.application.register_raw_material_batch_result import (
     RegisterRawMaterialBatchResult,
-    RegisteredBaleResult,
 )
 from warehouse.bales.domain.bale import Bale
 from warehouse.bales.domain.bale_id import BaleId
@@ -18,7 +17,7 @@ from warehouse.bales.domain.dtex import Dtex
 from warehouse.bales.domain.material_type import MaterialType
 from warehouse.bales.domain.raw_material_batch import RawMaterialBatch
 from warehouse.bales.domain.raw_material_batch_id import RawMaterialBatchId
-from warehouse.bales.domain.reception_datetime import ReceptionDateTime
+from warehouse.bales.domain.reception_date import ReceptionDate
 from warehouse.bales.domain.shipment_number import ShipmentNumber
 from warehouse.bales.ports import (
     BaleRepository,
@@ -77,7 +76,7 @@ class RegisterRawMaterialBatch:
         bales = self._create_bales(batch_id, command.bales, bale_numbers)
         batch = RawMaterialBatch(
             id=batch_id,
-            received_at=ReceptionDateTime(command.received_at),
+            received_at=ReceptionDate(command.received_at),
             shipment_number=ShipmentNumber(command.shipment_number),
             provider_name=command.provider_name,
             bale_ids=tuple(bale.id for bale in bales),
@@ -101,18 +100,6 @@ class RegisterRawMaterialBatch:
             received_at=batch.received_at.value,
             provider_name=batch.provider_name,
             bale_count=batch.bale_count,
-            bales=tuple(
-                RegisteredBaleResult(
-                    id=bale.id.value,
-                    bale_number=bale.bale_number.value,
-                    material_type=bale.material.value,
-                    dtex=bale.dtex.value,
-                    gross_weight_kg=bale.weight.gross_kg,
-                    container_weight_kg=bale.weight.container_kg,
-                    status=bale.status.value,
-                )
-                for bale in bales
-            ),
         )
 
     def _create_bales(

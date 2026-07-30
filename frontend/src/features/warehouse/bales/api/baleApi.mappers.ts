@@ -28,11 +28,11 @@ export function toStockQuery(filters: StockFilters): URLSearchParams {
 }
 
 export function toStockSummary(dto: StockSummaryDto): StockSummary {
-  return { totalBaleCount: dto.total_bale_count, inWarehouseBaleCount: dto.in_warehouse_bale_count, deliveredBaleCount: dto.delivered_bale_count, totalNetWeightKg: dto.total_net_weight_kg, inWarehouseNetWeightKg: dto.in_warehouse_net_weight_kg, deliveredNetWeightKg: dto.delivered_net_weight_kg }
+  return { totalBaleCount: dto.total_bale_count, inWarehouseBaleCount: dto.in_warehouse_bale_count, deliveredBaleCount: dto.delivered_bale_count, totalNetWeightKg: dto.net_weight_total_kg, inWarehouseNetWeightKg: dto.net_weight_in_warehouse_kg, deliveredNetWeightKg: dto.net_weight_delivered_kg }
 }
 
 export function toBaleDetail(dto: BaleDetailDto): BaleDetail {
-  return { shipmentNumber: dto.shipment_number, baleNumber: dto.bale_number, receptionDate: dto.received_at, providerName: dto.provider_name, materialType: dto.material_type, dtex: dto.dtex, grossWeightKg: dto.gross_weight_kg, containerWeightKg: dto.container_weight_kg, netWeightKg: dto.net_weight_kg, status: dto.status, deliveryDate: dto.delivered_at }
+  return { id: dto.id, shipmentNumber: dto.shipment_number, baleNumber: dto.bale_number, receptionDate: dto.received_at, providerName: dto.provider_name, materialType: dto.material_type, dtex: dto.dtex, grossWeightKg: dto.gross_weight_kg, containerWeightKg: dto.container_weight_kg, netWeightKg: dto.net_weight_kg, status: dto.status, deliveryDate: dto.delivery_date ?? undefined }
 }
 
 export function toDeliverBalesDto(input: DeliveryInput): DeliverBalesDto {

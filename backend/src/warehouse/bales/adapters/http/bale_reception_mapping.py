@@ -1,9 +1,8 @@
-from typing import Literal
+from datetime import date
 
 from warehouse.bales.adapters.http.bale_reception_request import BaleReceptionRequest
 from warehouse.bales.adapters.http.bale_reception_response import (
     BaleReceptionResponse,
-    RegisteredBaleResponse,
 )
 from warehouse.bales.application.register_raw_material_batch_command import (
     ReceivedBaleCommand,
@@ -14,26 +13,19 @@ from warehouse.bales.application.register_raw_material_batch_result import (
 )
 
 
-def _bale_status(status: str) -> Literal["in_warehouse"]:
-    """Validate and cast bale status to the expected response literal."""
-    if status != "in_warehouse":
-        raise ValueError(f"Unexpected registered bale status: {status!r}.")
-    return status
-
-
 def bale_reception_to_input(
     request: BaleReceptionRequest,
 ) -> RegisterRawMaterialBatchCommand:
     """Map an HTTP request to the application command.
-    
+
     Args:
         request: The validated HTTP request model.
-    
+
     Returns:
         Application command ready for use case execution.
     """
     return RegisterRawMaterialBatchCommand(
-        received_at=request.received_at,
+        received_at=date.fromisoformat(request.received_at),
         shipment_number=request.shipment_number,
         provider_name=request.provider_name,
         bales=tuple(
@@ -53,10 +45,10 @@ def bale_reception_to_response(
     result: RegisterRawMaterialBatchResult,
 ) -> BaleReceptionResponse:
     """Map an application result to the HTTP response model.
-    
+
     Args:
         result: The use case execution result.
-    
+
     Returns:
         HTTP response model for the API client.
     """
@@ -66,16 +58,4 @@ def bale_reception_to_response(
         received_at=result.received_at,
         provider_name=result.provider_name,
         bale_count=result.bale_count,
-        bales=tuple(
-            RegisteredBaleResponse(
-                id=bale.id,
-                bale_number=bale.bale_number,
-                material_type=bale.material_type,
-                dtex=bale.dtex,
-                gross_weight_kg=bale.gross_weight_kg,
-                container_weight_kg=bale.container_weight_kg,
-                status=_bale_status(bale.status),
-            )
-            for bale in result.bales
-        ),
     )

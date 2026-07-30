@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 import unittest
 
@@ -7,11 +7,12 @@ from warehouse.bales.domain.bale_id import BaleId
 from warehouse.bales.domain.bale_number import BaleNumber
 from warehouse.bales.domain.bale_status import BaleStatus
 from warehouse.bales.domain.bale_weight import BaleWeight
+from warehouse.bales.domain.delivery_date import DeliveryDate
 from warehouse.bales.domain.dtex import Dtex
 from warehouse.bales.domain.material_type import MaterialType
 from warehouse.bales.domain.raw_material_batch import RawMaterialBatch
 from warehouse.bales.domain.raw_material_batch_id import RawMaterialBatchId
-from warehouse.bales.domain.reception_datetime import ReceptionDateTime
+from warehouse.bales.domain.reception_date import ReceptionDate
 from warehouse.bales.domain.shipment_number import ShipmentNumber
 from warehouse.bales.domain.domain_errors import (
     DuplicateBaleIdError,
@@ -20,7 +21,7 @@ from warehouse.bales.domain.domain_errors import (
     InvalidBaleStateTransitionError,
     InvalidBaleWeightError,
     InvalidDtexError,
-    InvalidReceptionDateTimeError,
+    InvalidReceptionDateError,
 )
 
 from backend.tests.support.values import (
@@ -52,24 +53,26 @@ class CoreDomainContractsTest(unittest.TestCase):
             Dtex(Decimal("0"))
 
     def test_weight_and_reception_boundaries(self) -> None:
-        """BaleWeight computes net weight and rejects equal gross/container; ReceptionDateTime validates timezone awareness."""
+        """BaleWeight computes net weight and rejects equal gross/container; ReceptionDate validates date-only input."""
         weight = BaleWeight(GROSS_WEIGHT_KG, CONTAINER_WEIGHT_KG)
         self.assertEqual(weight.net_kg, Decimal("25.0"))
         with self.assertRaises(InvalidBaleWeightError):
             BaleWeight(Decimal("1"), Decimal("1"))
-        self.assertEqual(ReceptionDateTime(RECEIVED_AT).value, RECEIVED_AT)
-        with self.assertRaises(InvalidReceptionDateTimeError):
-            ReceptionDateTime(datetime(2026, 7, 25, 10, 30))
+        self.assertEqual(ReceptionDate(RECEIVED_AT).value, RECEIVED_AT)
+        with self.assertRaises(InvalidReceptionDateError):
+            ReceptionDate(datetime(2026, 7, 25, 10, 30))
 
     def test_bale_delivery_changes_availability_once(self) -> None:
         """Delivering a bale transitions its status and marks it unavailable; a second delivery is rejected."""
         bale = self._bale()
+        delivery_date = DeliveryDate(date(2026, 8, 1))
         self.assertTrue(bale.is_available)
-        bale.deliver()
+        bale.deliver(delivery_date)
         self.assertEqual(bale.status, BaleStatus.DELIVERED)
+        self.assertEqual(bale.delivery_date, delivery_date)
         self.assertFalse(bale.is_available)
         with self.assertRaises(InvalidBaleStateTransitionError):
-            bale.deliver()
+            bale.deliver(delivery_date)
 
     def test_batch_identity_and_bale_id_invariants(self) -> None:
         """RawMaterialBatch enforces identity via provider/data equality, rejects empty or duplicate bale IDs."""
@@ -95,7 +98,7 @@ class CoreDomainContractsTest(unittest.TestCase):
     def _batch(bale_ids: tuple[BaleId, ...], identifier=BATCH_ID) -> RawMaterialBatch:
         """Build a RawMaterialBatch with the given bale IDs and optional custom identifier."""
         return RawMaterialBatch(
-            id=RawMaterialBatchId(identifier), received_at=ReceptionDateTime(RECEIVED_AT),
+            id=RawMaterialBatchId(identifier), received_at=ReceptionDate(RECEIVED_AT),
             shipment_number=ShipmentNumber("ship-01"), provider_name=" Fiber Supplier ",
             bale_ids=bale_ids,
         )

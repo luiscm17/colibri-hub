@@ -4,6 +4,7 @@ from warehouse.bales.domain.bale_id import BaleId
 from warehouse.bales.domain.bale_number import BaleNumber
 from warehouse.bales.domain.bale_status import BaleStatus
 from warehouse.bales.domain.bale_weight import BaleWeight
+from warehouse.bales.domain.delivery_date import DeliveryDate
 from warehouse.bales.domain.dtex import Dtex
 from warehouse.bales.domain.material_type import MaterialType
 from warehouse.bales.domain.raw_material_batch_id import RawMaterialBatchId
@@ -17,9 +18,27 @@ class BaleMapper:
         """Map a domain bale to a persistence record."""
         return BaleRecord(
             id=bale.id.value,
-            raw_material_batch_id=bale.raw_material_batch_id.value, bale_number=bale.bale_number.value, material_type=bale.material.value, dtex=bale.dtex.value, gross_weight_kg=bale.weight.gross_kg, container_weight_kg=bale.weight.container_kg, status=bale.status.value)
+            raw_material_batch_id=bale.raw_material_batch_id.value,
+            bale_number=bale.bale_number.value,
+            material_type=bale.material.value,
+            dtex=bale.dtex.value,
+            gross_weight_kg=bale.weight.gross_kg,
+            container_weight_kg=bale.weight.container_kg,
+            status=bale.status.value,
+            delivery_date=bale.delivery_date.value if bale.delivery_date else None,
+        )
 
     @staticmethod
     def to_domain(record: BaleRecord) -> Bale:
         """Map a persistence record back to a domain bale."""
-        return Bale(id=BaleId(record.id), raw_material_batch_id=RawMaterialBatchId(record.raw_material_batch_id), bale_number=BaleNumber(record.bale_number), material=MaterialType(record.material_type), dtex=Dtex(record.dtex), weight=BaleWeight(record.gross_weight_kg, record.container_weight_kg), status=BaleStatus(record.status))
+        delivery_date = DeliveryDate(record.delivery_date) if record.delivery_date else None
+        return Bale(
+            id=BaleId(record.id),
+            raw_material_batch_id=RawMaterialBatchId(record.raw_material_batch_id),
+            bale_number=BaleNumber(record.bale_number),
+            material=MaterialType(record.material_type),
+            dtex=Dtex(record.dtex),
+            weight=BaleWeight(record.gross_weight_kg, record.container_weight_kg),
+            status=BaleStatus(record.status),
+            delivery_date=delivery_date,
+        )

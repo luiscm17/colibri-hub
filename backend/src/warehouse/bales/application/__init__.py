@@ -10,7 +10,6 @@ from warehouse.bales.application.register_raw_material_batch_command import (
 )
 from warehouse.bales.application.register_raw_material_batch_result import (
     RegisterRawMaterialBatchResult,
-    RegisteredBaleResult,
 )
 
 __all__ = [
@@ -21,5 +20,4 @@ __all__ = [
     "RegisterRawMaterialBatch",
     "RegisterRawMaterialBatchCommand",
     "RegisterRawMaterialBatchResult",
-    "RegisteredBaleResult",
 ]
