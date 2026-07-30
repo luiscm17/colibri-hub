@@ -5,8 +5,10 @@ implementation: partial
 scope: warehouse/bales
 authority: explanatory
 owner: frontend
-last_reviewed: 2026-07-27
+last_reviewed: 2026-07-28
 ---
+
+# Technical Specification — Frontend Bale Management
 
 > **Normative PRD:** [Bale Management](../../../docs/prd/warehouse/bale-management.md)
 >
@@ -14,993 +16,656 @@ last_reviewed: 2026-07-27
 > identity constraints, and acceptance criteria are defined in the normative PRD linked above.
 > Any business rule referenced here is explanatory context only — the PRD is authoritative.
 
-# Frontend Technical Spec — Gestión de fardos
-
-Frontend de recepción, inventario, consulta y entrega a Producción
-
-**Producto:** Colibri Hub · Contexto Warehouse
-
-**Tipo:** Frontend Technical Specification (formerly Product Requirements Document — Frontend)
-
-**Estado:** Propuesto para implementación
-
-**Base técnica:** Repositorio luiscm17/colibri-hub · rama main · commit
-447ee79
-
-**Fecha:** 26 de julio de 2026
-
-  -----------------------------------------------------------------------
-  **Decisión de producto:** El módulo se organizará en dos páginas:
-  Recepción de fardos para la carga masiva de una partida y Inventario de
-  fardos para métricas agregadas, consulta individual y cambio
-  irreversible a delivered. No se mostrará un listado exhaustivo de
-  fardos.
-  -----------------------------------------------------------------------
-
-> ⚠️ **Business rule sourced from PRD.** The two-page structure, irreversibility of delivery,
-> and prohibition of exhaustive bale listing are business decisions defined in
-> [bale-management.md](../../../docs/prd/warehouse/bale-management.md). This spec
-> implements those decisions in the frontend — it does not redefine them.
-
-  -----------------------------------------------------------------------
-
-# 1. Resumen ejecutivo
-
-El frontend existente contiene una primera pantalla funcional de
-recepción con Mantine y react-data-grid, pero su modelo aún corresponde
-a un contrato anterior: registra patente, transportista, material y
-lote; envía pesos como números; usa una ruta API provisional; y no
-implementa confirmaciones, validación por celda ni consultas. El
-objetivo de este PRD es transformar esa base en una experiencia
-operativa coherente con el modelo de RawMaterialBatch y Bale.
-
-La solución objetivo permitirá registrar de forma atómica una partida de
-hasta aproximadamente 100 fardos, consultar indicadores agregados con
-filtros, localizar un fardo mediante shipment_number y bale_number, y
-actualizar su estado de in_warehouse a delivered. La carga masiva
-conservará la interacción tipo Excel; las consultas históricas serán
-resueltas por el backend y presentadas como resúmenes, no mediante la
-descarga de todas las entidades.
-
-# 2. Estado actual del frontend
-
-## 2.1 Base tecnológica confirmada
-
-  -------------------------------------------------------------------------
-  **Área**        **Tecnología          **Implicación para este PRD**
-                  existente**           
-  --------------- --------------------- -----------------------------------
-  Aplicación      React 19, TypeScript  Mantener el feature modular y el
-                  6 y Vite 8            alias @/; no introducir otro
-                                        framework.
-
-  UI              Mantine 9: Core,      Usar formularios, modales, estados,
-                  Form, Hooks y         badges y notificaciones existentes.
-                  Notifications         
-
-  Grilla          react-data-grid       Conservarla como superficie de
-                  7.0.0-beta.61         captura masiva; no reemplazarla.
-
-  Navegación      React Router 7 con    Agregar rutas lazy y navegación
-                  carga diferida        bajo Almacén.
-
-  Iconografía     Tabler Icons React    Reutilizar el sistema de iconos
-                                        vigente.
-
-  Autenticación   ProtectedRoute,       Integrar páginas y acciones sin
-                  AuthProvider y filtro codificar roles fijos.
-                  por resourceType      
-
-  Calidad         TypeScript build y    Son puertas obligatorias; hoy no
-                  ESLint                existe un framework de pruebas
-                                        frontend.
-
-  Diseño          Tema Mantine, modo    Aplicar la identidad visual
-                  claro/oscuro y paleta existente también a la grilla y
-                  cian                  estados.
-  -------------------------------------------------------------------------
-
-## 2.2 Hallazgos funcionales
-
-- ReceptionPage ya separa formulario y grilla, pero usa un modelo de
-  camión y lote incompatible con la partida de materia prima actual.
-
-- BaleDataGrid es reutilizable como contenedor, aunque sus columnas,
-  tipos, cálculos y tratamiento de errores deben rediseñarse.
-
-- La grilla agrega filas vacías automáticamente, pero considera vacía
-  una fila con criterios incompletos y actualmente envía todas las
-  filas.
-
-- El cliente HTTP usa /api/warehouse/receptions, no normaliza el
-  contrato de errores y no existe configuración de proxy local.
-
-- La respuesta exitosa se descarta; no hay modal de confirmación ni
-  modal de resultado.
-
-- Las rutas placeholder de Almacén reutilizan WarehousePage y muestran
-  contenido de demostración que no representa funcionalidades reales.
-
-- No existen dashboard, filtros, consulta individual, detalle de fardo
-  ni actualización de estado.
-
-- La documentación frontend de recepción conserva campos y supuestos que
-  ya no corresponden al modelo aprobado.
-
-# 3. Objetivos y métricas de éxito
-
-## 3.1 Objetivos
-
-- Reducir la recepción de una partida completa a una única operación
-  guiada y verificable.
-
-- Permitir la captura eficiente de hasta 100 fardos con teclado y pegado
-  desde una planilla.
-
-- Detectar errores de celda antes del envío y representar errores
-  globales mediante un único popup.
-
-- Ofrecer visibilidad de existencias mediante métricas agregadas
-  calculadas en backend.
-
-- Permitir una consulta inequívoca usando shipment_number y bale_number.
-
-- Ejecutar la única transición permitida, in_warehouse → delivered, con
-  confirmación explícita.
-
-## 3.2 Indicadores de aceptación del producto
-
-  -----------------------------------------------------------------------
-  **Indicador**         **Meta de aceptación**
-  --------------------- -------------------------------------------------
-  Capacidad de captura  Una partida de 100 fardos puede editarse,
-                        validarse y enviarse como una sola operación.
-
-  Precisión             Dtex y pesos conservan la representación decimal
-                        acordada; el payload los envía como strings.
-
-  Prevención de errores No se envían filas vacías; las filas parciales y
-                        duplicadas se identifican por celda.
-
-  Recuperación          Ningún error de red, 409, 422 o 500 elimina la
-                        información ingresada.
-
-  Consulta              Los filtros actualizan métricas agregadas sin
-                        descargar una colección completa de fardos.
-
-  Estado                La entrega exitosa actualiza detalle y resumen;
-                        no se ofrece reversión ni edición libre.
-
-  Calidad técnica       Build, lint, pruebas acordadas y validación
-                        manual de integración aprobados.
-  -----------------------------------------------------------------------
-
-# 4. Alcance
-
-> ⚠️ **Business scope derived from PRD.** The capability boundaries below reflect decisions
-> in the [normative PRD](../../../docs/prd/warehouse/bale-management.md). Additions or
-> removals to scope must be resolved there first.
-
-  -----------------------------------------------------------------------
-  **Incluido**                        **Fuera de alcance**
-  ----------------------------------- -----------------------------------
-  Rediseño de la pantalla de          Implementación o rediseño interno
-  recepción y su contrato de datos.   del backend.
-
-  Grilla tipo Excel, fórmulas         Agregar fardos a una partida ya
-  visuales, resumen y validación por  registrada.
-  celda.                              
-
-  Dashboard agregado con filtros.     Listado exhaustivo o paginado de
-                                      todos los fardos.
-
-  Consulta individual por partida +   Historial de movimientos o
-  número de fardo.                    auditoría de correcciones.
-
-  Actualización de estado a           Devoluciones, entrega parcial o
-  delivered.                          tercer estado.
-
-  Popups de confirmación, éxito y     Catálogos de proveedor o material
-  fallo global.                       no expuestos por contrato.
-
-  Normalización del cliente HTTP y de RBAC backend, login real o
-  errores.                            administración de permisos.
-
-  Rutas, navegación, estados          Cambios a Producto Terminado,
-  responsive y pruebas frontend.      Hilatura o Proceso por Lotes.
-  -----------------------------------------------------------------------
-
-# 5. Arquitectura de información y navegación
-
-El módulo de fardos se presentará bajo Almacén con dos entradas
-funcionales. Las rutas placeholder no deben seguir apuntando a una
-página genérica que muestra el título «Recepción de fardos».
-
-  ---------------------------------------------------------------------------
-  **Página**         **Ruta objetivo**      **Responsabilidad**
-  ------------------ ---------------------- ---------------------------------
-  Recepción de       /warehouse/reception   Registrar una partida completa
-  fardos                                    con su cabecera y grilla de
-                                            fardos.
-
-  Inventario de      /warehouse/bales       Mostrar resumen agregado, buscar
-  fardos                                    un fardo y entregarlo a
-                                            Producción.
-  ---------------------------------------------------------------------------
-
-La entrada «Inventario de fardos» deberá ser nueva y específica. No se
-recomienda reutilizar «Stock e historial» porque esa denominación puede
-abarcar en el futuro Producto Terminado e Insumos. Tampoco se recomienda
-mantener una página separada de «Emisión a Operación» para una única
-acción sobre el detalle; la entrega se realizará desde el fardo
-consultado.
-
-# 6. Experiencia de recepción
-
-## 6.1 Cabecera de partida
-
-La cabecera contendrá únicamente datos compartidos por todos los fardos.
-Deben eliminarse patente, transportista, código de material global,
-lot_code, factura y observaciones mientras no exista un contrato
-aprobado que los soporte.
-
-  -----------------------------------------------------------------------
-  **Campo**        **Control y comportamiento**      **Validación**
-  ---------------- --------------------------------- --------------------
-  Número de        Entrada de texto; normalización   Obligatorio; el
-  partida          visual consistente.               backend garantiza
-                                                     unicidad global.
-
-  Fecha de         Selector de fecha sin hora; fecha Obligatoria; formato
-  recepción        actual por defecto y modificable. de fecha ISO al
-                                                     enviar.
-
-  Proveedor        Entrada de texto en el alcance    Obligatorio; no
-                   actual.                           anticipar catálogo
-                                                     inexistente.
-  -----------------------------------------------------------------------
-
-## 6.2 Grilla de fardos
-
-react-data-grid seguirá siendo la superficie principal. La interacción
-debe sentirse como una planilla: navegación por teclado, pegado de
-múltiples celdas, encabezado fijo, filas consecutivas y feedback
-inmediato sin abrir un formulario por fardo.
-
-  -----------------------------------------------------------------------
-  **Columna**     **Edición**      **Regla principal**
-  --------------- ---------------- --------------------------------------
-  \#              Solo visual      Número de fila; no se envía.
-
-  Número de fardo Texto            Obligatorio y único dentro de la
-                                   partida.
-
-  Tipo de         Texto            Obligatorio; no introducir catálogo
-  material                         todavía.
-
-  Dtex            Decimal como     Obligatorio, finito y mayor que cero.
-                  texto            
-
-  Peso bruto (kg) Decimal como     Obligatorio y mayor que cero.
-                  texto            
-
-  Tara (kg)       Decimal como     Obligatoria, no negativa y menor al
-                  texto            peso bruto.
-
-  Peso neto (kg)  Calculado, solo  Peso bruto menos tara; no se envía.
-                  lectura          
-
-  Estado de fila  Indicador visual Resume errores sin convertirse en dato
-                                   del payload.
-  -----------------------------------------------------------------------
-
-- Cada fila mantendrá un identificador temporal estable para relacionar
-  errores del backend con la celda original.
-
-- Los valores decimales permanecerán como texto durante la edición; no
-  deben convertirse prematuramente a number.
-
-- La grilla iniciará con un conjunto pequeño de filas y conservará filas
-  vacías de continuación sin imponer 100 filas visibles desde el inicio.
-
-- Una fila totalmente vacía se ignorará. Una fila parcialmente
-  completada se considerará inválida y permanecerá visible.
-
-- La selección, eliminación y pegado no deben alterar el orden relativo
-  de las filas válidas.
-
-- Durante el envío se bloqueará la edición para impedir que la vista
-  diverja del snapshot enviado.
-
-- La columna de número de fardo y, cuando sea viable, la numeración de
-  fila permanecerán visibles durante el desplazamiento horizontal.
-
-## 6.3 Fórmulas y resumen visual
-
-Los cálculos de esta pantalla son ayudas previas al registro. Se
-recalcularán al editar, pegar, agregar o eliminar filas; no reemplazan
-la validación ni las reglas del backend.
-
-  ------------------------------------------------------------------------
-  **Indicador**      **Fuente**               **Tratamiento**
-  ------------------ ------------------------ ----------------------------
-  Fardos válidos     Filas completas sin      Conteo local.
-                     errores locales          
-
-  Peso bruto total   Pesos brutos válidos     Suma decimal local.
-
-  Tara total         Taras válidas            Suma decimal local.
-
-  Peso neto total    Peso bruto menos tara    Suma decimal local; no se
-                     por fila                 envía.
-
-  Filas con error    Estado de validación de  Conteo y acceso a la primera
-                     la grilla                celda inválida.
-  ------------------------------------------------------------------------
-
-El resumen debe permanecer visible al trabajar con muchas filas,
-preferentemente mediante una summary row de react-data-grid o un footer
-inmediatamente asociado a la grilla.
-
-## 6.4 Guardado y popups
-
-1.  El usuario solicita guardar. La página valida cabecera y grilla, y
-    enfoca la primera celda inválida si corresponde.
-
-2.  Si todo es válido, un popup de confirmación resume partida, fecha,
-    proveedor, cantidad de fardos y peso neto total.
-
-3.  Al confirmar, se crea un snapshot, se bloquean cambios y se muestra
-    «Registrando N fardos...».
-
-4.  Ante 201, un popup de resultado muestra partida, fecha, proveedor y
-    bale_count. El UUID técnico no se presenta.
-
-5.  La cabecera y la grilla se limpian únicamente cuando el usuario
-    cierra o confirma el popup de éxito.
-
-6.  Ante error, la operación termina sin limpiar datos y la interfaz
-    habilita el reintento.
-
-# 7. Experiencia de inventario y consulta
-
-## 7.1 Dashboard agregado
-
-La página Inventario de fardos abrirá con un panel de filtros y tarjetas
-de resumen. No cargará ni renderizará todos los fardos. Cada cambio
-confirmado de filtros solicitará un nuevo agregado al backend.
-
-  -----------------------------------------------------------------------
-  **Filtros iniciales**               **Métricas**
-  ----------------------------------- -----------------------------------
-  Fecha de recepción desde / hasta    Total de fardos recibidos
-
-  Número de partida                   Fardos en almacén
-
-  Estado                              Fardos entregados
-
-  Proveedor                           Peso neto recibido
-
-  Tipo de material                    Peso neto disponible
-
-  Dtex                                Peso neto entregado
-  -----------------------------------------------------------------------
-
-- Los filtros se aplicarán mediante acción explícita o con una
-  estrategia de actualización controlada que evite solicitudes por cada
-  pulsación.
-
-- La página ofrecerá «Limpiar filtros» y mostrará los criterios activos.
-
-- Los pesos se formatearán de manera consistente en kilogramos y los
-  conteos como enteros.
-
-- Carga, error y ausencia de resultados reutilizarán los patrones
-  PageSkeleton, ErrorState y EmptyState.
-
-- Un filtro sin coincidencias mostrará métricas en cero y un estado
-  informativo, no se tratará como error.
-
-## 7.2 Consulta individual
-
-> ⚠️ **Identity rule sourced from PRD.** The compound lookup requirement
-> (shipment_number + bale_number) derives from the identity constraint that bale numbers
-> are unique only within a batch — defined in the
-> [normative PRD](../../../docs/prd/warehouse/bale-management.md).
-
-La misma página contendrá una sección de búsqueda específica. El usuario
-deberá ingresar shipment_number y bale_number; ambos son necesarios
-porque el número de fardo solo es único dentro de la partida.
-
-  -----------------------------------------------------------------------
-  **Bloque de         **Contenido**
-  detalle**           
-  ------------------- ---------------------------------------------------
-  Identidad           Número de partida y número de fardo.
-
-  Recepción           Proveedor y fecha de recepción.
-
-  Características     Tipo de material y dtex.
-
-  Pesos               Peso bruto, tara y peso neto.
-
-  Estado              Badge «En almacén» o «Entregado».
-
-  Acción              «Entregar a Producción» únicamente cuando el estado
-                      sea in_warehouse.
-  -----------------------------------------------------------------------
-
-El detalle permanecerá vacío hasta una búsqueda válida. Un 404 deberá
-producir un estado «Fardo no encontrado» en la sección de consulta, sin
-afectar el dashboard.
-
-## 7.3 Entrega a Producción
-
-> ⚠️ **Business rule sourced from PRD.** The irreversibility of delivery, the single
-> permitted transition (in_warehouse → delivered), and the absence of partial delivery
-> or third states are business rules defined in the
-> [normative PRD](../../../docs/prd/warehouse/bale-management.md). This section
-> describes only the frontend UX implementation of those rules.
-
-- La interfaz no ofrecerá un dropdown ni un editor genérico de estado.
-
-- El botón abrirá un popup que confirma partida, número de fardo y el
-  carácter irreversible de la acción.
-
-- Al confirmar se enviará exclusivamente el cambio a delivered usando el
-  id técnico obtenido en el detalle.
-
-- Durante la solicitud, la acción quedará bloqueada para evitar dobles
-  envíos.
-
-- Ante éxito se mostrará un popup y se actualizarán el badge, la
-  disponibilidad de la acción y las métricas del dashboard.
-
-- Un conflicto por fardo ya entregado refrescará el detalle y mostrará
-  un único popup informativo.
-
-# 8. Requerimientos funcionales
-
-  -----------------------------------------------------------------------
-  **ID**       **Requerimiento**
-  ------------ ----------------------------------------------------------
-  FE-RCP-01    Alinear la cabecera de recepción con shipment_number,
-               received_at como fecha y provider_name.
-
-  FE-RCP-02    Validar cabecera antes del envío y conservar sus valores
-               ante cualquier fallo.
-
-  FE-GRD-01    Permitir captura masiva con teclado, pegado, selección y
-               edición de hasta 100 fardos.
-
-  FE-GRD-02    Distinguir filas vacías, parciales y válidas sin descartar
-               información parcialmente ingresada.
-
-  FE-GRD-03    Mostrar errores por celda y detectar duplicados de
-               bale_number dentro de la partida.
-
-  FE-GRD-04    Calcular peso neto y totales únicamente para presentación;
-               excluirlos del request.
-
-  FE-RCP-03    Confirmar la operación antes del POST y mostrar un popup
-               de resultado después de la respuesta.
-
-  FE-RCP-04    Enviar una única operación atómica y prevenir envíos
-               duplicados.
-
-  FE-INV-01    Mostrar métricas agregadas según filtros sin solicitar la
-               colección completa de fardos.
-
-  FE-INV-02    Permitir limpiar filtros y representar carga, cero
-               resultados y errores de forma diferenciada.
-
-  FE-DTL-01    Consultar un fardo exclusivamente con shipment_number +
-               bale_number.
-
-  FE-DTL-02    Mostrar detalle completo y estado con etiquetas traducidas
-               para el usuario.
-
-  FE-STS-01    Permitir la transición in_warehouse → delivered mediante
-               PATCH y confirmación.
-
-  FE-STS-02    Ocultar o deshabilitar la acción cuando el fardo ya está
-               delivered.
-
-  FE-INT-01    Centralizar base URL, serialización, lectura segura de
-               respuestas y normalización de errores.
-
-  FE-INT-02    Mapear rutas bales.n.campo del backend a rowId y celda
-               usando el snapshot enviado.
-
-  FE-NAV-01    Añadir la ruta lazy y navegación «Inventario de fardos»
-               bajo Almacén.
-
-  FE-A11Y-01   Mantener navegación por teclado, foco visible, etiquetas
-               accesibles y comunicación no dependiente del color.
-  -----------------------------------------------------------------------
-
-# 9. Validación y tratamiento de errores
-
-La representación del error se decide por su alcance. Las celdas
-explican qué dato debe corregirse; el popup comunica si la operación
-completa tuvo éxito o no.
-
-  -------------------------------------------------------------------------------
-  **Situación**               **Representación requerida**    **Persistencia de
-                                                              datos**
-  --------------------------- ------------------------------- -------------------
-  Campo de cabecera inválido  Mensaje junto al campo; foco al Conservar.
-                              primer error.                   
-
-  Celda o fila inválida       Celda resaltada, mensaje breve  Conservar.
-                              e indicador de fila.            
-
-  Duplicado local de fardo    Marcar todas las celdas         Conservar.
-                              bale_number involucradas.       
-
-  409                         Popup global y shipment_number  Conservar.
-  duplicate_shipment_number   marcado.                        
-
-  422 con bales.n.campo       Mapear al rowId del snapshot y  Conservar.
-                              marcar la celda.                
-
-  422 duplicate_bale_number   Popup global y columna/números  Conservar.
-  con ruta genérica           duplicados resaltados.          
-
-  422 domain_validation_error Popup con mensaje de negocio y  Conservar.
-  sin fields                  formulario intacto.             
-
-  404 en consulta individual  Estado «Fardo no encontrado»    Conservar filtros.
-                              dentro de la sección.           
-
-  409 al entregar             Popup informativo y refresco    Conservar contexto.
-                              del detalle.                    
-
-  500 o fallo de red          Popup genérico, opción de       Conservar.
-                              reintentar y sin detalle        
-                              técnico.                        
-
-  201 o PATCH exitoso         Popup de confirmación basado en Limpiar solo
-                              el response.                    recepción exitosa.
-  -------------------------------------------------------------------------------
-
-  -----------------------------------------------------------------------
-  **Regla de seguridad UX:** La aplicación no mostrará mensajes de
-  excepción, trazas, cuerpos no estructurados ni identificadores técnicos
-  como explicación principal al usuario.
-  -----------------------------------------------------------------------
-
-  -----------------------------------------------------------------------
-
-# 10. Contratos consumidos y dependencias de backend
-
-Este PRD no diseña la implementación backend. Define únicamente las
-interfaces que el frontend necesita consumir. La integración final queda
-bloqueada hasta que el backend publique los contratos objetivo.
-
-  -------------------------------------------------------------------------------------------
-  **Operación**   **Endpoint objetivo**                      **Estado al        **Uso
-                                                             revisar el repo**  frontend**
-  --------------- ------------------------------------------ ------------------ -------------
-  Registrar       POST /api/v1/warehouse/bales               Existe, con        Recepción
-  partida                                                    diferencias de     masiva.
-                                                             fecha y response.  
-
-  Resumen         GET /api/v1/warehouse/bales/summary        No implementado.   Dashboard y
-                                                                                filtros.
-
-  Detalle         GET /api/v1/warehouse/bales/detail         No implementado.   Búsqueda por
-                                                                                dos query
-                                                                                parameters.
-
-  Cambiar estado  PATCH                                      No implementado.   Transición a
-                  /api/v1/warehouse/bales/{bale_id}/status                      delivered.
-  -------------------------------------------------------------------------------------------
-
-## 10.1 Contrato objetivo de registro
-
-> ⚠️ **Business contract sourced from PRD.** The required fields, decimal-as-string format,
-> and exclusion of net_weight from the payload are business decisions documented in the
-> [normative PRD](../../../docs/prd/warehouse/bale-management.md). This section describes
-> the frontend's consumption of that contract.
-
-  -----------------------------------------------------------------------
-  **Parte**          **Campos requeridos**
-  ------------------ ----------------------------------------------------
-  Request de partida shipment_number, received_at como fecha,
-                     provider_name y bales.
-
-  Request por fardo  bale_number, material_type, dtex, gross_weight_kg y
-                     container_weight_kg.
-
-  Formato decimal    dtex y pesos como strings JSON.
-
-  Response 201       raw_material_batch_id, shipment_number, received_at,
-                     provider_name y bale_count.
-
-  Exclusiones        Sin net_weight, sin ids temporales y sin arreglo
-                     bales en la respuesta objetivo.
-  -----------------------------------------------------------------------
-
-## 10.2 Diferencias que bloquean la integración
-
-- El backend actual tipa received_at como fecha-hora con zona; el
-  contrato aprobado para el frontend es fecha simple.
-
-- El backend actual devuelve el arreglo bales; el contrato aprobado
-  devuelve únicamente bale_count y el resumen de la partida.
-
-- El frontend actual usa /api/warehouse/receptions y debe migrar a
-  /api/v1/warehouse/bales.
-
-- Los endpoints de summary, detail y PATCH aún no existen.
-
-- Vite no tiene proxy local configurado y el backend no expone una
-  política CORS en la composición revisada.
-
-# 11. Diseño técnico frontend
-
-La implementación seguirá la organización feature-oriented existente. La
-página orquestará; componentes, hooks, mappers y clientes HTTP tendrán
-responsabilidades separadas. No se incorporará una librería de server
-state en esta fase: el volumen de cuatro operaciones puede administrarse
-con hooks y fetch, siempre que la normalización de estados y errores sea
-centralizada.
-
-  -----------------------------------------------------------------------
-  **Responsabilidad**   **Decisión**
-  --------------------- -------------------------------------------------
-  Modelo de edición     Tipos específicos de UI separados de los DTO de
-                        API.
-
-  Mapeo                 Transformación explícita camelCase ↔ snake_case y
-                        exclusión de campos visuales.
-
-  HTTP                  Cliente común por feature con base URL
-                        configurable, error tipado y control de aborto.
-
-  Estado de recepción   Cabecera, filas, errores, snapshot y resultado
-                        separados.
-
-  Estado de inventario  Filtros aplicados, resumen, consulta individual y
-                        mutación separados.
-
-  Concurrencia          Ignorar respuestas obsoletas de filtros y evitar
-                        doble submit/PATCH.
-
-  Fechas                Fecha de negocio sin conversiones UTC ni
-                        invención de hora.
-
-  Decimales             Edición como strings y operaciones decimales
-                        deterministas.
-
-  Tema de grilla        Wrapper o estilos que traduzcan tokens Mantine a
-                        react-data-grid en claro y oscuro.
-  -----------------------------------------------------------------------
-
-## 11.1 Dependencias frontend
-
-Se reutilizarán React, Mantine, react-data-grid, React Router y Tabler
-Icons. No se requiere \@mantine/dates: el selector puede resolverse con
-un control de fecha nativo presentado mediante Mantine. Para precisión
-decimal, se deberá adoptar una utilidad decimal determinista; se
-recomienda decimal.js si la política de dependencias lo aprueba. Para
-pruebas automatizadas, el proyecto deberá incorporar Vitest, React
-Testing Library y user-event, ya que actualmente no existe un runner
-frontend.
-
-Toda incorporación debe respetar pnpm-workspace.yaml: minimumReleaseAge
-de 24 horas y política trustPolicy no-downgrade. No deben introducirse
-secretos en variables VITE\_\*.
-
-# 12. Requerimientos no funcionales
-
-  ------------------------------------------------------------------------
-  **Atributo**     **Requisito**
-  ---------------- -------------------------------------------------------
-  Rendimiento      Edición fluida con 100 filas; cálculos lineales;
-                   filtros sin ráfagas de requests; sin descargar
-                   entidades para sumar.
-
-  Accesibilidad    Foco visible, navegación completa por teclado, labels,
-                   mensajes asociados y estados no dependientes solo del
-                   color.
-
-  Responsive       Dashboard y detalle adaptables a móvil; recepción
-                   priorizada para escritorio/tablet con scroll horizontal
-                   controlado.
-
-  Fiabilidad       Snapshot por envío, idempotencia visual, prevención de
-                   doble acción y datos conservados ante fallo.
-
-  Seguridad        No exponer secretos, trazas ni mensajes internos;
-                   respetar ProtectedRoute y capacidades existentes.
-
-  Compatibilidad   Modo claro y oscuro; navegadores modernos soportados
-                   por Vite/React; formato de fecha estable.
-
-  Observabilidad   Mensajes accionables y códigos de error normalizados;
-  UX               sin registrar payloads sensibles en consola.
-
-  Mantenibilidad   Tipos de UI y API separados, nombres de dominio
-                   explícitos y componentes pequeños dentro del feature.
-  ------------------------------------------------------------------------
-
-# 13. Estrategia de pruebas y calidad
-
-## 13.1 Pruebas automatizadas mínimas
-
-- Mapper de recepción: exclusión de filas vacías, preservación de
-  strings decimales y ausencia de campos visuales.
-
-- Validador de grilla: fila parcial, duplicados, dtex, pesos y relación
-  peso bruto/tara.
-
-- Cálculos: neto por fila y totales con precisión decimal.
-
-- Normalizador de errores: cabecera, bales.n.campo, ruta genérica y
-  error sin cuerpo JSON.
-
-- Flujo de recepción: confirmación, bloqueo, éxito, fallo y conservación
-  de datos.
-
-- Dashboard: filtros, carga, cero resultados, error y descarte de
-  respuestas obsoletas.
-
-- Consulta y PATCH: búsqueda compuesta, 404, confirmación, éxito y
-  conflicto por delivered.
-
-- Navegación: nueva ruta lazy, breadcrumb y visibilidad según
-  resourceType.
-
-## 13.2 Puertas de calidad
-
-- pnpm build aprobado.
-
-- pnpm lint aprobado.
-
-- Suite frontend aprobada una vez incorporado el runner.
-
-- Prueba manual con 100 filas, pegado desde Excel y navegación por
-  teclado.
-
-- Prueba manual en modos claro y oscuro.
-
-- Prueba responsive de dashboard y detalle; verificación del scroll de
-  la grilla.
-
-- Integración real contra PostgreSQL local para POST, GET summary, GET
-  detail y PATCH.
-
-- Verificación de conservación de datos ante 409, 422, 500 y fallo de
-  red.
-
-# 14. Criterios de aceptación
-
-  -----------------------------------------------------------------------
-  **ID**      **Criterio**
-  ----------- -----------------------------------------------------------
-  AC-01       La cabecera solo contiene partida, fecha y proveedor.
-
-  AC-02       La grilla acepta hasta 100 fardos y mantiene
-              navegación/pegado tipo planilla.
-
-  AC-03       Solo filas completas se serializan; las parciales se
-              señalan y las vacías se ignoran.
-
-  AC-04       Los decimales se envían como strings y net_weight no forma
-              parte del request.
-
-  AC-05       El usuario confirma antes de registrar y recibe un popup
-              resumido tras 201.
-
-  AC-06       Los errores por celda se muestran en la grilla; los
-              globales se muestran en un único popup.
-
-  AC-07       La información ingresada se conserva cuando la operación
-              falla.
-
-  AC-08       El dashboard muestra seis métricas agregadas y aplica los
-              filtros definidos.
-
-  AC-09       La consulta exige shipment_number y bale_number y presenta
-              un único detalle.
-
-  AC-10       Solo un fardo in_warehouse puede mostrar la acción Entregar
-              a Producción.
-
-  AC-11       PATCH exitoso actualiza detalle y dashboard; no existe
-              reversión desde la UI.
-
-  AC-12       La navegación no utiliza WarehousePage como placeholder
-              para las nuevas funcionalidades.
-
-  AC-13       Estados loading, empty, error y success son distinguibles y
-              accesibles.
-
-  AC-14       Build, lint, pruebas y validación manual contra backend
-              están aprobados.
-  -----------------------------------------------------------------------
-
-# 15. Secuencia de implementación recomendada
-
-  --------------------------------------------------------------------------
-  **Fase**   **Capacidad**       **Resultado esperado**
-  ---------- ------------------- -------------------------------------------
-  1          Fundación de        Modelos UI/API, cliente HTTP, normalización
-             integración         de errores, base URL/proxy y pruebas base.
-
-  2          Recepción masiva    Cabecera, columnas, validación, cálculos,
-                                 confirmación, POST y popup de resultado.
-
-  3          Inventario agregado Ruta, navegación, filtros, estados y
-                                 tarjetas de summary.
-
-  4          Consulta individual Formulario compuesto, detalle, 404 y
-                                 presentación de estado.
-
-  5          Entrega             Confirmación, PATCH, conflictos y
-                                 actualización de resumen/detalle.
-
-  6          Endurecimiento      Accesibilidad, responsive, tema de grilla,
-                                 pruebas con 100 filas e integración
-                                 completa.
-  --------------------------------------------------------------------------
-
-Las fases 3 a 5 pueden desarrollarse con dobles de API, pero no pueden
-considerarse terminadas hasta que los endpoints backend correspondientes
-estén disponibles y la integración real haya sido verificada.
-
-# 16. Riesgos y decisiones pendientes
-
-  -----------------------------------------------------------------------
-  **Riesgo o dependencia**      **Tratamiento requerido**
-  ----------------------------- -----------------------------------------
-  Contrato POST no alineado con Resolver en el PRD backend antes del
-  fecha simple y response       cierre de integración.
-  resumido                      
-
-  GET summary, GET detail y     Acordar OpenAPI y respuestas de error
-  PATCH ausentes                antes de congelar los tipos frontend.
-
-  Ruta genérica                 Mantener detección local de duplicados y
-  bales\[\].bale_number         fallback visual de columna.
-
-  react-data-grid en beta       Conservar versión fijada, cubrir
-                                pegado/edición con pruebas y no
-                                actualizar durante esta entrega.
-
-  Sin runner de pruebas         Agregar tooling de pruebas como
-                                habilitador del feature.
-
-  Sin proxy ni CORS             Definir proxy local /api y estrategia de
-                                despliegue same-origin o base URL
-                                pública.
-
-  Catálogos no disponibles      Usar texto en proveedor y material; no
-                                anticipar Select con datos ficticios.
-
-  Mobile limitado para          Garantizar acceso y scroll, pero declarar
-  planillas                     escritorio/tablet como superficie
-                                operativa principal.
-  -----------------------------------------------------------------------
-
-  -----------------------------------------------------------------------
-  **Cierre del alcance:** El frontend queda listo cuando recepción,
-  resumen, consulta y entrega funcionan contra contratos reales, con
-  errores representados según su alcance y sin depender de listados
-  completos de fardos.
-  -----------------------------------------------------------------------
-
-  -----------------------------------------------------------------------
-
+**Product:** Colibri Hub  
+**Context:** Warehouse  
+**Type:** Technical Specification — Frontend  
+**Status:** Partially implemented  
+**Technical baseline:** Repository `luiscm17/colibri-hub`, branch `main`  
+**Complementary spec:** [Backend bale management](../../../backend/docs/features/bale-management.md)  
+**Date:** 2026-07-28
 
 ---
 
-# Appendix A — Bale Reception Grid Specifics
+## 1. Executive summary
 
-> Bale-specific grid behavior extracted from the original `bale-reception-grid.md`.
-> For reusable data-grid patterns, see `../patterns/data-grid.md`.
+The frontend implements the bale management capability through three dedicated pages:
 
-## A.1 Screen Layout
+1. **Bale Reception** — Spreadsheet-style grid for registering a complete raw-material batch (1–100 bales) in a single atomic operation.
+2. **Bale Stock** — Aggregated metrics with filters and individual bale lookup by business identity.
+3. **Delivery to Production** — Spreadsheet-style grid for recording which bales were delivered, submitted as a single batch request.
 
-The bale reception screen is divided into two vertical sections:
+All three pages use `react-data-grid` for data entry (Reception and Delivery) and Mantine for layout, forms, feedback, and metrics (Stock). The backend is authoritative for all business decisions; the frontend validates format and completeness only.
 
-1. **Header form** — Shared data for all bales in this reception (shipment number, date, provider).
-2. **Editable grid** — Per-bale data entry using react-data-grid.
+---
 
-The form and grid are submitted together as a single atomic payload. The form is never submitted independently.
+## 2. Technology stack
 
-## A.2 Bale Grid Columns
+| Area | Technology |
+| --- | --- |
+| Framework | React 19 |
+| Language | TypeScript 6 |
+| Build | Vite 8 |
+| UI | Mantine 9 (Core, Form, Hooks, Notifications) |
+| Grid | `react-data-grid` 7.0.0-beta.61 |
+| Navigation | React Router 7 |
+| Icons | Tabler Icons React |
+| Styles | CSS Modules + Mantine tokens |
+| Quality | TypeScript build + ESLint |
 
-| Column | Edit Type | Required | Validation |
-| --- | --- | --- | --- |
-| # (row number) | Read-only | — | Visual only; not sent to backend |
-| Bale number | Text | Yes | Non-empty, unique within the reception |
-| Material type | Text | Yes | Required; no catalog enforcement yet |
-| Dtex | Decimal as text | Yes | Finite, greater than zero |
-| Gross weight (kg) | Decimal as text | Yes | Greater than zero |
-| Tare (kg) | Decimal as text | Yes | Non-negative, less than gross weight |
-| Net weight (kg) | Computed (read-only) | — | Gross weight minus tare; not sent |
-| Row status | Visual indicator | — | Summarizes row errors; not part of payload |
+### 2.1 Constraints
 
-## A.3 Bale-Specific Validation Rules
+No additional libraries for: UI, grids, global state, server state, dates, decimals, forms, or modals. The implementation exploits React, Mantine, React Router, and `react-data-grid` exclusively.
 
-- Each row must have bale number + material type + dtex + gross weight + tare.
-- Bale numbers must be unique within the current reception (local duplicate detection).
-- Tare must be greater than zero and strictly less than gross weight.
-- Net weight is a visual calculation only — excluded from the request payload.
-- Dtex and weights are edited and transmitted as strings to preserve decimal precision.
+---
 
-## A.4 Bale Grid Formulas and Summary
+## 3. Pages and routes
 
-Calculations are local display aids recalculated on every edit, paste, add, or remove:
-
-| Indicator | Source | Treatment |
+| Page | Route | Responsibility |
 | --- | --- | --- |
-| Valid bales | Complete rows without local errors | Count |
-| Total gross weight | Valid gross weight values | Decimal sum |
-| Total tare | Valid tare values | Decimal sum |
-| Total net weight | Gross minus tare per row | Decimal sum; not sent |
-| Rows with errors | Grid validation state | Count + navigation to first error |
+| Bale Reception | `/warehouse/bales/reception` | Register a complete raw-material batch |
+| Bale Stock | `/warehouse/bales` | Show aggregated metrics and lookup individual bales |
+| Delivery to Production | `/warehouse/bales/delivery` | Record batch delivery of bales to Production |
 
-The summary must remain visible when working with many rows (via react-data-grid summary row or an associated grid footer).
-
-## A.5 Bale Reception Feature Architecture
+Navigation under Warehouse sidebar:
 
 ```text
-features/warehouse/
-  pages/
-    ReceptionPage.tsx             ← Full page (form + grid + toolbar)
-  components/
-    BatchReceptionForm.tsx        ← Header form (Mantine)
-    BaleReceptionGrid.tsx         ← react-data-grid wrapper with bale columns and summary
-    editors/
-      TextCellEditor.tsx          ← Text editor (reusable)
-      NumberCellEditor.tsx        ← Numeric editor, string-based (reusable)
-  hooks/
-    useBaleReceptionGrid.ts       ← Grid state (rows, local CRUD)
-    useReceptionSubmit.ts         ← Validation + batch POST submission
-  types/
-    reception-types.ts            ← BaleRow, BatchHeaderFormData, ReceptionPayload
-  api/
-    receptionApi.ts               ← POST /api/v1/warehouse/bales
+Warehouse
+├── Bale Reception
+├── Bale Stock
+└── Delivery to Production
 ```
 
-## A.6 Bale Reception Payload Contract
+All routes use `React.lazy`. No placeholder pages.
+
+---
+
+## 4. API contract consumed
+
+| Operation | Method | Path | Frontend usage |
+| --- | --- | --- | --- |
+| Register batch | `POST` | `/api/v1/warehouse/bales` | Reception page |
+| Stock summary | `GET` | `/api/v1/warehouse/bales` | Stock page metrics |
+| Bale detail | `GET` | `/api/v1/warehouse/bales/{shipment_number}/{bale_number}` | Stock page lookup |
+| Batch delivery | `POST` | `/api/v1/warehouse/bales/deliver` | Delivery page |
+
+Full contract details are defined in the [backend technical specification](../../../backend/docs/features/bale-management.md).
+
+---
+
+## 5. UX principles
+
+### 5.1 One surface per task
+
+Reception, stock visibility, and delivery are separate pages. They are not combined into a single screen.
+
+### 5.2 The grid is an operational tool
+
+`react-data-grid` is used in Reception and Delivery for spreadsheet-like interaction: keyboard navigation, paste from Excel, inline editing, frozen columns, virtualization, and summary rows.
+
+### 5.3 Backend is authoritative
+
+The frontend validates format and completeness (required fields, decimal format, duplicates within the current grid). It does NOT decide: global uniqueness, bale availability, state transitions, concurrency, or persistence rules.
+
+### 5.4 Work preservation
+
+No user-entered data is cleared by: remote validation errors, conflicts, network failures, or 500 responses. Data is cleared only by explicit user action or after a successful operation is acknowledged.
+
+---
+
+## 6. Bale Reception
+
+### 6.1 Objective
+
+Register a complete raw-material batch and all its bales through a single atomic operation, using a spreadsheet-style editable grid.
+
+### 6.2 Layout
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ Bale Reception                             [Clear draft]     │
+├─────────────────────────────────────────────────────────────┤
+│ [Shipment number] [Reception date] [Provider]                │
+├─────────────────────────────────────────────────────────────┤
+│ [Add] [Remove] [Clear]        12 valid · 2 with errors       │
+├─────────────────────────────────────────────────────────────┤
+│ # | Bale | Material | Dtex | Gross | Tare | Net | Status     │
+├─────────────────────────────────────────────────────────────┤
+│ Summary row: count · gross · tare · net · errors             │
+├─────────────────────────────────────────────────────────────┤
+│                                    [Register batch]          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 6.3 Header
+
+| Field | Control | Rule |
+| --- | --- | --- |
+| Shipment number | Mantine `TextInput` | Required, max 10, uppercase |
+| Reception date | `TextInput type="date"` | Required, no time component |
+| Provider | Mantine `TextInput` | Required, trimmed on submit |
+
+No other fields (invoice, truck, driver, lot code, global material).
+
+### 6.4 Grid row model
 
 ```typescript
-interface ReceptionPayload {
-  shipment_number: string
-  received_at: string           // ISO date (no time component)
-  provider_name: string
-  bales: {
-    bale_number: string
-    material_type: string
-    dtex: string                // String for decimal precision
-    gross_weight_kg: string     // String for decimal precision
-    container_weight_kg: string // Tare, string for decimal precision
-  }[]
+interface ReceptionGridRow {
+  rowId: string
+  baleNumber: string
+  materialType: string
+  dtex: string
+  grossWeightKg: string
+  containerWeightKg: string
+  netWeightKg: string          // computed: gross - tare
+  validationStatus: 'empty' | 'partial' | 'valid' | 'invalid'
 }
 ```
 
-Net weight is excluded from the payload — the backend computes it from gross weight and tare.
+### 6.5 Grid columns
 
-## A.7 Bale Reception Data Flow
+| Column | Editable | Rule |
+| --- | ---: | --- |
+| Selection | No | Multi-row deletion |
+| # | No | Visual order |
+| Bale number | Yes | Frozen, required, unique within batch |
+| Material type | Yes | Required, uppercase |
+| Dtex | Yes | Decimal string > 0 |
+| Gross weight | Yes | Decimal string > 0 |
+| Container weight | Yes | Decimal string > 0 and < gross |
+| Net weight | No | Gross minus tare (computed) |
+| Status | No | Row validation indicator |
 
-1. User completes the header form (shipment number, date, provider).
-2. User fills the grid row by row (spreadsheet-like interaction).
-3. User can add rows, navigate with keyboard, paste from Excel, or remove selected rows.
-4. All state lives in the frontend until "Save" is pressed.
-5. On save: validate header + grid → confirmation popup → single POST → result popup.
-6. Backend response: 201 (success), 422 (validation error), 409 (duplicate conflict).
-7. On success: show result and clear form. On error: preserve data, show error, allow retry.
+### 6.6 Paste from Excel
 
-## A.8 Backend Dependencies for Bale Reception
+Expected column order: `Bale number | Material type | Dtex | Gross weight | Tare`
 
-| Endpoint | Purpose | Status |
-| --- | --- | --- |
-| `POST /api/v1/warehouse/bales` | Register complete reception (header + bales) | Exists (with differences) |
-| `GET /api/v1/warehouse/bales/summary` | Aggregated dashboard metrics | Not implemented |
-| `GET /api/v1/warehouse/bales/detail` | Individual bale lookup | Not implemented |
-| `PATCH /api/v1/warehouse/bales/{bale_id}/status` | Transition to delivered | Not implemented |
+- Paste starts at the selected cell.
+- Rows are added as needed (max 100 non-empty).
+- Computed cells do not accept paste.
+- Values are preserved as strings.
+- Paste triggers validation and recalculation.
+- A range exceeding the limit is rejected entirely.
+
+### 6.7 Row management
+
+- Start with 5 empty rows.
+- Maintain a continuation row.
+- Empty rows do not count toward the 100-bale limit.
+- Partial rows are preserved (not discarded).
+- Bulk delete and full clear require confirmation.
+- Row order does not change after deletion.
+- `rowId` is never reused.
+
+### 6.8 Validation
+
+| Status | Meaning |
+| --- | --- |
+| `empty` | All fields blank |
+| `partial` | Some fields filled, some missing |
+| `valid` | All fields pass rules |
+| `invalid` | Format or relationship error |
+
+All duplicate bale numbers (after normalization) are marked — not just the second occurrence.
+
+### 6.9 Summary row
+
+Visible at all times (via `summaryRows`):
+
+- Rows with content / valid / with errors
+- Total gross weight (valid rows only)
+- Total tare (valid rows only)
+- Total net weight (valid rows only)
+
+### 6.10 Submission flow
+
+1. Validate header.
+2. Validate grid (reject partial/invalid rows).
+3. Require at least one valid bale.
+4. Focus first invalid cell if errors exist.
+5. Create immutable snapshot.
+6. Open confirmation modal (shipment, date, provider, count, weights).
+7. On confirm: block editing, show "Registering N bales...", POST.
+8. On 201: show result modal (shipment, date, provider, bale_count). Clear only on explicit action.
+9. On error: preserve everything, map errors to header or cells, allow retry.
+
+### 6.11 Error mapping
+
+| Backend error | Frontend representation |
+| --- | --- |
+| `duplicate_shipment_number` | Mark header field + modal |
+| `bales.N.field` | Map via snapshot to `rowId` → mark cell |
+| `duplicate_bale_number` | Mark all involved cells |
+| `domain_validation_error` | Global modal, data intact |
+| Network/timeout/500 | Generic modal, allow retry |
+
+---
+
+## 7. Bale Stock
+
+### 7.1 Objective
+
+Provide aggregated visibility into bale stock and allow locating a specific bale by its business identity — without loading an exhaustive list.
+
+### 7.2 Filters
+
+| Filter | Control |
+| --- | --- |
+| Received from | `TextInput type="date"` |
+| Received to | `TextInput type="date"` |
+| Shipment number | `TextInput` |
+| Status | Mantine `Select` |
+| Provider | `TextInput` |
+| Material type | `TextInput` |
+| Dtex | `TextInput` (decimal) |
+
+Behavior:
+
+- Filters applied via explicit button (not on keystroke).
+- Separate draft filters from applied filters.
+- Show active filters as `Pill` or `Badge`.
+- "Clear" resets to unfiltered summary.
+- Validate `received_from <= received_to`.
+
+### 7.3 HTTP control
+
+- `AbortController` per query.
+- Cancel previous request on new filter application.
+- Ignore stale responses.
+- Maintain previous data during refresh.
+- Allow retry on failure.
+
+### 7.4 Metrics
+
+Six cards via Mantine `SimpleGrid`:
+
+- Total bales
+- In warehouse
+- Delivered
+- Total net weight
+- In-warehouse net weight
+- Delivered net weight
+
+Responsive: 3 columns desktop, 2 tablet, 1 mobile. Zero is a valid result (not treated as error).
+
+### 7.5 Individual bale lookup
+
+Two required fields: shipment number + bale number. Search triggered by button.
+
+States: initial → loading → found → not found → network error.
+
+Detail shows: shipment, bale number, reception date, provider, material, dtex, gross weight, tare, net weight, status, delivery date (if delivered).
+
+Labels:
+
+| Backend | UI |
+| --- | --- |
+| `in_warehouse` | In Warehouse |
+| `delivered` | Delivered |
+
+---
+
+## 8. Delivery to Production
+
+### 8.1 Objective
+
+Record a batch delivery of bales to Production using a spreadsheet-style grid. The operator reads bale identities from physical labels and enters them into the grid. A single POST submits the entire delivery session.
+
+### 8.2 Layout
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ Delivery to Production                                       │
+├─────────────────────────────────────────────────────────────┤
+│ Delivery date: [2026-07-28]                                  │
+├─────────────────────────────────────────────────────────────┤
+│ [Add rows] [Remove selected] [Clear]       5 filled          │
+├─────────────────────────────────────────────────────────────┤
+│ # | Shipment | Bale   | Result                               │
+│ 1 | PART-001 | F-01   |                                      │
+│ 2 | PART-001 | F-02   |                                      │
+│ 3 | PART-002 | F-03   |                                      │
+│ 4 |          |        |                                      │
+│ 5 |          |        |                                      │
+├─────────────────────────────────────────────────────────────┤
+│ 3 bales to deliver                  [Deliver]                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 8.3 Grid row model
+
+```typescript
+interface DeliveryGridRow {
+  rowId: string
+  shipmentNumber: string
+  baleNumber: string
+  result: 'pending' | 'delivered' | 'already_delivered' | 'not_found' | 'error' | null
+  resultMessage: string | null
+}
+```
+
+### 8.4 Grid columns
+
+| Column | Editable | Rule |
+| --- | ---: | --- |
+| # | No | Visual order |
+| Shipment number | Yes | Frozen, required |
+| Bale number | Yes | Required |
+| Result | No | Filled after POST response |
+
+### 8.5 Interaction
+
+- Grid starts with 5 empty rows.
+- Operator fills shipment + bale per row (reads from physical label).
+- Paste from Excel supported: two columns (shipment | bale).
+- Empty rows are ignored on submit.
+- Local duplicate detection (same shipment+bale after normalization) marks both rows.
+- No pre-resolution against backend — the operator does not need to verify before submitting.
+
+### 8.6 Delivery date
+
+- Required field above the grid.
+- Business date (no time component, no UTC conversion).
+- Applied to all bales in the request.
+- Defaults to today's date.
+
+### 8.7 Submission flow
+
+1. Validate delivery date is present.
+2. Collect non-empty rows.
+3. Require at least one row.
+4. Reject local duplicates (mark both rows, block submit).
+5. Open confirmation modal: date, count, list of identities, irreversibility warning.
+6. On confirm: block editing, POST `/deliver`.
+7. On response: map per-bale results to the grid's Result column.
+
+### 8.8 Result display
+
+After the POST response, each row shows its per-bale result:
+
+| Backend status | Grid display |
+| --- | --- |
+| `delivered` | ✓ Delivered |
+| `already_delivered` | ✗ Already delivered |
+| `not_found` | ✗ Not found |
+
+Summary below the grid: "N delivered · M failed"
+
+### 8.9 Post-delivery actions
+
+- Rows with errors remain editable for correction and retry.
+- Successfully delivered rows become read-only (or removable).
+- "New delivery session" clears the grid.
+- "Go to stock" navigates to the stock page.
+
+### 8.10 Error handling
+
+| Error level | Behavior |
+| --- | --- |
+| Request-level 422 (invalid date, duplicates, empty) | Modal with message, data preserved |
+| Per-bale failures in 207 response | Mapped to Result column per row |
+| Network/timeout | Generic modal, allow retry, data preserved |
+| 500 | Generic modal, data preserved |
+
+---
+
+## 9. Decimal handling
+
+Fields `dtex`, `grossWeightKg`, and `containerWeightKg` are maintained as strings throughout.
+
+Rules:
+
+- No `input type="number"`.
+- No `parseFloat` for final calculations.
+- No storing weights as JavaScript `number`.
+- No automatic rounding or exponential notation.
+
+Local calculations (net weight, totals) use a BigInt-based scaled integer utility:
+
+1. Validate decimal format.
+2. Normalize scale.
+3. Operate with scaled integers via `BigInt`.
+4. Format result as string.
+
+Must support: addition, subtraction, comparison.
+
+---
+
+## 10. Shared grid components
+
+Location: `frontend/src/common/grid/`
+
+| Component | Responsibility |
+| --- | --- |
+| `DataGridThemeWrapper` | Apply Mantine tokens to react-data-grid |
+| `TextCellEditor` | Compact text editor |
+| `DecimalCellEditor` | String-based decimal editor |
+| `CellErrorIndicator` | Accessible per-cell error |
+| `RowStatusCell` | Validation or process status indicator |
+| `GridToolbar` | Row actions (add, remove, clear) |
+
+Shared components must not know Warehouse-specific concepts.
+
+---
+
+## 11. Feature architecture
+
+```text
+frontend/src/features/warehouse/bales/
+├── api/
+│   ├── baleApi.ts
+│   ├── baleApi.types.ts
+│   ├── baleApi.mappers.ts
+│   └── baleApi.errors.ts
+├── components/
+│   ├── reception/
+│   ├── stock/
+│   └── delivery/
+├── hooks/
+│   ├── useBaleReception.ts
+│   ├── useBaleStockSummary.ts
+│   ├── useBaleDetail.ts
+│   └── useBaleDelivery.ts
+├── model/
+│   ├── reception.types.ts
+│   ├── stock.types.ts
+│   ├── delivery.types.ts
+│   ├── validation.ts
+│   └── decimal.ts
+├── pages/
+│   ├── BaleReceptionPage.tsx
+│   ├── BaleStockPage.tsx
+│   └── BaleDeliveryPage.tsx
+├── styles/
+└── index.ts
+```
+
+Responsibilities:
+
+- `pages/` — composition and layout
+- `components/` — presentational
+- `hooks/` — state management and HTTP lifecycle
+- `api/` — transport, contracts, mappers
+- `model/` — types, validation, pure calculations
+- `styles/` — CSS Modules
+
+Components must not call `fetch` directly.
+
+---
+
+## 12. HTTP client
+
+Common HTTP utilities for the feature:
+
+- Configurable base URL.
+- JSON serialization/deserialization.
+- `AbortSignal` support.
+- Timeout via `AbortController`.
+- Error normalization to typed discriminated union.
+- No secrets in `VITE_*`.
+- No payload logging in production.
+
+Feature API:
+
+```typescript
+registerBatch(request, signal?)
+getStockSummary(filters, signal?)
+getBaleDetail(shipmentNumber, baleNumber, signal?)
+deliverBales(request, signal?)
+```
+
+Mapping: UI uses `camelCase`, API uses `snake_case`. Explicit mappers in both directions. UI types are never reused as API DTOs.
+
+---
+
+## 13. Local state design
+
+### 13.1 Reception
+
+Separate: header, rows, selection, local errors, remote errors, snapshot, submit state, result.
+
+### 13.2 Stock
+
+Separate: filter draft, applied filters, metrics, query state, detail criteria, detail result.
+
+### 13.3 Delivery
+
+Separate: delivery date, rows, local duplicate errors, submit state, per-row results.
+
+No global context for the feature. Each page manages its own state via hooks.
+
+---
+
+## 14. Accessibility
+
+Target: WCAG 2.1 AA for primary flows.
+
+- All actions keyboard-operable.
+- Visible focus indicators.
+- Modals with focus trap and return.
+- "Go to first error" focuses the cell.
+- Grids with `aria-label`.
+- Selected rows with `aria-selected`.
+- Editors with accessible labels.
+- Errors linked via `aria-describedby`.
+- Loading with `aria-busy`.
+- Results with `aria-live`.
+- Global errors with `role="alert"`.
+- Not color-dependent.
+- Minimum 4.5:1 text contrast, 3:1 for controls.
+
+---
+
+## 15. Responsive
+
+### 15.1 Reception and Delivery
+
+- Desktop/tablet priority.
+- Controlled horizontal scroll on mobile.
+- Do not convert rows to cards.
+- Maintain frozen columns.
+- Keep toolbar and primary action button accessible.
+
+### 15.2 Stock
+
+- Fully responsive.
+- Filters: 1, 2, or 4 columns.
+- Metrics: 1, 2, or 3 columns.
+- Detail stacked on mobile.
+
+---
+
+## 16. Performance
+
+Reception:
+
+- Fluid editing with 100 rows.
+- Memoized columns.
+- Stable `rowKeyGetter`.
+- Stable editors.
+- Pure validators.
+- Active virtualization.
+
+Stock:
+
+- No request per keystroke.
+- Cancel previous requests.
+- Maintain data during refresh.
+
+Delivery:
+
+- Fluid with up to 50 rows.
+- Single POST (no per-row requests).
+- Result mapping is synchronous after response.
+
+---
+
+## 17. Quality gates
+
+Mandatory:
+
+```bash
+pnpm build
+pnpm lint
+```
+
+Manual validation:
+
+- Reception: 1 and 100 bales, paste 100 rows, keyboard navigation, duplicates, partial rows, 409/422/500, network failure, retry, light/dark.
+- Stock: no filters, individual and combined filters, zero results, cancelled query, detail found and not found.
+- Delivery: fill 15 rows manually, paste identities, local duplicates, submit, partial results (delivered + not_found + already_delivered), retry failed, light/dark.
+
+---
+
+## 18. Acceptance criteria
+
+| ID | Criterion |
+| --- | --- |
+| AC-01 | Reception header contains only shipment number, date, and provider. |
+| AC-02 | Reception grid supports up to 100 bales with keyboard and paste. |
+| AC-03 | Only complete rows are serialized; partial rows block submission; empty rows are ignored. |
+| AC-04 | Decimals are sent as strings; net weight is not part of the request. |
+| AC-05 | Confirmation modal shown before registration; result modal shown after 201. |
+| AC-06 | Cell-level errors shown in grid; global errors shown in modal. |
+| AC-07 | User-entered data is preserved on failure. |
+| AC-08 | Stock page shows six aggregated metrics and applies filters conjunctively. |
+| AC-09 | Bale lookup requires shipment number and bale number; presents detail or 404. |
+| AC-10 | Delivery grid allows filling shipment + bale per row with paste support. |
+| AC-11 | Delivery requires a business date and at least one non-empty row. |
+| AC-12 | Delivery submits a single POST batch and shows per-bale results. |
+| AC-13 | Failed rows are correctable and retriable; successful rows become read-only. |
+| AC-14 | Navigation uses dedicated routes (no placeholder pages). |
+| AC-15 | Loading, empty, error, and success states are distinguishable and accessible. |
+| AC-16 | Build and lint pass without errors. |
+| AC-17 | Light and dark themes are consistent. |
+
+---
+
+## 19. Implementation sequence
+
+1. **Foundation** — Feature structure, HTTP client, API types, error normalization, grid wrapper, editors, decimal utility.
+2. **Reception** — Header, columns, paste, row management, validation, summary, confirmation, POST, error mapping.
+3. **Stock** — Route, filters, hook with abort, metric cards, states.
+4. **Bale detail** — Compound lookup form, detail presentation, 404 handling.
+5. **Delivery** — Grid, paste, duplicate detection, date field, confirmation, POST, per-bale result mapping.
+6. **Navigation and accessibility** — Lazy routes, sidebar, breadcrumbs, focus, ARIA, contrast.
+7. **Hardening** — 100-row paste, real errors, slow network, light/dark, responsive, build/lint, backend integration.
+
+---
+
+## 20. Definition of done
+
+The capability is considered done when:
+
+- All three pages exist and function against real backend endpoints.
+- Reception registers up to 100 bales with keyboard, paste, and validation.
+- Errors are identified per cell; calculations preserve decimal precision.
+- User data survives failures.
+- Stock shows aggregated metrics without exhaustive listing.
+- Bale detail uses business identity (shipment number + bale number).
+- Delivery uses a grid for identity entry and submits a single batch POST.
+- Per-bale delivery results are shown; failed rows are retriable.
+- Navigation and messages are accessible.
+- Light and dark modes are consistent.
+- No libraries outside the approved stack are introduced.
+- `pnpm build` and `pnpm lint` complete without errors.
+- All four backend endpoints work in real integration.

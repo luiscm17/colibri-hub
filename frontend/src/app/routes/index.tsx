@@ -3,11 +3,14 @@ import { AppLayout } from '@/app/layout/AppLayout'
 import { ProtectedRoute } from './ProtectedRoute'
 import {
   AdminPage,
+  BaleManagementPage,
   LoginPage,
   LotsPage,
   NotFoundPage,
   ProfilePage,
-  ReceptionPage,
+  BaleReceptionPage,
+  BaleStockPage,
+  BaleDeliveryPage,
   ReportsPage,
   SpinningPage,
   WarehousePage,
@@ -26,8 +29,11 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <Navigate to="/warehouse/reception" replace /> },
-      { path: 'warehouse/reception', element: <ReceptionPage /> },
+      { index: true, element: <Navigate to="/warehouse/bales" replace /> },
+      { path: 'warehouse/bales', element: <BaleManagementPage /> },
+      { path: 'warehouse/bales/reception', element: <BaleReceptionPage /> },
+      { path: 'warehouse/bales/stock', element: <BaleStockPage /> },
+      { path: 'warehouse/bales/delivery', element: <BaleDeliveryPage /> },
       { path: 'warehouse/identity', element: <WarehousePage /> },
       { path: 'warehouse/issue', element: <WarehousePage /> },
       { path: 'warehouse/finished-product', element: <WarehousePage /> },
