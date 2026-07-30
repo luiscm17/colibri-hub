@@ -4,11 +4,14 @@ from warehouse.bales.domain.bale_id import BaleId
 from warehouse.bales.domain.domain_errors import (
     DuplicateBaleIdError,
     EmptyRawMaterialBatchError,
+    ExcessiveBatchSizeError,
     InvalidProviderNameError,
 )
 from warehouse.bales.domain.raw_material_batch_id import RawMaterialBatchId
-from warehouse.bales.domain.reception_datetime import ReceptionDateTime
+from warehouse.bales.domain.reception_date import ReceptionDate
 from warehouse.bales.domain.shipment_number import ShipmentNumber
+
+MAX_BALES_PER_BATCH = 100
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -28,7 +31,7 @@ class RawMaterialBatch:
     """
     
     id: RawMaterialBatchId
-    received_at: ReceptionDateTime
+    received_at: ReceptionDate
     shipment_number: ShipmentNumber
     provider_name: str
     bale_ids: tuple[BaleId, ...]
@@ -40,6 +43,10 @@ class RawMaterialBatch:
             raise InvalidProviderNameError("Provider name cannot be empty.")
         if not bale_ids:
             raise EmptyRawMaterialBatchError("Raw material reception must contain at least one bale.")
+        if len(bale_ids) > MAX_BALES_PER_BATCH:
+            raise ExcessiveBatchSizeError(
+                f"A batch cannot contain more than {MAX_BALES_PER_BATCH} bales."
+            )
         if len(bale_ids) != len(set(bale_ids)):
             raise DuplicateBaleIdError("Raw material reception cannot contain duplicate bale IDs.")
         object.__setattr__(self, "provider_name", provider_name)

@@ -9,16 +9,19 @@ from warehouse.bales.domain.domain_errors import (
     InvalidDtexError,
     InvalidMaterialTypeError,
     InvalidProviderNameError,
-    InvalidReceptionDateTimeError,
+    InvalidReceptionDateError,
+    # InvalidReceptionDateTimeError,
     InvalidShipmentNumberError,
 )
 from warehouse.bales.domain.raw_material_batch import RawMaterialBatch
 from warehouse.bales.domain.raw_material_batch_id import RawMaterialBatchId
+from warehouse.bales.domain.reception_date import ReceptionDate
 
 __all__ = [
     "Bale", "DomainError", "DuplicateBaleIdError", "EmptyRawMaterialBatchError",
     "InvalidBaleNumberError", "InvalidBaleStateTransitionError", "InvalidBaleWeightError",
     "InvalidDtexError", "InvalidMaterialTypeError", "InvalidProviderNameError",
-    "InvalidReceptionDateTimeError", "InvalidShipmentNumberError", "RawMaterialBatch",
-    "RawMaterialBatchId",
+    "InvalidReceptionDateError", "InvalidReceptionDateTimeError",
+    "InvalidShipmentNumberError", "RawMaterialBatch", "RawMaterialBatchId",
+    "ReceptionDate",
 ]
