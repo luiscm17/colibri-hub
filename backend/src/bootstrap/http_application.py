@@ -2,6 +2,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
@@ -50,6 +51,8 @@ def create_app(
     Returns:
         Configured FastAPI application ready to serve requests.
     """
+    resolved_settings: ApplicationSettings | None = settings
+
     if session_factory is None:
         if engine is None:
             resolved_settings = settings or ApplicationSettings(
@@ -62,6 +65,14 @@ def create_app(
     use_case_provider = use_case_dependency(session_provider)
 
     app = FastAPI()
+
+    if resolved_settings is not None and resolved_settings.cors is not None:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=resolved_settings.cors.allowed_origins,
+            allow_methods=["GET", "POST"],
+            allow_headers=["Content-Type"],
+        )
 
     register_exception_handlers(app)
 

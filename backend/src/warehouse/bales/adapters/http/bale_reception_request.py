@@ -1,7 +1,11 @@
+import re
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Annotated, Any
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+_DATE_REGEX = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 class _HttpRequestModel(BaseModel):
@@ -46,12 +50,29 @@ class BaleReceptionRequest(_HttpRequestModel):
     
     Attributes:
         shipment_number: Globally unique shipment identifier.
-        received_at: Business timestamp of physical reception.
+        received_at: Business date of physical reception (ISO format YYYY-MM-DD).
         provider_name: Raw-material provider name.
-        bales: One or more bales in this batch (must not be empty).
+        bales: One or more bales in this batch (1–100).
     """
     
     shipment_number: str
-    received_at: AwareDatetime
+    received_at: str
     provider_name: str
-    bales: Annotated[tuple[ReceivedBaleRequest, ...], Field(min_length=1)]
+    bales: Annotated[
+        tuple[ReceivedBaleRequest, ...], Field(min_length=1, max_length=100)
+    ]
+
+    @field_validator("received_at")
+    @classmethod
+    def validate_received_at(cls, value: str) -> str:
+        if not _DATE_REGEX.match(value):
+            raise ValueError(
+                "received_at must be a valid ISO date in YYYY-MM-DD format."
+            )
+        try:
+            date.fromisoformat(value)
+        except ValueError as error:
+            raise ValueError(
+                "received_at must be a valid calendar date."
+            ) from error
+        return value

@@ -7,9 +7,13 @@ from fastapi.responses import JSONResponse
 from starlette.types import ExceptionHandler
 
 from warehouse.bales.adapters.http.error_handlers import (
+    bale_not_found_handler,
     domain_error_handler,
     duplicate_bale_number_handler,
+    duplicate_delivery_identity_handler,
     duplicate_shipment_number_handler,
+    invalid_date_range_handler,
+    invalid_status_filter_handler,
 )
 from warehouse.bales.adapters.http.error_mapping import (
     error_json_response,
@@ -18,8 +22,12 @@ from warehouse.bales.adapters.http.error_response import (
     FieldErrorResponse,
 )
 from warehouse.bales.application.errors import (
+    BaleNotFoundError,
     DuplicateBaleNumberError,
+    DuplicateDeliveryIdentityError,
     DuplicateShipmentNumberError,
+    InvalidDateRangeError,
+    InvalidStatusFilterError,
 )
 from warehouse.bales.domain.domain_errors import DomainError
 
@@ -33,9 +41,31 @@ def register_exception_handlers(app: FastAPI) -> None:
     Maps application-layer and domain errors to structured JSON responses
     with appropriate HTTP status codes.
     
+    Handlers are registered from most specific to least specific.
+    FastAPI/Starlette matches handlers in registration order, so specific
+    application errors must be registered before the generic DomainError
+    catch-all.
+    
     Args:
         app: The FastAPI application to register handlers on.
     """
+    # Application-level errors (most specific first)
+    app.add_exception_handler(
+        DuplicateDeliveryIdentityError,
+        cast(ExceptionHandler, duplicate_delivery_identity_handler),
+    )
+    app.add_exception_handler(
+        BaleNotFoundError,
+        cast(ExceptionHandler, bale_not_found_handler),
+    )
+    app.add_exception_handler(
+        InvalidDateRangeError,
+        cast(ExceptionHandler, invalid_date_range_handler),
+    )
+    app.add_exception_handler(
+        InvalidStatusFilterError,
+        cast(ExceptionHandler, invalid_status_filter_handler),
+    )
     app.add_exception_handler(
         DuplicateShipmentNumberError,
         cast(ExceptionHandler, duplicate_shipment_number_handler),
@@ -44,10 +74,13 @@ def register_exception_handlers(app: FastAPI) -> None:
         DuplicateBaleNumberError,
         cast(ExceptionHandler, duplicate_bale_number_handler),
     )
+    # Domain-level catch-all (less specific — catches InvalidReceptionDateError,
+    # InvalidDeliveryDateError, ExcessiveBatchSizeError, and all other DomainError subclasses)
     app.add_exception_handler(
         DomainError,
         cast(ExceptionHandler, domain_error_handler),
     )
+    # Framework and generic handlers (least specific)
     app.add_exception_handler(
         RequestValidationError,
         cast(ExceptionHandler, request_validation_error_handler),
