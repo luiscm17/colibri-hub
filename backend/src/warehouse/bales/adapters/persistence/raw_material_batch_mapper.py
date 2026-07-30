@@ -4,7 +4,7 @@ from warehouse.bales.adapters.persistence.raw_material_batch_record import RawMa
 from warehouse.bales.domain.bale_id import BaleId
 from warehouse.bales.domain.raw_material_batch import RawMaterialBatch
 from warehouse.bales.domain.raw_material_batch_id import RawMaterialBatchId
-from warehouse.bales.domain.reception_datetime import ReceptionDateTime
+from warehouse.bales.domain.reception_date import ReceptionDate
 from warehouse.bales.domain.shipment_number import ShipmentNumber
 
 
@@ -19,4 +19,4 @@ class RawMaterialBatchMapper:
     @staticmethod
     def to_domain(record: RawMaterialBatchRecord, bale_ids: Sequence[BaleId]) -> RawMaterialBatch:
         """Map a persistence record back to a domain batch."""
-        return RawMaterialBatch(id=RawMaterialBatchId(record.id), received_at=ReceptionDateTime(record.received_at), shipment_number=ShipmentNumber(record.shipment_number), provider_name=record.provider_name, bale_ids=tuple(bale_ids))
+        return RawMaterialBatch(id=RawMaterialBatchId(record.id), received_at=ReceptionDate(record.received_at), shipment_number=ShipmentNumber(record.shipment_number), provider_name=record.provider_name, bale_ids=tuple(bale_ids))

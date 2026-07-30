@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import date
 from uuid import UUID
 
-from sqlalchemy import DateTime, PrimaryKeyConstraint, String, Text, UniqueConstraint
+from sqlalchemy import Date, PrimaryKeyConstraint, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from infra.persistence.record_registry import RecordRegistry
@@ -20,6 +20,6 @@ class RawMaterialBatchRecord(RecordRegistry):
         UniqueConstraint("shipment_number", name="uq_raw_material_batches_shipment_number"),
     )
     id: Mapped[UUID] = mapped_column()
-    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    received_at: Mapped[date] = mapped_column(Date, nullable=False)
     shipment_number: Mapped[str] = mapped_column(String(10), nullable=False)
     provider_name: Mapped[str] = mapped_column(Text(), nullable=False)
