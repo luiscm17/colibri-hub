@@ -20,10 +20,6 @@ export function compareDecimals(left: string, right: string): number {
   return normalizedLeft.value === normalizedRight.value ? 0 : normalizedLeft.value > normalizedRight.value ? 1 : -1
 }
 
-export function normalizeDecimal(value: string): string {
-  return formatScaled(toScaled(value))
-}
-
 function toScaled(input: string): ScaledDecimal {
   if (!isDecimal(input)) throw new Error(`Invalid decimal: ${input}`)
 
