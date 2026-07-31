@@ -1,9 +1,9 @@
-import { Alert, Box, Paper, Text } from '@mantine/core'
+import { Alert, Text } from '@mantine/core'
 import { IconAlertCircle } from '@tabler/icons-react'
 import { useEffect, useMemo, useRef } from 'react'
-import { DataGrid, renderTextEditor, type Column, type DataGridHandle } from 'react-data-grid'
+import { renderTextEditor, type Column, type DataGridHandle } from 'react-data-grid'
 import 'react-data-grid/lib/styles.css'
-import { DataGridThemeWrapper } from '@/common/grid/DataGridThemeWrapper'
+import { DataGridShell } from '@/common/grid/DataGridShell'
 import type { ReceptionGridRow } from '../../model/reception'
 import {
   RECEPTION_EDITABLE_COLUMNS,
@@ -64,48 +64,47 @@ export function ReceptionGrid({ rows, feedback, onRowsChange, onPaste, errors = 
     gridRef.current?.element?.focus()
   }, [remoteErrorKey, rows])
 
+  const feedbackBar = (
+    <Alert
+      id="reception-grid-feedback"
+      mt="sm"
+      color={localErrorCount + remoteErrorCount > 0 ? 'red' : 'green'}
+      variant="light"
+      icon={<IconAlertCircle size={16} />}
+      role={remoteErrorCount > 0 ? 'alert' : 'status'}
+    >
+      {remoteErrorCount > 0
+        ? `${remoteErrorCount} campo${remoteErrorCount === 1 ? '' : 's'} del servidor requiere${remoteErrorCount === 1 ? '' : 'n'} corrección. ${firstRemoteMessage}`
+        : localErrorCount > 0
+        ? `${localErrorCount} fila${localErrorCount === 1 ? '' : 's'} requiere${localErrorCount === 1 ? '' : 'n'} corrección.`
+        : 'No hay filas con errores.'}
+    </Alert>
+  )
+
   return (
-    <Paper component="section" withBorder p="md" aria-label="Planilla de fardos">
-      <DataGridThemeWrapper>
-        <Box style={{ overflowX: 'auto' }}>
-          <DataGrid
-            ref={gridRef}
-            aria-label="Planilla de fardos"
-            aria-describedby="reception-grid-feedback"
-            columns={columns}
-            rows={rows}
-            rowKeyGetter={row => row.rowId}
-            onRowsChange={nextRows => {
-              if (!disabled) onRowsChange(nextRows)
-            }}
-            onCellPaste={(args, event) => {
-              event.preventDefault()
-              if (disabled) return args.row
-              const column = args.column.key
-              if (!isEditableColumn(column)) return args.row
-              onPaste(args.row.rowId, column, event.clipboardData.getData('text/plain'))
-              return args.row
-            }}
-            defaultColumnOptions={{ resizable: true }}
-            style={{ minWidth: 810 }}
-          />
-        </Box>
-      </DataGridThemeWrapper>
-      <Alert
-        id="reception-grid-feedback"
-        mt="sm"
-        color={localErrorCount + remoteErrorCount > 0 ? 'red' : 'green'}
-        variant="light"
-        icon={<IconAlertCircle size={16} />}
-        role={remoteErrorCount > 0 ? 'alert' : 'status'}
-      >
-        {remoteErrorCount > 0
-          ? `${remoteErrorCount} campo${remoteErrorCount === 1 ? '' : 's'} del servidor requiere${remoteErrorCount === 1 ? '' : 'n'} corrección. ${firstRemoteMessage}`
-          : localErrorCount > 0
-          ? `${localErrorCount} fila${localErrorCount === 1 ? '' : 's'} requiere${localErrorCount === 1 ? '' : 'n'} corrección.`
-          : 'No hay filas con errores.'}
-      </Alert>
-    </Paper>
+    <DataGridShell
+      ref={gridRef}
+      density="normal"
+      statusBar={feedbackBar}
+      aria-label="Planilla de fardos"
+      aria-describedby="reception-grid-feedback"
+      columns={columns}
+      rows={rows}
+      rowKeyGetter={row => row.rowId}
+      onRowsChange={nextRows => {
+        if (!disabled) onRowsChange(nextRows)
+      }}
+      onCellPaste={(args, event) => {
+        event.preventDefault()
+        if (disabled) return args.row
+        const column = args.column.key
+        if (!isEditableColumn(column)) return args.row
+        onPaste(args.row.rowId, column, event.clipboardData.getData('text/plain'))
+        return args.row
+      }}
+      defaultColumnOptions={{ resizable: true }}
+      style={{ minWidth: 810 }}
+    />
   )
 }
 
