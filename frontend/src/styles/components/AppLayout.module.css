@@ -1,10 +1,26 @@
-/* Layout — estilos que Mantine no expresa como props directas */
+/* Layout — shell structure with animated sidebar */
 
-.fill {
+.body {
   flex: 1;
+  overflow: hidden;
 }
 
-.scrollArea {
+.sidebar {
+  width: 250px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--mantine-color-default-border);
+  transition: width 250ms ease, opacity 200ms ease;
+  opacity: 1;
+}
+
+.sidebarCollapsed {
+  width: 0;
+  opacity: 0;
+}
+
+.main {
+  flex: 1;
   overflow: auto;
 }
 

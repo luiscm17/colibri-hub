@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState, Suspense } from "react";
+import { useState, Suspense } from "react";
 import {
     Box,
     Flex,
-    Splitter,
     Group,
     Text,
     ActionIcon,
@@ -14,7 +13,7 @@ import {
     Avatar,
     Menu,
 } from "@mantine/core";
-import { useDisclosure, useMediaQuery, type SplitterPaneSize, type UseSplitterReturnValue } from "@mantine/hooks";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { IconSun, IconMoon, IconChevronDown, IconMenu2 } from "@tabler/icons-react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { TopBar } from "./TopBar";
@@ -31,42 +30,16 @@ export function AppLayout() {
     usePageTitle();
     const navigate = useNavigate();
     const location = useLocation();
-    const splitterRef = useRef<UseSplitterReturnValue>(null);
     const isMobile = useMediaQuery("(max-width: 47.99em)");
-    const wasMobile = useRef<boolean | undefined>(undefined);
     const [mobileNavOpen, { open: openMobileNav, close: closeMobileNav }] = useDisclosure(false);
-    const [sizes, setSizes] = useState<SplitterPaneSize[]>(() => {
-        const saved = localStorage.getItem("sidebarSizes:v1");
-        return saved ? (JSON.parse(saved) as SplitterPaneSize[]) : [20, 80];
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+        return localStorage.getItem("sidebarCollapsed") === "true";
     });
 
     const { setColorScheme } = useMantineColorScheme();
     const computedScheme = useComputedColorScheme("light");
     const isDark = computedScheme === "dark";
     const { user, logout, isResourceAllowed } = useAuth();
-
-    // Mobile: Splitter sidebar pane stays collapsed (0px), Drawer overlays nav instead.
-    // Desktop: Splitter sidebar pane works normally.
-    // Uses collapse/expand directly (not toggleCollapse) to guarantee state regardless
-    // of previous breakpoint or localStorage persistence.
-    useEffect(() => {
-        if (isMobile === undefined) return;
-        if (wasMobile.current === undefined) {
-            wasMobile.current = isMobile;
-            if (isMobile) {
-                splitterRef.current?.collapse(0);
-            }
-            return;
-        }
-        if (wasMobile.current === isMobile) return;
-        wasMobile.current = isMobile;
-        closeMobileNav();
-        if (isMobile) {
-            splitterRef.current?.collapse(0);
-        } else {
-            splitterRef.current?.expand(0);
-        }
-    }, [isMobile, closeMobileNav]);
 
     const handleNavClick = () => {
         closeMobileNav();
@@ -76,13 +49,12 @@ export function AppLayout() {
         if (isMobile) {
             openMobileNav();
         } else {
-            splitterRef.current?.toggleCollapse(0);
+            setSidebarCollapsed((prev) => {
+                const next = !prev;
+                localStorage.setItem("sidebarCollapsed", String(next));
+                return next;
+            });
         }
-    };
-
-    const handleSizeChange = (newSizes: SplitterPaneSize[]) => {
-        setSizes(newSizes);
-        localStorage.setItem("sidebarSizes:v1", JSON.stringify(newSizes));
     };
 
     return (
@@ -96,7 +68,6 @@ export function AppLayout() {
                                 color="gray"
                                 onClick={handleToggleSidebar}
                                 aria-label="Toggle sidebar"
-                                hiddenFrom="sm"
                             >
                                 <IconMenu2 size={18} />
                             </ActionIcon>
@@ -184,25 +155,18 @@ export function AppLayout() {
                 <Sidebar isResourceAllowed={isResourceAllowed} onNavigate={handleNavClick} />
             </Drawer>
 
-            <Splitter
-                splitterRef={splitterRef}
-                sizes={sizes}
-                onSizeChange={handleSizeChange}
-                className={classes.fill}
-            >
-                <Splitter.Pane
-                    defaultSize={20}
-                    min={15}
-                    max={25}
-                    collapsible
-                    collapseThreshold={1}
-                    bg={isDark ? "dark.7" : "gray.0"}
-                >
-                    {!isMobile && (
+            {/* Desktop: Sidebar + main content */}
+            <Flex className={classes.body}>
+                {!isMobile && (
+                    <Box
+                        component="aside"
+                        className={`${classes.sidebar} ${sidebarCollapsed ? classes.sidebarCollapsed : ""}`}
+                        bg={isDark ? "dark.7" : "gray.0"}
+                    >
                         <Sidebar isResourceAllowed={isResourceAllowed} onNavigate={handleNavClick} />
-                    )}
-                </Splitter.Pane>
-                <Splitter.Pane defaultSize={80} p="md" className={classes.scrollArea}>
+                    </Box>
+                )}
+                <Box component="main" className={classes.main} p="md">
                     <ErrorBoundary>
                         <AppBreadcrumbs />
                         <div className="page-enter" key={location.pathname}>
@@ -211,8 +175,8 @@ export function AppLayout() {
                             </Suspense>
                         </div>
                     </ErrorBoundary>
-                </Splitter.Pane>
-            </Splitter>
+                </Box>
+            </Flex>
         </Flex>
     );
 }
