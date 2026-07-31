@@ -7,6 +7,7 @@ import {
     Text,
     ActionIcon,
     Drawer,
+    Tooltip,
     useMantineColorScheme,
     useComputedColorScheme,
     Indicator,
@@ -21,6 +22,7 @@ import { Sidebar } from "./Sidebar";
 import { useAuth } from "@/features/auth";
 import { ErrorBoundary } from "@/common/components/ErrorBoundary";
 import { AppBreadcrumbs } from "@/common/components/AppBreadcrumbs";
+import { ProductLogo } from "@/common/components/ProductLogo";
 import { usePageTitle } from "@/common/hooks/usePageTitle";
 import classes from "@/styles/components/AppLayout.module.css";
 
@@ -96,21 +98,21 @@ export function AppLayout() {
                                 <IconMenu2 size={18} />
                             </ActionIcon>
 
-                            <Text size="lg" fw={700} c="brand-cyan.3">
-                                Yarn EPR
-                            </Text>
+                            <ProductLogo variant="compact" size="sm" />
                         </>
                     }
                     right={
                         <Group gap="sm" wrap="nowrap">
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                onClick={() => setColorScheme(isDark ? "light" : "dark")}
-                                aria-label="Toggle color scheme"
-                            >
-                                {isDark ? <IconSun size={18} /> : <IconMoon size={18} />}
-                            </ActionIcon>
+                            <Tooltip label={isDark ? "Modo claro" : "Modo oscuro"}>
+                                <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
+                                    onClick={() => setColorScheme(isDark ? "light" : "dark")}
+                                    aria-label="Toggle color scheme"
+                                >
+                                    {isDark ? <IconSun size={18} /> : <IconMoon size={18} />}
+                                </ActionIcon>
+                            </Tooltip>
 
                             <Menu shadow="md" width={180}>
                                 <Menu.Target>
@@ -162,6 +164,9 @@ export function AppLayout() {
                     body: { height: "100%", padding: 0 },
                 }}
             >
+                <Box p="md" mb="sm">
+                    <ProductLogo variant="full" size="md" />
+                </Box>
                 <Sidebar isResourceAllowed={isResourceAllowed} onNavigate={handleNavClick} />
             </Drawer>
 

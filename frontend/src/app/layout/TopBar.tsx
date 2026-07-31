@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Group } from '@mantine/core'
+import classes from '@/styles/components/TopBar.module.css'
 
 interface TopBarProps {
   left?: ReactNode
@@ -13,7 +14,7 @@ interface TopBarProps {
  */
 export function TopBar({ left, center, right }: TopBarProps) {
   return (
-    <Group h="100%" px="md" justify="space-between" wrap="nowrap">
+    <Group h="100%" px="md" justify="space-between" wrap="nowrap" className={classes.root}>
       <Group gap="xs" wrap="nowrap">
         {left}
       </Group>
