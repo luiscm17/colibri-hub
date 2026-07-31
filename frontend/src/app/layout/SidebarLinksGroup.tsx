@@ -24,10 +24,16 @@ export function SidebarLinksGroup({ icon, label, links, onNavigate }: LinksGroup
   const hasLinks = Array.isArray(links) && links.length > 0
 
   // Auto-open if any child matches the current route
-  const initiallyOpened =
+  const hasActiveChild =
     hasLinks && links!.some((child) => child.path === location.pathname)
 
-  const [opened, setOpened] = useState(initiallyOpened)
+  const [opened, setOpened] = useState(hasActiveChild)
+
+  const controlClassName = [
+    classes.control,
+    opened ? classes.controlExpanded : '',
+    hasActiveChild && !opened ? classes.controlHasActive : '',
+  ].filter(Boolean).join(' ')
 
   const items = (links ?? []).map((child) => {
     const isActive = location.pathname === child.path
@@ -43,7 +49,12 @@ export function SidebarLinksGroup({ icon, label, links, onNavigate }: LinksGroup
           }
         }}
       >
-        {child.label}
+        {child.icon && (
+          <Box component="span" className={classes.linkIcon}>
+            {child.icon}
+          </Box>
+        )}
+        <span>{child.label}</span>
       </UnstyledButton>
     )
   })
@@ -52,7 +63,7 @@ export function SidebarLinksGroup({ icon, label, links, onNavigate }: LinksGroup
     <Box>
       <UnstyledButton
         onClick={() => setOpened((o) => !o)}
-        className={classes.control}
+        className={controlClassName}
       >
         <Group justify="space-between" gap={0}>
           <Group gap="sm" wrap="nowrap">
