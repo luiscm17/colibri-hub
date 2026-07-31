@@ -3,6 +3,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: var(--mantine-spacing-md);
   background: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8));
 }
 
@@ -32,13 +33,5 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
   margin-bottom: 4px;
-}
-
-.brandDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--mantine-color-brand-cyan-4);
 }

@@ -86,6 +86,12 @@ export const theme = createTheme({
         size: 'sm',
       },
     },
+    PasswordInput: {
+      defaultProps: {
+        radius: 'md',
+        size: 'sm',
+      },
+    },
     Badge: {
       defaultProps: {
         variant: 'light',
