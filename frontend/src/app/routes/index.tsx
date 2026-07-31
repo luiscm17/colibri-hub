@@ -1,6 +1,8 @@
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import { AppLayout } from '@/app/layout/AppLayout'
 import { ProtectedRoute } from './ProtectedRoute'
+import { RouteErrorBoundary } from './RouteErrorBoundary'
+import { ComingSoon } from '@/common/components/ComingSoon'
 import {
   AdminPage,
   BaleManagementPage,
@@ -13,13 +15,13 @@ import {
   BaleDeliveryPage,
   ReportsPage,
   SpinningPage,
-  WarehousePage,
 } from './lazy-pages'
 
 const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+    errorElement: <RouteErrorBoundary />,
   },
   {
     path: '/',
@@ -28,19 +30,22 @@ const router = createBrowserRouter([
         <AppLayout />
       </ProtectedRoute>
     ),
+    errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, element: <Navigate to="/warehouse/bales" replace /> },
+
+      // Warehouse — Bale Management (implemented)
       { path: 'warehouse/bales', element: <BaleManagementPage /> },
       { path: 'warehouse/bales/reception', element: <BaleReceptionPage /> },
       { path: 'warehouse/bales/stock', element: <BaleStockPage /> },
       { path: 'warehouse/bales/delivery', element: <BaleDeliveryPage /> },
-      { path: 'warehouse/identity', element: <WarehousePage /> },
-      { path: 'warehouse/issue', element: <WarehousePage /> },
-      { path: 'warehouse/finished-product', element: <WarehousePage /> },
-      { path: 'warehouse/classification', element: <WarehousePage /> },
-      { path: 'warehouse/exits', element: <WarehousePage /> },
-      { path: 'warehouse/supplies', element: <WarehousePage /> },
-      { path: 'warehouse/stock', element: <WarehousePage /> },
+
+      // Warehouse — Other capabilities (not yet implemented)
+      { path: 'warehouse/identity', element: <ComingSoon feature="Identidad de producción" /> },
+      { path: 'warehouse/finished-product', element: <ComingSoon feature="Producto terminado" /> },
+      { path: 'warehouse/supplies', element: <ComingSoon feature="Insumos" /> },
+
+      // Spinning (not yet implemented)
       { path: 'spinning/dashboard', element: <SpinningPage /> },
       { path: 'spinning/unloads', element: <SpinningPage /> },
       { path: 'spinning/progress', element: <SpinningPage /> },
@@ -48,11 +53,17 @@ const router = createBrowserRouter([
       { path: 'spinning/waste', element: <SpinningPage /> },
       { path: 'spinning/skeins', element: <SpinningPage /> },
       { path: 'spinning/consolidated', element: <SpinningPage /> },
+
+      // Lots (not yet implemented)
       { path: 'lots/queue', element: <LotsPage /> },
       { path: 'lots/detail', element: <LotsPage /> },
+
+      // Reports (not yet implemented)
       { path: 'reports/daily', element: <ReportsPage /> },
       { path: 'reports/production', element: <ReportsPage /> },
       { path: 'reports/traceability', element: <ReportsPage /> },
+
+      // Admin
       { path: 'admin/master-data', element: <AdminPage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: '*', element: <NotFoundPage /> },

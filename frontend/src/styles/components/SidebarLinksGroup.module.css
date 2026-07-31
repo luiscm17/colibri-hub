@@ -6,13 +6,16 @@
   color: var(--mantine-color-text);
   font-size: var(--mantine-font-size-sm);
   border-radius: var(--mantine-radius-sm);
+  transition: background-color 150ms ease, color 150ms ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (max-width: 48em) {
   .control {
     padding-top: 12px;
     padding-bottom: 12px;
-    font-size: 1rem;
   }
 }
 
@@ -27,20 +30,43 @@
   );
 }
 
+/* Parent group header when expanded */
+.controlExpanded {
+  background-color: light-dark(
+    var(--mantine-color-gray-0),
+    var(--mantine-color-dark-7)
+  );
+}
+
+/* Parent group header when it contains the active route (even if collapsed) */
+.controlHasActive {
+  color: var(--mantine-color-brand-cyan-7);
+}
+
+.controlHasActive:is([data-dark-mode]) {
+  color: var(--mantine-color-brand-cyan-4);
+}
+
 .link {
   font-weight: 500;
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
   text-decoration: none;
   padding: 6px var(--mantine-spacing-md);
-  padding-left: 44px;
+  padding-left: 32px;
   font-size: var(--mantine-font-size-sm);
   color: light-dark(
     var(--mantine-color-gray-7),
     var(--mantine-color-dark-0)
   );
-  border-left: 1px solid
+  border-left: 2px solid
     light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
   border-radius: 0 var(--mantine-radius-sm) var(--mantine-radius-sm) 0;
+  transition: background-color 150ms ease, color 150ms ease, border-left-color 150ms ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .link:hover {
@@ -58,7 +84,6 @@
   .link {
     padding-top: 12px;
     padding-bottom: 12px;
-    font-size: 1rem;
   }
 }
 
@@ -69,10 +94,18 @@
     var(--mantine-color-brand-cyan-0),
     color-mix(in srgb, var(--mantine-color-brand-cyan-9) 30%, transparent)
   );
+  font-weight: 600;
+}
+
+.linkIcon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.link[data-active='true'] .linkIcon {
+  opacity: 1;
 }
 
 .chevron {
   transition: transform 200ms ease;
 }
-
-

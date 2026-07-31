@@ -1,68 +1,45 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, Suspense } from "react";
 import {
     Box,
     Flex,
-    Splitter,
     Group,
     Text,
     ActionIcon,
     Drawer,
+    Tooltip,
     useMantineColorScheme,
     useComputedColorScheme,
     Indicator,
     Avatar,
     Menu,
 } from "@mantine/core";
-import { useDisclosure, useMediaQuery, type SplitterPaneSize, type UseSplitterReturnValue } from "@mantine/hooks";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { IconSun, IconMoon, IconChevronDown, IconMenu2 } from "@tabler/icons-react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import { useAuth } from "@/features/auth";
 import { ErrorBoundary } from "@/common/components/ErrorBoundary";
 import { AppBreadcrumbs } from "@/common/components/AppBreadcrumbs";
+import { PageSkeleton } from "@/common/components/PageState";
+import { ProductLogo } from "@/common/components/ProductLogo";
 import { usePageTitle } from "@/common/hooks/usePageTitle";
 import classes from "@/styles/components/AppLayout.module.css";
 
 export function AppLayout() {
     usePageTitle();
     const navigate = useNavigate();
-    const splitterRef = useRef<UseSplitterReturnValue>(null);
+    const location = useLocation();
     const isMobile = useMediaQuery("(max-width: 47.99em)");
-    const wasMobile = useRef<boolean | undefined>(undefined);
     const [mobileNavOpen, { open: openMobileNav, close: closeMobileNav }] = useDisclosure(false);
-    const [sizes, setSizes] = useState<SplitterPaneSize[]>(() => {
-        const saved = localStorage.getItem("sidebarSizes:v1");
-        return saved ? (JSON.parse(saved) as SplitterPaneSize[]) : [20, 80];
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+        return localStorage.getItem("sidebarCollapsed") === "true";
     });
 
     const { setColorScheme } = useMantineColorScheme();
     const computedScheme = useComputedColorScheme("light");
     const isDark = computedScheme === "dark";
     const { user, logout, isResourceAllowed } = useAuth();
-
-    // Mobile: Splitter sidebar pane stays collapsed (0px), Drawer overlays nav instead.
-    // Desktop: Splitter sidebar pane works normally.
-    // Uses collapse/expand directly (not toggleCollapse) to guarantee state regardless
-    // of previous breakpoint or localStorage persistence.
-    useEffect(() => {
-        if (isMobile === undefined) return;
-        if (wasMobile.current === undefined) {
-            wasMobile.current = isMobile;
-            if (isMobile) {
-                splitterRef.current?.collapse(0);
-            }
-            return;
-        }
-        if (wasMobile.current === isMobile) return;
-        wasMobile.current = isMobile;
-        closeMobileNav();
-        if (isMobile) {
-            splitterRef.current?.collapse(0);
-        } else {
-            splitterRef.current?.expand(0);
-        }
-    }, [isMobile, closeMobileNav]);
 
     const handleNavClick = () => {
         closeMobileNav();
@@ -72,13 +49,12 @@ export function AppLayout() {
         if (isMobile) {
             openMobileNav();
         } else {
-            splitterRef.current?.toggleCollapse(0);
+            setSidebarCollapsed((prev) => {
+                const next = !prev;
+                localStorage.setItem("sidebarCollapsed", String(next));
+                return next;
+            });
         }
-    };
-
-    const handleSizeChange = (newSizes: SplitterPaneSize[]) => {
-        setSizes(newSizes);
-        localStorage.setItem("sidebarSizes:v1", JSON.stringify(newSizes));
     };
 
     return (
@@ -96,21 +72,21 @@ export function AppLayout() {
                                 <IconMenu2 size={18} />
                             </ActionIcon>
 
-                            <Text size="lg" fw={700} c="brand-cyan.3">
-                                Yarn EPR
-                            </Text>
+                            <ProductLogo variant="compact" size="sm" />
                         </>
                     }
                     right={
                         <Group gap="sm" wrap="nowrap">
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                onClick={() => setColorScheme(isDark ? "light" : "dark")}
-                                aria-label="Toggle color scheme"
-                            >
-                                {isDark ? <IconSun size={18} /> : <IconMoon size={18} />}
-                            </ActionIcon>
+                            <Tooltip label={isDark ? "Modo claro" : "Modo oscuro"}>
+                                <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
+                                    onClick={() => setColorScheme(isDark ? "light" : "dark")}
+                                    aria-label="Toggle color scheme"
+                                >
+                                    {isDark ? <IconSun size={18} /> : <IconMoon size={18} />}
+                                </ActionIcon>
+                            </Tooltip>
 
                             <Menu shadow="md" width={180}>
                                 <Menu.Target>
@@ -155,43 +131,52 @@ export function AppLayout() {
             <Drawer
                 opened={mobileNavOpen}
                 onClose={closeMobileNav}
-                size={260}
+                size={280}
                 padding={0}
                 hiddenFrom="sm"
+                withCloseButton={false}
                 styles={{
                     body: { height: "100%", padding: 0 },
                 }}
             >
+                <Box px="md" pt="md" pb="xs">
+                    <Group justify="space-between" align="center">
+                        <ProductLogo variant="full" size="md" />
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            onClick={closeMobileNav}
+                            aria-label="Cerrar navegación"
+                        >
+                            <IconMenu2 size={18} />
+                        </ActionIcon>
+                    </Group>
+                </Box>
                 <Sidebar isResourceAllowed={isResourceAllowed} onNavigate={handleNavClick} />
             </Drawer>
 
-            <Splitter
-                splitterRef={splitterRef}
-                sizes={sizes}
-                onSizeChange={handleSizeChange}
-                className={classes.fill}
-            >
-                <Splitter.Pane
-                    defaultSize={20}
-                    min={15}
-                    max={25}
-                    collapsible
-                    collapseThreshold={1}
-                    bg={isDark ? "dark.7" : "gray.0"}
-                >
-                    <Box visibleFrom="sm" h="100%">
+            {/* Desktop: Sidebar + main content */}
+            <Flex className={classes.body}>
+                {!isMobile && (
+                    <Box
+                        component="aside"
+                        className={`${classes.sidebar} ${sidebarCollapsed ? classes.sidebarCollapsed : ""}`}
+                        bg={isDark ? "dark.7" : "gray.0"}
+                    >
                         <Sidebar isResourceAllowed={isResourceAllowed} onNavigate={handleNavClick} />
                     </Box>
-                </Splitter.Pane>
-                <Splitter.Pane defaultSize={80} p="md" className={classes.scrollArea}>
+                )}
+                <Box component="main" className={classes.main} p="md">
                     <ErrorBoundary>
-                        <div className="page-enter">
-                            <AppBreadcrumbs />
-                            <Outlet />
+                        <AppBreadcrumbs />
+                        <div className="page-enter" key={location.pathname}>
+                            <Suspense fallback={<PageSkeleton />}>
+                                <Outlet />
+                            </Suspense>
                         </div>
                     </ErrorBoundary>
-                </Splitter.Pane>
-            </Splitter>
+                </Box>
+            </Flex>
         </Flex>
     );
 }

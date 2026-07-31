@@ -8,3 +8,15 @@
   --rdg-font-size: var(--mantine-font-size-sm);
   --rdg-cell-padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
 }
+
+.compact {
+  composes: root;
+  --rdg-row-height: 34px;
+  --rdg-cell-padding: 2px var(--mantine-spacing-xs);
+}
+
+.normal {
+  composes: root;
+  --rdg-row-height: 42px;
+  --rdg-cell-padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+}

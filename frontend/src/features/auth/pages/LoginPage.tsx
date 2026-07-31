@@ -5,12 +5,12 @@ import {
   TextInput,
   PasswordInput,
   Button,
-  Title,
   Text,
   Alert,
 } from '@mantine/core'
 import { IconAlertCircle } from '@tabler/icons-react'
 import { useAuth } from '../context/auth-context'
+import { ProductLogo } from '@/common/components/ProductLogo'
 import classes from '@/styles/components/LoginPage.module.css'
 
 export default function LoginPage() {
@@ -54,13 +54,10 @@ export default function LoginPage() {
     <div className={classes.wrapper}>
       <Paper className={classes.card} p="xl" radius="md" withBorder>
         <div className={classes.brand}>
-          <span className={classes.brandDot} />
-          <Title order={1} size="h2" ta="center">
-            Yarn EPR
-          </Title>
+          <ProductLogo variant="full" size="lg" />
         </div>
         <Text c="dimmed" size="sm" ta="center" mb="lg">
-          Producción textil — Iniciar sesión
+          Ingresá a tu cuenta
         </Text>
 
         <form onSubmit={handleSubmit}>

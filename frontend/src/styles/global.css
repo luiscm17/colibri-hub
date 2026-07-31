@@ -2,26 +2,6 @@ body {
   margin: 0;
 }
 
-/* ============================================================
-   Mobile: bump up font sizes, spacing, y touch targets
-   ============================================================ */
-@media (max-width: 48em) {
-  :root {
-    /* Fuentes más grandes en mobile para legibilidad */
-    --mantine-font-size-xs: 0.85rem;
-    --mantine-font-size-sm: 0.95rem;
-    --mantine-font-size-md: 1.05rem;
-    --mantine-font-size-lg: 1.2rem;
-
-    /* Más espacio para respirar */
-    --mantine-spacing-xs: 0.75rem;
-    --mantine-spacing-sm: 0.9rem;
-    --mantine-spacing-md: 1.15rem;
-
-    /* Inputs: 16px mínimo evita zoom automático en iOS */
-  }
-}
-
 /* ---- Transición de página: fade-in sutil al navegar ---- */
 @keyframes page-enter {
   from {
@@ -36,4 +16,12 @@ body {
 
 .page-enter {
   animation: page-enter 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }

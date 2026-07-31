@@ -9,8 +9,8 @@ export const theme = createTheme({
     'brand-cyan': brandCyan,
   },
 
-  fontFamily: "'Fira Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-  fontFamilyMonospace: "'Fira Code', ui-monospace, 'SF Mono', Consolas, monospace",
+  fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+  fontFamilyMonospace: "ui-monospace, 'SF Mono', Consolas, monospace",
 
   fontSizes: {
     xs: '12px',
@@ -35,7 +35,7 @@ export const theme = createTheme({
     },
   },
 
-  defaultRadius: 'sm',
+  defaultRadius: 'md',
 
   spacing: {
     xs: '8px',
@@ -49,5 +49,80 @@ export const theme = createTheme({
     sm: '0 1px 2px rgba(0,0,0,0.06)',
     md: '0 4px 6px rgba(0,0,0,0.07)',
     lg: '0 10px 15px rgba(0,0,0,0.1)',
+  },
+
+  components: {
+    Button: {
+      defaultProps: {
+        radius: 'md',
+      },
+    },
+    ActionIcon: {
+      defaultProps: {
+        radius: 'md',
+      },
+    },
+    TextInput: {
+      defaultProps: {
+        radius: 'md',
+        size: 'sm',
+      },
+    },
+    Select: {
+      defaultProps: {
+        radius: 'md',
+        size: 'sm',
+      },
+    },
+    NumberInput: {
+      defaultProps: {
+        radius: 'md',
+        size: 'sm',
+      },
+    },
+    Textarea: {
+      defaultProps: {
+        radius: 'md',
+        size: 'sm',
+      },
+    },
+    PasswordInput: {
+      defaultProps: {
+        radius: 'md',
+        size: 'sm',
+      },
+    },
+    Badge: {
+      defaultProps: {
+        variant: 'light',
+      },
+    },
+    Tooltip: {
+      defaultProps: {
+        openDelay: 300,
+      },
+    },
+    Modal: {
+      defaultProps: {
+        radius: 'md',
+      },
+    },
+    Drawer: {
+      defaultProps: {
+        size: 300,
+      },
+    },
+    Paper: {
+      defaultProps: {
+        withBorder: true,
+        radius: 'md',
+      },
+    },
+    Alert: {
+      defaultProps: {},
+    },
+    Notification: {
+      defaultProps: {},
+    },
   },
 })
