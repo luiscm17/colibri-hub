@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import {
     Box,
     Flex,
@@ -16,12 +16,13 @@ import {
 } from "@mantine/core";
 import { useDisclosure, useMediaQuery, type SplitterPaneSize, type UseSplitterReturnValue } from "@mantine/hooks";
 import { IconSun, IconMoon, IconChevronDown, IconMenu2 } from "@tabler/icons-react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import { useAuth } from "@/features/auth";
 import { ErrorBoundary } from "@/common/components/ErrorBoundary";
 import { AppBreadcrumbs } from "@/common/components/AppBreadcrumbs";
+import { PageSkeleton } from "@/common/components/PageState";
 import { ProductLogo } from "@/common/components/ProductLogo";
 import { usePageTitle } from "@/common/hooks/usePageTitle";
 import classes from "@/styles/components/AppLayout.module.css";
@@ -29,6 +30,7 @@ import classes from "@/styles/components/AppLayout.module.css";
 export function AppLayout() {
     usePageTitle();
     const navigate = useNavigate();
+    const location = useLocation();
     const splitterRef = useRef<UseSplitterReturnValue>(null);
     const isMobile = useMediaQuery("(max-width: 47.99em)");
     const wasMobile = useRef<boolean | undefined>(undefined);
@@ -94,6 +96,7 @@ export function AppLayout() {
                                 color="gray"
                                 onClick={handleToggleSidebar}
                                 aria-label="Toggle sidebar"
+                                hiddenFrom="sm"
                             >
                                 <IconMenu2 size={18} />
                             </ActionIcon>
@@ -157,15 +160,26 @@ export function AppLayout() {
             <Drawer
                 opened={mobileNavOpen}
                 onClose={closeMobileNav}
-                size={260}
+                size={280}
                 padding={0}
                 hiddenFrom="sm"
+                withCloseButton={false}
                 styles={{
                     body: { height: "100%", padding: 0 },
                 }}
             >
-                <Box p="md" mb="sm">
-                    <ProductLogo variant="full" size="md" />
+                <Box px="md" pt="md" pb="xs">
+                    <Group justify="space-between" align="center">
+                        <ProductLogo variant="full" size="md" />
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            onClick={closeMobileNav}
+                            aria-label="Cerrar navegación"
+                        >
+                            <IconMenu2 size={18} />
+                        </ActionIcon>
+                    </Group>
                 </Box>
                 <Sidebar isResourceAllowed={isResourceAllowed} onNavigate={handleNavClick} />
             </Drawer>
@@ -184,15 +198,17 @@ export function AppLayout() {
                     collapseThreshold={1}
                     bg={isDark ? "dark.7" : "gray.0"}
                 >
-                    <Box visibleFrom="sm" h="100%">
+                    {!isMobile && (
                         <Sidebar isResourceAllowed={isResourceAllowed} onNavigate={handleNavClick} />
-                    </Box>
+                    )}
                 </Splitter.Pane>
                 <Splitter.Pane defaultSize={80} p="md" className={classes.scrollArea}>
                     <ErrorBoundary>
-                        <div className="page-enter">
-                            <AppBreadcrumbs />
-                            <Outlet />
+                        <AppBreadcrumbs />
+                        <div className="page-enter" key={location.pathname}>
+                            <Suspense fallback={<PageSkeleton />}>
+                                <Outlet />
+                            </Suspense>
                         </div>
                     </ErrorBoundary>
                 </Splitter.Pane>
