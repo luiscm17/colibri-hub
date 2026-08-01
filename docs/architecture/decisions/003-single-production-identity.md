@@ -45,7 +45,7 @@ The system models one business lot through two context-owned representations:
 | Context | Representation | Responsibility |
 | --- | --- | --- |
 | Warehouse | `Finished Product` | Defines the production requirement, assigns the unique `lot_code`, and later manages reception, availability, custody, dispatch, and returns |
-| Lot Processing within Operation | `Production Identity` | Represents the same requirement inside Operation and anchors physical assembly, stage history, quality facts, and Quality Send |
+| Lot Processing within Operation | `Production Identity` | Represents the same requirement inside Operation and anchors physical assembly, stage history, quality facts, and the finished-product handoff |
 
 The following rules apply:
 
@@ -62,9 +62,10 @@ The following rules apply:
 6. Inventory assembles the physical set of skeins under the existing Production
    Identity and `lot_code`. Assembly starts the Lot Processing stage history; it
    does not create another identity.
-7. Quality Send transfers the completed operational result to Warehouse under
-   the same `lot_code`. Warehouse reception continues the existing Finished
-   Product lifecycle and does not create another Finished Product.
+7. Release for reception starts the finished-product handoff under the same
+   `lot_code`. Handoff issues and responses preserve that identity throughout
+   any repeated verification cycle. Warehouse reception continues the existing
+   Finished Product lifecycle and does not create another Finished Product.
 8. Warehouse writes only Warehouse-owned requirement and inventory facts. Lot
    Processing writes only Operation-owned identity, processing, waste, quality,
    and handoff facts.
@@ -78,7 +79,7 @@ Warehouse Finished Product requirement
     1:1, same lot_code
 Operation Production Identity
     physical assembly and Lot Processing history
-Quality Send
+Release for reception and verification
     same lot_code
 Warehouse reception and inventory lifecycle
 ```
@@ -131,8 +132,9 @@ Warehouse reception and inventory lifecycle
 4. A context cannot overwrite source records owned by another context.
 5. Inventory assembly cannot start without the applicable Finished Product
    requirement and resolved Production Identity.
-6. Quality Send and Warehouse reception reference the same Finished Product,
-   Production Identity mapping, and `lot_code`.
+6. Release for reception, every handoff issue and response, and Warehouse
+   reception reference the same Finished Product, Production Identity mapping,
+   and `lot_code`.
 7. Authorization-sensitive projections omit data for scopes the caller cannot
    read.
 
@@ -145,3 +147,4 @@ Warehouse reception and inventory lifecycle
 - [Lot Processing Records](../../prd/operation/lot-processing-records.md)
 - [Bale Management PRD](../../prd/warehouse/bale-management.md)
 - [Context map](../context-map.md)
+- [ADR-006](006-role-neutral-business-language.md)

@@ -20,7 +20,7 @@ contracts for Colibri Hub.
 | --- | --- | --- |
 | **Warehouse** | Raw-material custody, Finished Product lifecycle, and production-supplies inventory | Owns the Finished Product from requirement definition through Warehouse reception, availability, custody, dispatch, and possible return; does not own productive processing records |
 | **Yarn Spinning** | Continuous spinning production across five productive sections | Owns section, machine, shift, quality, waste, progress, and skein-output facts before physical lot assembly |
-| **Lot Processing** | Operation representation and sequential history of one business lot | Owns Production Identity, physical assembly, six-stage interventions, stage waste, Operation quality, and Quality Send; stops at the handoff pending Warehouse acceptance |
+| **Lot Processing** | Operation representation and sequential history of one business lot | Owns Production Identity, physical assembly, six-stage interventions, stage waste, Operation quality, release for reception, and Operation responses during the finished-product handoff; stops when Warehouse records reception |
 | **Access Control** | Configurable authorization policy | Owns roles, actions, scopes, exceptions, and permission-change audit; does not own business workflow semantics |
 | **Shared Reference Data** | Canonical shared catalogs | Owns stable reference values such as yarn counts; does not own operational records |
 
@@ -42,8 +42,10 @@ contracts for Colibri Hub.
   applicable specifications.
 - Consults the authorized transversal phase while Operation processes the
   requirement.
-- Records physical Finished Product reception after Quality Send and manages
-  availability, presentation, stock, dispatch, and returns.
+- Verifies the completed product, records handoff issues when resolution is
+  required, records physical Finished Product reception after successful
+  verification, and manages availability, presentation, stock, dispatch, and
+  returns.
 - Manages production-supplies receipts, issues, adjustments, balances, and
   consultations.
 - Does **not** own Production Identity, Yarn Spinning records, Lot Processing
@@ -69,8 +71,8 @@ contracts for Colibri Hub.
   both contextual representations.
 - Owns Inventory assembly and the sequential history for Inventory, Dyeing,
   Drying, Winding or Ball Winding, Bagging, and Quality.
-- Owns lot-stage notes, incidents, stage waste, Operation quality state, and the
-  single Quality Send act.
+- Owns lot-stage notes, incidents, stage waste, Operation quality state, release
+  for reception, and responses to handoff issues.
 - Exposes permission-sensitive dashboard, queue, and contextual detail
   projections without transferring ownership of source records.
 - Does **not** own Warehouse requirement fields, Warehouse stock or disposition,
@@ -117,7 +119,8 @@ contracts for Colibri Hub.
 | Inventory physical assembly record | Lot Processing |
 | Lot-stage intervention record | Lot Processing |
 | Lot-stage note, incident, and waste | Lot Processing |
-| Operation quality state and Quality Send | Lot Processing |
+| Operation quality state, release for reception, and issue responses | Lot Processing |
+| Warehouse handoff issues and Finished Product reception | Warehouse |
 | Permission policy, roles, actions, and scopes | Access Control |
 | Canonical users and technical role assignments | Access Control |
 | Yarn counts and approved shared catalogs | Shared Reference Data |
@@ -137,7 +140,7 @@ records.
 | --- | --- | --- |
 | Warehouse | Access Control | Authorization decisions by action and scope |
 | Warehouse | Shared Reference Data | Yarn-count identifiers and values |
-| Warehouse | Lot Processing | Authorized lifecycle phase, Quality Send, Operation quality state, and delivery conditions |
+| Warehouse | Lot Processing | Authorized lifecycle phase, release for reception, Operation quality state, delivery conditions, and issue responses |
 | Yarn Spinning | Access Control | Authorization decisions by action and scope |
 | Yarn Spinning | Shared Reference Data | Yarn-count identifiers and values |
 | Yarn Spinning | Warehouse | Authorized raw-material availability and delivery facts |
@@ -154,8 +157,10 @@ Warehouse raw materials -> Yarn Spinning -> skein output -> Lot Processing
 Warehouse Finished Product requirement -> Lot Processing Production Identity
                                       1:1, same lot_code
 
-Lot Processing Quality Send -> Warehouse Finished Product reception
-                            same lot_code
+Lot Processing release for reception -> Warehouse verification
+Warehouse issue <-> Operation response, repeated when required
+Warehouse Finished Product reception completes the handoff
+All interactions preserve the same lot_code
 
 Access Control and Shared Reference Data support all business contexts.
 ```
@@ -171,7 +176,8 @@ Access Control and Shared Reference Data support all business contexts.
 | Warehouse | Yarn Spinning | Authorized raw-material availability and delivery facts | Yarn Spinning may use the material information needed for execution; no bale-to-lot relationship is created |
 | Warehouse | Lot Processing | Finished Product requirement reference, unique `lot_code`, title, color, client or destination, classification, and applicable specifications | Lot Processing creates or resolves one Production Identity for the same business lot and preserves the code |
 | Yarn Spinning | Lot Processing | Skein output and readiness for Inventory assembly | Inventory selects and assembles skeins under an existing Production Identity and `lot_code` |
-| Lot Processing | Warehouse | Quality Send, Operation quality state, delivery conditions, and authorized completion facts | Warehouse receives the same Finished Product under the original `lot_code`; reception completes the pending handoff |
+| Lot Processing | Warehouse | Release for reception, Operation quality state, delivery conditions, authorized completion facts, and issue responses | Warehouse verifies the same Finished Product under the original `lot_code`; it either records a handoff issue or records reception |
+| Warehouse | Lot Processing | Handoff issue describing a discrepancy found before reception | Operation corrects, remedies, or clarifies the issue and returns the same handoff for another Warehouse verification |
 | Access Control | All business contexts | Authorization decisions by action and scope | Policy only; authorization never redefines domain semantics |
 | Shared Reference Data | All consuming contexts | Stable catalog identifiers and values | Read-only reference consumption; source governance remains in Shared Reference Data |
 
@@ -188,7 +194,8 @@ flowchart TD
     W -->|"Raw-material delivery facts"| YS
     W -->|"Finished Product requirement and lot_code"| LP
     YS -->|"Skein output"| LP
-    LP -->|"Quality Send under same lot_code"| FP
+    LP -->|"Release for reception under same lot_code"| FP
+    FP -->|"Handoff issue when resolution is required"| LP
     XS -->|"Authorization and reference data"| W
     XS -->|"Authorization and reference data"| YS
     XS -->|"Authorization and reference data"| LP
@@ -204,12 +211,18 @@ flowchart TD
    represent one business and physical lot.
 5. Inventory assembly starts stage history under the existing identity; it does
    not create another business lot or code.
-6. Quality Send occurs at most once for the completed operational handoff.
-7. Warehouse reception completes the handoff for the same Finished Product and
-   `lot_code`; notes do not count as acceptance.
-8. Cross-context projections include only information allowed by the caller's
+6. Release for reception starts one finished-product handoff for the completed
+   operational result.
+7. Warehouse may record a handoff issue instead of reception when the physical
+   product and authorized information do not agree.
+8. An Operation response returns the same handoff to pending verification; it
+   does not create another release or another lot.
+9. Issue and response cycles may repeat until Warehouse can record reception.
+10. Warehouse reception completes the handoff for the same Finished Product and
+    `lot_code`; an issue or response does not count as reception.
+11. Cross-context projections include only information allowed by the caller's
    effective `Read` permissions.
-9. Bale delivery does not associate individual bales with a Finished Product,
+12. Bale delivery does not associate individual bales with a Finished Product,
    Production Identity, or `lot_code` under the current model.
 
 ---
@@ -239,16 +252,17 @@ aggregate ownership inside each context.
 - A user receives the union of permissions from all assigned roles.
 - A general Lot Processing `Read` may expose transversal lot fields. Technical
   fields for a stage require the corresponding effective scope permission.
-- The backend omits unauthorized fields from cross-context projections. Hiding
-  components only in the frontend is not a security boundary.
-- A context validates both business invariants and the effective permission
-  before accepting a command.
+- Unauthorized cross-context information is not disclosed. Interface visibility
+  is not a security boundary.
+- Each context validates both business invariants and effective permission
+  before performing an action.
 
 ---
 
 ## 8. References
 
 - [ADR-003: Single Business Lot with Context-Owned Representations](./decisions/003-single-production-identity.md)
+- [ADR-006: Role-Neutral Business Language Across System Boundaries](./decisions/006-role-neutral-business-language.md)
 - [Product overview](../prd/product-overview.md)
 - [Warehouse overview](../prd/warehouse/overview.md)
 - [Warehouse Finished Product PRD](../prd/warehouse/finished-product.md)
