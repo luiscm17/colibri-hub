@@ -1,365 +1,251 @@
 ---
 document_type: prd
-status: active
+status: draft
 scope: access-control
 authority: normative
 owner: product
-last_reviewed: 2026-07-27
+last_reviewed: 2026-07-31
 ---
 
-# SISTEMA DE GESTIÓN DE PRODUCCIÓN TEXTIL — Control de Acceso
+# Access Control
 
-> **Cross-cutting PRD — Roles, permisos y autorización**
->
-> Define los requisitos de negocio y producto para el control de acceso del
-> sistema, de forma transversal a todas las direcciones, unidades, procesos y
-> áreas.
->
-> Este documento complementa los PRD de dominio. No redefine sus procesos: define
-> cómo se gobierna quién puede ver, registrar, validar, aprobar, consolidar o
-> administrar información dentro del sistema.
+## Business Scope
 
----
+Access Control governs who may consult, record, correct, or administer information across Colibri Hub. It applies to every business context without redefining the processes owned by Warehouse, Operation, Administration, or any other area.
 
-## 1. Propósito
+The capability separates organizational responsibilities from system authorization. Job titles and reporting structures may change while business processes remain stable. Access must therefore be configured through reusable roles, general actions, and explicit business scopes rather than through conditions tied to current job titles, pages, shifts, or individual workflows.
 
-Establecer un modelo de control de acceso que permita que el sistema evolucione
-con la organización, sin quedar atado rígidamente a la estructura actual de
-cargos, áreas o unidades.
+Access Control covers:
 
-El sistema debe soportar cambios organizacionales como:
+- user access lifecycle;
+- configurable roles;
+- reusable role presets;
+- assignment of one or more roles to a user;
+- permissions expressed as a general action within a business scope;
+- access administration by the System Administrator;
+- traceability of access changes;
+- authorization decisions based on the user's effective permissions.
 
-- creación de nuevos roles
-- retiro de roles existentes
-- división o fusión de responsabilidades
-- reassignment of access between approved areas, units, or Operational Unit sections
-- excepciones puntuales para usuarios específicos
+Authentication, operational record ownership, and the internal rules of each business process are outside this capability.
 
-sin exigir rediseño funcional de los procesos de negocio ya definidos en los PRD
-de dominio.
+## Problem Statement
 
----
+The organization needs to assign the same responsibility to several users, combine responsibilities when necessary, and reassign work when the organizational structure changes. A single role may be shared by users working different shifts, while one user may need more than one role because the user performs several responsibilities.
 
-## 2. Alcance
+If authorization is tied directly to job titles, shifts, screens, or fixed workflow participants, every organizational change forces changes to the product. If permissions are assigned directly to individual users, repeated configurations drift and become difficult to review. If broad permissions do not distinguish business scopes, access to one responsibility can unintentionally grant access to unrelated information.
 
-Este PRD aplica a todo el sistema.
+Access Control must provide a stable model in which:
 
-Incluye:
+- roles group permissions that can be reused by several users;
+- presets accelerate role creation without freezing organizational titles into the system;
+- users may combine roles;
+- each permission joins a general action with an explicit business scope;
+- absence of an explicit permission results in denial;
+- the individual user remains identifiable for audit purposes, even when several users share the same roles.
 
-- Dirección de Producción
-- Unidad Almacén
-- Unidad Operación
-- Administración
-- futuras direcciones o áreas que se incorporen al sistema
+## Stakeholders and Actors
 
-No define autenticación ni infraestructura técnica. Su foco es la
-**autorización**: qué puede hacer cada usuario dentro del sistema y en qué
-ámbito puede hacerlo.
+| Actor | Responsibility | Interaction |
+|---|---|---|
+| System Administrator | Governs access throughout the system | Manages users, roles, presets, role assignments, and access configuration; may intervene across all business scopes |
+| Role Holder | Uses one or more roles to perform assigned responsibilities | Receives the combined permissions of all assigned active roles |
+| Business Area Owner | Defines which responsibilities exist within a business area | Identifies the actions and business scopes that Access Control must be able to authorize |
+| Supervisor or Management User | Consults operational information according to assigned roles | May receive read access across several sections or to consolidated views without receiving write access |
+| Operational User | Records or corrects information within assigned responsibilities | Acts only in the business scopes authorized through assigned roles |
 
----
+Organizational actors such as director, technician, operator, or overseer may inspire role presets or role names. They do not constitute hardcoded authorization rules.
 
-## 3. Problema que resuelve
+## Authorization Model
 
-La organización puede cambiar con el tiempo. Un mismo proceso puede mantenerse
-estable mientras cambian:
+### Users and roles
 
-- los cargos que participan
-- quién registra los datos
-- quién valida
-- quién aprueba
-- quién consolida información
+A user may hold one or more roles at the same time. A role is a configurable set of permissions representing a reusable responsibility profile. Several users may share the same role, including users who perform that responsibility in different shifts.
 
-Si el sistema ata los permisos directamente a la estructura organizacional del
-momento, cada cambio interno obliga a rediseñar formularios, reglas o flujos.
+The permissions effective for a user are the union of the permissions granted by all assigned active roles. Roles are additive: the model does not include explicit denial permissions or precedence rules between roles.
 
-El sistema debe separar:
+### Permissions
 
-1. **la responsabilidad operativa del negocio**
-2. **la autorización para actuar dentro del sistema**
+Each permission combines one general action with one business scope.
 
-Ambas se relacionan, pero no son equivalentes.
-
----
-
-## 4. Conceptos base
-
-### 4.1 Actores organizacionales
-
-Son los cargos, funciones o personas que existen en la organización real.
-
-Ejemplos:
-
-- Jefe de Producción
-- Secretaría de Producción
-- Supervisor
-- Control de Calidad
-- Inventario
-- Jefe Unidad Almacén
-- Administración
-
-Estos actores describen la estructura y las responsabilidades del negocio.
-
-### 4.2 Roles del sistema
-
-Son perfiles de capacidad dentro de la aplicación. Definen qué tipo de acciones
-puede realizar un usuario, independientemente del nombre exacto de su cargo.
-
-Un actor organizacional puede mapearse a uno o más roles del sistema, y ese
-mapeo puede cambiar con el tiempo.
-
-### 4.3 Permisos
-
-For the initial release, permissions use this fixed action vocabulary:
-
-- `read`
-- `write`
-- `edit`
-- `edit_outside_window`
-- `manage_access`
-
-`write` covers recording a new business fact and owner-scope handoffs. `edit`
-is an audited correction of an already recorded fact within the operational
-window; it is not a generic update. `edit_outside_window` and `manage_access`
-are exclusive to System Administrator. No Quality Send or Warehouse Accept
-action is created: both remain domain events authorized by `write` in the
-respective owner scope.
-
-### 4.4 Ámbitos o scopes
-
-These permissions depend on both action and scope. The initial scope model is
-deliberately limited to Operational Unit sections and to units or areas
-elsewhere. It has no scope hierarchy, wildcard matching, process, lot-stage,
-or shift scopes. This lets a user act in one approved target without widening
-access elsewhere.
-
-For the initial release, each user has exactly one current technical role and
-may hold multiple concurrent scope assignments. Technical role names and codes
-describe capability profiles, never organizational job titles. System
-Administrator alone creates, deactivates, and reactivates users; manages roles
-and scope assignments; grants or revokes exceptions; and performs
-`edit_outside_window`. `manage_access` and `edit_outside_window` may be allowed
-only by the System Administrator role and may never be individually granted.
-Lifecycle and access-administration changes must verify that their actor is an
-active System Administrator. Authorization defaults to deny.
-
-The mandatory, unique active technical role `sys_admin` is the System
-Administrator role. Initial deployment must create it, its five fixed action
-allowances, and the initial active bootstrap user atomically in one controlled
-database seed or migration transaction. That bootstrap alone may omit a
-pre-existing System Administrator actor for the bootstrap user, role-action,
-and audit records. All later lifecycle and access administration requires an
-active `sys_admin` actor and normal audit evidence.
-
-After bootstrap, the database transaction must atomically reject any
-deactivation, reassignment, revocation, or other change that would leave no
-active user whose current role is the active `sys_admin` role.
-
-An active `sys_admin` has automatic global operational authorization for every
-current and future section, unit, and area. It needs no domain scope assignment
-and no individual exception may constrain any of its actions. This is a narrow,
-explicit System Administrator bypass, not a wildcard scope hierarchy or generic
-permission engine. Ordinary roles retain default-deny action-plus-active-scope
-assignment evaluation and time-bounded grant/restrict exceptions.
-
----
-
-## 5. Requisitos del sistema
-
-### 5.1 Permisos configurables
-
-The system must permit configuration of who may perform fixed actions in an
-approved scope without altering the business workflow defined in domain PRDs.
-
-### 5.2 Independencia del organigrama actual
-
-El modelo de permisos no debe depender rígidamente de los nombres actuales de
-los cargos ni asumir que la organización permanecerá igual en el tiempo.
-
-### 5.3 Evolución organizacional
-
-El sistema debe soportar sin rediseño funcional:
-
-- creación de nuevos roles
-- eliminación de roles
-- cambio de responsabilidades
-- reasignación de permisos entre roles
-- incorporación de nuevas direcciones, áreas o unidades
-
-### 5.4 Permisos por ámbito
-
-The first release assigns access only to an Operational Unit section or to a
-unit or area in other contexts. Scope targets remain external business-context
-references; Access does not invent organizational nodes or own workflow data.
-Access maintains only a small approved-scope registry: a target is pending
-until validated with its owning context and confirmed, and only a confirmed
-active target may authorize. Rejected, pending, and inactive targets are
-retained for history but are denied. This validation has no cross-context FK.
-
-### 5.5 Authorization of domain acts
-
-Domain acts may have different business owners, but their first-release
-authorization uses only the fixed action vocabulary and approved scope model.
-The Access context does not derive separate `validate`, `approve`,
-`consolidate`, `send`, or `accept` permissions from operational labels.
-
-For a simple operational action, authorization is assigned by action and scope;
-it must not create separate permissions for implicit sub-steps. Quality Send
-and Warehouse acceptance are domain events authorized by `write` in their
-respective owner scopes, rather than separate inspect, review, approve, send,
-or accept permissions. Operational `*_user_id` fields remain audit facts and
-are not permission sources.
-
-### 5.6 Excepciones controladas
-
-The system must permit direct individual exceptions that grant or restrict one
-action in one scope without redefining the global role. Each exception requires
-an explicit validity start and end date, reason, grant/revoke actor, and
-grant/revoke time. An exception may not grant `manage_access` or
-`edit_outside_window`. This is not a generic policy engine.
-
-### 5.7 Trazabilidad de permisos
-
-Todo cambio relevante en asignaciones de acceso debe ser auditable. Debe poder
-conocerse:
-
-- qué permiso tenía un usuario
-- en qué ámbito aplicaba
-- desde cuándo aplicó
-- qué cambio se realizó
-
-### 5.8 Coherencia con los PRD de dominio
-
-Los PRD de dominio describen procesos, actores y operación esperada. Este PRD
-define cómo el sistema traduce eso en permisos configurables sin congelar la
-estructura organizacional en el software.
-
----
-
-## 6. Reglas de negocio transversales
-
-1. **Los procesos no deben rediseñarse por cambios de permisos.**
-   Si cambia el rol que registra una sección o etapa, el flujo del proceso debe
-   mantenerse estable.
-
-2. **Los cargos organizacionales no equivalen automáticamente a permisos.**
-   Un mismo cargo puede tener distintas capacidades según el área, el turno o la
-   decisión vigente de la empresa.
-
-3. **Los permisos pueden cambiar sin cambiar el dominio.**
-   Una reasignación de registro, validación o aprobación es una decisión de
-   política de acceso, no una redefinición del proceso productivo.
-
-4. **Las excepciones deben ser explícitas y trazables.**
-   Los permisos especiales para usuarios puntuales deben quedar identificados y
-   auditables.
-
-5. **Read and intervention are distinct capabilities.**
-   `read` does not imply `write`, `edit`, `edit_outside_window`, or
-   `manage_access`.
-
-6. **El sistema debe tolerar crecimiento organizacional.**
-   La aparición de nuevas direcciones, áreas, unidades o funciones no debe
-    invalidar el modelo de acceso existente.
-
-7. **La reactivación requiere una nueva autorización explícita.**
-   La desactivación y la reactivación preservan el historial, pero invalidan
-   para autorización efectiva las asignaciones y excepciones de la generación
-   anterior. Se deben reasignar o reotorgar explícitamente.
-
----
-
-## 7. Ejemplos de uso esperados
-
-### 7.1 Reasignación dentro de una sección
-
-Hoy, en una sección determinada, el registro puede estar a cargo de
-**Inventario**. Mañana la empresa puede decidir que ese registro pase a
-**Control de Calidad**.
-
-El sistema debe permitir ese cambio sin:
-
-- rediseñar el proceso
-- reescribir el PRD del proceso
-- perder trazabilidad histórica
-
-### 7.2 Distintos permisos para el mismo cargo
-
-Dos usuarios con el mismo cargo organizacional pueden tener permisos distintos
-si trabajan en ámbitos diferentes o si existe una excepción aprobada.
-
-### 7.3 Nuevas áreas futuras
-
-Si el sistema incorpora una nueva dirección o área, el modelo de control de
-acceso debe poder extenderse a ese nuevo ámbito sin romper lo ya definido para
-Producción, Almacén u Operación.
-
----
-
-## 8. Relación con los PRD de dominio
-
-### PRD maestro (`docs/prd/product-overview.md`)
-
-Define el marco organizacional, las unidades, los actores y las reglas
-transversales del sistema.
-
-### PRD de Operación (`docs/prd/operation/overview.md`)
-
-Describe la operación productiva, los turnos, los roles operativos y la
-asignación actual o esperada de responsabilidades dentro del proceso.
-
-### PRD de Almacén (`docs/prd/warehouse/overview.md`)
-
-Describe la operación documental y física de Almacén, sus movimientos y sus
-actores.
-
-### Este PRD transversal
-
-Define cómo esas responsabilidades se convierten en permisos configurables,
-auditables y reasignables dentro del sistema.
-
----
-
-## 9. No objetivos
-
-Este documento no define:
-
-- el proveedor o mecanismo de autenticación
-- tablas de base de datos
-- endpoints o contratos técnicos
-- estructura de tokens o sesiones
-- detalles de implementación interna
-
-Tampoco reemplaza los PRD de dominio. Su función es servir como contrato de
-producto para la autorización transversal.
-
----
-
-## 10. Decisiones abiertas
-
-1. Qué nivel de administración de permisos existirá en la primera versión:
-   - solo configuración controlada por desarrollo/soporte
-   - o interfaz administrativa para gestión de permisos
-
-2. Individual exception grants and revocations are performed only by System
-   Administrator.
-
-3. The initial scope inventory must identify the existing Operational Unit
-    sections and the existing unit/area targets in other contexts. It must not
-    invent organizational nodes. Access confirmation must validate each target
-    with its owning context; pending, rejected, and inactive targets cannot
-    authorize.
-
----
-
-## 11. Glosario
-
-| Término | Definición |
+| General action | Business meaning |
 |---|---|
-| **Control de acceso** | Conjunto de reglas que determina qué puede hacer un usuario dentro del sistema. |
-| **Autorización** | Decisión sobre si un usuario puede ejecutar una acción en un ámbito determinado. |
-| **Rol del sistema** | Perfil de capacidades usado para asignar permisos dentro de la aplicación. |
-| **Actor organizacional** | Cargo, función o persona definida por la estructura real de la empresa. |
-| **Permiso** | Capacidad concreta para actuar sobre información o procesos del sistema. |
-| **Scope / ámbito** | Approved authorization target: an Operational Unit section, or a unit or area in another context. |
-| **Excepción** | Permiso especial o restricción particular aplicada a un usuario o caso específico. |
-| **Trazabilidad de permisos** | Capacidad de reconstruir históricamente qué permisos existían, cuándo y para quién. |
+| Read | Consult information available in the authorized business scope |
+| Write | Record a new business fact in the authorized business scope |
+| Edit | Correct an existing business fact within the operational window defined by its owning business context |
+| Edit Outside the Operational Window | Perform an exceptional correction after the ordinary correction window has closed |
+| Manage Access | Create and change users, roles, presets, assignments, and permissions |
+
+The action vocabulary is intentionally general. Business expressions such as register, capture, fill in, or add are forms of Write when they create a new business fact. The meaning of an action is determined by the requested business operation, not by a screen interaction or transport mechanism.
+
+Edit Outside the Operational Window remains distinct because it grants exceptional authority to bypass an ordinary business restriction and therefore requires stronger traceability.
+
+### Business scopes
+
+A business scope identifies the responsibility or area in which an action is permitted. It must be specific enough to prevent access to one responsibility from granting access to unrelated responsibilities.
+
+Business scopes may represent:
+
+- a complete business context;
+- an organizational unit or area;
+- an operational section;
+- a cross-section responsibility;
+- a consolidated business view;
+- Access Control itself;
+- the complete system for the System Administrator.
+
+The scope structure must support growth without assuming that the current organization is permanent. A new direction, unit, section, or cross-cutting responsibility becomes a new authorizable business scope and receives no ordinary role permissions automatically.
+
+### Yarn Spinning scope boundaries
+
+Within Yarn Spinning, the operational responsibility of a section includes its production records, applicable progress records, and section dashboard. The action determines whether the user may consult or record within that section.
+
+Process Quality and Waste are independent cross-section responsibilities. Each must be authorizable separately because each may be assigned to a different role and may involve machines from every plant section.
+
+The consolidated Yarn Spinning dashboard is an independent read scope. Access to every section dashboard does not automatically grant access to the consolidated dashboard, and access to the consolidated dashboard does not grant write access to any section.
+
+## Business Rules
+
+1. Access must be granted through roles. Permissions are not assigned directly to individual users.
+2. A user may hold multiple roles concurrently.
+3. A user's effective permissions are the union of the permissions granted by all assigned active roles.
+4. A permission consists of one general action and one explicit business scope.
+5. The supported general actions are Read, Write, Edit, Edit Outside the Operational Window, and Manage Access.
+6. A permission grants only its stated action within its stated business scope. Read never implies Write, Edit, Edit Outside the Operational Window, or Manage Access.
+7. If no assigned role explicitly grants the required action in the required business scope, access must be denied.
+8. Roles do not contain explicit denials. No role overrides or subtracts a permission granted by another assigned role.
+9. Roles are configurable and must not depend on hardcoded organizational job titles.
+10. Several users may share the same role. Their permissions are shared, but their identities and activities remain individually traceable.
+11. Changing a role changes the effective permissions of every user assigned to that role.
+12. Before a role change is confirmed, the affected users and the permissions being added or removed must be identifiable to the System Administrator.
+13. A role preset is a reusable starting configuration for creating a role.
+14. Creating a role from a preset copies the preset configuration. The resulting role is independent and may be changed without altering the preset.
+15. Changing a preset must not silently change roles that were previously created from it.
+16. New business scopes are denied to ordinary roles until the System Administrator grants explicit permissions for them.
+17. Shift is operational and audit context. It must not grant, restrict, or widen authorization.
+18. Users who share a role across different shifts remain distinct users. Every recorded action must identify the individual who performed it.
+19. The System Administrator has access across the complete system, including newly introduced business scopes.
+20. Manage Access and Edit Outside the Operational Window are reserved for the System Administrator.
+21. The system must retain at least one active System Administrator so access governance cannot be left without an authorized administrator.
+22. An inactive user cannot obtain authorization, regardless of assigned roles.
+23. An inactive role grants no effective permission but must remain available for historical traceability.
+24. Deactivation must preserve the user's identity, prior assignments, and access history.
+25. Access configuration changes must identify the acting user, the affected user or role, the change, the previous and resulting configuration, and the date and time of the change.
+26. The reason for an exceptional correction or another privileged access intervention must be preserved.
+27. Access Control determines whether an action is authorized. The owning business context determines whether the requested operation is valid under its own business rules.
+28. A business context must not infer authorization from shift, job title, page visibility, or an operational user reference stored in a business record.
+29. Operational audits must identify the individual user and may include business date, time, shift, correction reason, and changed values. These facts do not alter the authorization decision.
+30. Access Control must not invent actions for domain-specific events. A domain event uses the applicable general action within the scope owned by that business context.
+
+## Flows and Processes
+
+### Create a role from a preset
+
+1. The System Administrator selects a preset representing a common responsibility profile.
+2. The system presents the actions and business scopes that will be copied.
+3. The System Administrator names the new role and adjusts its permissions as required.
+4. The system creates an independent role.
+5. The system records who created the role, when it was created, and which permissions it initially contained.
+
+### Assign roles to a user
+
+1. The System Administrator selects an active user.
+2. The system presents the user's current roles and resulting permissions.
+3. The System Administrator adds or removes one or more active roles.
+4. The system presents the resulting permission changes before confirmation.
+5. The system applies the assignment and records the acting user, affected user, previous roles, resulting roles, date, and time.
+
+### Evaluate an access request
+
+1. The system identifies the active user requesting the business operation.
+2. The requested operation identifies the required general action and actual business scope.
+3. The system determines the permissions granted by all active roles assigned to the user.
+4. The system allows the request when the effective permissions contain the required action and scope.
+5. The system denies the request in every other case.
+6. When authorization succeeds, the owning business context evaluates its own process rules before performing the operation.
+
+### Modify a shared role
+
+1. The System Administrator selects an active role.
+2. The system identifies every user assigned to that role.
+3. The System Administrator adds or removes permissions.
+4. The system presents the affected users and the effective permission changes before confirmation.
+5. The system applies the change to the shared role.
+6. The system records the acting user, previous role configuration, resulting configuration, date, and time.
+
+### Introduce a new business scope
+
+1. A business area establishes a new authorizable responsibility or area.
+2. The System Administrator makes the business scope available for role configuration.
+3. Ordinary roles retain no access to the new scope by default.
+4. The System Administrator explicitly updates suitable presets or roles.
+5. Existing roles created from a changed preset remain unchanged unless edited explicitly.
+
+### Correct an operational record
+
+1. The owning business context determines whether the record remains within its ordinary correction window.
+2. A correction within the window requires Edit permission in the record's business scope.
+3. A correction outside the window requires Edit Outside the Operational Window permission in that business scope.
+4. The owning business context validates which information can be corrected and which evidence is required.
+5. The operational audit identifies the individual user, date, time, shift when applicable, reason, and changed values.
+
+## States and Transitions
+
+### User access state
+
+| State | Description | Allowed transitions |
+|---|---|---|
+| Active | The user may receive authorization through assigned active roles | Inactive |
+| Inactive | The user cannot receive authorization; identity and history are preserved | Active |
+
+### Role state
+
+| State | Description | Allowed transitions |
+|---|---|---|
+| Active | The role contributes permissions to assigned users | Inactive |
+| Inactive | The role grants no permission and remains available for historical traceability | Active |
+
+Reactivation of a user or role must not erase the access-change history associated with prior states.
+
+## Acceptance Criteria
+
+1. A user with no assigned role is denied access to every protected business operation.
+2. A user with one role receives exactly the actions and business scopes granted by that active role.
+3. A user with several roles receives the union of their permissions without requiring a composite role.
+4. Two users assigned to the same role receive the same permissions while their actions remain attributable to their individual identities.
+5. A Read permission does not allow recording or correcting information in the same business scope.
+6. A Write permission in one Yarn Spinning section does not allow writing in another section.
+7. Write access to Process Quality does not grant Write access to Waste or to section production records.
+8. Write access to Waste does not grant Write access to Process Quality or to section production records.
+9. Read access to a section permits consultation of its dashboard without granting Write access to its records.
+10. Read access to all Yarn Spinning sections does not by itself grant access to the consolidated Yarn Spinning dashboard.
+11. Shift changes do not alter a user's effective permissions.
+12. Creating a role from a preset produces an independently editable role.
+13. Changing a preset does not alter roles previously created from that preset.
+14. Changing a shared role identifies the affected users before confirmation and changes the permissions of all assigned users after confirmation.
+15. Adding a new business scope does not grant it to existing ordinary roles automatically.
+16. An inactive user is denied even when active roles remain assigned.
+17. An inactive role contributes no permission to its assigned users.
+18. A user without Edit Outside the Operational Window permission cannot correct a record after its owning business context closes the ordinary correction window.
+19. Only the System Administrator can manage access or authorize an exceptional correction outside the operational window.
+20. The System Administrator can operate across existing and newly introduced business scopes.
+21. The system prevents an access change that would leave no active System Administrator.
+22. Every role creation, role change, role assignment, role removal, user activation, and user deactivation is traceable to the individual who performed it and the date and time of the change.
+23. Authorization does not replace domain validation: an authorized request is still rejected when it violates the owning business context's rules.
+24. Operational audit records identify the individual user rather than only the shared role.
+
+## Capability Boundaries
+
+Access Control does not define:
+
+- authentication providers, credentials, sessions, or identity tokens;
+- database structures, service interfaces, routes, or transport contracts;
+- navigation layout, page composition, or visual route protection;
+- the validity of production, Warehouse, quality, waste, or lot operations;
+- correction windows or correctable information for individual business contexts;
+- shift assignment, attendance, or workforce scheduling;
+- operational approval, confirmation, delivery, reception, or consolidation acts unless an owning business PRD defines them;
+- role hierarchy, inherited roles, explicit deny permissions, or conflict precedence between roles;
+- direct permission assignments to individual users;
+- use of job titles or shifts as authorization rules.
+
+Frontend and backend specifications may describe how these rules are implemented, but they must not redefine this authorization model.
