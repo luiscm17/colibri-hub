@@ -45,7 +45,7 @@ retain the same `lot_code` throughout the lifecycle.
 | --- | --- |
 | **Inputs** | Raw-material bales delivered by Warehouse; Finished Product requirement containing the unique `lot_code`, title, color, client or destination, and applicable specifications; skeins produced by Yarn Spinning for physical lot assembly. |
 | **Owned representation** | Operation `Production Identity`, created or resolved one to one from the Warehouse Finished Product requirement under the same `lot_code`. |
-| **Outputs** | Completed lots inspected by Quality and sent to Warehouse under the same identity and `lot_code`, with Operation-owned processing and quality records. |
+| **Outputs** | Completed lots released for Warehouse reception under the same identity and `lot_code`, with Operation-owned processing, quality, and handoff-response records. |
 | **Excluded** | Raw-material, Finished Product, and supplies inventory management; Warehouse reception, availability, dispatch, and returns; valuation, costing, and accounting closes. |
 
 ---
@@ -61,7 +61,7 @@ configurable Access Control role.
 | Actor | Reports to | Business responsibility |
 | --- | --- | --- |
 | **Supervisor** | Production Manager | Coordinates raw-material processing during the shift and consolidates operational records. Does not become a direct registrar unless enabled by access policy. |
-| **Quality Control** | Supervisor | Performs quality work across plant sections, documents the lot quality state, and records Quality Send to Warehouse. Currently also registers production and progress for Preparation and Ring Spinning. |
+| **Quality Control** | Supervisor | Performs quality work across plant sections, documents the lot quality state, and currently performs the release for reception and responds to handoff issues when assigned by policy. Currently also registers production and progress for Preparation and Ring Spinning. |
 | **Inventory** | Supervisor | Resolves the Warehouse requirement in Operation, assembles the physical lot under the corresponding Production Identity, and tracks it through delivery. Currently registers production and progress for Twisting and Skeining, records real waste across sections, and receives daily raw material from Warehouse. |
 | **Dyeing Personnel** | Supervisor | Performs and records the dyeing and drying work within the lot lifecycle. |
 | **Packaging** | Supervisor | Coordinates and records winding, ball winding, and bagging operations. |
@@ -109,11 +109,17 @@ Operation Production Identity and processes the same business lot through:
 3. Drying (Secado)
 4. Winding or Ball Winding (Devanado)
 5. Bagging (Embolsado)
-6. Quality - final inspection and send to Warehouse
+6. Quality - final inspection and delivery-condition documentation
 
 Operation does not assign another `lot_code` or create another business lot.
 The Production Identity is an Operation-owned representation used to record
 productive facts for the Finished Product requested by Warehouse.
+
+Completing the Warehouse requirement makes it available to Operation
+automatically. No separate send, approval, or acceptance is required before
+Operation creates or resolves its Production Identity. Likewise, completing a
+Lot Processing stage makes the lot available to the next stage without an
+intermediate approval.
 
 The Lot Processing workspace includes:
 
@@ -187,11 +193,13 @@ flowchart LR
     subgraph Operation["Operation"]
         PID["Production Identity (1:1)"]
         LP["Lot Processing records"]
-        QS["Quality Send"]
+        QS["Release for reception"]
     end
     REQ -- "handoff under the same lot_code" --> PID
     PID --> LP --> QS
-    QS -- "completion under the same lot_code" --> FPR
+    QS -- "pending verification under the same lot_code" --> FPR
+    FPR -- "handoff issue when resolution is required" --> LP
+    LP -- "issue response and new verification" --> FPR
 ```
 
 | Rule | Meaning |
@@ -201,6 +209,9 @@ flowchart LR
 | Context-owned writes | Warehouse writes requirement and inventory facts; Operation writes Production Identity, processing, and quality facts. |
 | Continuous history | Authorized consultation may assemble a continuous lifecycle without allowing either context to overwrite the other's records. |
 | Physical assembly | Inventory assembles the physical set of skeins under the existing identity; this does not create another business lot or code. |
+| Role-neutral handoff | Release for reception is named for the business act, not for the position or section currently responsible. |
+| Iterative verification | Warehouse may report a handoff issue and Operation may respond repeatedly until Warehouse records reception. |
+| Mandatory delivery | A handoff issue is not rejection or non-approval; the same Finished Product must still be delivered to Warehouse. |
 
 ---
 
@@ -227,8 +238,8 @@ permissions, not from role names.
   authorizable scope.
 - `Write`, `Edit`, and `Edit Outside the Operational Window` control their
   respective acts independently and do not imply `Read`.
-- The backend must omit unauthorized stage-specific data; hiding fields only in
-  the frontend is not an authorization control.
+- Unauthorized stage-specific information must not be disclosed; interface
+  hiding alone is not an authorization control.
 - Several roles are combined and deduplicated before navigation, data, and
   controls are derived.
 

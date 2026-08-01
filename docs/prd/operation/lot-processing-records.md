@@ -24,9 +24,9 @@ This document defines the functional records of Lot Processing. It bridges:
 - forms, validations, dashboards, queue projections, and lot detail;
 - permission-sensitive data projections.
 
-It does not define tables, technical columns, API payloads, or database
-structure. It defines what the business records, at what granularity, who owns
-the information, and how it contributes to one lot history.
+It defines what the business records, at what granularity, who owns the
+information, and how it contributes to one lot history. Technical representation
+belongs in derived specifications.
 
 ---
 
@@ -62,7 +62,7 @@ business lot or identifier.
 - Warehouse owns requirement, reception, availability, custody, dispatch, and
   return facts.
 - Operation owns Production Identity, stage interventions, stage waste,
-  Operation quality, and Quality Send.
+  Operation quality, release for reception, and issue responses.
 - A unified detail may project authorized facts from both contexts, but neither
   context overwrites records owned by the other.
 
@@ -90,8 +90,8 @@ times. Business date, shift, actors, and timestamps describe history; they are
 not uniqueness keys.
 
 Advancement depends on completion of the prior stage, not on the existence of
-exactly one row. The use-case or domain layer enforces cross-stage sequence; a
-cross-table DBML constraint does not express that invariant.
+exactly one intervention record. The stage sequence remains a business rule
+regardless of how the records are represented technically.
 
 ### 3.3 Business and system time
 
@@ -129,9 +129,8 @@ Lot Processing views separate:
 - **action controls:** registration and correction operations permitted by the
   user's effective actions.
 
-The backend must omit stage-specific fields when the user lacks the
-corresponding `Read`. The frontend may also hide those components, but frontend
-hiding is not an authorization control.
+Stage-specific information must not be disclosed when the user lacks the
+corresponding `Read`. Interface hiding alone is not an authorization control.
 
 ---
 
@@ -484,11 +483,10 @@ or verified data.
 
 ### 5.6 Quality
 
-- **Represents:** final Operation evaluation and handoff of the completed lot to
-  Warehouse.
+- **Represents:** final Operation evaluation of the completed lot before the
+  finished-product handoff.
 - **Granularity:** one Quality history record per legitimate inspection
-  intervention; multiple inspection records may belong to the same lot. At most
-  one record or dedicated domain fact may carry the single Quality Send marker.
+  intervention; multiple inspection records may belong to the same lot.
 
 #### Inherited or reference data
 
@@ -515,30 +513,10 @@ or verified data.
 - special nomenclature when applicable;
 - delivery conditions to Warehouse.
 
-#### Quality Send
-
-Quality Send is the single Operation business act that:
-
-1. requires completed Quality validation;
-2. records the exact send timestamp and individual actor;
-3. keeps the same Production Identity and `lot_code`;
-4. places the lot in the pending Warehouse reception phase;
-5. ends only when Warehouse registers acceptance of the same Finished Product.
-
-The UI may display a business date, but the exact system timestamp is preserved
-for audit and ordering. Brief coordination notes during the pending phase do not
-mean acceptance, do not create another send, and do not transfer record
-ownership.
-
-Quality Send is a domain act authorized through the general `Write` action in
-the applicable scope. It does not introduce separate RBAC actions named inspect,
-review, approve, or send.
-
 #### Automatic technical data
 
 - system record timestamp;
 - authenticated recording user;
-- exact Quality Send timestamp and actor when applicable;
 - audit metadata.
 
 #### Optional or contextual data
@@ -560,13 +538,56 @@ review, approve, or send.
 #### Permission behavior
 
 - Effective permissions govern Quality consultation, intervention recording,
-  Quality Send, and correction.
+  and correction.
 
 #### Closure boundary
 
 Quality records the product state and delivery conditions. It does not classify
 Warehouse inventory, define Warehouse availability, or decide the final
 commercial disposition.
+
+---
+
+### 5.7 Finished-product handoff records
+
+The finished-product handoff begins with one release for reception after the
+final productive stage is complete. The release records:
+
+- the same Production Identity and visible lot code;
+- the responsible Operation actor;
+- the exact time of release;
+- the applicable quality state and delivery conditions;
+- the fact that the handoff is pending Warehouse verification.
+
+The release is named for the business act, not for the position or section that
+currently performs it. Quality Control is the current recorder only while that
+responsibility remains assigned by business policy.
+
+If Warehouse finds a discrepancy before reception, it records a handoff issue
+containing:
+
+- a clear description of the discrepancy;
+- the Warehouse actor who reported it;
+- the exact reporting time;
+- supporting evidence when required by business policy.
+
+The issue places the handoff in resolution required. Operation then records an
+issue response containing:
+
+- the correction, remedy, or clarification performed;
+- the Operation actor who responded;
+- the exact response time;
+- supporting evidence when required by business policy.
+
+An issue response returns the same handoff to pending verification. It does not
+confirm that Warehouse considers the issue resolved and does not create another
+release. Warehouse performs another verification and either records reception
+or records another issue. All issues and responses are append-only and remain
+visible as one chronological handoff history.
+
+Effective permissions govern release for reception, issue consultation, issue
+response, and correction independently. The general authorization action does
+not rename any of these business acts.
 
 ---
 
@@ -630,62 +651,37 @@ new source records, actions, or scopes.
 8. **Multiple interventions:** Date, shift, actor, and timestamp do not impose
    one record per stage.
 9. **Sequential validation:** A later-stage intervention requires prior-stage
-   completion and is validated in the domain or use-case layer.
+   completion and remains a business invariant across every interaction.
 10. **Correction with audit:** Every correction preserves actor, timestamp,
     reason, prior values, and resulting values.
 11. **Operational window:** Ordinary corrections require `Edit` and compliance
     with the owning context's window.
 12. **Exceptional correction:** Corrections after the window require `Edit
     Outside the Operational Window` in the owning scope.
-13. **Single handoff:** Only one Quality Send may place the lot pending
-    Warehouse reception.
-14. **Warehouse acceptance:** Only Warehouse reception of the same Finished
-    Product completes the handoff; notes do not count as acceptance.
-15. **Context ownership:** Warehouse and Operation never overwrite each other's
+13. **Single release:** Only one release for reception starts the
+    finished-product handoff.
+14. **Issue before reception:** Warehouse records a handoff issue instead of
+    reception when a discrepancy requires correction, remedy, or clarification.
+15. **Response without restart:** An Operation issue response returns the same
+    handoff to pending verification and does not create another release.
+16. **Repeatable coordination:** Issue and response cycles may repeat until
+    Warehouse records reception.
+17. **Reception completes the handoff:** Only Warehouse reception of the same
+    Finished Product completes the handoff; issues and responses do not.
+18. **Context ownership:** Warehouse and Operation never overwrite each other's
     source records.
-16. **Configurable permissions:** Current recorders and actors do not define
+19. **Configurable permissions:** Current recorders and actors do not define
     fixed authorization.
-17. **Backend-enforced visibility:** Unauthorized stage-specific fields are
-    omitted from backend results.
-18. **Independent actions:** `Write` does not imply `Read`, and record ownership
+20. **Enforced visibility:** Unauthorized stage-specific information is not
+    disclosed.
+21. **Independent actions:** `Write` does not imply `Read`, and record ownership
     does not imply correction rights.
 
 ---
 
-## 8. Use in Later Design
+## 8. Documentation Boundary
 
-This document should feed, in order:
-
-1. **Domain model**
-   - entities, value objects, domain events, and invariants;
-   - Production Identity relationship to the Warehouse Finished Product;
-   - stage completion and Quality Send semantics.
-2. **Data modeling**
-   - persisted functional facts;
-   - specialized stage records;
-   - audit and cross-context references;
-   - read projections without duplicated ownership.
-3. **Forms and UI**
-   - fields each stage inherits, verifies, or generates;
-   - dashboard, queue, and contextual detail;
-   - permission-sensitive fields and controls.
-4. **Validation rules**
-   - sequence and completion;
-   - quantity and weight consistency;
-   - single Quality Send;
-   - correction windows and audit;
-   - context and authorization boundaries.
-
-It must not be used directly as a table design. Its purpose is to close the
-functional meaning of the data before technical design.
-
----
-
-## 9. Open Ambiguities
-
-1. Confirm which stages record waste by weight, quantity, or both.
-2. Define the structured catalog for Quality delivery conditions.
-3. Confirm the exact business rule that marks a stage complete when it contains
-   multiple interventions.
-4. Define the final Access Control scope catalog for general Lot Processing and
-   stage-specific consultation, registration, and correction.
+This document defines the business meaning, ownership, granularity, history,
+and authorization behavior of Lot Processing records. Technical representation,
+interfaces, storage, and component design belong in their corresponding derived
+specifications and must not redefine these rules.

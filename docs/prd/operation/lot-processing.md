@@ -66,7 +66,7 @@ flowchart LR
     end
     REQ -- "handoff" --> PID
     PID --> INV --> DYE --> DRY --> WIN --> BAG --> QUA
-    QUA -- "completion and Quality Send" --> FPR
+    QUA -- "completion and release for reception" --> FPR
 ```
 
 Warehouse creates the business requirement before the physical set of skeins is
@@ -83,8 +83,8 @@ identity.
 | Boundary | Detail |
 | --- | --- |
 | **Input** | Warehouse Finished Product requirement represented in Operation by one Production Identity, plus skeins produced in Skeining and available for assembly. |
-| **Output** | Completed lot inspected by Quality and sent to Warehouse under the same `lot_code`, with complete Operation-owned processing and quality history. |
-| **Owned by Operation** | Production Identity, stage interventions, stage sequence, Operation waste facts, quality state at handoff, and Quality Send. |
+| **Output** | Completed lot released for Warehouse reception under the same `lot_code`, with complete Operation-owned processing, quality, and handoff-response history. |
+| **Owned by Operation** | Production Identity, stage interventions, stage sequence, Operation waste facts, quality state at handoff, release for reception, and responses to handoff issues. |
 | **Not included** | Creation or modification of the Warehouse Finished Product requirement; assignment of another `lot_code`; raw-material issuance; Warehouse physical reception, availability classification, stock, dispatch, or returns; Yarn Spinning production in its five sections. |
 
 ### 1.5 Dependencies
@@ -148,9 +148,8 @@ are:
 - authorized filters and search criteria.
 
 Stage-specific technical fields are added only when the user has the required
-effective `Read` permission for their owning scope. The backend must omit
-unauthorized technical data; hiding a component in the frontend is not a
-security control.
+effective `Read` permission for their owning scope. Unauthorized information
+must not be disclosed merely because the interface can hide it.
 
 ### 2.4 Lot detail
 
@@ -196,9 +195,9 @@ business date or shift, including records by different users or at different
 times. Business date, shift, actors, and timestamps are history attributes, not
 uniqueness keys.
 
-Cross-stage sequence is enforced by the use-case or domain layer. It is not a
-cross-table DBML constraint. Corrections remain subject to the audit and
-operational-window policy.
+Cross-stage sequence is a business invariant independent from the way records
+are represented. Corrections remain subject to the audit and operational-window
+policy.
 
 ### 3.1 Inventory - Physical lot assembly
 
@@ -268,23 +267,47 @@ measurement.
 | **Possible issues** | Damaged bags; incorrect label or data sheet; damaged units; count differences. |
 | **Result** | The packaged lot advances to Quality. |
 
-### 3.6 Quality - Final inspection and handoff
+### 3.6 Quality - Final inspection
 
-Quality inspects the complete lot, documents its quality state and defects, and
-records the single Quality Send that places the lot in the pending Warehouse
-reception phase.
+Quality inspects the complete lot and documents its quality state, defects, and
+delivery conditions. Completing Quality does not name or permanently assign the
+separate responsibility for releasing the product to Warehouse.
 
 | Aspect | Description |
 | --- | --- |
 | **Current business actor** | Quality Control |
 | **When** | After Bagging and before Warehouse reception. |
-| **Records** | Inspection business date and shift; individual actor; supervisor; visible and internal defects; special nomenclature when applicable; quality state; delivery conditions; exact Quality Send timestamp and actor. |
-| **Result** | The lot leaves Operation under the same `lot_code` and awaits Warehouse acceptance. |
+| **Records** | Inspection business date and shift; individual actor; supervisor; visible and internal defects; special nomenclature when applicable; quality state; and delivery conditions. |
+| **Result** | The final productive stage is complete and the lot is eligible for release for reception. |
 
 If the lot does not meet minimum parameters, it is flagged and Operation must
 exhaust viable internal resolution options before documenting the conditions in
-which it is sent to Warehouse. Quality documents the state at handoff; it does
+which it will be released to Warehouse. Quality documents the state at handoff; it does
 not determine Warehouse availability or commercial disposition.
+
+### 3.7 Finished-product handoff
+
+Release for reception is an Operation business act performed after the final
+productive stage is complete. It makes the completed lot available for
+Warehouse physical verification under the same Production Identity and lot
+code. The act is not named after the section or position that currently performs
+it; the responsible actor is determined by current business assignment and
+effective authorization.
+
+Warehouse then verifies the physical product against the authorized requirement,
+processing completion, quality state, delivery conditions, and applicable
+quantities. Two outcomes are possible:
+
+1. If the information and physical product agree, Warehouse records reception.
+2. If they do not agree, Warehouse records a handoff issue instead of reception.
+
+A handoff issue is not a rejection. Operation must correct, remedy, or clarify
+the reported discrepancy and record an issue response. That response returns the
+same handoff to pending verification. Warehouse verifies again and may record
+reception or another issue. The cycle may repeat until reception is recorded.
+
+Release for reception occurs once for the completed lot. Issue responses do not
+create another release, another Product Identity, or another lot.
 
 ---
 
@@ -317,10 +340,9 @@ Each intervention preserves:
 - observations, waste, and exit condition;
 - correction history when applicable.
 
-The current model does not persist physical entry-and-exit timestamp pairs for
-each stage. Physical duration is deferred until the business defines which
-events start and end the measurement, how they are captured, and what decisions
-will use it.
+Physical entry-and-exit duration is excluded from this capability. Introducing
+that measurement requires a separate requirement defining the start and end
+events, capture responsibility, and business decisions that use the result.
 
 ### 4.3 Waste
 
@@ -346,15 +368,19 @@ flowchart TD
     WIN["Winding / Ball Winding"]
     BAG["Bagging"]
     QUA["Quality"]
-    PEN["Pending Warehouse reception"]
+    PEN["Pending verification"]
+    RES["Resolution required"]
     COM["Warehouse reception completed"]
     REQ --> AVA
     AVA --> INV --> DYE --> DRY --> WIN --> BAG --> QUA
-    QUA --> PEN --> COM
+    QUA --> PEN
+    PEN --> COM
+    PEN --> RES
+    RES --> PEN
 ```
 
-These phases describe business behavior. They are not automatically a canonical
-persistence enum.
+These phases describe business behavior and do not prescribe a technical state
+representation.
 
 ### 5.2 Transition rules
 
@@ -375,12 +401,18 @@ persistence enum.
    scope and compliance with the current operational window.
 8. **Exceptional correction:** Correction after that window requires `Edit
    Outside the Operational Window` in the owning scope.
-9. **Single Quality Send:** One send is permitted after Quality completes its
-   validation. It records an exact timestamp and actor and places the lot in the
-   pending Warehouse reception phase.
-10. **Warehouse acceptance:** Only Warehouse reception for the same Finished
-    Product and `lot_code` completes the handoff. Coordination notes are not
-    acceptance and do not create another send.
+9. **Single release:** One release for reception is permitted after the final
+   productive stage is complete. It records the responsible actor and exact
+   time and places the handoff in pending verification.
+10. **Issue reporting:** Warehouse records a handoff issue instead of reception
+    when the physical product and authorized information do not agree.
+11. **Issue response:** Operation records a correction, remedy, or clarification
+    and returns the same handoff to pending verification.
+12. **Repeated verification:** Issue and response cycles may repeat without
+    creating another release, another identity, or another lot.
+13. **Warehouse reception:** Only Warehouse reception for the same Finished
+    Product and `lot_code` completes the handoff. An issue or response is not
+    reception.
 
 ### 5.3 Quality state at handoff
 
@@ -406,7 +438,8 @@ availability or disposition decision; it must not overwrite the Quality state.
 5. Each context writes only the facts it owns.
 6. The lot queue and detail may assemble an authorized continuous history
    without exposing unauthorized stage-specific fields.
-7. The backend enforces data visibility. Frontend hiding alone is insufficient.
+7. Unauthorized information is not disclosed; interface hiding alone is not an
+   authorization rule.
 8. Business actors describe current responsibility but do not define fixed
    permissions.
 9. `Read`, `Write`, `Edit`, and `Edit Outside the Operational Window` are
@@ -414,9 +447,10 @@ availability or disposition decision; it must not overwrite the Quality state.
 10. Record ownership and actor fields do not expand a user's effective
     permissions.
 11. Dashboard filters do not grant or restrict authorization.
-12. Operation concludes its productive responsibility with Quality Send, but
-    the cross-context handoff remains pending until Warehouse accepts the same
-    Finished Product.
+12. Operation concludes its productive work at the end of Quality and starts
+    the cross-context handoff through release for reception.
+13. Operation remains responsible for addressing handoff issues until Warehouse
+    records reception of the same Finished Product.
 
 ---
 
@@ -430,14 +464,16 @@ availability or disposition decision; it must not overwrite the Quality state.
 | AC-LP-04 | A later-stage intervention is rejected until the previous stage is complete. |
 | AC-LP-05 | Multiple legitimate interventions may be recorded in the same stage, date, or shift. |
 | AC-LP-06 | Inherited values are distinguishable from local measurements and verifications. |
-| AC-LP-07 | Quality Send can occur only once after Quality completion and records the exact actor and timestamp. |
-| AC-LP-08 | Warehouse reception completes the handoff for the same Finished Product and `lot_code`; notes do not count as acceptance. |
-| AC-LP-09 | `Read` in general Lot Processing scope provides the dashboard, queue, detail, and authorized transversal information. |
-| AC-LP-10 | Stage-specific technical data is returned only when the user has the corresponding effective `Read`. |
-| AC-LP-11 | Unauthorized technical data is omitted by the backend, not merely hidden in the UI. |
-| AC-LP-12 | `Write` does not grant `Read`, and role names or shifts do not grant access. |
-| AC-LP-13 | Every correction retains a complete audit trail and complies with the applicable correction permission and window. |
-| AC-LP-14 | Shift Summary and Daily Summary can be produced through filters without becoming independent capabilities or permission scopes. |
+| AC-LP-07 | Release for reception can occur only once after final productive completion and records the exact actor and time. |
+| AC-LP-08 | Warehouse may report a handoff issue instead of reception when the physical product and authorized information do not agree. |
+| AC-LP-09 | An Operation issue response returns the same handoff to pending verification without creating another release or identity. |
+| AC-LP-10 | Issue and response cycles may repeat until Warehouse reception completes the handoff for the same Finished Product and `lot_code`. |
+| AC-LP-11 | `Read` in general Lot Processing scope provides the dashboard, queue, detail, and authorized transversal information. |
+| AC-LP-12 | Stage-specific technical data is returned only when the user has the corresponding effective `Read`. |
+| AC-LP-13 | Unauthorized technical data is not disclosed, regardless of interface visibility. |
+| AC-LP-14 | `Write` does not grant `Read`, and role names or shifts do not grant access. |
+| AC-LP-15 | Every correction retains a complete audit trail and complies with the applicable correction permission and window. |
+| AC-LP-16 | Shift Summary and Daily Summary can be produced through filters without becoming independent capabilities or permission scopes. |
 
 ---
 
@@ -451,7 +487,9 @@ availability or disposition decision; it must not overwrite the Quality state.
 | **Lot code** | Globally unique business identifier assigned with the Warehouse requirement and preserved across contexts. |
 | **Lot specifications** | Title, color, client or destination, and other production requirements defined by Warehouse. |
 | **Physical lot assembly** | Selection and grouping by Inventory of skeins under the existing Production Identity and `lot_code`. |
-| **Quality Send** | Single Operation act that records completed Quality validation and places the lot pending Warehouse reception. |
+| **Release for reception** | Operation act that starts the finished-product handoff after productive completion, independent of the current responsible position. |
+| **Handoff issue** | Warehouse record of a discrepancy that must be corrected, remedied, or clarified before reception. |
+| **Issue response** | Operation record describing how a handoff issue was addressed before another Warehouse verification. |
 | **Quality state** | Operation-owned description of product quality at handoff. |
 | **Warehouse availability** | Separate Warehouse-owned disposition recorded after physical reception. |
 | **Winding** | Conversion of skeins into cones for an industrial destination. |

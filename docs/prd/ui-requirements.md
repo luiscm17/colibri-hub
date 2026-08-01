@@ -32,9 +32,9 @@ last_reviewed: 2026-08-01
    require multi-row entry in a session. The UI must prioritize keyboard
    navigation, rapid entry, and inline feedback.
 
-4. **Guided forms correspond to rich business objects.**
-   Receptions, production identity, Warehouse movements, and lot stage records
-   have complex structure and conditional fields.
+4. **Guided forms correspond to rich business records.**
+   Receptions, Finished Product requirements, Warehouse movements, and lot
+   stage records have complex structure and conditional fields.
 
 5. **Controlled editing is visible, not silent.** The user must know whether a
    record is editable, whether a correction reason is required, and when the
@@ -44,8 +44,8 @@ last_reviewed: 2026-08-01
    combines a general action with an explicit business scope. The UI may hide or
    disable routes and actions according to effective permissions, but it must
    never assume that a specific business actor such as Supervisor or Quality
-   Control is the only actor that can perform an operation. UI visibility never
-   replaces backend authorization.
+   Control is the only actor that can perform an operation. Interface visibility
+   never replaces effective authorization.
 
 7. **Product states are displayed as separate dimensions.**
    Quality, Warehouse availability, and physical presentation are distinct
@@ -83,15 +83,12 @@ Main navigation is organized by business context. Each context may expand into
 sub-items, and the active section is visually highlighted. A route is displayed
 only when the user has the effective permissions required to access at least one
 of its supported operations. Hiding or displaying a route never grants access;
-the backend remains the final authorization authority.
+every interaction remains subject to effective authorization.
 
 - **Warehouse**
   - Bale reception
-  - Production identity
   - Delivery to Production
-  - Finished-product reception
-  - Classification / availability
-  - Outbound movements and returns
+  - Finished Products
   - Supplies
   - Stock and history
 
@@ -119,6 +116,7 @@ the backend remains the final authorization authority.
 - **Waste**
 
 - **Lot Processing**
+  - Dashboard
   - Lot queue
   - Lot detail
 
@@ -164,16 +162,6 @@ Registration of raw-material intake from supplier.
 - Table of received bales with filterable history
 - Each bale is a row; multiple bales can be registered per batch
 
-#### Production identity
-
-Definition of the unique lot identity before it physically exists.
-
-> Business rules for this capability are defined in [Production Identity PRD](./warehouse/production-identity.md). This section defines only cross-cutting UI patterns.
-
-- Form with: `lot_code`, `production_identity_id`, yarn count, color,
-  customer/destination, and order specifications
-- List of defined identities with their state, such as pending delivery
-
 #### Delivery to Production
 
 Registration of raw-material departure from Warehouse to Production.
@@ -182,43 +170,93 @@ Registration of raw-material departure from Warehouse to Production.
 
 See [Bale Management PRD](./warehouse/bale-management.md) section 12 for delivery rules.
 
-#### Finished-product reception
+#### Finished Products
 
-Reception of finished product from Operations.
+Workspace covering the Warehouse representation from requirement definition
+through reception, availability, dispatch, and possible return.
 
-> Business rules for this capability are defined in [Finished Product PRD](./warehouse/finished-product.md). This section defines only cross-cutting UI patterns.
+> Business rules for this capability are defined in [Finished Product PRD](./warehouse/finished-product.md). This section defines only the user experience.
 
-- List of lots awaiting Warehouse receipt after being sent by Quality
-- Lot detail with operation data in read-only mode
-- Physical verification with documentation of inconsistencies, if any
-- Reception confirmation
+The workspace provides one list and detail experience with lifecycle filters,
+including:
 
-#### Classification / availability
+- requirements available to Operation or in productive processing;
+- products pending verification;
+- products requiring resolution by Operation;
+- products returned to pending verification after an issue response;
+- received products awaiting availability classification;
+- available, flagged, conditionally available, defective, or dispatched
+  products;
+- dispatch and return history.
 
-Management of the operational state of finished product in Warehouse.
+##### Requirement registration
 
-> Business rules for this capability are defined in [Finished Product PRD](./warehouse/finished-product.md). This section defines only cross-cutting UI patterns.
+The guided form includes lot code, yarn count, color, client or destination,
+classification, applicable specifications, business date, and observations.
 
-- Lot selector
-- Separate fields for:
-  - Quality state inherited from Operations and displayed read-only
-  - Warehouse availability: available, flagged, available with condition,
-    defective, or delivered
-  - Physical presentation: bag, bulk, cone, or ball
-- State change history
+- The principal action uses clear business copy such as **Register requirement**
+  or **Complete requirement**.
+- Successful completion makes the requirement visible in the authorized Lot
+  Processing queue automatically.
+- No separate Send, Approve, or Accept interaction exists between Warehouse and
+  Operation for this requirement.
+- The result view shows the shared lot code and lifecycle phase without exposing
+  context-local identifiers unnecessarily.
 
-#### Outbound movements and returns
+##### Pending verification queue
 
-Registration of direct sales, transfers to Commercialization, and returns.
+The queue shows products released by Operation and products returned after an
+issue response. Minimum visible information includes:
 
-> Business rules for this capability are defined in [Finished Product PRD](./warehouse/finished-product.md). This section defines only cross-cutting UI patterns.
+- lot code, yarn count, color, and client or destination;
+- Operation quality state and delivery conditions;
+- release actor and exact time;
+- current handoff condition;
+- age since the most recent handoff interaction.
 
-- Movement type selector
-- Form by type: customer, quantity in kg, invoice, and date
-- Return references the original sale
-- Authorization state and responsible actor visible according to the current
-  domain policy; the UI must not hardcode Production Manager as the only actor
-  who may authorize the operation
+Labels should distinguish **Pending verification** from **Response recorded -
+verify again** while both remain the same business condition.
+
+##### Reception verification
+
+Selecting a pending product opens a dedicated verification view with five
+areas:
+
+1. **Header:** lot code, lifecycle phase, yarn count, color, and client or
+   destination.
+2. **Warehouse requirement:** read-only requirement data owned by Warehouse.
+3. **Operation delivery:** read-only productive completion, quality state,
+   delivery conditions, applicable quantities, and responsible actor.
+4. **Physical verification:** comparison outcome, presentation received, and
+   evidence or description when a discrepancy exists.
+5. **Handoff history:** chronological release, issues, responses, and reception.
+
+The available actions are:
+
+- **Register reception** when the physical product and authorized information
+  agree;
+- **Register issue** when correction, remedy, or clarification is required.
+
+The interface must not present Reject, Do not approve, or Return lot as outcomes.
+Registering an issue leaves the mandatory handoff open and makes the issue
+visible to the authorized Operation actor.
+
+The Register issue dialog requires a clear description and may request evidence
+when business policy requires it. Before confirmation it states that reception
+will remain pending and Operation will be expected to respond.
+
+The Register reception confirmation summarizes the lot, physical presentation,
+receiving actor, delivering actor, and business date. It clearly states that
+reception transfers custody to Warehouse and does not change Operation's quality
+state.
+
+##### Availability, outbound movements, and returns
+
+After reception, the detail provides separate fields for Operation quality
+state, Warehouse availability, and physical presentation. Outbound and return
+forms remain attached to the same Finished Product history. Authorization state
+and responsible actors are visible according to current policy; no position is
+hardcoded as the only possible authorizer.
 
 #### Supplies
 
@@ -313,14 +351,24 @@ domain rules and effective permissions.
 
 > Business rules for Lot Processing capabilities are defined in [Lot Processing PRD](./operation/lot-processing.md). This section defines only cross-cutting UI patterns.
 
+#### Dashboard
+
+Authorized summary of Lot Processing with filters such as date, shift, stage,
+yarn count, color, and handoff condition. It may show lots by productive stage,
+lots ready for release, pending verification, and resolution required. Filters
+refine the query and do not change authorization.
+
 #### Lot queue
 
 List of active lots organized by current stage.
 
-- Table with lot code, yarn count, current stage, responsible business actor,
-  and last update
-- Filters by stage, yarn count, date, and other available criteria
+- Table with lot code, yarn count, current productive stage or handoff condition,
+  responsible business actor, and last update
+- Filters by stage, handoff condition, yarn count, date, and other available
+  criteria
 - Selecting a lot opens its detail
+- A dedicated **Resolution required** filter makes Warehouse issues visible to
+  authorized Operation users
 
 #### Lot detail
 
@@ -333,7 +381,12 @@ Unified view of the complete lot history.
   rules and effective permissions allow it
 - Completed stages are displayed read-only unless controlled correction is
   permitted
-- Button to register advancement to the next stage when authorized
+- The active productive stage offers Save or Complete according to its record
+  behavior and effective permissions
+- Completing a stage automatically makes the lot visible to the next stage; no
+  separate advancement, approval, or acceptance button appears
+- When the productive stages are complete, a role-neutral handoff panel shows
+  release and issue-response actions according to effective permissions
 
 #### Stage registration
 
@@ -373,7 +426,48 @@ Each stage has its own specialized form. All share:
 - Visual and internal defects as categorized checkboxes
 - Special nomenclature, if applicable
 - Final classification: standard, with nomenclature, or flagged
-- Confirmation of Quality Send to Warehouse
+- Completion of the quality record without embedding the current responsible
+  section in the handoff action name
+
+#### Release for reception
+
+After productive completion, an authorized Operation user can open the handoff
+panel and review:
+
+- Warehouse requirement summary;
+- productive completion and Operation quality state;
+- delivery conditions and applicable quantities;
+- responsible actor and business date;
+- prior handoff history, when present.
+
+The action label may be **Make available to Warehouse** or **Release for
+reception**. A confirmation explains that the product will appear in Warehouse
+for physical verification. This act occurs once and is not an approval.
+
+The interface does not assume that Quality Control is permanently responsible.
+The control is shown to any user with the effective permission for the applicable
+business scope.
+
+#### Resolution required
+
+When Warehouse records a handoff issue, the Lot Processing queue highlights the
+lot as **Resolution required**. The detail displays:
+
+- the current issue prominently;
+- reporting actor and exact time;
+- issue description and evidence;
+- previous issues and responses in chronological order;
+- the unchanged productive history in read-only form.
+
+The authorized Operation user records a correction, remedy, or clarification
+through **Record response**. The response form requires a description and may
+include evidence. Confirmation states that the product will return to Warehouse
+verification and that Warehouse must verify it again.
+
+Recording a response does not reopen Quality, create another release, or mark
+the issue as finally resolved. The lot returns to **Pending verification**. If
+Warehouse records another issue, the same interaction repeats within the same
+handoff history.
 
 ---
 
@@ -509,12 +603,12 @@ form, dashboard, or section heading. It is not part of the global top bar.
 
 ---
 
-## 5. Global UI States
+## 5. Global UI Context
 
 | State | Scope | Purpose |
 | --- | --- | --- |
-| `activeShift` | Session | Active shift for capture and queries |
-| `businessDate` | Session | Active business date |
-| `currentUser` | Session | Authenticated user with effective permissions |
-| `sidebarCollapsed` | Local UI | Sidebar state |
-| `filters` | Per screen | Active filters such as section, yarn count, date, or shift |
+| Active shift | Session | Shift used for capture and queries |
+| Business date | Session | Business date used by the current form or query |
+| Current user | Session | Authenticated user and effective permissions |
+| Sidebar display | Local interface | Expanded or collapsed navigation state |
+| Active filters | Per screen | Filters such as section, yarn count, date, shift, stage, or handoff condition |

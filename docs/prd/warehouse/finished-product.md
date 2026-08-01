@@ -60,7 +60,7 @@ Warehouse must define what is required before production starts and then maintai
 1. A unique requirement containing client or destination, color, title, classification, and observations.
 2. Continuity of the same `lot_code` while Operation physically processes the lot.
 3. Visibility into the lot's current phase without duplicating Operation records.
-4. Controlled acceptance and physical verification when the completed product returns.
+4. Controlled physical verification and reception when the completed product returns.
 5. Visibility into availability and condition for distribution decisions.
 6. Traceable dispatches and returns.
 
@@ -113,7 +113,9 @@ Creating the requirement does not mean that a finished physical product already 
 
 ### 5.4 Handoff to Operation
 
-When the requirement is made available to Operation:
+Completing the requirement makes it available to Operation automatically. No
+separate send, approval, or acceptance is required at this boundary. From that
+moment:
 
 1. Operation receives the specifications and unique `lot_code`.
 2. Operation establishes or resolves its contextual `Production Identity` for the same product.
@@ -125,7 +127,7 @@ When the requirement is made available to Operation:
 
 ### 6.1 Business Act
 
-Reception is Warehouse's acceptance of the completed physical product returned by Operation. It completes the production-processing portion of the lifecycle and places the product under Warehouse custody for classification and distribution.
+Reception is Warehouse's record that the completed physical product returned by Operation has passed physical verification and entered Warehouse custody. It completes the finished-product handoff and enables classification and distribution.
 
 ### 6.2 Boundary Rules
 
@@ -133,8 +135,11 @@ Reception is Warehouse's acceptance of the completed physical product returned b
 2. Reception does not create a new Finished Product or a new identity.
 3. Warehouse does not recreate the productive history; it references the authorized Operation facts.
 4. Only one completed-product reception is permitted per Finished Product under the current business rule.
-5. Until Warehouse registers reception, the product remains pending Warehouse acceptance; an informal coordination note is not acceptance.
-6. Reception may display data inherited from Operation alongside Warehouse's physical verification.
+5. Release for reception places the product in pending verification.
+6. If Warehouse finds a discrepancy, it records a handoff issue instead of reception. This is not rejection; the product must still be delivered to Warehouse.
+7. Operation records a correction, remedy, or clarification through an issue response, after which Warehouse verifies the same product again.
+8. Issue and response cycles may repeat until Warehouse records reception.
+9. Reception may display data inherited from Operation alongside Warehouse's physical verification.
 
 ### 6.3 Data Referenced from Operation
 
@@ -154,17 +159,45 @@ Reception is Warehouse's acceptance of the completed physical product returned b
 | Physical consistency | Verification against the authorized Operation facts |
 | Visible incidents | Differences or damage observed at reception |
 
-Warehouse does not re-enter Operation-owned route-sheet facts. It records acceptance, physical presentation, and observed differences.
+Warehouse does not re-enter Operation-owned route-sheet facts. Before reception,
+it compares those facts with the physical product. It records either a handoff
+issue or the reception and physical presentation.
 
 ### 6.5 Reception Data
 
 | Attribute | Required | Description |
 | --- | --- | --- |
 | Reception number | Yes | Unique identifier for the reception event |
-| Business date of reception | Yes | Calendar date of Warehouse acceptance |
-| Responsible who receives | Yes | Warehouse actor accepting the product |
+| Business date of reception | Yes | Calendar date on which Warehouse records physical reception |
+| Responsible who receives | Yes | Warehouse actor recording receipt of the product |
 | Origin responsible | Yes | Operation actor delivering it |
 | Observations or detected differences | No | Free-text notes on discrepancies |
+
+### 6.6 Handoff Issue and Response Cycle
+
+Warehouse records a handoff issue when the physical product does not agree with
+the authorized information or when a condition must be corrected, remedied, or
+clarified before reception. The issue contains:
+
+- the discrepancy or required clarification;
+- the Warehouse actor who reports it;
+- the exact reporting time;
+- supporting evidence when business policy requires it.
+
+The handoff then requires resolution by Operation. The authorized Operation
+actor records an issue response describing the correction, remedy, or
+clarification and the exact response time. The response returns the handoff to
+pending verification; it does not mean Warehouse has confirmed resolution.
+
+Warehouse performs a new verification. If the product and information agree,
+Warehouse records reception. Otherwise, Warehouse records another issue. Every
+issue and response is appended to the same chronological handoff history and
+retains the same Finished Product, Production Identity relationship, and lot
+code.
+
+There is no business outcome named rejection or non-approval in this handoff.
+Failure to complete verification leaves the product outside Warehouse stock and
+the handoff unresolved; it does not terminate the mandatory delivery.
 
 ## 7. PT Availability Classification
 
@@ -268,18 +301,22 @@ A return is the total or partial reentry of a Finished Product that was previous
 
 ## 10. Lifecycle and Phases
 
-The following phases describe the business lifecycle. They are not automatically a canonical persistence enum; technical state design must derive from validated business transitions.
+The following phases describe the business lifecycle without prescribing a
+technical state representation.
 
 ```mermaid
 flowchart TD
     RQ["Requirement defined in Warehouse"]
     AV["Available to Operation<br/>same lot_code"]
     PR["In productive processing"]
-    PN["Pending Warehouse reception"]
+    PN["Pending verification"]
+    RR["Resolution required"]
     RC["Received and physically verified"]
     CL["Availability classified"]
     DS["Dispatched"]
-    RQ --> AV --> PR --> PN --> RC --> CL --> DS
+    RQ --> AV --> PR --> PN
+    PN --> RC --> CL --> DS
+    PN --> RR --> PN
     DS -.->|return| CL
 ```
 
@@ -288,10 +325,13 @@ flowchart TD
 | PT-ST-01 | Productive processing requires an existing Finished Product requirement and its `lot_code`. |
 | PT-ST-02 | Operation continues the same lot through its Production Identity representation. |
 | PT-ST-03 | Warehouse reception requires the applicable Operation completion or delivery fact. |
-| PT-ST-04 | Availability classification requires Warehouse reception. |
-| PT-ST-05 | Dispatch requires a dispatchable Warehouse availability condition. |
-| PT-ST-06 | A return requires a prior dispatch and reintroduces stock under the same `lot_code`. |
-| PT-ST-07 | Only one completed-product reception is permitted per Finished Product under the current rule. |
+| PT-ST-04 | A handoff issue places the product in resolution required without ending the mandatory handoff. |
+| PT-ST-05 | An Operation issue response returns the same product to pending verification. |
+| PT-ST-06 | Issue and response cycles may repeat until reception is recorded. |
+| PT-ST-07 | Availability classification requires Warehouse reception. |
+| PT-ST-08 | Dispatch requires a dispatchable Warehouse availability condition. |
+| PT-ST-09 | A return requires a prior dispatch and reintroduces stock under the same `lot_code`. |
+| PT-ST-10 | Only one completed-product reception is permitted per Finished Product under the current rule. |
 
 ## 11. Dashboard and Query Capabilities
 
@@ -303,7 +343,7 @@ The Finished Products workspace provides a dashboard and filtered records so aut
 
 - Products grouped or filtered by lifecycle phase.
 - Requirements pending handoff or productive processing.
-- Products in processing or pending Warehouse reception, using only authorized transversal Operation data.
+- Products in processing, pending verification, or requiring resolution, using only authorized transversal Operation data.
 - Received products awaiting availability classification.
 - Available, observed, conditionally available, defective, or dispatched products.
 - Dispatch and return history.
@@ -317,7 +357,9 @@ The exact dashboard indicators and technical projections are defined by derived 
 - `Write` permits only the registration acts authorized for the scope.
 - `Edit` and `Edit Outside the Operational Window` govern corrections.
 - These actions are independent; `Write` does not grant `Read` implicitly.
-- Operation-owned technical data is returned only when the user has the corresponding effective read permission. Otherwise, the backend provides only the transversal lifecycle data necessary for the authorized Warehouse view.
+- Operation-owned information is visible only with the corresponding effective
+  read permission. Otherwise, the Warehouse view contains only the transversal
+  lifecycle information authorized for consultation.
 
 ## 12. Cross-Cutting Rules
 
@@ -326,7 +368,8 @@ The exact dashboard indicators and technical projections are defined by derived 
 3. **Operational window:** Correction rights follow the independent `Edit` and `Edit Outside the Operational Window` actions defined by access policy.
 4. **Configurable permissions:** Business actors do not imply fixed technical roles or permissions.
 5. **Domain write separation:** Warehouse writes Finished Product requirement and inventory facts. Operation writes Production Identity, processing, and quality facts. Neither overwrites the other.
-6. **Backend-enforced visibility:** The backend must not return scope-specific Operation data to an unauthorized user merely because it could be hidden by the UI.
+6. **Enforced visibility:** Scope-specific Operation information is not disclosed
+   to an unauthorized user merely because the interface could hide it.
 
 ## 13. Acceptance Criteria
 
@@ -337,15 +380,18 @@ The exact dashboard indicators and technical projections are defined by derived 
 | AC-PT-03 | Operation receives or resolves one Production Identity for the same Finished Product and `lot_code`. |
 | AC-PT-04 | Requirement creation does not require or record bale linkage. |
 | AC-PT-05 | Warehouse can consult the authorized transversal phase while the product is in Operation. |
-| AC-PT-06 | Completed product can be received once under the original Finished Product and `lot_code`. |
-| AC-PT-07 | A second completed-product reception for the same product is rejected under the current rule. |
-| AC-PT-08 | Reception records acceptance and physical observations without re-entering Operation-owned route-sheet data. |
-| AC-PT-09 | Classification requires prior Warehouse reception. |
-| AC-PT-10 | Dispatch requires a dispatchable availability condition and records type, quantity, destination, and authorization. |
-| AC-PT-11 | A return references the original dispatch and preserves the original Finished Product and `lot_code`. |
-| AC-PT-12 | `Read` provides authorized dashboard and query access without granting registration rights. |
-| AC-PT-13 | Unauthorized context-specific data is omitted by the backend, not only hidden in the UI. |
-| AC-PT-14 | All business dates are calendar dates and all registration timestamps are system-generated. |
+| AC-PT-06 | Release for reception places the completed product in pending verification under the original Finished Product and `lot_code`. |
+| AC-PT-07 | Warehouse can record a handoff issue instead of reception when a discrepancy requires correction, remedy, or clarification. |
+| AC-PT-08 | Operation can record an issue response that returns the same handoff to pending verification. |
+| AC-PT-09 | Issue and response cycles can repeat without creating another release, identity, or Finished Product. |
+| AC-PT-10 | Completed product can be received once after successful verification under the original Finished Product and `lot_code`. |
+| AC-PT-11 | Reception records custody and physical presentation without re-entering Operation-owned route-sheet data. |
+| AC-PT-12 | Classification requires prior Warehouse reception. |
+| AC-PT-13 | Dispatch requires a dispatchable availability condition and records type, quantity, destination, and authorization. |
+| AC-PT-14 | A return references the original dispatch and preserves the original Finished Product and `lot_code`. |
+| AC-PT-15 | `Read` provides authorized dashboard and query access without granting registration rights. |
+| AC-PT-16 | Unauthorized context-specific information is not disclosed, regardless of interface visibility. |
+| AC-PT-17 | All business dates are calendar dates and all registration timestamps are system-generated. |
 
 ## References
 
