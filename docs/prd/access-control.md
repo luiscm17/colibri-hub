@@ -4,7 +4,7 @@ status: draft
 scope: access-control
 authority: normative
 owner: product
-last_reviewed: 2026-07-31
+last_reviewed: 2026-08-01
 ---
 
 # Access Control
@@ -46,14 +46,16 @@ Access Control must provide a stable model in which:
 ## Stakeholders and Actors
 
 | Actor | Responsibility | Interaction |
-|---|---|---|
+| --- | --- | --- |
 | System Administrator | Governs access throughout the system | Manages users, roles, presets, role assignments, and access configuration; may intervene across all business scopes |
 | Role Holder | Uses one or more roles to perform assigned responsibilities | Receives the combined permissions of all assigned active roles |
 | Business Area Owner | Defines which responsibilities exist within a business area | Identifies the actions and business scopes that Access Control must be able to authorize |
 | Supervisor or Management User | Consults operational information according to assigned roles | May receive read access across several sections or to consolidated views without receiving write access |
-| Operational User | Records or corrects information within assigned responsibilities | Acts only in the business scopes authorized through assigned roles |
+| Section Responsible | Represents the minimum responsibility level commonly expected to use the system directly | Consults, records, or corrects information only in explicitly authorized section scopes |
 
-Organizational actors such as director, technician, operator, or overseer may inspire role presets or role names. They do not constitute hardcoded authorization rules.
+Organizational references such as Manager, Director, Unit Head, Section Responsible, or Secretary may inspire role presets or configurable role names. They do not constitute hardcoded authorization rules, do not create a technical role hierarchy, and do not grant permissions by job title.
+
+"Machine Operator" remains a business actor distinct from Access Control roles. A Machine Operator manipulates production equipment and is not currently a direct system user. The generic name "Operator" must therefore not be used for an RBAC preset or technical role because it would make these concepts ambiguous.
 
 ## Authorization Model
 
@@ -68,7 +70,7 @@ The permissions effective for a user are the union of the permissions granted by
 Each permission combines one general action with one business scope.
 
 | General action | Business meaning |
-|---|---|
+| --- | --- |
 | Read | Consult information available in the authorized business scope |
 | Write | Record a new business fact in the authorized business scope |
 | Edit | Correct an existing business fact within the operational window defined by its owning business context |
@@ -95,13 +97,17 @@ Business scopes may represent:
 
 The scope structure must support growth without assuming that the current organization is permanent. A new direction, unit, section, or cross-cutting responsibility becomes a new authorizable business scope and receives no ordinary role permissions automatically.
 
-### Yarn Spinning scope boundaries
+### Operational and dashboard scope boundaries
 
-Within Yarn Spinning, the operational responsibility of a section includes its production records, applicable progress records, and section dashboard. The action determines whether the user may consult or record within that section.
+Within an operational context such as Yarn Spinning, the responsibility of a section includes its production records, applicable progress records, and section dashboard. The action determines whether the user may consult, record, or correct information within that section.
 
 Process Quality and Waste are independent cross-section responsibilities. Each must be authorizable separately because each may be assigned to a different role and may involve machines from every plant section.
 
-The consolidated Yarn Spinning dashboard is an independent read scope. Access to every section dashboard does not automatically grant access to the consolidated dashboard, and access to the consolidated dashboard does not grant write access to any section.
+A section dashboard presents queries within a specific section scope. Read permission in that scope allows the user to consult the dashboard and use available filters such as date or shift. Those filters refine the query; they are not actions, permissions, or scopes by themselves.
+
+The consolidated dashboard is a transversal read scope that may combine information from several sections, business contexts, or plant areas. It is not owned exclusively by Yarn Spinning or by any other operational context. Access to every section dashboard does not automatically grant access to the consolidated dashboard, and access to the consolidated dashboard grants no Write or Edit permission in the contexts represented by the view.
+
+Labels such as Shift Summary or Daily Summary describe filtered queries or dashboard states. They must not become independent capabilities, actions, or business scopes solely because of the selected time filter.
 
 ## Business Rules
 
@@ -111,30 +117,32 @@ The consolidated Yarn Spinning dashboard is an independent read scope. Access to
 4. A permission consists of one general action and one explicit business scope.
 5. The supported general actions are Read, Write, Edit, Edit Outside the Operational Window, and Manage Access.
 6. A permission grants only its stated action within its stated business scope. Read never implies Write, Edit, Edit Outside the Operational Window, or Manage Access.
-7. If no assigned role explicitly grants the required action in the required business scope, access must be denied.
-8. Roles do not contain explicit denials. No role overrides or subtracts a permission granted by another assigned role.
-9. Roles are configurable and must not depend on hardcoded organizational job titles.
-10. Several users may share the same role. Their permissions are shared, but their identities and activities remain individually traceable.
-11. Changing a role changes the effective permissions of every user assigned to that role.
-12. Before a role change is confirmed, the affected users and the permissions being added or removed must be identifiable to the System Administrator.
-13. A role preset is a reusable starting configuration for creating a role.
-14. Creating a role from a preset copies the preset configuration. The resulting role is independent and may be changed without altering the preset.
-15. Changing a preset must not silently change roles that were previously created from it.
-16. New business scopes are denied to ordinary roles until the System Administrator grants explicit permissions for them.
-17. Shift is operational and audit context. It must not grant, restrict, or widen authorization.
-18. Users who share a role across different shifts remain distinct users. Every recorded action must identify the individual who performed it.
-19. The System Administrator has access across the complete system, including newly introduced business scopes.
-20. Manage Access and Edit Outside the Operational Window are reserved for the System Administrator.
-21. The system must retain at least one active System Administrator so access governance cannot be left without an authorized administrator.
-22. An inactive user cannot obtain authorization, regardless of assigned roles.
-23. An inactive role grants no effective permission but must remain available for historical traceability.
-24. Deactivation must preserve the user's identity, prior assignments, and access history.
-25. Access configuration changes must identify the acting user, the affected user or role, the change, the previous and resulting configuration, and the date and time of the change.
-26. The reason for an exceptional correction or another privileged access intervention must be preserved.
-27. Access Control determines whether an action is authorized. The owning business context determines whether the requested operation is valid under its own business rules.
-28. A business context must not infer authorization from shift, job title, page visibility, or an operational user reference stored in a business record.
-29. Operational audits must identify the individual user and may include business date, time, shift, correction reason, and changed values. These facts do not alter the authorization decision.
-30. Access Control must not invent actions for domain-specific events. A domain event uses the applicable general action within the scope owned by that business context.
+7. Read authorizes consultation of information in its stated scope. A dashboard, table, detail view, report, or filtered query is a presentation of that consultation and does not create a different RBAC action.
+8. Date, shift, section, and similar filters refine the information consulted. A filter must not independently grant, restrict, or widen authorization.
+9. If no assigned role explicitly grants the required action in the required business scope, access must be denied.
+10. Roles do not contain explicit denials. No role overrides or subtracts a permission granted by another assigned role.
+11. Roles are configurable and must not depend on hardcoded organizational job titles.
+12. Several users may share the same role. Their permissions are shared, but their identities and activities remain individually traceable.
+13. Changing a role changes the effective permissions of every user assigned to that role.
+14. Before a role change is confirmed, the affected users and the permissions being added or removed must be identifiable to the System Administrator.
+15. A role preset is a reusable starting configuration for creating a role.
+16. Creating a role from a preset copies the preset configuration. The resulting role is independent and may be changed without altering the preset.
+17. Changing a preset must not silently change roles that were previously created from it.
+18. New business scopes are denied to ordinary roles until the System Administrator grants explicit permissions for them.
+19. Shift is operational and audit context. It must not grant, restrict, or widen authorization.
+20. Users who share a role across different shifts remain distinct users. Every recorded action must identify the individual who performed it.
+21. The System Administrator has access across the complete system, including newly introduced business scopes.
+22. Manage Access and Edit Outside the Operational Window are reserved for the System Administrator.
+23. The system must retain at least one active System Administrator so access governance cannot be left without an authorized administrator.
+24. An inactive user cannot obtain authorization, regardless of assigned roles.
+25. An inactive role grants no effective permission but must remain available for historical traceability.
+26. Deactivation must preserve the user's identity, prior assignments, and access history.
+27. Access configuration changes must identify the acting user, the affected user or role, the change, the previous and resulting configuration, and the date and time of the change.
+28. The reason for an exceptional correction or another privileged access intervention must be preserved.
+29. Access Control determines whether an action is authorized. The owning business context determines whether the requested operation is valid under its own business rules.
+30. A business context must not infer authorization from shift, job title, page visibility, or an operational user reference stored in a business record.
+31. Operational audits must identify the individual user and may include business date, time, shift, correction reason, and changed values. These facts do not alter the authorization decision.
+32. Access Control must not invent actions for domain-specific events. A domain event uses the applicable general action within the scope owned by that business context.
 
 ## Flows and Processes
 
@@ -193,14 +201,14 @@ The consolidated Yarn Spinning dashboard is an independent read scope. Access to
 ### User access state
 
 | State | Description | Allowed transitions |
-|---|---|---|
+| --- | --- | --- |
 | Active | The user may receive authorization through assigned active roles | Inactive |
 | Inactive | The user cannot receive authorization; identity and history are preserved | Active |
 
 ### Role state
 
 | State | Description | Allowed transitions |
-|---|---|---|
+| --- | --- | --- |
 | Active | The role contributes permissions to assigned users | Inactive |
 | Inactive | The role grants no permission and remains available for historical traceability | Active |
 
@@ -216,22 +224,24 @@ Reactivation of a user or role must not erase the access-change history associat
 6. A Write permission in one Yarn Spinning section does not allow writing in another section.
 7. Write access to Process Quality does not grant Write access to Waste or to section production records.
 8. Write access to Waste does not grant Write access to Process Quality or to section production records.
-9. Read access to a section permits consultation of its dashboard without granting Write access to its records.
-10. Read access to all Yarn Spinning sections does not by itself grant access to the consolidated Yarn Spinning dashboard.
-11. Shift changes do not alter a user's effective permissions.
-12. Creating a role from a preset produces an independently editable role.
-13. Changing a preset does not alter roles previously created from that preset.
-14. Changing a shared role identifies the affected users before confirmation and changes the permissions of all assigned users after confirmation.
-15. Adding a new business scope does not grant it to existing ordinary roles automatically.
-16. An inactive user is denied even when active roles remain assigned.
-17. An inactive role contributes no permission to its assigned users.
-18. A user without Edit Outside the Operational Window permission cannot correct a record after its owning business context closes the ordinary correction window.
-19. Only the System Administrator can manage access or authorize an exceptional correction outside the operational window.
-20. The System Administrator can operate across existing and newly introduced business scopes.
-21. The system prevents an access change that would leave no active System Administrator.
-22. Every role creation, role change, role assignment, role removal, user activation, and user deactivation is traceable to the individual who performed it and the date and time of the change.
-23. Authorization does not replace domain validation: an authorized request is still rejected when it violates the owning business context's rules.
-24. Operational audit records identify the individual user rather than only the shared role.
+9. Read access to a section permits consultation of its dashboard and available filters without granting Write access to its records.
+10. Read access to all sections of one or more operational contexts does not by itself grant access to the transversal consolidated dashboard.
+11. Read access to the transversal consolidated dashboard permits consultation of its aggregated information but does not grant Write or Edit access to any represented context.
+12. Changing a date, shift, section, or similar dashboard filter does not change the user's effective permissions.
+13. Shift changes do not alter a user's effective permissions.
+14. Creating a role from a preset produces an independently editable role.
+15. Changing a preset does not alter roles previously created from that preset.
+16. Changing a shared role identifies the affected users before confirmation and changes the permissions of all assigned users after confirmation.
+17. Adding a new business scope does not grant it to existing ordinary roles automatically.
+18. An inactive user is denied even when active roles remain assigned.
+19. An inactive role contributes no permission to its assigned users.
+20. A user without Edit Outside the Operational Window permission cannot correct a record after its owning business context closes the ordinary correction window.
+21. Only the System Administrator can manage access or authorize an exceptional correction outside the operational window.
+22. The System Administrator can operate across existing and newly introduced business scopes.
+23. The system prevents an access change that would leave no active System Administrator.
+24. Every role creation, role change, role assignment, role removal, user activation, and user deactivation is traceable to the individual who performed it and the date and time of the change.
+25. Authorization does not replace domain validation: an authorized request is still rejected when it violates the owning business context's rules.
+26. Operational audit records identify the individual user rather than only the shared role.
 
 ## Capability Boundaries
 

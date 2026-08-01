@@ -4,10 +4,10 @@ status: active
 scope: operation
 authority: normative
 owner: product
-last_reviewed: 2026-07-27
+last_reviewed: 2026-08-01
 ---
 
-# Operation Unit — Area Overview
+# Operation Unit - Area Overview
 
 > **Area PRD** for the Operation Unit within the Production Directorate.
 >
@@ -15,8 +15,8 @@ last_reviewed: 2026-07-27
 > of the Operation area. Detailed business rules for each productive process
 > live in their own PRDs:
 >
-> - [Yarn Spinning](./yarn-spinning.md) — 5 productive sections (continuous flow)
-> - [Lot Processing](./lot-processing.md) — Per-lot lifecycle (dyeing through delivery)
+> - [Yarn Spinning](./yarn-spinning.md) - 5 productive sections (continuous flow)
+> - [Lot Processing](./lot-processing.md) - Per-lot lifecycle (dyeing through delivery)
 
 ---
 
@@ -29,16 +29,16 @@ and subsequent delivery back to Warehouse.
 It covers the entire productive operation of the textile plant:
 
 | Process | Nature | Granularity |
-|---------|--------|-------------|
-| **Yarn Spinning** | Continuous sequential flow | Machine × shift × yarn title |
+| --------- | -------- | ------------- |
+| **Yarn Spinning** | Continuous sequential flow | Machine x shift x yarn title |
 | **Lot Processing** | Independent per-lot lifecycle | Lot |
 | **Process Quality** | Cross-cutting quality control | All sections and machines |
-| **Waste** | Cross-cutting waste registration | Machine group × section |
+| **Waste** | Cross-cutting waste registration | Machine group x section |
 
 ### Boundaries
 
 | Boundary | Detail |
-|----------|--------|
+| ---------- | -------- |
 | **Input** | Complete bales received from Warehouse, plus production identity (production identity, lot code, title, color, client/destination) defined by Warehouse. |
 | **Output** | Processed lots approved by Quality and delivered to Warehouse for PT physical verification. |
 | **Excluded** | MP/PT/supplies inventory management, valuation, costing, accounting closes (Warehouse and Administration responsibility). |
@@ -47,21 +47,32 @@ It covers the entire productive operation of the textile plant:
 
 ## 2. Actors
 
-All operational roles within the Operation Unit are assigned **per shift**.
-Each shift has its own Supervisor and dependent roles.
+Operational responsibilities and staff assignments within the Operation Unit
+are organized per shift. Each shift has its own Supervisor and dependent staff.
+Shift identifies operational and audit context; it does not grant, restrict, or
+widen authorization. Users assigned to different shifts may share the same
+configurable Access Control role.
 
 | Actor | Reports to | Scope |
-|-------|-----------|-------|
-| **Supervisor** | Production Manager | Full responsibility for MP processing during shift; coordinates operational staff; consolidates production records. Does not act as direct registrar unless explicitly enabled by access policy. |
-| **Quality Control** | Supervisor | Quality testing across ALL plant sections and machines. Documents lot quality state and performs Quality Send to Warehouse. Registers production/progress for Preparation and Ring Spinning. |
+| ------- | ------------ | ------- |
+| **Supervisor** | Production Manager | Full responsibility for MP processing during the shift; coordinates operational staff and consolidates production records. Does not act as direct registrar unless explicitly enabled by access policy. |
+| **Quality Control** | Supervisor | Quality testing across all plant sections and machines. Documents lot quality state and performs Quality Send to Warehouse. Registers production/progress for Preparation and Ring Spinning. |
 | **Inventory** | Supervisor | Physical lot assembly under Warehouse-defined identity; tracking through delivery. Registers production/progress for Twisting and Skeining. Registers real waste across all sections. Receives daily MP from Warehouse. |
 | **Dyeing Personnel** | Supervisor | Operates the dyeing process within the lot lifecycle. |
 | **Packaging** | Supervisor | Coordinates and registers winding, balling, and packaging operations. Reports to Supervision. |
 
-> **Configurable permissions:** Role-to-capability assignments reflect current
-> or expected operations. The organization may reassign registration, validation,
-> or approval at any section or stage through the cross-cutting access policy
-> defined in `docs/prd/access-control.md`.
+These names describe current business actors and responsibilities. They are not
+mandatory technical roles and do not create a hardcoded role hierarchy. The
+organization may use configurable roles or presets inspired by positions such
+as Manager, Director, Unit Head, Section Responsible, and Secretary. A Machine
+Operator is the person who manipulates production equipment and is not currently
+a direct system user; this actor must not be confused with an RBAC role or preset.
+
+> **Configurable permissions:** Access is assigned through permissions that
+> combine a general action with an explicit business scope. The current
+> organizational responsibility does not authorize a user by itself. The
+> organization may reassign access without redesigning the productive process,
+> subject to the rules in [Access Control](../access-control.md).
 
 ---
 
@@ -85,7 +96,7 @@ in [yarn-spinning.md](./yarn-spinning.md).
 Takes skeins produced by Yarn Spinning and processes them through:
 
 1. Inventory (lot assembly)
-2. Dyeing (Tintorería)
+2. Dyeing (Tintoreria)
 3. Drying (Secado)
 4. Winding/Balling (Devanado)
 5. Packaging (Embolsado)
@@ -96,45 +107,56 @@ in [lot-processing.md](./lot-processing.md).
 
 ### 3.3 Process Quality
 
-Quality Control performs testing across ALL sections and machines of the plant.
+Quality Control performs testing across all sections and machines of the plant.
 Frequency and method vary by section (systematic in Preparation and Ring Spinning,
 random in Twisting and Skeining, machine-record in Winding).
 
 ### 3.4 Waste Registration
 
 Waste is registered by machine group (not individual machine) across all sections.
-Distinguishes between real waste (registered during process) and accumulated waste
-(managed by Production).
+It distinguishes between real waste (registered during process) and accumulated
+waste (managed by Production).
 
 ### 3.5 Production Planning
 
 The Production Manager plans MP processing based on orders and a fixed monthly
-base production (~60 000 kg/month). The system supports planned vs. actual
-production visibility and deviation alerts.
+base production (approximately 60,000 kg/month). The system supports planned
+versus actual production visibility and deviation alerts.
 
-### 3.6 Daily Shift Report
+### 3.6 Operational and Consolidated Dashboards
 
-At shift end, the Supervisor consults a consolidated report covering production
-by section, lot status, quality, and waste. This feeds the daily report sent
-to Administration by the Production Manager.
+The system presents operational information through interactive dashboards.
+A section dashboard summarizes information within its section and may be
+filtered by business date, shift, or other available criteria. The transversal
+consolidated dashboard may combine information from different plant sections
+and business contexts for supervisory and management consultation.
+
+Labels such as Shift Summary or Daily Summary describe filtered dashboard
+queries. They are not independent capabilities, pages, actions, or permission
+scopes solely because of the selected time filter.
+
+Dashboard access is governed by Read permission in the corresponding business
+scope. Read access to a section dashboard does not automatically grant access to
+the transversal consolidated dashboard, and consolidated Read access grants no
+Write or Edit permission in the represented operational contexts.
 
 ---
 
 ## 4. Relationships
 
 | Related Area | Relationship |
-|--------------|-------------|
-| **Warehouse** | Provides MP + production identity at input; receives approved PT at output. Warehouse defines lot identity (production identity, lot code); Operation never generates its own identities. |
-| **Access Control** | Governs which roles can register, validate, or approve at each section/stage. Operation documents current assignments; Access Control enables reassignment without process redesign. |
-| **Production Manager** | Supervises both Warehouse and Operation units. Authorizes MP emissions, plans production priorities, consolidates information for Administration. |
-| **Administration** | Receives consolidated daily production reports. Owns valuation and costing (outside Operation scope). |
+| -------------- | -------------- |
+| **Warehouse** | Provides MP plus production identity at input; receives approved PT at output. Warehouse defines lot identity (production identity, lot code); Operation never generates its own identities. |
+| **Access Control** | Governs which general actions a user may perform in explicit business scopes. Operation documents current business responsibilities; Access Control enables reassignment without process redesign. Shift remains operational and audit context, not an authorization dimension. |
+| **Production Manager** | Supervises both Warehouse and Operation units. Authorizes MP emissions, plans production priorities, and consults consolidated information for Administration. |
+| **Administration** | Consults consolidated production information and prepares reports for Management. Owns valuation and costing, which are outside Operation scope. |
 
 ---
 
 ## 5. Subdomain Map
 
 | Subdomain | PRD | Status |
-|-----------|-----|--------|
+| ----------- | ----- | -------- |
 | Yarn Spinning (5 sections) | [yarn-spinning.md](./yarn-spinning.md) | Active |
 | Lot Processing (6 stages + state machine) | [lot-processing.md](./lot-processing.md) | Active |
 | Process Quality | Included in yarn-spinning.md | Active |
