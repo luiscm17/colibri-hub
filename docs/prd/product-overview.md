@@ -24,9 +24,10 @@ information to **Administration** as the formal liaison toward **Management**.
 ### What the system covers
 
 - Raw material reception, storage, and controlled issuance to Operation
+- Finished-product requirement definition by Warehouse and controlled handoff to Operation
 - Yarn spinning across 5 productive sections and 3 sequential shifts
-- Lot processing through 6 sequential stages with full traceability
-- Finished product verification and inventory
+- Lot processing through 6 sequential stages with full traceability under one unique lot code
+- Finished-product reception from Operation, physical verification, availability, inventory, dispatch, and returns
 - Quality control with statistical sampling and special nomenclatures
 - Waste tracking (real and accumulated)
 - Consolidated reporting for Administration
@@ -41,9 +42,9 @@ information to **Administration** as the formal liaison toward **Management**.
 
 | Area | Responsibility | Detailed PRD |
 | ------ | --------------- | -------------- |
-| **Warehouse** | Raw material custody, production identity assignment, finished product inventory, production supplies (dyes, packaging) | [`warehouse/overview.md`](./warehouse/overview.md) |
+| **Warehouse** | Raw material custody; finished-product requirement definition, reception, availability, inventory, dispatch, and returns; production supplies (dyes, packaging) | [`warehouse/overview.md`](./warehouse/overview.md) |
 | **Operation - Yarn Spinning** | 5 sections (Preparation, Ring Frames, Winding, Twisting, Skeining), production by machine/shift/yarn count, quality sampling, waste | [`operation/overview.md`](./operation/overview.md) |
-| **Operation - Lot Processing** | 6 sequential stages: Inventory -> Dyeing -> Drying -> Winding -> Bagging -> Quality. Full lot traceability | [`operation/overview.md`](./operation/overview.md) |
+| **Operation - Lot Processing** | Operational processing of the Warehouse-defined requirement under the same unique lot code. Covers 6 sequential stages: Inventory -> Dyeing -> Drying -> Winding -> Bagging -> Quality, with full lot traceability | [`operation/overview.md`](./operation/overview.md) |
 | **Access Control** | Role-based authorization decoupled from organizational hierarchy. Permissions combine a general action (Read, Write, Edit, Edit Outside the Operational Window, or Manage Access) with an explicit business scope | [`access-control.md`](./access-control.md) |
 | **Shared Reference Data** | Yarn counts catalog (`yarn_counts`) used across Warehouse, Operation, and Lot Processing | - |
 
@@ -53,8 +54,8 @@ information to **Administration** as the formal liaison toward **Management**.
 | ------- | ------------------- |
 | **Production Manager** | Central user. Authorizes raw material issuance, supervises both units via dashboards, validates operational coherence, directs consolidation |
 | **Production Secretary** | Collects shift data from Operation, assists in consolidation and follow-up |
-| **Warehouse Unit Manager** | Operates receptions, issuances, verifications, and inventory control |
-| **Warehouse Operatives** | Register physical movements (reception, verification, packaging, dispatch) |
+| **Warehouse Unit Manager** | Operates raw-material movements, defines finished-product requirements, receives finished product, and supervises inventory control |
+| **Warehouse Operatives** | Register authorized physical movements and verifications, including reception, packaging, dispatch, and returns |
 | **Shift Supervisors** (x3) | Each responsible for their shift exclusively. Consolidate production, quality, lots, incidents, and novelties at shift end |
 | **Supervisor-dependent staff** | Quality Control, Inventory, Dyer, Bagging - register section events per assigned permissions |
 | **Administration** | Read-only consumer of consolidated production data; prepares reports for Management |
@@ -117,25 +118,41 @@ information to **Administration** as the formal liaison toward **Management**.
 5. **Data captured at source.** Whoever generates or controls the data registers
    it directly - no reconstruction from parallel spreadsheets.
 
-6. **End-to-end traceability.** Every raw material lot maintains an auditable
-   history of its journey: sections, dates, incidents. History is never deleted.
+6. **One business lot, one lot code, contextual representations.** The business
+   uses the term lot throughout the lifecycle. Warehouse owns the Finished Product
+   from the definition of its production requirement, including client, color,
+   title, and other specifications. Operation receives a one-to-one contextual
+   representation named Production Identity and processes it through Lot
+   Processing. Both representations refer to the same physical lot and preserve
+   the same unique `lot_code`; Production Identity is not an additional product,
+   inventory item, or parallel identifier.
 
-7. **Controlled editing and audit.** Critical records (warehouse movements,
+7. **End-to-end lot traceability.** Every production lot maintains an auditable
+   history from requirement definition through Operation processing, physical
+   return to Warehouse, availability, dispatch, and any subsequent return.
+   Warehouse and Operation contribute context-owned information to the same
+   lifecycle without overwriting each other's records. History is never deleted.
+
+8. **Controlled editing and audit.** Critical records (warehouse movements,
    production, authorizations, lot events) are never deleted. Allowed
    corrections preserve complete historical traceability.
 
-8. **Shift continuity.** The next shift can query previous shift data without
+9. **Shift continuity.** The next shift can query previous shift data without
    loss or duplication. The system supports handoff between sequential shifts.
 
-9. **Designed for uncertainty.** Processes not yet fully defined (supplies
-   detail, costing) can be added without restructuring existing modules.
+10. **Designed for uncertainty.** Processes not yet fully defined (supplies
+    detail, costing) can be added without restructuring existing modules.
 
-10. **Transmission to Administration is a system output.** Consolidated
-   information is built from operational data, not manually assembled.
+11. **Transmission to Administration is a system output.** Consolidated
+    information is built from operational data, not manually assembled.
 
 ## 7. Architecture and Context Boundaries
 
 The system is organized into bounded contexts aligned with business areas.
+The same business lot crosses Warehouse and Operation without becoming two
+physical products: each context owns its representation and records, while the
+unique `lot_code` preserves continuity across the handoff.
+
 For context ownership, dependencies, aggregate families, and inter-context
 handoffs, see:
 
