@@ -5,18 +5,18 @@ implementation: not-started
 scope: access-control
 authority: explanatory
 owner: backend
-last_reviewed: 2026-07-31
+last_reviewed: 2026-08-01
 ---
 
-# Technical Specification — Backend Access Control
+# Technical Specification - Backend Access Control
 
 > **Normative PRD:** [Access Control](../../../docs/prd/access-control.md)
 
 **Product:** Colibri Hub  
 **Context:** Access Control  
-**Type:** Technical Specification — Backend  
+**Type:** Technical Specification - Backend  
 **Status:** Not implemented  
-**Technical baseline:** Repository `luiscm17/colibri-hub`, branch `main`, reviewed 2026-07-31  
+**Technical baseline:** Repository `luiscm17/colibri-hub`, branch `back/auth-rbac`, reviewed 2026-08-01
 **Complementary specification:** Frontend Access Control technical specification  
 **Date:** 2026-07-31
 
@@ -151,11 +151,17 @@ Actions describe business intent, not HTTP methods. A `POST` endpoint may requir
 An ordinary permission matches only the exact active scope referenced by the permission. Scope codes are stable identifiers such as:
 
 ```text
+warehouse.raw_materials
+warehouse.finished_products
+warehouse.production_supplies
 yarn_spinning.section.preparation
 yarn_spinning.section.ring_spinning
 yarn_spinning.process_quality
 yarn_spinning.waste
-yarn_spinning.consolidated_dashboard
+lot_processing
+lot_processing.stage.inventory
+lot_processing.stage.quality
+transversal.consolidated_dashboard
 access_control
 ```
 
@@ -167,7 +173,52 @@ write + yarn_spinning.section.preparation
 
 does not authorize another Yarn Spinning section, Process Quality, Waste, or the consolidated dashboard.
 
-### 6.3 Effective permissions
+### 6.3 Recognized scope catalog
+
+Access Control does not accept an arbitrary string and turn it into an
+authorizable scope. Every scope must first exist in the application-recognized
+scope-definition catalog. That catalog is versioned with the product and is
+derived from approved business capabilities; it is not editable through an
+administrative request.
+
+The initial catalog is:
+
+| Scope code | Owning capability | Authorized responsibility |
+| --- | --- | --- |
+| `warehouse.raw_materials` | Warehouse / Bale Management | Raw-material dashboard, detail, reception, and delivery |
+| `warehouse.finished_products` | Warehouse / Finished Products | Finished-product dashboard, requirement, handoff issue, reception, availability, custody, dispatch, and return |
+| `warehouse.production_supplies` | Warehouse / Production Supplies | Supplies dashboard, stock, reception, exits, and returns |
+| `yarn_spinning.section.preparation` | Yarn Spinning / Preparation | Section dashboard, production, progress, and corrections |
+| `yarn_spinning.section.ring_spinning` | Yarn Spinning / Ring Spinning | Section dashboard, production, progress, and corrections |
+| `yarn_spinning.section.bobbin_winding` | Yarn Spinning / Bobbin Winding | Section dashboard, production, progress, and corrections |
+| `yarn_spinning.section.twisting` | Yarn Spinning / Twisting | Section dashboard, production, progress, and corrections |
+| `yarn_spinning.section.skeining` | Yarn Spinning / Skeining | Section dashboard, production, and corrections |
+| `yarn_spinning.process_quality` | Yarn Spinning / Process Quality | Cross-section quality queries, records, and corrections |
+| `yarn_spinning.waste` | Yarn Spinning / Waste | Cross-section waste queries, records, and corrections |
+| `lot_processing` | Lot Processing | Dashboard, queue, detail, and transversal lifecycle information |
+| `lot_processing.stage.inventory` | Lot Processing / Inventory | Inventory-stage technical information and interventions |
+| `lot_processing.stage.dyeing` | Lot Processing / Dyeing | Dyeing-stage technical information and interventions |
+| `lot_processing.stage.drying` | Lot Processing / Drying | Drying-stage technical information and interventions |
+| `lot_processing.stage.winding` | Lot Processing / Winding | Winding-stage technical information and interventions |
+| `lot_processing.stage.bagging` | Lot Processing / Bagging | Bagging-stage technical information and interventions |
+| `lot_processing.stage.quality` | Lot Processing / Quality | Quality-stage technical information, release-for-reception actions, and handoff responses |
+| `transversal.consolidated_dashboard` | Transversal reporting | Consolidated read model across authorized business information |
+| `access_control` | Access Control | Access administration and access-change history |
+
+Dot-separated segments are naming structure only. The catalog defines neither
+scope inheritance nor a resource tree. Adding a capability requires a reviewed
+catalog change and deployment before a System Administrator can activate the
+scope and assign it through roles. Registration therefore selects a recognized
+definition; it never submits free-form ownership or authorization semantics.
+
+Each definition also declares its supported ordinary actions. Operational
+scopes support only the actions justified by their owning PRDs. The transversal
+consolidated dashboard supports `read` only. The `access_control` scope supports
+`manage_access` only and is exercised through the reserved System Administrator
+policy. The backend rejects an action-and-scope pair that the definition does
+not support.
+
+### 6.4 Effective permissions
 
 For an ordinary user, effective permissions are the distinct union of permissions from all active roles with active assignments to that active user:
 
@@ -184,7 +235,7 @@ An authorization request is allowed only when that set contains the exact requir
 
 Deactivating a user denies all requests without deleting role assignments. Deactivating a role removes its contribution from every assigned user without deleting assignment or audit history.
 
-### 6.4 System Administrator
+### 6.5 System Administrator
 
 The system contains exactly one reserved role marked as the System Administrator role. More than one active user may be assigned to it.
 
@@ -199,7 +250,7 @@ This behavior is an explicit policy branch, not a wildcard permission row. The r
 
 Ordinary roles cannot receive `manage_access` or `edit_outside_window`.
 
-### 6.5 Evaluation order
+### 6.6 Evaluation order
 
 The authorization service evaluates a request in this order:
 
@@ -264,13 +315,26 @@ backend/src/access/
 │   ├── identity.py
 │   └── clock.py
 └── adapters/
+    ├── http/
+    │   ├── models.py
+    │   ├── router.py
+    │   └── error_handlers.py
     └── persistence/
         ├── models.py
         ├── repositories.py
         └── authorization.py
 ```
 
-HTTP models, routes, authentication composition, and dependency wiring remain in the outer composition layer under `bootstrap`, following the existing backend pattern.
+HTTP models, routes, and Access-specific error translation remain adapters of
+the capability, matching the implemented `warehouse.bales.adapters.http`
+pattern. Authentication composition, session-factory ownership, dependency
+wiring, and router registration remain in the outer composition layer under
+`bootstrap`.
+
+The current package discovery configuration includes only `warehouse`, `infra`,
+and `bootstrap`. Introducing `access` therefore also requires adding `access*`
+to backend package discovery; it does not justify changing the existing
+capability-first layout.
 
 ### 8.2 Domain responsibilities
 
@@ -295,7 +359,7 @@ Application use cases orchestrate:
 - user lifecycle changes;
 - role and preset creation or modification;
 - role assignment replacement;
-- scope registration and lifecycle changes;
+- registration of recognized scope definitions and scope lifecycle changes;
 - impact preview calculation;
 - transaction boundaries;
 - audit entry creation;
@@ -310,7 +374,8 @@ The capability requires explicit ports for:
 | `AccessUserRepository` | Resolve by identity subject and load/change user state |
 | `RoleRepository` | Load roles, permissions, assignments, and affected users |
 | `PresetRepository` | Load and persist presets and their permission sets |
-| `ScopeRepository` | Resolve stable scope codes and scope state |
+| `ScopeDefinitionRegistry` | Expose the immutable set of product-recognized scope definitions |
+| `ScopeRepository` | Resolve registered stable scope codes and scope state |
 | `AccessAuditRepository` | Append and query access-change evidence |
 | `TransactionPort` | Commit or roll back one administrative mutation and its audit atomically |
 | `IdentityPort` | Generate internal identifiers |
@@ -338,6 +403,22 @@ Rules:
 - Domain entities do not query Access Control.
 - Authorization is applied at the application boundary, with optional route-level early rejection only when the same server-derived scope is unambiguous.
 
+### 8.6 Existing Warehouse integration
+
+The four currently implemented Bale Management endpoints are protected without
+changing their application behavior:
+
+| Existing operation | Required action | Server-derived scope |
+| --- | --- | --- |
+| Register raw-material batch | `write` | `warehouse.raw_materials` |
+| Query aggregate bale stock | `read` | `warehouse.raw_materials` |
+| Query individual bale detail | `read` | `warehouse.raw_materials` |
+| Deliver bales to Production | `write` | `warehouse.raw_materials` |
+
+The HTTP composition passes the authorized internal actor to operations that
+create business audit evidence. No current endpoint is reclassified as `edit`,
+and Access Control does not change batch, bale, stock, or delivery invariants.
+
 ## 9. Application use cases
 
 ### 9.1 Queries
@@ -348,7 +429,8 @@ Rules:
 - `GetAccessUser`: return one user, current assignments, and effective permissions.
 - `ListRoles` and `GetRole`: return role configuration and assigned-user counts.
 - `ListRolePresets` and `GetRolePreset`: return preset configuration.
-- `ListScopes`: return scopes and lifecycle state.
+- `ListScopeDefinitions`: return product-recognized definitions and whether each is registered.
+- `ListScopes`: return registered scopes and lifecycle state.
 - `ListAccessAudits`: filter and paginate immutable access-change evidence.
 - `PreviewRoleChange`: calculate affected users and added or removed effective permissions.
 - `PreviewUserRoleReplacement`: calculate role and effective-permission differences for one user.
@@ -361,7 +443,7 @@ Rules:
 - `ReplaceUserRoles`.
 - `CreateRoleFromPreset`.
 - `CreateRolePreset`, `UpdateRolePreset`, `ActivateRolePreset`, and `DeactivateRolePreset`.
-- `RegisterScope`, `ActivateScope`, and `DeactivateScope`.
+- `RegisterRecognizedScope`, `ActivateScope`, and `DeactivateScope`.
 
 Every command in this list requires `manage_access` in the `access_control` scope and writes an access audit in the same transaction.
 
@@ -386,7 +468,7 @@ Ordinary-user response:
   "display_name": "Example User",
   "is_active": true,
   "roles": [
-    {"role_id": "248dd6f1-70bc-4b10-8c60-c25509ab71f8", "code": "ring-spinning-operator", "name": "Ring Spinning Operator"}
+    {"role_id": "248dd6f1-70bc-4b10-8c60-c25509ab71f8", "code": "ring-spinning-responsible", "name": "Ring Spinning Responsible"}
   ],
   "authorization": {
     "global": false,
@@ -437,7 +519,8 @@ Every endpoint below requires an active System Administrator.
 | Activate or deactivate preset | `PATCH` | `/api/v1/access/role-presets/{preset_id}/status` |
 | Create role from preset | `POST` | `/api/v1/access/role-presets/{preset_id}/roles` |
 | List scopes | `GET` | `/api/v1/access/scopes` |
-| Register scope | `POST` | `/api/v1/access/scopes` |
+| List recognized scope definitions | `GET` | `/api/v1/access/scope-definitions` |
+| Register recognized scope | `POST` | `/api/v1/access/scopes` |
 | Activate or deactivate scope | `PATCH` | `/api/v1/access/scopes/{scope_id}/status` |
 | Query access audits | `GET` | `/api/v1/access/audits` |
 
@@ -447,8 +530,8 @@ Role creation and replacement use the complete desired permission set:
 
 ```json
 {
-  "code": "ring-spinning-operator",
-  "name": "Ring Spinning Operator",
+  "code": "ring-spinning-responsible",
+  "name": "Ring Spinning Responsible",
   "description": "Records and consults Ring Spinning operations.",
   "permissions": [
     {"action": "read", "scope_id": "43f46589-19d8-479f-84bd-20ab34ed7a22"},
@@ -514,6 +597,23 @@ Creating an Access profile does not create authentication credentials:
 
 The authentication capability or trusted administrative integration must establish the identity subject before the user can sign in. Access Control only stores the mapping.
 
+### 10.7 Register a recognized scope
+
+Scope registration accepts only the immutable definition key returned by the
+recognized catalog:
+
+```json
+{
+  "definition_key": "transversal.consolidated_dashboard",
+  "reason": "Enable the approved consolidated dashboard scope for role configuration."
+}
+```
+
+The backend supplies the code, display name, owning capability, description,
+and supported actions from the recognized definition. Unknown definitions and
+attempts to override this metadata are rejected. Registration grants no
+ordinary role permission automatically.
+
 ## 11. Data model
 
 ### 11.1 `access_users`
@@ -568,16 +668,20 @@ A partial unique index permits only one current assignment for each `(user_id, r
 | Column | Type | Constraints and purpose |
 | --- | --- | --- |
 | `scope_id` | UUID | Primary key |
+| `definition_key` | TEXT | Unique immutable key from the recognized scope-definition catalog |
 | `scope_code` | TEXT | Unique immutable exact-match code |
-| `scope_name` | TEXT | Display name |
-| `owning_context` | TEXT | Context responsible for the protected business meaning |
-| `description` | TEXT | Optional administrative description |
+| `scope_name` | TEXT | Catalog-provided display name |
+| `owning_context` | TEXT | Catalog-provided capability responsible for the protected business meaning |
+| `description` | TEXT | Catalog-provided administrative description |
 | `is_active` | BOOLEAN | Only active scopes authorize |
 | `version` | BIGINT | Optimistic concurrency |
 | `created_at` | TIMESTAMPTZ | Creation time |
 | `updated_at` | TIMESTAMPTZ | Last mutation time |
 
-No parent identifier, wildcard, path matcher, or implicit hierarchy is stored. `scope_code` punctuation is naming structure only.
+No parent identifier, wildcard, path matcher, or implicit hierarchy is stored.
+`scope_code` punctuation is naming structure only. Registration must resolve
+`definition_key` through `ScopeDefinitionRegistry`; free-form scope metadata is
+never persisted from the request.
 
 ### 11.5 `access_role_permissions`
 
@@ -640,8 +744,8 @@ Audit rows are append-only. Application runtime credentials, authentication toke
 - Lifecycle changes use activation or deactivation.
 - Foreign keys use restrictive deletion behavior.
 - Historical assignments and audits remain readable after deactivation.
-- Scope codes and authentication subjects are immutable after creation.
-- Display names and descriptions may change with version checks and audit evidence.
+- Scope codes, definition keys, catalog metadata, and authentication subjects are immutable after creation.
+- User, role, and preset display names and descriptions may change with version checks and audit evidence.
 
 ## 12. Transaction and concurrency rules
 
@@ -713,6 +817,8 @@ Protected business endpoints may use the single external code `access_denied` fo
 | `409` | `inactive_access_role` | Assignment references an inactive role |
 | `409` | `inactive_access_scope` | Permission references an inactive scope |
 | `422` | `invalid_access_action` | Unsupported action value |
+| `422` | `unsupported_action_for_scope` | Recognized scope does not support the requested action |
+| `422` | `unrecognized_scope_definition` | Registration references a definition not declared by the application |
 | `422` | `privileged_action_requires_system_administrator` | Ordinary role or preset includes a reserved action |
 | `422` | `duplicate_role_permission` | Request repeats an action-and-scope pair |
 | `422` | `access_change_reason_required` | Required administrative reason is absent |
@@ -748,7 +854,7 @@ Operational record creation and correction audits remain owned by their business
 - All Access tables enable RLS and revoke default privileges from `anon`, `authenticated`, and `service_role`, consistent with existing migrations. The backend database role is the only runtime path until an explicit database authorization design replaces it.
 - Error messages do not reveal protected-resource existence when authorization fails before resource disclosure is safe.
 - Access audit rows are append-only to the application role.
-- Scope codes are validated against a conservative format and length before persistence.
+- Scope codes and metadata are copied only from the recognized scope-definition registry; client-defined scope semantics are rejected.
 - Administrative list endpoints are paginated and do not expose identity-provider metadata beyond the stored opaque subject when explicitly required by administration.
 
 ## 17. Migration strategy
@@ -786,6 +892,8 @@ Tests use stdlib `unittest` and the repository's established unit, API, and Post
 - Inactive role contributes no permission.
 - Inactive scope does not authorize.
 - Exact matching does not inherit from similarly prefixed scope codes.
+- Unknown scope definitions cannot be registered.
+- Recognized-scope registration copies server-owned metadata and grants no ordinary role permission.
 - System Administrator authorizes every action in existing and newly registered scopes.
 - Last active System Administrator cannot be removed.
 - Preview calculates affected users and effective permission deltas.
@@ -800,6 +908,7 @@ Tests use stdlib `unittest` and the repository's established unit, API, and Post
 - Unmapped, inactive, and unauthorized identities return the defined `403` contract.
 - `/access/me` returns ordinary and global authorization shapes.
 - Every administrative endpoint rejects an ordinary user.
+- Scope registration rejects free-form or unknown definitions.
 - Strict request validation rejects extra fields.
 - Role and assignment replacement require expected versions.
 - Preview and confirmation contracts remain stable.
@@ -853,8 +962,8 @@ The backend capability is complete when:
 3. Every protected operation is denied by default and uses a server-derived scope.
 4. Multiple active roles produce additive exact-match permissions.
 5. Preset changes do not mutate existing roles.
-6. System Administrator access covers new scopes and the last active administrator is protected transactionally.
+6. System Administrator access covers newly recognized scopes and the last active administrator is protected transactionally.
 7. Administrative mutations and their audit evidence are atomic.
 8. The documented API is represented in OpenAPI and matches API tests.
 9. Migrations, ORM mappings, repositories, and integration tests agree on the physical schema.
-10. No direct user permissions, explicit denials, scope inheritance, shift rules, or authentication implementation have been introduced.
+10. No direct user permissions, explicit denials, arbitrary client-defined scopes, scope inheritance, shift rules, or authentication implementation have been introduced.

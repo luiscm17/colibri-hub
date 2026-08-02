@@ -19,7 +19,7 @@ last_reviewed: 2026-08-01
 **Context:** Access Control  
 **Type:** Technical Specification - Frontend  
 **Status:** Not implemented  
-**Technical baseline:** Repository `luiscm17/colibri-hub`, branch `main`, reviewed 2026-08-01  
+**Technical baseline:** Repository `luiscm17/colibri-hub`, branch `back/auth-rbac`, reviewed 2026-08-01
 **Complementary specification:** [Backend Access Control](../../../backend/docs/features/access-control.md)  
 **Date:** 2026-08-01
 
@@ -71,15 +71,17 @@ When documents conflict:
 2. The backend specification prevails for the consumed API contract.
 3. This specification prevails for frontend implementation details.
 
-The current UI Requirements document still mentions Skein Availability. The
-Access Control PRD explicitly excludes that capability, so this specification
-does not create a route, navigation item, or authorization scope for it.
-
 ## 3. Current state
 
 The frontend has an authentication feature and app-level authentication provider,
 but it does not load backend-defined effective permissions. Routes, sidebar items,
 and page actions are not yet protected by the RBAC model.
+
+The current temporary contract uses `allowedResources`. An empty list is treated
+as unrestricted access, the sidebar filters by `resourceType`, and
+`ProtectedRoute` verifies authentication only. Those behaviors are provisional
+and must be removed rather than adapted into the RBAC model: an unresolved or
+empty authorization grant is denied by default.
 
 There are no Access Control administration pages for users, roles, presets,
 scopes, assignments, or access-change audits. The frontend test stack described
@@ -113,7 +115,6 @@ by the testing strategy is also not configured in the current package manifest.
 - Reuse the shared HTTP and error-handling boundary.
 - Avoid duplicating backend permission calculation or scope hierarchy logic.
 - Make authorization transitions deterministic and testable.
-- Use only ASCII characters in this Markdown document for portable rendering.
 
 ## 5. Scope
 
@@ -389,10 +390,27 @@ interface NavigationItem {
 Navigation is recomputed from the current Access snapshot. It is not persisted as
 a separate permission cache.
 
-### 9.4 Yarn Spinning mapping
+### 9.4 Business capability mapping
 
-The authorization model distinguishes section operation from transverse
-responsibilities:
+The frontend uses the backend scope catalog. It does not derive scopes from URL
+segments, feature-directory names, navigation labels, or organizational roles.
+
+#### Warehouse
+
+| UI capability | Action | Exact scope |
+| --- | --- | --- |
+| Raw Materials dashboard, stock, and bale detail | `read` | `warehouse.raw_materials` |
+| Raw-material reception and bale delivery | `write` | `warehouse.raw_materials` |
+| Finished Products dashboard, detail, and history | `read` | `warehouse.finished_products` |
+| Finished-product requirement, handoff issue, reception, availability, dispatch, and return records | `write` | `warehouse.finished_products` |
+| Production Supplies dashboard, stock, and history | `read` | `warehouse.production_supplies` |
+| Production-supply reception, exit, and return records | `write` | `warehouse.production_supplies` |
+
+The existing Bale Management routes therefore replace their current shared
+`resourceType` check with exact `read` or `write` requirements in
+`warehouse.raw_materials`.
+
+#### Yarn Spinning
 
 | UI capability | Action | Exact scope |
 | --- | --- | --- |
@@ -401,23 +419,45 @@ responsibilities:
 | Ring Spinning dashboard | `read` | `yarn_spinning.section.ring_spinning` |
 | Ring Spinning production and progress | `write` | `yarn_spinning.section.ring_spinning` |
 | Bobbin Winding dashboard | `read` | `yarn_spinning.section.bobbin_winding` |
-| Bobbin Winding production | `write` | `yarn_spinning.section.bobbin_winding` |
+| Bobbin Winding production and progress | `write` | `yarn_spinning.section.bobbin_winding` |
 | Twisting dashboard | `read` | `yarn_spinning.section.twisting` |
 | Twisting production and progress | `write` | `yarn_spinning.section.twisting` |
 | Skeining dashboard | `read` | `yarn_spinning.section.skeining` |
 | Skeining production | `write` | `yarn_spinning.section.skeining` |
-| Process Quality | `read` or `write` | `yarn_spinning.process_quality` |
-| Waste | `read` or `write` | `yarn_spinning.waste` |
-| Consolidated dashboard | `read` | `yarn_spinning.consolidated_dashboard` |
-
-Dashboard visibility requires `read`; data-entry actions require `write`. A
-`write` grant does not imply `read`, and the frontend must not add that
-relationship. Presets may grant both when the responsibility requires both.
+| Process Quality query or record | `read` or `write` | `yarn_spinning.process_quality` |
+| Waste query or record | `read` or `write` | `yarn_spinning.waste` |
 
 Process Quality and Waste remain independent navigation items because they are
-transverse responsibilities that may belong to different roles. Shift and
-business date selectors filter or contextualize content; they never determine
-route visibility.
+cross-section responsibilities that may belong to different roles. There is no
+independent Skein Availability route or scope; availability needed during lot
+assembly is presented within that authorized workflow.
+
+#### Lot Processing
+
+| UI capability | Action | Exact scope |
+| --- | --- | --- |
+| Dashboard, queue, lot detail, and transversal lifecycle information | `read` | `lot_processing` |
+| Inventory technical information or intervention | `read` or `write` | `lot_processing.stage.inventory` |
+| Dyeing technical information or intervention | `read` or `write` | `lot_processing.stage.dyeing` |
+| Drying technical information or intervention | `read` or `write` | `lot_processing.stage.drying` |
+| Winding technical information or intervention | `read` or `write` | `lot_processing.stage.winding` |
+| Bagging technical information or intervention | `read` or `write` | `lot_processing.stage.bagging` |
+| Quality technical information, release for reception, or handoff response | `read` or `write` | `lot_processing.stage.quality` |
+
+The detail page may render the transversal lot fields with `read +
+lot_processing` while omitting technical stage fields for which the user lacks
+the corresponding stage `read` permission.
+
+#### Transversal consultation
+
+| UI capability | Action | Exact scope |
+| --- | --- | --- |
+| Consolidated dashboard | `read` | `transversal.consolidated_dashboard` |
+
+The consolidated dashboard is not nested under Yarn Spinning authorization.
+Section permissions do not imply it, and it grants no operational permission in
+the contexts represented by the view. Shift, business date, section, yarn
+count, and period selectors are filters only and never determine visibility.
 
 ### 9.5 Access Control navigation
 
@@ -497,6 +537,8 @@ frontend/src/features/access/
     accessScopes.ts
     can.ts
     routeRequirements.ts
+  context/
+    AccessProvider.tsx
   components/
     Authorized.tsx
     PermissionMatrix.tsx
@@ -520,10 +562,7 @@ frontend/src/features/access/
     access.types.ts
   index.ts
 
-frontend/src/app/
-  providers/
-    AccessProvider.tsx
-  routes/
+frontend/src/app/routes/
     ProtectedRoute.tsx
 ```
 
@@ -532,8 +571,10 @@ business authorization decisions. Feature pages import `useAuthorization` or
 `Authorized` through the Access feature public API.
 
 Authentication remains in its existing feature and provider. `AccessProvider`
-depends on the authentication session interface; authentication does not depend
-on Access Control.
+follows the existing provider composition pattern from `main.tsx`, depends on
+the authentication session interface, and is mounted inside `AuthProvider`.
+Authentication does not depend on Access Control. The existing authenticated
+HTTP client and app router are extended rather than replaced.
 
 ## 12. API contract consumed
 
@@ -566,7 +607,8 @@ on Access Control.
 | Change preset status | `PATCH` | `/api/v1/access/role-presets/{preset_id}/status` |
 | Create role from preset | `POST` | `/api/v1/access/role-presets/{preset_id}/roles` |
 | List scopes | `GET` | `/api/v1/access/scopes` |
-| Register scope | `POST` | `/api/v1/access/scopes` |
+| List recognized scope definitions | `GET` | `/api/v1/access/scope-definitions` |
+| Register recognized scope | `POST` | `/api/v1/access/scopes` |
 | Change scope status | `PATCH` | `/api/v1/access/scopes/{scope_id}/status` |
 | Query access audit | `GET` | `/api/v1/access/audits` |
 
@@ -636,7 +678,8 @@ The role editor contains:
 - expected version for updates.
 
 The permission matrix uses scopes as rows and supported ordinary actions as
-columns. Duplicate pairs are impossible in UI state.
+columns. Cells not supported by the backend scope definition are not selectable,
+and duplicate pairs are impossible in UI state.
 
 `manage_access` and `edit_outside_window` are not selectable for ordinary roles.
 The reserved System Administrator role is displayed as global and its protected
@@ -669,14 +712,18 @@ reason before confirmation.
 
 ### 13.6 Scopes
 
-The scope page lists stable code, display name, owning context, description, and
-active state. Scope codes are treated as exact identifiers; visual grouping by
-dot-separated segments is presentational only and never implies inheritance.
+The scope page lists stable code, display name, owning capability, supported
+actions, description, and active state. Scope codes are treated as exact
+identifiers; visual grouping by dot-separated segments is presentational only
+and never implies inheritance.
 
-Registration and lifecycle changes use backend validation and show impact before
-deactivation when the backend provides affected assignments. A newly registered
-scope is not added to ordinary roles automatically. The System Administrator's
-global authorization does not require a permission-row update.
+Registration starts from the backend-provided recognized-definition list. The
+administrator selects a definition and supplies a reason; the UI provides no
+free-form code, owning-context, description, or supported-action fields.
+Lifecycle changes use backend validation and show impact before deactivation
+when the backend provides affected assignments. A newly registered scope is not
+added to ordinary roles automatically. The System Administrator's global
+authorization does not require a permission-row update.
 
 ### 13.7 Access audit
 
@@ -823,6 +870,8 @@ AA.
 - Authorized route renders normally.
 - `Authorized` hides or disables consistently.
 - Permission matrix cannot create duplicate pairs.
+- Permission matrix disables action-and-scope pairs not supported by the catalog.
+- Scope registration cannot submit free-form or unknown definitions.
 - Reserved role controls are read-only.
 - Role assignment preview shows added and removed access.
 - Preview is required again after a version conflict.
@@ -835,6 +884,7 @@ queries rather than internal component structure.
 ### 18.4 Integration contract tests
 
 - `/access/me` ordinary and global payloads map correctly.
+- Scope definitions and registered scopes map as separate contracts.
 - Every administrative route and request matches the backend specification.
 - Snake-case transport fields map to camel-case UI models.
 - Known error codes map to stable UI behavior.
@@ -904,8 +954,9 @@ The frontend capability is complete when:
    version confirmation.
 9. Draft work survives authorization, validation, concurrency, and network
    failures.
-10. Process Quality, Waste, section operation, and the consolidated dashboard
-    remain independently authorizable.
+10. Warehouse areas, Process Quality, Waste, Yarn Spinning sections, Lot
+    Processing stages, and the transversal consolidated dashboard remain
+    independently authorizable.
 11. Shift and business date never affect route or action authorization.
 12. Skein Availability is absent as an independent capability.
 13. Unit, component, accessibility, and API contract tests pass.
