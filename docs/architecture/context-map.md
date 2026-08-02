@@ -80,7 +80,7 @@ contracts for Colibri Hub.
 
 ### 2.4 Access Control
 
-- Owns configurable roles, permissions, actions, scopes, exceptions, and
+- Owns configurable roles, permissions, actions, scopes, role assignments, and
   permission-change audit.
 - Acts as a policy context: it decides whether a user may execute an action in a
   scope but does not redefine business stages or record meaning.
@@ -160,7 +160,7 @@ Warehouse Finished Product requirement -> Lot Processing Production Identity
 Lot Processing release for reception -> Warehouse verification
 Warehouse issue <-> Operation response, repeated when required
 Warehouse Finished Product reception completes the handoff
-All interactions preserve the same lot_code
+All interactions preserve the same `lot_code`
 
 Access Control and Shared Reference Data support all business contexts.
 ```
