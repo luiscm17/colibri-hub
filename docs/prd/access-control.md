@@ -4,7 +4,6 @@ status: draft
 scope: access-control
 authority: normative
 owner: product
-last_reviewed: 2026-08-01
 ---
 
 # Access Control
@@ -17,7 +16,7 @@ The capability separates organizational responsibilities from system authorizati
 
 Access Control covers:
 
-- user access lifecycle;
+- access-profile lifecycle;
 - configurable roles;
 - reusable role presets;
 - assignment of one or more roles to a user;
@@ -47,7 +46,7 @@ Access Control must provide a stable model in which:
 
 | Actor | Responsibility | Interaction |
 | --- | --- | --- |
-| System Administrator | Governs access throughout the system | Manages users, roles, presets, role assignments, and access configuration; may intervene across all business scopes |
+| System Administrator | Governs access throughout the system | Manages access profiles, roles, presets, role assignments, and access configuration; may intervene across all business scopes |
 | Role Holder | Uses one or more roles to perform assigned responsibilities | Receives the combined permissions of all assigned active roles |
 | Business Area Owner | Defines which responsibilities exist within a business area | Identifies the actions and business scopes that Access Control must be able to authorize |
 | Supervisor or Management User | Consults operational information according to assigned roles | May receive read access across several sections or to consolidated views without receiving write access |
@@ -55,13 +54,13 @@ Access Control must provide a stable model in which:
 
 Organizational references such as Manager, Director, Unit Head, Section Responsible, or Secretary may inspire role presets or configurable role names. They do not constitute hardcoded authorization rules, do not create a technical role hierarchy, and do not grant permissions by job title.
 
-"Machine Operator" remains a business actor distinct from Access Control roles. A Machine Operator manipulates production equipment and is not currently a direct system user. The generic name "Operator" must therefore not be used for an RBAC preset or technical role because it would make these concepts ambiguous.
+"Machine Operator" remains a business actor distinct from Access Control roles. A Machine Operator manipulates production equipment and is not a direct system user. The generic name "Operator" must therefore not be used for an RBAC preset or technical role because it would make these concepts ambiguous.
 
 ## Authorization Model
 
-### Users and roles
+### Access profiles and roles
 
-A user may hold one or more roles at the same time. A role is a configurable set of permissions representing a reusable responsibility profile. Several users may share the same role, including users who perform that responsibility in different shifts.
+Each authenticated person is represented by one Access Control profile. An active profile may hold one or more roles at the same time. A role is a configurable set of permissions representing a reusable responsibility profile. Several profiles may share the same role, including people who perform that responsibility in different shifts.
 
 The permissions effective for a user are the union of the permissions granted by all assigned active roles. Roles are additive: the model does not include explicit denial permissions or precedence rules between roles.
 
@@ -75,7 +74,7 @@ Each permission combines one general action with one business scope.
 | Write | Record a new business fact in the authorized business scope |
 | Edit | Correct an existing business fact within the operational window defined by its owning business context |
 | Edit Outside the Operational Window | Perform an exceptional correction after the ordinary correction window has closed |
-| Manage Access | Create and change users, roles, presets, assignments, and permissions |
+| Manage Access | Create and change access profiles, roles, presets, assignments, scopes, and permissions |
 
 The action vocabulary is intentionally general. Business expressions such as register, capture, fill in, or add are forms of Write when they create a new business fact. The meaning of an action is determined by the requested business operation, not by a screen interaction or transport mechanism.
 
@@ -143,6 +142,11 @@ Labels such as Shift Summary or Daily Summary describe filtered queries or dashb
 30. A business context must not infer authorization from shift, job title, page visibility, or an operational user reference stored in a business record.
 31. Operational audits must identify the individual user and may include business date, time, shift, correction reason, and changed values. These facts do not alter the authorization decision.
 32. Access Control must not invent actions for domain-specific events. A domain event uses the applicable general action within the scope owned by that business context.
+33. Authentication owns login-account enablement and disablement; Access Control owns access-profile activation and inactivation.
+34. Provisioning creates the Access profile only through the unified Authentication administrative flow. Access Control profile creation is not an independent user-facing operation.
+35. Inactivating an Access profile denies protected capabilities without changing credentials or the Authentication account state.
+36. Disabling an Authentication account also inactivates its Access profile. Re-enabling the account may reactivate the profile only after its roles and invariants are valid.
+37. An account in mandatory password replacement may hold an active Access profile, but it receives no protected authorization until Authentication becomes Active.
 
 ## Flows and Processes
 
@@ -154,9 +158,9 @@ Labels such as Shift Summary or Daily Summary describe filtered queries or dashb
 4. The system creates an independent role.
 5. The system records who created the role, when it was created, and which permissions it initially contained.
 
-### Assign roles to a user
+### Assign roles to an access profile
 
-1. The System Administrator selects an active user.
+1. The System Administrator selects an active access profile.
 2. The system presents the user's current roles and resulting permissions.
 3. The System Administrator adds or removes one or more active roles.
 4. The system presents the resulting permission changes before confirmation.
@@ -198,12 +202,12 @@ Labels such as Shift Summary or Daily Summary describe filtered queries or dashb
 
 ## States and Transitions
 
-### User access state
+### Access-profile state
 
 | State | Description | Allowed transitions |
 | --- | --- | --- |
-| Active | The user may receive authorization through assigned active roles | Inactive |
-| Inactive | The user cannot receive authorization; identity and history are preserved | Active |
+| Active | The profile may receive authorization through assigned active roles after Authentication admits protected entry | Inactive |
+| Inactive | The profile cannot receive authorization; identity and history are preserved | Active |
 
 ### Role state
 
@@ -212,7 +216,16 @@ Labels such as Shift Summary or Daily Summary describe filtered queries or dashb
 | Active | The role contributes permissions to assigned users | Inactive |
 | Inactive | The role grants no permission and remains available for historical traceability | Active |
 
-Reactivation of a user or role must not erase the access-change history associated with prior states.
+Reactivation of an access profile or role must not erase the access-change history associated with prior states.
+
+Authentication state and Access-profile state are evaluated independently:
+
+| Authentication account | Access profile | Protected result |
+| --- | --- | --- |
+| Active | Active | Operations are evaluated from effective permissions |
+| Active | Inactive | Authentication may succeed, but protected entry is denied |
+| Awaiting Password Change | Active or Inactive | Only mandatory password replacement, state inspection, and logout are available |
+| Disabled | Active or Inactive | Login and protected entry are denied |
 
 ## Acceptance Criteria
 
@@ -233,15 +246,18 @@ Reactivation of a user or role must not erase the access-change history associat
 15. Changing a preset does not alter roles previously created from that preset.
 16. Changing a shared role identifies the affected users before confirmation and changes the permissions of all assigned users after confirmation.
 17. Adding a new business scope does not grant it to existing ordinary roles automatically.
-18. An inactive user is denied even when active roles remain assigned.
+18. An inactive access profile is denied even when active roles remain assigned.
 19. An inactive role contributes no permission to its assigned users.
 20. A user without Edit Outside the Operational Window permission cannot correct a record after its owning business context closes the ordinary correction window.
 21. Only the System Administrator can manage access or authorize an exceptional correction outside the operational window.
 22. The System Administrator can operate across existing and newly introduced business scopes.
 23. The system prevents an access change that would leave no active System Administrator.
-24. Every role creation, role change, role assignment, role removal, user activation, and user deactivation is traceable to the individual who performed it and the date and time of the change.
+24. Every role creation, role change, role assignment, role removal, profile activation, and profile inactivation is traceable to the individual who performed it and the date and time of the change.
 25. Authorization does not replace domain validation: an authorized request is still rejected when it violates the owning business context's rules.
 26. Operational audit records identify the individual user rather than only the shared role.
+27. An Access profile is created only as part of unified account provisioning and cannot be created through a separate user-facing Access Control operation.
+28. Inactivating only the Access profile denies protected entry without disabling the Authentication account.
+29. An account Awaiting Password Change receives no protected authorization even when its Access profile is active.
 
 ## Capability Boundaries
 

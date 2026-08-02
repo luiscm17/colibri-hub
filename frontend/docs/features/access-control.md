@@ -1,11 +1,9 @@
 ---
 document_type: technical-spec
 status: draft
-implementation: not-started
 scope: access-control
 authority: explanatory
 owner: frontend
-last_reviewed: 2026-08-01
 ---
 
 # Technical Specification - Frontend Access Control
@@ -18,10 +16,7 @@ last_reviewed: 2026-08-01
 **Product:** Colibri Hub  
 **Context:** Access Control  
 **Type:** Technical Specification - Frontend  
-**Status:** Not implemented  
-**Technical baseline:** Repository `luiscm17/colibri-hub`, branch `back/auth-rbac`, reviewed 2026-08-01
 **Complementary specification:** [Backend Access Control](../../../backend/docs/features/access-control.md)  
-**Date:** 2026-08-01
 
 ---
 
@@ -40,15 +35,22 @@ starts after the authentication layer has established a session. It does not
 implement login, logout, credentials, password recovery, MFA, token issuance, or
 session renewal.
 
+Only the `ready` Access state drives navigation and action availability. Blocked
+and unavailable states stop the flow before any protected content renders:
+
 ```mermaid
 flowchart TD
-    A[Authenticated session] --> B[Load current access]
-    B --> C[Access state]
-    C --> D[Navigation and route guards]
-    C --> E[Action availability]
-    D --> F[Protected page]
-    E --> F
-    F --> G[Backend authorizes every request]
+    A[Authenticated session] --> B[AccessProvider bootstrap]
+    B --> C[GET /api/v1/access/me]
+    C --> D{Access state}
+    D -->|ready| E[Access state ready]
+    D -->|blocked| G[Blocked profile surface]
+    D -->|unavailable| H[Retryable service surface]
+    E --> F[Navigation and route guards]
+    E --> I[Action availability]
+    F --> J[Protected page]
+    I --> J
+    J --> K[Backend authorizes every request]
 ```
 
 Ordinary authorization is additive and uses exact `action + scope` pairs. The
@@ -71,21 +73,12 @@ When documents conflict:
 2. The backend specification prevails for the consumed API contract.
 3. This specification prevails for frontend implementation details.
 
-## 3. Current state
+## 3. Design boundary
 
-The frontend has an authentication feature and app-level authentication provider,
-but it does not load backend-defined effective permissions. Routes, sidebar items,
-and page actions are not yet protected by the RBAC model.
-
-The current temporary contract uses `allowedResources`. An empty list is treated
-as unrestricted access, the sidebar filters by `resourceType`, and
-`ProtectedRoute` verifies authentication only. Those behaviors are provisional
-and must be removed rather than adapted into the RBAC model: an unresolved or
-empty authorization grant is denied by default.
-
-There are no Access Control administration pages for users, roles, presets,
-scopes, assignments, or access-change audits. The frontend test stack described
-by the testing strategy is also not configured in the current package manifest.
+The Access frontend consumes backend-resolved profiles and effective
+permissions. It applies default-deny presentation rules through the application
+provider, navigation, route guards, and protected actions. It does not create a
+frontend-only authorization source of truth or a parallel account lifecycle.
 
 ## 4. Objectives
 
@@ -99,7 +92,7 @@ by the testing strategy is also not configured in the current package manifest.
 - Support users with multiple simultaneous roles.
 - Treat permissions from multiple roles as one effective additive set.
 - Support global System Administrator authorization without enumerating scopes.
-- Provide administration of users, roles, presets, scopes, and assignments.
+- Provide access-profile consultation and lifecycle, plus administration of roles, presets, scopes, and assignments.
 - Preview shared-role and user-assignment impact before confirmation.
 - Display access-change audit history.
 - Refresh authorization after changes that may affect the current session.
@@ -167,13 +160,12 @@ The implementation uses the current frontend baseline:
 | Quality | TypeScript build and ESLint |
 
 No additional global state library is required. Access state is app-level session
-state and fits a React context plus focused hooks. The target testing stack follows
-the existing testing strategy: Vitest, Testing Library, user-event, and automated
+state and fits a React context plus focused hooks. Tests use Vitest, Testing
+Library, user-event, and automated
 accessibility checks.
 
-If a server-cache library is adopted globally before implementation, the Access
-API layer may use it. This does not change the state model or authorization rules
-defined here.
+The Access API layer may use the globally approved server-cache library. This
+does not change the state model or authorization rules defined here.
 
 ## 7. Frontend authorization model
 
@@ -406,9 +398,8 @@ segments, feature-directory names, navigation labels, or organizational roles.
 | Production Supplies dashboard, stock, and history | `read` | `warehouse.production_supplies` |
 | Production-supply reception, exit, and return records | `write` | `warehouse.production_supplies` |
 
-The existing Bale Management routes therefore replace their current shared
-`resourceType` check with exact `read` or `write` requirements in
-`warehouse.raw_materials`.
+Bale Management routes use exact `read` or `write` requirements in
+`warehouse.raw_materials`; no shared resource-category check is authoritative.
 
 #### Yarn Spinning
 
@@ -469,7 +460,7 @@ manage_access + access_control
 
 It contains:
 
-- Users;
+- Users, routed to the unified Authentication account pages;
 - Roles;
 - Role Presets;
 - Scopes;
@@ -550,8 +541,6 @@ frontend/src/features/access/
     useAuthorization.ts
     useAccessAdministration.ts
   pages/
-    AccessUsersPage.tsx
-    AccessUserDetailPage.tsx
     AccessRolesPage.tsx
     AccessRoleEditorPage.tsx
     AccessPresetsPage.tsx
@@ -570,11 +559,10 @@ The `authorization/` directory contains pure frontend policy consumption, not
 business authorization decisions. Feature pages import `useAuthorization` or
 `Authorized` through the Access feature public API.
 
-Authentication remains in its existing feature and provider. `AccessProvider`
-follows the existing provider composition pattern from `main.tsx`, depends on
-the authentication session interface, and is mounted inside `AuthProvider`.
-Authentication does not depend on Access Control. The existing authenticated
-HTTP client and app router are extended rather than replaced.
+Authentication remains in its own feature and provider. `AccessProvider`
+depends on the authentication session interface and is mounted inside
+`AuthProvider`. Authentication does not depend on Access Control. Both features
+use the shared authenticated HTTP client and app router.
 
 ## 12. API contract consumed
 
@@ -589,7 +577,6 @@ HTTP client and app router are extended rather than replaced.
 | Capability | Method | Path |
 | --- | --- | --- |
 | List users | `GET` | `/api/v1/access/users` |
-| Create Access profile | `POST` | `/api/v1/access/users` |
 | Get user | `GET` | `/api/v1/access/users/{user_id}` |
 | Change user status | `PATCH` | `/api/v1/access/users/{user_id}/status` |
 | Preview role replacement | `POST` | `/api/v1/access/users/{user_id}/roles/preview` |
@@ -619,19 +606,12 @@ layer owns transport mapping, abort signals, and typed error translation.
 
 ### 13.1 Users
 
-The user list supports search, active-state filtering, assigned-role summaries,
-pagination, and navigation to user detail.
+Authentication owns the unified account list, creation flow, and account-detail
+routes. Access Control supplies typed data and components for their access
+portion; it does not expose a separate access-profile creation form or a public
+`POST /api/v1/access/users` request.
 
-Creating an Access profile:
-
-- maps an existing authenticated identity to an Access user;
-- does not create credentials or a login account;
-- accepts the identity subject required by the backend contract;
-- allows zero or more initial roles;
-- explains that access is denied until an active profile has suitable roles;
-- requires an administrative reason when required by the backend.
-
-The detail page shows:
+The access portion of the unified detail shows:
 
 - user code and display name;
 - active state;
@@ -640,6 +620,11 @@ The detail page shows:
 - authorization version;
 - role replacement and activation controls;
 - related Access audit entries.
+
+`PATCH /api/v1/access/users/{user_id}/status` changes only the Access profile.
+It never enables, disables, resets, or otherwise mutates the Authentication
+account. Unified account disablement and enablement are submitted to the
+Authentication API, which coordinates profile state internally.
 
 The UI never presents role assignment as shift assignment. Three users may share
 the same role while operational records and audits distinguish their individual
@@ -790,7 +775,7 @@ but the backend transaction remains authoritative for concurrent changes.
 | `403` | `access_user_inactive` | Show blocked inactive-profile surface |
 | `403` | `access_profile_not_found` | Show blocked missing-profile surface |
 | `404` | Access subject not found | Keep current page and show not-found feedback |
-| `409` | Duplicate code or identity | Associate error with the corresponding field |
+| `409` | Duplicate user code from coordinated provisioning | Surface the mapped field error in the unified Authentication account form |
 | `409` | `access_version_conflict` | Preserve draft and require reload plus new preview |
 | `409` | `last_system_administrator_required` | Keep confirmation open and explain invariant |
 | `422` | Access validation error | Map field errors; preserve draft |
@@ -933,7 +918,7 @@ When the repository adopts an E2E framework, cover at minimum:
 
 ### 20.2 External dependencies
 
-- React, React Router, Mantine, and the existing frontend build stack.
+- React, React Router, Mantine, and the shared frontend build stack.
 - A separately implemented authentication capability.
 
 Access Control does not add an authentication-provider SDK.
@@ -948,8 +933,9 @@ The frontend capability is complete when:
 4. No frontend authorization branch depends on a role name or job title.
 5. Direct route access cannot render an unauthorized protected page.
 6. The backend remains authoritative for every protected operation.
-7. Users, roles, presets, scopes, assignments, and Access audit can be managed
-   through the documented API.
+7. Access profiles can be consulted and their status, roles, presets, scopes,
+   assignments, and Access audit can be managed through the documented API;
+   account provisioning remains in the Authentication API.
 8. Role and assignment changes require backend impact preview and expected
    version confirmation.
 9. Draft work survives authorization, validation, concurrency, and network

@@ -1,11 +1,9 @@
 ---
 document_type: technical-spec
 status: draft
-implementation: not-started
 scope: access-control
 authority: explanatory
 owner: backend
-last_reviewed: 2026-08-01
 ---
 
 # Technical Specification - Backend Access Control
@@ -15,10 +13,7 @@ last_reviewed: 2026-08-01
 **Product:** Colibri Hub  
 **Context:** Access Control  
 **Type:** Technical Specification - Backend  
-**Status:** Not implemented  
-**Technical baseline:** Repository `luiscm17/colibri-hub`, branch `back/auth-rbac`, reviewed 2026-08-01
 **Complementary specification:** Frontend Access Control technical specification  
-**Date:** 2026-07-31
 
 ---
 
@@ -28,20 +23,30 @@ This document specifies how the backend implements the authorization model defin
 
 Authentication is a separate capability. Access Control receives a trusted authenticated identity and answers whether the corresponding active user may perform a required action in a server-derived business scope. It does not validate credentials, issue tokens, create sessions, or implement login.
 
-The target implementation follows the existing hexagonal backend architecture:
+The implementation follows the hexagonal backend architecture. For a protected
+operation, authorization runs before the owning business rules:
 
-```text
-authenticated identity
-        ↓
-trusted actor context
-        ↓
-business use case derives action + actual scope
-        ↓
-authorization policy
-        ↓
-roles → permissions → allow or deny
-        ↓
-owning business rules execute only after authorization
+```mermaid
+sequenceDiagram
+    actor Client as Authenticated client
+    participant HTTP as HTTP composition
+    participant UC as Business use case
+    participant AuthZ as Authorization policy
+    participant BR as Owning business rules
+
+    Client->>HTTP: Request with valid authentication
+    HTTP->>UC: Actor context (trusted identity)
+    UC->>UC: Derive action + actual scope
+    UC->>AuthZ: require(actor, action, scope)
+    AuthZ->>AuthZ: Evaluate exact (action, scope) against active roles
+    alt Allow
+        AuthZ-->>UC: allow
+        UC->>BR: Execute owning business rules
+        BR-->>Client: Result
+    else Deny
+        AuthZ-->>UC: deny
+        UC-->>Client: Typed access denial
+    end
 ```
 
 The model is additive and default-deny. Ordinary permissions require an exact `(action, scope)` grant through at least one active assigned role. There are no direct user permissions, explicit denials, role precedence rules, wildcards, or scope inheritance.
@@ -58,13 +63,12 @@ The model is additive and default-deny. Ordinary permissions require an exact `(
 
 If this specification conflicts with the Access Control PRD on business behavior, the PRD prevails. This specification is authoritative only for the backend implementation described here.
 
-## 3. Current state
+## 3. Design boundary
 
-The backend does not currently implement the `access` module, an authenticated actor context, authorization middleware or policies, access persistence, access administration endpoints, or access-change auditing.
-
-Existing business endpoints execute without per-user authorization. PostgreSQL row-level security is enabled on existing Warehouse tables and privileges are revoked, but no RLS policies or runtime RBAC flow implement the Access Control PRD.
-
-The target implementation therefore introduces a new backend capability. It does not retrofit authentication or change the business invariants owned by Warehouse, Yarn Spinning, Lot Processing, or other contexts.
+The Access Control module owns access profiles, roles, assignments, scopes,
+effective-permission evaluation, and access-change auditing. It consumes a
+trusted Authentication identity and does not change business invariants owned
+by Warehouse, Yarn Spinning, Lot Processing, or other contexts.
 
 ## 4. Objectives
 
@@ -76,7 +80,7 @@ The target implementation therefore introduces a new backend capability. It does
 - Compute effective permissions as the union of all active assigned roles.
 - Represent each ordinary permission as one supported action in one active business scope.
 - Create independently editable roles from reusable presets.
-- Allow the System Administrator to manage users, roles, presets, scopes, and role assignments.
+- Allow the System Administrator to manage access profiles, roles, presets, scopes, and role assignments.
 - Preserve at least one active System Administrator.
 - Make all access configuration changes attributable to an individual actor.
 - Expose effective permissions for the authenticated frontend session.
@@ -109,7 +113,7 @@ The target implementation therefore introduces a new backend capability. It does
 - Effective-permission calculation.
 - Internal authorization policy used by protected backend use cases.
 - Self-access endpoint for the authenticated user.
-- Administrative endpoints for users, roles, presets, scopes, assignments, and access audit queries.
+- Administrative endpoints for access-profile consultation and lifecycle, roles, presets, scopes, assignments, and access audit queries.
 - Impact previews for shared role changes and user role replacement.
 - Access-change audit persistence.
 - Bootstrap of the initial System Administrator.
@@ -286,6 +290,22 @@ The HTTP composition layer is responsible for:
 
 Access Control is responsible for mapping `subject` to an internal `user_id`. A valid authenticated identity without an active Access profile is not authorized and receives `403`.
 
+Account and profile states remain independent:
+
+| Authentication account | Access profile | Backend result |
+| --- | --- | --- |
+| `active` | active | Evaluate effective permissions |
+| `active` | inactive | Return Access denial; do not modify the account |
+| `awaiting_password_change` | active or inactive | Authentication restricts the request before Access evaluation |
+| `disabled` | active or inactive | Authentication denies the request before Access evaluation |
+
+Authentication invokes internal Access application services when provisioning,
+disabling, enabling, or resetting an account requires coordinated validation.
+Those calls do not traverse the public HTTP API and do not perform a second
+authorization check; the outer Authentication use case already carries the
+authorized actor and correlation context. Each capability writes its own audit
+evidence under the same operation correlation identifier.
+
 Business use cases and domain entities never parse tokens or depend on a specific identity provider.
 
 ## 8. Hexagonal architecture
@@ -325,15 +345,10 @@ backend/src/access/
         └── authorization.py
 ```
 
-HTTP models, routes, and Access-specific error translation remain adapters of
-the capability, matching the implemented `warehouse.bales.adapters.http`
-pattern. Authentication composition, session-factory ownership, dependency
-wiring, and router registration remain in the outer composition layer under
-`bootstrap`.
-
-The current package discovery configuration includes only `warehouse`, `infra`,
-and `bootstrap`. Introducing `access` therefore also requires adding `access*`
-to backend package discovery; it does not justify changing the existing
+HTTP models, routes, and Access-specific error translation are adapters of the
+capability. Authentication composition, session-factory ownership, dependency
+wiring, and router registration belong to the outer composition layer under
+`bootstrap`. Backend package discovery includes `access*` while preserving the
 capability-first layout.
 
 ### 8.2 Domain responsibilities
@@ -403,10 +418,10 @@ Rules:
 - Domain entities do not query Access Control.
 - Authorization is applied at the application boundary, with optional route-level early rejection only when the same server-derived scope is unambiguous.
 
-### 8.6 Existing Warehouse integration
+### 8.6 Warehouse integration
 
-The four currently implemented Bale Management endpoints are protected without
-changing their application behavior:
+The Bale Management operations are protected without changing their application
+behavior:
 
 | Existing operation | Required action | Server-derived scope |
 | --- | --- | --- |
@@ -437,7 +452,7 @@ and Access Control does not change batch, bale, stock, or delivery invariants.
 
 ### 9.2 Commands
 
-- `CreateAccessUser`.
+- `CreateAccessUser` as an internal provisioning command invoked only by Authentication.
 - `ActivateAccessUser` and `DeactivateAccessUser`.
 - `CreateRole`, `UpdateRole`, `ActivateRole`, and `DeactivateRole`.
 - `ReplaceUserRoles`.
@@ -445,7 +460,10 @@ and Access Control does not change batch, bale, stock, or delivery invariants.
 - `CreateRolePreset`, `UpdateRolePreset`, `ActivateRolePreset`, and `DeactivateRolePreset`.
 - `RegisterRecognizedScope`, `ActivateScope`, and `DeactivateScope`.
 
-Every command in this list requires `manage_access` in the `access_control` scope and writes an access audit in the same transaction.
+Public administrative commands require `manage_access` in the `access_control`
+scope. Coordinated internal commands receive the already-authorized actor from
+Authentication and are not exposed as independent HTTP operations. Every
+command writes Access audit evidence in the same application transaction.
 
 Role and preset updates replace their complete permission sets. This avoids ambiguous partial permission patches and makes before/after auditing deterministic.
 
@@ -501,7 +519,6 @@ Every endpoint below requires an active System Administrator.
 | Capability | Method | Path |
 | --- | --- | --- |
 | List users | `GET` | `/api/v1/access/users` |
-| Create access profile | `POST` | `/api/v1/access/users` |
 | Get user | `GET` | `/api/v1/access/users/{user_id}` |
 | Activate or deactivate user | `PATCH` | `/api/v1/access/users/{user_id}/status` |
 | Preview role replacement | `POST` | `/api/v1/access/users/{user_id}/roles/preview` |
@@ -581,9 +598,12 @@ The assignment endpoint receives the complete desired role set:
 
 The transaction closes removed assignments, creates new assignments, preserves unchanged assignments, increments the user's authorization version, and appends one audit entry containing previous and resulting role sets.
 
-### 10.6 Access-profile creation
+### 10.6 Internal access-profile provisioning
 
-Creating an Access profile does not create authentication credentials:
+Access-profile creation is an internal application contract used by
+Authentication's unified `ProvisionAccount` operation. It is not published as
+`POST /api/v1/access/users` and cannot be invoked independently by the
+frontend:
 
 ```json
 {
@@ -591,11 +611,14 @@ Creating an Access profile does not create authentication credentials:
   "user_code": "USR-014",
   "display_name": "Example User",
   "role_ids": [],
-  "reason": "Enable access profile for an existing authenticated identity."
+  "reason": "Provision account and access for the assigned responsibility.",
+  "operation_id": "5da77f74-bf0d-44f0-ad0f-e56dc1aa063e"
 }
 ```
 
-The authentication capability or trusted administrative integration must establish the identity subject before the user can sign in. Access Control only stores the mapping.
+The identity subject must already have been established by Authentication.
+Access Control validates user-code uniqueness, active roles, assignment rules,
+and the last-administrator invariant inside the shared application transaction.
 
 ### 10.7 Register a recognized scope
 
@@ -727,6 +750,7 @@ never persisted from the request.
 | Column | Type | Constraints and purpose |
 | --- | --- | --- |
 | `access_change_audit_id` | UUID | Primary key |
+| `operation_id` | UUID | Correlates coordinated Authentication and Access audit evidence |
 | `change_kind` | TEXT | Stable category such as `role_updated` or `user_roles_replaced` |
 | `subject_type` | TEXT | Access record family affected |
 | `subject_id` | UUID | Identifier of affected user, role, preset, scope, or assignment set |
@@ -749,7 +773,7 @@ Audit rows are append-only. Application runtime credentials, authentication toke
 
 ## 12. Transaction and concurrency rules
 
-Each administrative command executes in one PostgreSQL transaction containing:
+Each public administrative command executes in one PostgreSQL transaction containing:
 
 1. authenticated System Administrator resolution;
 2. `manage_access` authorization;
@@ -762,25 +786,35 @@ Each administrative command executes in one PostgreSQL transaction containing:
 
 Any failure rolls back both configuration and audit changes.
 
-Mutations that can remove the last active System Administrator lock the reserved role and its current assignments before evaluating the invariant. This applies to user deactivation, role replacement, assignment revocation, and any attempted reserved-role lifecycle change.
+Unified account provisioning and coordinated account lifecycle operations use a
+transaction spanning application-owned Authentication and Access tables. The
+outer Authentication use case owns provider call ordering; the Access service
+owns profile invariants and Access audit insertion. Provider-side failure cannot
+leave an active Access profile paired with unusable or incomplete
+Authentication state.
+
+Mutations that can remove the last operational System Administrator lock the reserved role, current assignments, and relevant profile state before evaluating the invariant. This applies to profile deactivation, role replacement, assignment revocation, any attempted reserved-role lifecycle change, and the policy check requested by Authentication before disabling or resetting an administrator account.
 
 Role permission changes increment `authorization_version` for every active user currently assigned to that role. Role activation or deactivation does the same. Scope activation or deactivation increments the version for users whose assigned roles reference that scope. These updates make session-facing permission versions change immediately after commit.
 
-No runtime authorization cache is used in this target implementation. Each protected request resolves current state through the authorization query adapter. A later cache must key by authorization version and preserve immediate revocation semantics.
+The authorization design uses no runtime authorization cache. Each protected
+request resolves persisted state through the authorization query adapter. If a
+cache is introduced, it must key by authorization version and preserve
+immediate revocation semantics.
 
 ## 13. Bootstrap
 
 The initial deployment requires a controlled bootstrap transaction because no System Administrator exists yet to authorize Access changes.
 
-Bootstrap creates:
+Authentication initialization coordinates bootstrap. Access bootstrap creates:
 
 - the reserved active System Administrator role;
 - the active `access_control` scope;
-- one active Access user mapped to a pre-existing authenticated identity;
+- one active Access user mapped to the initial Authentication identity;
 - one current assignment of that user to the reserved role;
 - corresponding `initial_bootstrap` audit entries with a null actor and an explicit bootstrap reason.
 
-Bootstrap configuration receives the initial identity subject, user code, and display name through deployment-managed configuration. It must not contain credentials or tokens.
+The internal bootstrap contract receives the initial identity subject, user code, display name, and shared operation identifier from Authentication initialization. It never receives credentials or tokens.
 
 The bootstrap operation is idempotent for the same identifiers and fails when conflicting partially initialized state exists. After bootstrap, all Access changes require a normal authenticated System Administrator and no other null audit actor is permitted.
 
@@ -830,7 +864,7 @@ Unexpected integrity errors are not translated into a known conflict unless they
 
 Access Control records, at minimum:
 
-- access profile creation;
+- access profile creation through unified provisioning;
 - user activation and deactivation;
 - role creation, replacement, activation, and deactivation;
 - role assignment additions and removals;
@@ -851,7 +885,7 @@ Operational record creation and correction audits remain owned by their business
 - Administrative endpoints require both valid authentication and active System Administrator authorization.
 - Response payloads never include authentication tokens, credential hashes, or provider-private claims.
 - Database runtime credentials remain server-side.
-- All Access tables enable RLS and revoke default privileges from `anon`, `authenticated`, and `service_role`, consistent with existing migrations. The backend database role is the only runtime path until an explicit database authorization design replaces it.
+- All Access tables enable RLS and revoke default privileges from `anon`, `authenticated`, and `service_role`. The backend database role is the only runtime path unless an explicit database authorization design replaces it.
 - Error messages do not reveal protected-resource existence when authorization fails before resource disclosure is safe.
 - Access audit rows are append-only to the application role.
 - Scope codes and metadata are copied only from the recognized scope-definition registry; client-defined scope semantics are rejected.
