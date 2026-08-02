@@ -1,24 +1,36 @@
 # Colibri Hub Agent Guide
 
-## Python workspace
+## Start here
 
-- Python 3.13 is pinned by `.python-version`. Run `uv` from the repository root; `backend/` is a workspace member and `uv sync --locked` provisions the lockfile exactly.
-- Root owns `openpyxl`, `pandas`, and SQLAlchemy; `backend/` owns FastAPI, Psycopg, and SQLAlchemy. Add backend-only dependencies to `backend/pyproject.toml` and keep `uv.lock` synchronized with both manifests.
-- Backend uses setuptools `src` layout and discovers only `warehouse*`, `infra*`, and `bootstrap*`; run through the root uv environment so editable workspace imports resolve.
-- Run all backend unit tests: `uv run --locked python -m unittest discover -s backend/tests -v`.
-- Run one test module: `uv run --locked python -m unittest backend.tests.test_warehouse.bales.domain.test_raw_material_batch -v`.
-- Focus a class or method by appending its dotted name to the module command.
-- SQLite adapter tests belong to the unit suite; do not treat them as proof of PostgreSQL constraint diagnostics, migration shape, timezone, or `Decimal` round-trips.
+- Treat `docs/prd/` as business authority, followed by `docs/architecture/`, `docs/domain/ubiquitous-language.md`, and `docs/db/`.
+- Keep Warehouse, Yarn Spinning, Lot Processing, Access Control, and Shared Reference Data separate. Their code aliases are `warehouse`, `yarn-production`, `batch-processing`, `access`, and `catalogs`; `shared` is not a business context.
+- Frontend validation is advisory; backend domain and application policy is authoritative.
+
+## Backend
+
+- Python 3.13 is pinned by `.python-version`. Run `uv` from the repository root; `backend/` is a uv workspace member and uses a setuptools `src` layout for `warehouse*`, `infra*`, and `bootstrap*`.
+- Root dependencies live in `pyproject.toml`; backend-only dependencies live in `backend/pyproject.toml`. Keep `uv.lock` synchronized with both manifests and provision with `uv sync --locked`.
+- `backend/main.py` exposes the ASGI `app`; root `[tool.fastapi]` declares `backend.main:app`.
+- For local startup, create untracked `backend/.env` from `backend/.env.example`, then run `uv run --package backend fastapi dev` from the root. The entrypoint explicitly loads that sibling file; OS environment values take precedence.
+- `bootstrap.http_application.create_app` is the composition root. Inject a session factory in tests to avoid settings and database creation.
+- Keep domain/application contracts under `warehouse.bales`, ports in `warehouse.bales.ports`, SQLAlchemy adapters in `warehouse.bales.adapters`, and shared persistence/configuration under `infra`.
+
+## Backend tests
+
+- Full unit suite: `uv run --locked --package backend python -m unittest discover -s backend/tests -v`.
+- Focused module: `uv run --locked --package backend python -m unittest backend.tests.domain.test_core_contracts -v`. Append a class or method dotted name for a narrower run.
 - Tests use stdlib `unittest`; no pytest, Python linter, formatter, type checker, or coverage tool is configured.
-- Root `main.py` is print-only scaffolding. `backend/main.py` is the ASGI entrypoint (`app`), declared as `backend.main:app` in root `[tool.fastapi]`, and requires `DATABASE_URL` at import time; application creation builds the engine but does not connect until a request uses a session.
-- Local backend configuration is `backend/.env`: copy `backend/.env.example`, then run `uv run fastapi dev` from the root without `--env-file`. `ApplicationSettings` receives that explicit sibling path; OS `DATABASE_URL` overrides it, while an absent local file is OS-only.
-- Keep `backend/.env` untracked and secrets out of Vite `VITE_*` values. Unit tests isolate settings sources; guarded integration tests use `TEST_DATABASE_URL` only and never fall back to `DATABASE_URL`.
+- SQLite-backed unit tests do not prove PostgreSQL constraint diagnostics, migration shape, timezone, or `Decimal` behavior.
+- Integration tests require explicit `TEST_DATABASE_URL`; the guard accepts only `postgresql+psycopg`, loopback, port `54322`, database `postgres`, and never falls back to `DATABASE_URL`.
+- Full integration suite after local migrations: `TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres uv run --locked --package backend python -m unittest discover -s backend/integration_tests -v`.
 
 ## Database and integration tests
 
-- Schema changes are imperative Supabase migrations under `supabase/migrations/`; there is no Alembic setup. Generate migration filenames with the Supabase CLI.
-- Local database provisioning requires the repository Supabase CLI wrapper plus a Docker-compatible runtime. From the repository root run `pnpm supabase start`, then `pnpm supabase db reset --local --no-seed`; `--no-seed` is required because `supabase/config.toml` names `supabase/seed.sql`, which does not exist.
-- PostgreSQL integration tests deliberately accept only `postgresql+psycopg` URLs on loopback port `54322`, database `postgres`. Run them after migration with `TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres uv run --locked python -m unittest discover -s backend/integration_tests -v`.
+- Schema changes are imperative SQL migrations under `supabase/migrations/`; there is no Alembic configuration. Generate migration timestamps with the Supabase CLI.
+- Local provisioning requires the Supabase CLI and a Docker-compatible runtime: run `pnpm supabase start`, then `pnpm supabase db reset --local --no-seed` from the root.
+- `--no-seed` is required because `supabase/config.toml` enables `./seed.sql`, but `supabase/seed.sql` is absent.
+- Read all migrations in timestamp order. Later migrations change `raw_material_batches.received_at` to `date` and add the bale `delivery_date` state invariant and query indexes; do not infer the current schema from the first migration alone.
+- Keep SQLAlchemy records and migrations aligned. Named constraints are part of conflict translation and integration-test diagnostics.
 - Inspect local migration state with `pnpm supabase migration list --local`.
 
 ## Frontend workspace
@@ -28,23 +40,9 @@
 - Preserve `frontend/pnpm-workspace.yaml` supply-chain policy: 24-hour minimum release age and no-downgrade trust, including its explicit exclusions.
 - `src/main.tsx` installs Mantine, notifications, and `AuthProvider`; `src/app/` owns shell/routing and `src/features/` owns feature code. Use the configured `@/*` alias for `src/*`.
 
-## Backend boundaries
-
-- `warehouse.bales.application` is the capability boundary for raw-material batch commands, result, use case, and application errors. `warehouse.bales.ports` exposes repository, identity, transaction, and transaction-conflict contracts; keep SQLAlchemy details in `warehouse.bales.adapters`.
-- `bootstrap.http_application.create_app` composes `infra.persistence` and Warehouse adapters into `POST /api/v1/warehouse/bales` and registers the HTTP exception handlers; pass a session factory in tests to avoid requiring `DATABASE_URL` or database access.
-- Raw-material batch registration inserts the batch before its bales in one transaction and returns `raw_material_batch_id`. Only the two named uniqueness constraints are translated to application conflicts; unknown integrity failures propagate.
-- Shipment numbers are globally unique through `uq_raw_material_batches_shipment_number`. Bale numbers are unique only within a batch through `uq_raw_material_bales_raw_material_batch_bale_number`; the same canonical bale number is valid in different batches.
-- Keep ORM records and the Supabase migration aligned: `raw_material_batches`, `raw_material_bales`, and `raw_material_batch_id` use named PK/FK/unique/index constraints, including `ck_raw_material_bales_status` for `in_warehouse` and `delivered`. The migration enables RLS and revokes all privileges from `anon`, `authenticated`, and `service_role`; it defines no policies or runtime authorization flow.
-
-## Business truth
-
-- Resolve business meaning from `docs/prd/` first, then `docs/architecture/`, `docs/domain/ubiquitous-language.md`, and finally `docs/db/` for design detail.
-- Keep Warehouse, Yarn Spinning, Lot Processing, Access Control, and Shared Reference Data distinct. Target code aliases are `warehouse`, `yarn-production`, `batch-processing`, `access`, and `catalogs`; `shared` is not a business context.
-- Frontend validation is advisory; backend policy and domain decisions are authoritative.
-
 ## Repository rules
 
 - Follow `docs/dev-guide/naming-conventions.md`; notable rules are Python `snake_case`, React component `PascalCase.tsx`, plural `snake_case` DB tables, and singular `snake_case` DB columns.
 - Follow `docs/dev-guide/git-workflow.md`; branches use `front/`, `back/`, `devops/`, or `docs/`, commits use Conventional Commits, and PRs target `main` for squash merge.
 - Treat `openspec/changes/<change-name>/` as planning artifacts, not proof of implementation or authorization.
-- No tracked CI, pre-commit config, task runner, Python quality config, code generator, or repo-local OpenCode config exists. `.agents/` directories contain agent skills, not project task commands.
+- No tracked CI, pre-commit configuration, task runner, Python quality configuration, code generator, or repo-local OpenCode configuration exists. `.agents/` directories contain agent skills, not project task commands.
