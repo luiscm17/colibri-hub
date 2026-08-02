@@ -4,117 +4,114 @@ status: active
 scope: global
 authority: normative
 owner: architecture
-last_reviewed: 2026-07-27
-replaces: docs/architecture/ARCHITECTURE.md
+last_reviewed: 2026-08-01
 ---
 
 # System Overview
 
-Production-management system for the **Production Directorate** of a textile plant. Colibri Hub supports two organizational units — Warehouse and Operations — collaborating on a shared production flow from raw-material reception through finished-product distribution.
-
----
-
-## System Components
-
-| Component | Role |
-|-----------|------|
-| **Backend (FastAPI)** | Domain logic, persistence, and HTTP API for all bounded contexts |
-| **Frontend (React + Mantine)** | Operator-facing UI for warehouse, production, and administrative workflows |
-| **Database (Supabase/PostgreSQL)** | Transactional store with RLS-enabled schema managed by Supabase migrations |
-| **Supabase Platform** | Auth, storage, and realtime infrastructure services |
-
----
+Colibri Hub supports the Production Directorate of a textile plant. Warehouse
+and the Operation Unit collaborate across a continuous business flow from
+raw-material reception through Finished Product distribution, while each
+bounded context owns its own records and lifecycle decisions.
 
 ## Bounded Contexts
 
-The system decomposes the production domain into five bounded contexts, each owning distinct identities, records, and lifecycle semantics:
+| Context | Responsibility |
+| --- | --- |
+| Warehouse | Raw-material custody, Finished Product lifecycle, production supplies, stock, dispatch, and returns |
+| Yarn Spinning | Continuous production records by productive section, machine, shift, and yarn count |
+| Lot Processing | Operation Production Identity, physical lot assembly, sequential productive history, Operation quality, and the finished-product handoff |
+| Access Control | Configurable authorization policy, business scopes, permissions, and permission-change audit |
+| Shared Reference Data | Stable catalogs and controlled business references shared across contexts |
 
-| Context | Code Alias | Responsibility |
-|---------|------------|----------------|
-| **Warehouse** | `warehouse` | Custody, stock movements, production identity, PT reception, distribution |
-| **Yarn Spinning** | `yarn-production` | Continuous production records by section, machine, shift, and yarn count |
-| **Lot Processing** | `batch-processing` | Inventory assembly, stage-by-stage lot history, and delivery to Warehouse |
-| **Access Control** | `access` | Configurable RBAC policy, scopes, permissions, and audit |
-| **Shared Reference Data** | `catalogs` | Canonical catalogs and controlled vocabularies shared across contexts |
+Warehouse, Yarn Spinning, and Lot Processing remain separate even though they
+belong to one enterprise production flow. They own different identities,
+timelines, records, and decisions.
 
-> Boundaries follow business meaning, not organizational chart shortcuts. Warehouse, Yarn Spinning, and Lot Processing remain separate because they own different identities, timelines, and record semantics.
-
----
-
-## Principal Flows
-
-### Cross-Context Production Lifecycle
-
-```mermaid
-flowchart LR
-    S[Supplier]
-    W1[Warehouse<br/>Raw-material batch + bales]
-    W2[Warehouse<br/>Production identity + specs]
-    W3[Warehouse<br/>Material emission to production]
-    YS[Yarn Spinning<br/>Continuous production → skein output]
-    LP1[Lot Processing<br/>Inventory assembly under lot identity]
-    LP2[Lot Processing<br/>Stage history progression]
-    W4[Warehouse<br/>PT reception → custody + distribution]
-
-    S --> W1 --> W2 --> W3 --> YS --> LP1 --> LP2 --> W4
-```
-
-### Key Handoffs
-
-| From | To | What Crosses |
-|------|----|--------------|
-| Warehouse | Yarn Spinning | Production identity and material availability |
-| Yarn Spinning | Lot Processing | Skein output ready for inventory assembly |
-| Warehouse | Lot Processing | Shared production identity, specifications, lot code |
-| Lot Processing | Warehouse | Quality Send — validated lot awaiting Warehouse receipt |
-| Access Control | All contexts | Authorization decisions by action and scope |
-| Shared Reference Data | All contexts | Shared IDs, catalogs, and controlled vocabularies |
-
-### Authorization Flow
+## Principal Production Flow
 
 ```mermaid
 flowchart TD
-    AC[Access Control<br/>Policy context]
-    W[Warehouse]
-    YS[Yarn Spinning]
-    LP[Lot Processing]
+    RM["Warehouse raw-material custody"]
+    YS["Yarn Spinning and skein output"]
+    FP["Warehouse Finished Product requirement"]
+    LP["Lot Processing Production Identity and productive stages"]
+    HO["Finished-product handoff"]
+    WR["Warehouse reception and distribution"]
 
-    AC --> W
-    AC --> YS
-    AC --> LP
+    RM --> YS
+    YS --> LP
+    FP --> LP
+    LP --> HO --> WR
 ```
 
-Access Control governs all business contexts through configurable RBAC. Organizational roles do not map rigidly to system permissions.
+Warehouse defines the Finished Product requirement and unique lot code. Lot
+Processing creates or resolves one Production Identity for that requirement.
+The two representations refer to one business and physical lot, have a
+one-to-one relationship, and retain the same lot code.
 
----
+The Warehouse requirement becomes available to Operation when it is completed.
+There is no separate approval or acceptance at this boundary. Inside Lot
+Processing, completion of a productive stage makes the lot available to the next
+stage without an approval step.
+
+## Finished-Product Handoff
+
+After productive completion, Operation performs release for reception. The
+business act is named independently from the section or position currently
+responsible for performing it.
+
+Warehouse verifies the physical product against the authorized information. If
+the product and information agree, Warehouse records reception. If they do not,
+Warehouse records a handoff issue and Operation records an issue response after
+correcting, remedying, or clarifying the situation. The same handoff returns to
+pending verification and the cycle may repeat.
+
+The handoff has no rejection or non-approval outcome because delivery to
+Warehouse is mandatory. Reception is the only act that completes the handoff
+and transfers custody to Warehouse.
+
+## Cross-Context Handoffs
+
+| From | To | Business information or act |
+| --- | --- | --- |
+| Warehouse | Yarn Spinning | Authorized raw-material availability and delivery facts |
+| Yarn Spinning | Lot Processing | Skein output and readiness for physical lot assembly |
+| Warehouse | Lot Processing | Finished Product requirement, unique lot code, and production specifications |
+| Lot Processing | Warehouse | Release for reception, Operation quality state, delivery conditions, completion facts, and issue responses |
+| Warehouse | Lot Processing | Handoff issues requiring correction, remedy, or clarification before reception |
+| Access Control | Business contexts | Authorization decisions by action and business scope |
+| Shared Reference Data | Consuming contexts | Stable catalog values and identifiers |
 
 ## Architectural Principles
 
-1. **PRDs are authoritative** — architecture follows product decisions; technical design does not redefine business ownership.
-2. **Boundaries follow meaning** — contexts stay separate because they own different identities, records, and timelines.
-3. **Single lot identity** — Warehouse defines the production identity and lot code; downstream contexts append their facts to that same identity.
-4. **Controlled edits with audit trail** — critical records support scoped edits within the correction window; full audit preserved.
-5. **Persistence shape ≠ aggregates** — normalized storage does not imply one-to-one aggregate mapping.
-
----
+1. Product requirements are the authority for business rules.
+2. Bounded-context ownership follows business meaning rather than organizational
+   shortcuts.
+3. One business lot is represented by a Warehouse Finished Product and an
+   Operation Production Identity under one lot code.
+4. Each context writes only its own source records.
+5. Authorization states whether an actor may perform a business act; it does not
+   rename or redefine that act.
+6. Business terminology does not depend on the staff position currently assigned
+   to a responsibility.
+7. Cross-context consultation reveals only authorized information and does not
+   transfer source-record ownership.
+8. Corrections preserve actor, time, reason, prior information, and resulting
+   information.
 
 ## Related Documents
 
 | Document | Scope |
-|----------|-------|
-| [Context Map](./context-map.md) | Context ownership, dependencies, aggregate families, and handoffs |
-| [Technology Baseline](./technology-baseline.md) | Verified technology stack — implemented, partial, and planned |
-| [Architecture Decisions](./decisions/) | Durable ADR records |
-| [Backend Architecture](../../backend/docs/architecture/overview.md) | Backend component internals, patterns, and composition |
-| [Frontend Architecture](../../frontend/docs/architecture/overview.md) | Frontend component structure, state management, and design system |
-| [Product Overview](../prd/product-overview.md) | Master product vision and capability map |
+| --- | --- |
+| [Context Map](./context-map.md) | Context ownership, dependencies, record families, and handoffs |
+| [Technology Baseline](./technology-baseline.md) | Technical platform and implementation status |
+| [Architecture Decisions](./decisions/) | Durable architectural decisions |
+| [Product Overview](../prd/product-overview.md) | Product vision and capability map |
+| [UI Requirements](../prd/ui-requirements.md) | Navigation, screens, interactions, and permission-sensitive presentation |
 
----
+## Documentation Boundary
 
-## What This Document Does Not Cover
-
-- **Context ownership matrices and aggregate families** → see [Context Map](./context-map.md)
-- **Backend internals** (class design, module composition, ports/adapters) → see Backend Architecture
-- **Frontend internals** (component tree, routing, state) → see Frontend Architecture
-- **Database schema** → see `backend/docs/database/`
-- **Endpoint contracts** → see `backend/docs/api/`
+This document describes business architecture. Technical structure, interfaces,
+storage, implementation components, and technology choices belong in the
+Technology Baseline and the corresponding technical specifications.

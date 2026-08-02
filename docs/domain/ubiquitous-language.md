@@ -5,10 +5,10 @@ implementation: partial
 scope: global
 authority: normative
 owner: architecture
-last_reviewed: 2026-07-27
+last_reviewed: 2026-08-01
 ---
 
-# Ubiquitous Language — Naming Contract
+# Ubiquitous Language - Naming Contract
 
 This document defines the **canonical English naming contract** for architecture, code, APIs, database design, and cross-team technical discussions.
 
@@ -75,8 +75,13 @@ For full business rules, attribute definitions, validation constraints, and acce
 | `presentación` | Physical form in which PT is stored or handled, such as bagged/bulk or cone/ball form | **physical presentation** | `physicalPresentation` | Prefer `physicalPresentation` in code and schemas; avoid generic `presentation`. |
 | `Inventario` (rol / etapa en Operación) | Operational role and first stage in Lot Processing where the physical lot is assembled | **Inventory stage / Inventory operator** | `inventoryStage`, `inventoryOperator` | Never use bare `inventory` to mean Warehouse stock in the same model. |
 | `inventario` / `existencias` (Almacén) | Warehouse stock, balances, and custody quantities | **stock** | `stock` | Prefer `stock` for Warehouse quantities. Reserve `inventory` for the Operation role/stage or clearly qualified technical names. |
-| `envío de calidad` | Domain event: Quality completes inspection and sends the lot toward Warehouse. Mandatory, unilateral, irrevocable once the 6 stages are complete. The lot ALWAYS goes to Warehouse regardless of quality classification. | **Quality Send** | `qualitySend` | Avoid "approval", "Quality approval", "Warehouse delivery". Quality Send is documentation and handoff, not a gate. |
-| `en espera de validación de Almacén` | Intermediate lot state between Quality Send and Warehouse reception. The lot has been sent but Warehouse has not yet registered physical receipt. | **awaiting Warehouse receipt** | `awaitingWarehouseReceipt` | Avoid "pending validation", "en espera de validación". |
+| `puesta a disposición para recepción` | Operation makes the completed lot available for Warehouse verification and mandatory reception. The act is independent from the section or position currently responsible for performing it. | **release for reception** | `releaseForReception` | Avoid actor-coupled terms such as `Quality Send`. This is not approval, rejection, or Warehouse reception. |
+| `traspaso de producto terminado` | Cross-context coordination from release for reception until Warehouse records physical reception. | **finished-product handoff** | `finishedProductHandoff` | The handoff retains the same lot and lot code. It may include repeated issue-resolution cycles. |
+| `pendiente de verificación` | Handoff condition in which Warehouse must compare the physical product with the authorized information before reception. | **pending verification** | `pendingVerification` | Describes the process condition, not the organizational unit expected to act. |
+| `requiere subsanación o aclaración` | Handoff condition created when Warehouse finds a discrepancy that must be corrected, remedied, or clarified before reception. | **resolution required** | `resolutionRequired` | This is not rejection. The lot must still be delivered to Warehouse. |
+| `incidencia de traspaso` | A discrepancy documented by Warehouse during verification before reception. | **handoff issue** | `handoffIssue` | Distinct from a Lot Processing stage observation and from Warehouse availability classification. |
+| `atención de incidencia` | Operation's documented correction, remedy, or clarification in response to a handoff issue. | **issue response** | `issueResponse` | A response returns the handoff to verification; it does not by itself confirm resolution or reception. |
+| `recepción de producto terminado` | Warehouse records physical receipt and custody of the completed product after successful verification. | **finished-product reception** | `finishedProductReception` | Reception completes the handoff. Avoid approval or acceptance language when it could imply a discretionary gate. |
 
 ---
 

@@ -22,7 +22,7 @@ last_reviewed: 2026-07-27
 
 ## 1. Fragmentos que Podrían Malinterpretarse
 
-### 1.1 PRD Maestro — §2.3 Principios de Diseño
+### 1.1 PRD Maestro — [§6 Transversal Rules](../prd/product-overview.md#6-transversal-rules)
 
 #### Fragmento original:
 
@@ -49,7 +49,7 @@ last_reviewed: 2026-07-27
 
 ---
 
-### 1.2 PRD Operación — §2.2 Actores y Responsabilidades
+### 1.2 PRD Operación — [§2 Actors](../prd/operation/overview.md#2-actors)
 
 #### Fragmento original:
 
@@ -70,7 +70,7 @@ last_reviewed: 2026-07-27
 
 ---
 
-### 1.3 Yarn Spinning — §3.1 Naturaleza del Registro
+### 1.3 Yarn Spinning — [§3.1 Record Nature](../prd/operation/yarn-spinning.md#31-record-nature)
 
 #### Fragmento original:
 
@@ -92,7 +92,7 @@ last_reviewed: 2026-07-27
 
 ---
 
-### 1.4 Lot Processing — §1.2 Ciclo de vida del lote
+### 1.4 Lot Processing — [§1.3 Lifecycle across contexts](../prd/operation/lot-processing.md#13-lifecycle-across-contexts)
 
 #### Fragmento original:
 
@@ -118,7 +118,7 @@ last_reviewed: 2026-07-27
 
 ---
 
-### 1.5 Lot Processing — §3.1 Observaciones categorizadas
+### 1.5 Lot Processing — [§4.1 Categorized observations](../prd/operation/lot-processing.md#41-categorized-observations)
 
 #### Fragmento original:
 
@@ -139,7 +139,7 @@ last_reviewed: 2026-07-27
 
 ---
 
-### 1.6 Yarn Spinning — §4.1 Naturaleza del Registro (Avance)
+### 1.6 Yarn Spinning — [§4.1 Record Nature](../prd/operation/yarn-spinning.md#41-record-nature)
 
 #### Fragmento original:
 
@@ -167,7 +167,7 @@ last_reviewed: 2026-07-27
 
 ## 2. Características del PRD que SÍ Dejan Clara la Naturaleza Batch
 
-### 2.1 Lot Processing — §3.2 Registro de timeline
+### 2.1 Lot Processing — [§4.2 History recording](../prd/operation/lot-processing.md#42-history-recording)
 
 > Cada etapa captura el momento en que el lote **entra** y el momento en que **sale**,
 > junto con quién lo recibió y quién lo entregó.
@@ -178,7 +178,7 @@ last_reviewed: 2026-07-27
 - No hay estados intermedios ni actualización continua.
 - Es un **registro de eventos batch**, no streaming.
 
-### 2.2 Yarn Spinning — §7 Actores y Responsabilidades
+### 2.2 Yarn Spinning — [§7 Actors and Responsibilities](../prd/operation/yarn-spinning.md#7-actors-and-responsibilities)
 
 > **Supervisor**: Supervisa la producción de su turno. Responsable de la planta y del personal.
 > Verifica coherencia de datos.
@@ -188,7 +188,7 @@ last_reviewed: 2026-07-27
 - El Supervisor **verifica coherencia** al final del turno, cuando los datos ya están registrados.
 - No está monitoreando en tiempo real mientras ocurre la producción.
 
-### 2.3 PRD Maestro — §2.2 Roles del sistema
+### 2.3 PRD Maestro — [§4 Actors](../prd/product-overview.md#4-actors)
 
 > **Supervisor**: Está a cargo de la operación en su turno. Registra producción por sección,
 > control de calidad, lotes y desperdicio **directamente en el sistema**.
@@ -221,8 +221,8 @@ describe el registro de datos. Esto deja abierta la interpretación de que el re
 
 Sin embargo, el PRD sí lo dice en algunos lugares clave:
 
-- `operation.md` §2.2: **"Registra producción por sección"** (implica consolidación post-turno).
-- `lot-processing.md` §3.2: **"Captura el momento en que el lote entra y el momento en que sale"**
+- `operation.md` [§2 Actors](../prd/operation/overview.md#2-actors): **"Registra producción por sección"** (implica consolidación post-turno).
+- `lot-processing.md` [§4.2 History recording](../prd/operation/lot-processing.md#42-history-recording): **"Captura el momento en que el lote entra y el momento en que sale"**
   (eventos discretos, no streaming).
 
 ### 3.3 Analogía con sistemas de manufactura en tiempo real
@@ -258,13 +258,13 @@ El sistema es un **sistema de registro batch por turno secuencial**, NO un siste
 
 ### 4.2 Enfatizar "batch" en las secciones de Yarn Spinning y Lot Processing
 
-Agregar al inicio de `yarn-spinning.md` §3.1:
+Agregar al inicio de `yarn-spinning.md` [§3.1 Record Nature](../prd/operation/yarn-spinning.md#31-record-nature):
 
 > **Modelo de registro:** El registro de producción es **batch por turno**. Cada descarga
 > se registra individualmente, pero el registro se hace **al final del turno** o cuando
 > el encargado (Calidad o Inventario) tiene los datos consolidados. **No es streaming ni en tiempo real.**
 
-Agregar al inicio de `lot-processing.md` §1.2:
+Agregar al inicio de `lot-processing.md` [§4.2 History recording](../prd/operation/lot-processing.md#42-history-recording):
 
 > **Modelo de registro:** El registro de cada etapa es **batch al completar la etapa**.
 > Los datos se capturan cuando el lote **sale físicamente** de la etapa hacia la siguiente,

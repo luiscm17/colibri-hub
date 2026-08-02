@@ -16,7 +16,6 @@ last_reviewed: 2026-07-28
 **Context:** Warehouse  
 **Type:** Technical Specification — Backend  
 **Status:** Partially implemented  
-**Technical baseline:** Repository `luiscm17/colibri-hub`, branch `main`, commit `447ee79`  
 **Complementary spec:** Frontend bale management technical specification  
 **Date:** 2026-07-28
 

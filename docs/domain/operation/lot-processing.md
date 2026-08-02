@@ -1,293 +1,191 @@
 ---
 document_type: domain
 status: active
-implementation: not-started
 scope: operation/lot-processing
 authority: normative
 owner: architecture
-last_reviewed: 2026-07-27
+last_reviewed: 2026-08-01
 ---
 
-# Domain Model: Lot Processing
+# Lot Processing Domain Map
 
-> **Part of:** Operation Unit — Colibri Hub
-> **Source:** `docs/prd/operation/lot-processing.md`
-> **Next:** DB Schema → API Design → Tasks
+## Purpose
 
----
+Lot Processing is the Operation bounded context responsible for representing
+and tracing one business lot from physical skein assembly through final quality
+inspection and the finished-product handoff to Warehouse.
 
-## 1. Bounded Context
+Warehouse and Lot Processing represent the same business and physical lot from
+different context boundaries:
 
-This domain model lives within the **Operation** bounded context. The Lot is the
-central entity that crosses domain boundaries via its unique code `NN-GGGG-NNN`,
-but each domain owns its own data.
+| Context | Representation | Responsibility |
+| --- | --- | --- |
+| Warehouse | Finished Product | Defines the requirement and lot code; later manages reception, custody, availability, dispatch, and returns |
+| Lot Processing | Production Identity | Anchors physical assembly, productive stage history, Operation quality, and the finished-product handoff |
 
+The two representations have a one-to-one relationship and retain one lot code.
+Each context writes only its own records.
+
+## Authority
+
+Lot Processing owns:
+
+- the Operation Production Identity created or resolved from an existing
+  Warehouse Finished Product requirement;
+- physical lot assembly in the Inventory stage;
+- the sequential productive history through Inventory, Dyeing, Drying, Winding
+  or Ball Winding, Bagging, and Quality;
+- stage observations, incidents, waste, and controlled corrections;
+- Operation quality state and delivery conditions;
+- release for reception;
+- Operation responses to handoff issues reported by Warehouse.
+
+Lot Processing does not own:
+
+- the Warehouse Finished Product requirement or its lot code;
+- raw-material custody or bale delivery;
+- Yarn Spinning production records;
+- Warehouse physical reception, stock, availability, dispatch, or returns;
+- permission policy or shared reference-data governance.
+
+## Core Concepts
+
+| Concept | Meaning in Lot Processing |
+| --- | --- |
+| Production Identity | Operation representation of the same business lot defined by the Warehouse Finished Product requirement |
+| Lot code | Globally unique business reference shared with Warehouse and preserved throughout the lifecycle |
+| Physical lot assembly | Selection and grouping of eligible skeins under the existing Production Identity |
+| Stage intervention | Business record of work performed in one productive stage |
+| Stage completion | Condition that makes the lot available to the following stage |
+| Stage observation | Categorized issue or incident recorded within productive work |
+| Operation quality state | Final Operation description of product quality and delivery conditions |
+| Release for reception | Operation act that starts the finished-product handoff after productive completion |
+| Handoff issue | Warehouse record of a discrepancy found before physical reception |
+| Issue response | Operation record of the correction, remedy, or clarification applied to a handoff issue |
+
+## Productive Stages
+
+| Order | Stage | Business purpose |
+| --- | --- | --- |
+| 1 | Inventory | Assemble the physical lot from eligible skeins under the existing Production Identity |
+| 2 | Dyeing | Apply the required color and record applicable process facts |
+| 3 | Drying | Remove moisture and document the condition after dyeing |
+| 4 | Winding or Ball Winding | Convert skeins into the required final format |
+| 5 | Bagging | Package the resulting units and document presentation-related incidents |
+| 6 | Quality | Inspect the completed lot and document quality state, defects, nomenclature, and delivery conditions |
+
+The stages describe the physical process and remain stable even if the staff
+assignment for a stage changes.
+
+## Productive Progression
+
+1. Warehouse completes a Finished Product requirement.
+2. The requirement becomes available to Operation without a separate approval
+   or acceptance step.
+3. Operation creates or resolves one Production Identity for that requirement.
+4. Inventory assembles the physical lot under the existing identity and lot
+   code.
+5. Each stage records its intervention and completion.
+6. Completion makes the lot available to the next stage automatically; there
+   is no independent advancement approval between stages.
+7. Quality completes the productive history by documenting the final Operation
+   quality state and delivery conditions.
+8. An authorized Operation actor performs release for reception.
+
+## Finished-Product Handoff
+
+Release for reception starts one cross-context handoff. It does not depend on
+the permanent assignment of that responsibility to Quality Control or any other
+position.
+
+The handoff follows this cycle:
+
+```mermaid
+stateDiagram-v2
+    [*] --> PendingVerification: Release for reception
+    PendingVerification --> ResolutionRequired: Warehouse reports issue
+    ResolutionRequired --> PendingVerification: Operation records response
+    PendingVerification --> Received: Warehouse records reception
 ```
-┌──--───────────────────────────────────────────┐
-│               OPERATION                       │
-│                                               │
-│  Lot ─── 6 StageRecords (ordered)             │
-│            ├── StageData (varies by stage)     │
-│            └── 0..N Observations               │
-│  Lot ─── 0..1 QualityClassification            │
-│                                               │
-│  Reads from Warehouse: code, title, color,     │
-│  client, specifications                        │
-└─────────────────────────────────────────────┘
-         │                    ▲
-         │ code + specs       │ quality + observations
-         ▼                    │
-┌─────────────────────────────────────────────┐
-│               WAREHOUSE                       │
-│  Owns: lot identity, stock movements,         │
-│  PT disposition                               │
-└─────────────────────────────────────────────┘
-```
 
-**Shared catalogs** (referenced but owned elsewhere):
+### Pending verification
 
-- Employee (responsible, supervisor)
-- Shift (A, B, C)
-- Machine (for Devanado equipment check)
-- Title (hilado type)
+Warehouse must compare the physical product with the authorized Finished
+Product requirement, productive completion, quality state, delivery conditions,
+and applicable quantities.
 
----
+### Resolution required
 
-## 2. Entities
+When a discrepancy exists, Warehouse records a handoff issue instead of
+reception. The issue does not reject the lot or end the mandatory delivery.
+Operation remains responsible for correcting, remedying, or clarifying the
+situation.
 
-### 2.1 Lot
+### Issue response
 
-The central entity. Represents a set of skeins that share the same title, color,
-and client, tracked through 6 sequential stages.
+Operation records how the issue was addressed. The response returns the same
+handoff to pending verification but does not itself confirm resolution.
+Warehouse verifies again and either records reception or records another issue.
 
-| Attribute | Description | Notes |
-|---|---|---|
-| `codeId` | Unique identifier `NN-GGGG-NNN` | Assigned by Warehouse, read-only in Operation |
-| `yarnCount` | Yarn thickness designation (e.g. 2/18) | From Warehouse specifications |
-| `color` | Target color for dyeing | From Warehouse, applied by Dyehouse |
-| `colorId` |    |    |
-| `client` | Destination client | From Warehouse |
-| `clientId` |   |  |
-| `specifications` | Order details from Warehouse | Read-only reference |
-| `currentStage` | Current stage in the lifecycle | **Derived** from the last StageRecord that exists |
-| `qualityClassification` | Final quality verdict | Set by Quality at stage 6 |
-| `isClosed` | Whether the lot completed Operation | True when Warehouse registers PT reception |
+### Reception
 
-**Lifecycle stages:** `En_Almacen → En_Inventario → En_Tintoreria → En_Secado → En_Devanado → En_Embolsado → En_Calidad → En_Almacen_PT`
+Warehouse reception completes the handoff and places the Finished Product under
+Warehouse custody. Reception does not change the Operation quality state or
+rewrite productive history.
 
----
+## Handoff History
 
-### 2.2 StageRecord
+Every release, handoff issue, issue response, and reception retains:
 
-Records a lot's passage through one stage. Each record is created when the
-responsible operator **finishes** their work and saves the stage data. The act
-of saving IS the state transition — it implicitly makes the lot available for
-the next stage.
+- the same Finished Product, Production Identity relationship, and lot code;
+- the responsible individual actor;
+- the exact occurrence time;
+- the business description and applicable evidence;
+- chronological, append-only visibility.
 
-| Attribute | Description |
-|---|---|
-| `lot` | Reference to the Lot |
-| `stageType` | Which stage (Inventory, Dyeing, Drying, Winding, Bagging, Quality) |
-| `sequenceNumber` | Stage order (1-6), enforces sequential flow |
-| `businessDate` | Calendar date when the work occurred (user input, no time component) |
-| `shift` | Shift when the work was performed (A, B, C) |
-| `responsible` | Person who performed and registered the work |
-| `supervisor` | Supervisor on duty |
-| `stageData` | Stage-specific technical data (see [section 3](#3-stage-specific-data-by-stagetype)) |
-| `observations` | 0..N observations recorded during this stage |
-| `createdAt` | System timestamp (date+time) — when the record was saved. This is the lot's transition moment. |
+Issues and responses may repeat. They do not create another release, another
+Production Identity, another Finished Product, or another lot.
 
-**Rules:**
+## Business Rules
 
-- A StageRecord for stage N can only be created if a StageRecord for stage N-1 already exists
-- The `createdAt` of each StageRecord serves as the timestamp of the lot's transition to the next stage
-- Each stage adds NEW data — it never modifies data from previous stages
-- The responsible can edit ONLY their own StageRecord, within the operational correction window, with full audit trail
-- Outside the window, only SysAdmin can edit
-- StageData structure varies by stageType
+1. Productive work cannot start without an existing Finished Product requirement
+   and one resolved Production Identity.
+2. Physical assembly does not create a new identity or lot code.
+3. A later productive stage requires completion of the preceding stage.
+4. Stage completion automatically makes the lot available to the next stage.
+5. There is no acceptance, approval, or rejection between productive stages.
+6. Each stage writes only its own business facts and never overwrites a prior
+   stage's source records.
+7. Corrections preserve the prior information, resulting information, reason,
+   actor, and time under the applicable authorization policy.
+8. Quality documents the product condition but does not decide Warehouse
+   availability or prevent mandatory delivery.
+9. Release for reception occurs once after productive completion.
+10. A handoff issue is not rejection and does not return the productive
+    lifecycle to Quality.
+11. An issue response returns the existing handoff to pending verification.
+12. Warehouse reception is the only act that completes the handoff.
+13. Current business actors do not define fixed system roles or canonical names
+    for business acts.
+14. Authorized consultation may combine context-owned information without
+    transferring ownership of source records.
 
----
+## Boundaries and Non-Goals
 
-### 2.3 Observation
+- Lot Processing does not model a generic approval workflow.
+- The finished-product handoff is not a chat or independent messaging domain;
+  it is a chronological history of issues and responses attached to one handoff.
+- Handoff issues do not reopen or reverse productive stages.
+- Warehouse availability classification begins only after reception and remains
+  outside this context.
+- This map does not prescribe interfaces, storage, functions, classes,
+  components, or implementation technology.
 
-Documents an incident or defect found during a stage.
+## References
 
-| Attribute | Description |
-|---|---|
-| `stageRecord` | Reference to the parent StageRecord |
-| `category` | Predefined category for this stage type (see [section 4](#4-observation-categories-per-stage-type)) |
-| `details` | Optional free-text context |
-
-**Rules:**
-
-- Category is mandatory when an observation exists
-- Details is optional
-- Categories are predefined per stage type (dropdown)
-- Observations are append-only; existing observations are not deleted
-
----
-
-### 2.4 QualityClassification
-
-The final quality verdict assigned by Quality Control at stage 6.
-
-| Attribute | Description |
-|---|---|
-| `lot` | Reference to the Lot |
-| `classification` | One of: `Standard`, `WithNomenclature`, `Flagged` |
-| `nomenclature` | Optional special designation |
-| `visualDefects` | List of visual defects found |
-| `internalDefects` | List of internal defects found |
-| `inspectedBy` | Quality inspector |
-| `inspectionDate` | When the inspection was completed |
-
-**Classifications:**
-
-| Value | Meaning |
-|---|---|
-| `Standard` | No defects or minor defects within tolerance |
-| `WithNomenclature` | Special designation affecting classification/value |
-| `Flagged` | Documented defects or conditions requiring decisions within Operation or informing delivery conditions to Warehouse |
-
-**Nomenclatures:**
-
-- `AT` — Alta torsión (high twist)
-- `FT` — Fuera de tabla (off-spec)
-- `VARR` — Con varilla (with rod)
-- `D` — Degradado (downgraded)
-
----
-
-### 2.5 QualitySendNote
-
-When a lot is in "Espera Validación Almacén" state (after Quality Send), users
-from Operation can add notes documenting problems that were fixed, corrections
-that were applied, or conditions under which the lot is being delivered.
-
-| Attribute | Description |
-|---|---|
-| `lot` | Reference to the Lot |
-| `noteText` | Free-text description of what was fixed or what condition exists |
-| `author` | User who wrote this note |
-| `createdAt` | System timestamp (date+time) when the note was written |
-
-**Rules:**
-
-- Notes are **append-only** — once written, a note is never edited or deleted
-- Multiple notes can exist for the same lot (a thread of updates)
-- Each note has its own author and timestamp
-- Notes serve as evidence that issues were addressed before Warehouse acceptance
-- Warehouse reads these notes when deciding whether to accept the lot
-
----
-
-## 3. Stage-Specific Data (by StageType)
-
-Each stage type carries its own technical data structure. These are **value objects**
-embedded within their respective StageRecord — they have no identity of their own.
-
-### 3.1 InventoryData
-
-| Attribute | Description |
-|---|---|
-| `title` | Yarn title for this lot (from specifications) |
-| `skeinCount` | Number of skeins in the lot |
-| `totalWeight` | Total weight of the lot (kg) |
-
-### 3.2 DyeingData
-
-| Attribute | Description |
-|---|---|
-| `skeinCount` | Number of skeins received |
-| `netWeight` | Net weight entering the dyeing process (kg) |
-| `vatNumber` | Vat identifier (e.g. T-03) |
-| `temperature` | Process temperature |
-| `materialType` | Material type (HB, N, etc.) |
-
-### 3.3 DryingData
-
-| Attribute | Description |
-|---|---|
-| `skeinCount` | Number of skeins entering drying |
-| `totalWeight` | Total weight of the lot after dyeing (kg) |
-
-### 3.4 WindingData
-
-Covers both Devanado (cones) and Ovillado (skeins for retail).
-
-| Attribute | Description |
-|---|---|
-| `format` | `Cone` or `Skein` (determines whether Devanado or Ovillado) |
-| `skeinsProcessed` | Number of skeins converted |
-| `unitsProduced` | Number of cones or retail skeins produced |
-| `wasteKg` | Waste generated during conversion (kg) |
-
-### 3.5 BaggingData
-
-| Attribute | Description |
-|---|---|
-| `bagsUsed` | Number of bags used |
-| `unitsPerBag` | Cones or retail skeins per bag |
-| `wasteKg` | Waste generated during bagging (kg) |
-
-### 3.6 QualityData
-
-| Attribute | Description |
-|---|---|
-| `visualDefects` | List of visual defect categories found |
-| `internalDefects` | List of internal defect categories found |
-| `nomenclature` | Optional nomenclature assigned (AT, FT, VARR, D) |
-| `classification` | Final classification |
-| `inspector` | Quality inspector |
-
----
-
-## 4. Observation Categories (per stage type)
-
-These are the predefined categories available per stage. In the domain model,
-they are **value objects** — a closed enumeration defined within Lot Processing, not user-extensible.
-
-| StageType | Categories |
-|---|---|
-| **Inventory** | Insufficient skeins / Weight out of range / Incomplete emission data |
-| **Dyeing** | Redye (off-color) / Temperature out of range / Contaminated vat / Wrong material |
-| **Drying** | Weight out of range / Excessive moisture |
-| **Winding** | Damaged cones / Wrong title / Uncalibrated equipment / Excessive waste |
-| **Bagging** | Damaged bags / Wrong label / Count mismatch |
-| **Quality** | Double tone / Staining / Rod / Damaged skeins / Tails / Flames / Low twist / High twist / Mix / Purge / Paraffin / Card / Double end / Bad splices / Splice count / Contamination |
-
----
-
-## 5. Key Business Rules (enforced by the domain)
-
-1. **Registration IS transition:** Saving a StageRecord automatically makes the
-   lot available for the next stage. There is no separate "advance" action.
-2. **Sequential progression:** A StageRecord for stage N can only be created if
-   a StageRecord for stage N-1 already exists for this lot.
-3. **No backtracking:** Once a lot has a StageRecord for stage N, it cannot
-   return to a previous stage.
-4. **State is derived:** The lot's current stage is inferred from which
-   StageRecords exist — not from a manually-set field.
-5. **Each stage owns its data:** A stage never modifies data from a previous
-   stage. Each StageRecord adds a new layer of information.
-6. **Editable within window:** The responsible can correct their own StageRecord
-   within the operational time window (e.g. 24-48h). Full audit trail required.
-   Outside the window, only SysAdmin can edit.
-7. **Mandatory delivery:** Every lot that completes the 6 stages is delivered
-   to Warehouse with full documentation, regardless of quality classification.
-8. **Quality is documentation, not a gate:** Quality classifies the final product
-   and documents conditions, but does not block delivery to Warehouse.
-9. **Quality Send is deliberate:** After Quality completes its StageRecord, a
-   separate Quality Send action marks the lot as ready for Warehouse acceptance.
-10. **Subsanation notes are append-only:** When a lot is "Observed" and awaiting
-    Warehouse acceptance, users add notes documenting what was fixed or what
-    conditions exist. Notes are never edited or deleted — only new notes are
-    appended, each with author and timestamp.
-
----
-
-## 6. Related Documents
-
-- `docs/prd/operation/lot-processing.md` — Source PRD
-- `docs/prd/operation/overview.md` — Operation unit PRD
-- `docs/prd/warehouse/overview.md` — Warehouse PRD (defines lot code)
+- [Lot Processing PRD](../../prd/operation/lot-processing.md)
+- [Lot Processing Records](../../prd/operation/lot-processing-records.md)
+- [Warehouse Finished Product PRD](../../prd/warehouse/finished-product.md)
+- [Context Map](../../architecture/context-map.md)
+- [ADR-003](../../architecture/decisions/003-single-production-identity.md)
+- [ADR-006](../../architecture/decisions/006-role-neutral-business-language.md)

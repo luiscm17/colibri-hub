@@ -11,7 +11,6 @@ Product Requirements Documents (PRDs) define business rules, acceptance criteria
 
 - [Warehouse Overview](warehouse/overview.md)
 - [Bale Management](warehouse/bale-management.md)
-- [Production Identity](warehouse/production-identity.md)
 - [Finished Product](warehouse/finished-product.md)
 - [Production Supplies](warehouse/production-supplies.md)
 

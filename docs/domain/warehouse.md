@@ -4,158 +4,173 @@ status: active
 scope: warehouse
 authority: normative
 owner: architecture
-last_reviewed: 2026-07-27
+last_reviewed: 2026-08-01
 ---
 
 # Warehouse Domain Map
 
+## Purpose
+
 Warehouse owns physical custody and documentary control for raw-material bales,
-finished product, and production supplies. It also defines the single production
-identity used across Warehouse and Lot Processing.
+Finished Products, and production supplies. It manages each lifecycle within
+its own boundary and consumes only the authorized information needed from other
+contexts.
+
+Warehouse owns the Finished Product from requirement definition onward. Lot
+Processing owns the contextual Production Identity used by Operation. Both
+represent the same business and physical lot through a one-to-one relationship
+and one lot code.
 
 ## Authority
 
-- Owns raw-material bale custody, whole-bale delivery to Production, production
-  identity definition, finished-product acceptance, availability, physical
-  presentation, stock movements, supplies, and corrections of Warehouse records.
-- Defines the production identity and visible lot code before
-  production. Yarn count is the canonical shared reference used in that
-  definition.
-- Consumes Lot Processing's Quality Send, quality state, delivery conditions,
-  and route-sheet facts as upstream context. It does not own or snapshot quality.
-- Access Control decides who may act under policy; business responsibilities do
-  not define system permissions.
+Warehouse owns:
 
-## Responsibility
+- raw-material batch registration and independent bale identity;
+- bale custody and whole-bale delivery to Production;
+- Finished Product requirement definition and the unique lot code;
+- physical verification during the finished-product handoff;
+- Warehouse handoff issues;
+- Finished Product reception and custody;
+- Warehouse availability, physical presentation, stock, dispatch, and returns;
+- production-supplies receipts, issues, adjustments, balances, and consultation;
+- correction history for Warehouse-owned records.
 
-Warehouse maintains current business truth for its records and preserves an
-auditable correction history. Corrections are controlled by policy and retain
-the actor, system time, reason, authorization basis when relevant, and before/
-after values. They are not modeled as a blanket append-only prohibition.
+Warehouse consumes authorized Lot Processing information such as productive
+completion, Operation quality state, delivery conditions, release for reception,
+and issue responses. It does not overwrite or duplicate the source records.
 
-Warehouse stock is a custody quantity, distinct from availability state, which
-expresses readiness for release or distribution.
+Access Control determines whether an actor may perform an action in a scope.
+Business positions and current responsibilities do not grant authority by
+themselves.
 
 ## Core Concepts
 
 | Concept | Warehouse meaning |
 | --- | --- |
-| Raw-material batch | A supplier-shipment grouping identified by shipment number, containing one or more bales and shared evidence/characteristics. It is not a production lot. |
-| Bale | An independently identified raw-material unit and lifecycle owner. Its business-visible identity is shipment number + bale number. Attributes include material type, dtex, gross weight, and container weight. Net weight is always derived. |
-| Reception | The business act (application action) of registering one complete raw-material batch and its bales. It is not a domain aggregate or entity. |
-| Delivery | The act of delivering a whole bale from Warehouse to Production. In practice, delivered = used — there is no intermediate state. Binary, irreversible. |
-| Production identity | The Warehouse-defined cross-context identity, represented by production identity and lot code. |
-| Finished product receipt | The single Warehouse acceptance of a production identity after its Quality Send. |
-| Availability state | Warehouse's operational disposition of accepted finished product. It is not quality or stock. |
-| Physical presentation | The physical form Warehouse receives or stores, kept separate from quality and availability. |
-| Supply | A Warehouse-managed production input with its own receipt, delivery, and stock history. |
+| Raw-material batch | Supplier-shipment grouping identified by shipment number and containing one or more bales |
+| Bale | Independently identified raw-material unit with its own custody lifecycle |
+| Receiving action | Business act that registers one complete raw-material batch and its bales |
+| Delivery to Production | Whole-bale custody transfer from Warehouse to Production |
+| Finished Product | Warehouse representation of one business lot from requirement definition through reception, custody, dispatch, and possible return |
+| Lot code | Globally unique business reference assigned with the Finished Product requirement and shared with Operation |
+| Finished-product handoff | Cross-context coordination from Operation release for reception until Warehouse reception |
+| Handoff issue | Warehouse record of a discrepancy requiring correction, remedy, or clarification before reception |
+| Finished-product reception | Warehouse record that physical verification is complete and custody has transferred to Warehouse |
+| Availability state | Warehouse decision about readiness for storage, reservation, release, or distribution |
+| Physical presentation | Physical form in which Warehouse receives or stores the Finished Product |
+| Supply | Warehouse-managed production input with its own receipt, issue, adjustment, and stock history |
 
-## Bale Lifecycle States
+## Raw-Material Bale Lifecycle
 
-Bales follow a simple, one-directional lifecycle:
+Bales follow a simple one-directional custody lifecycle:
 
-| State | Meaning |
+| Condition | Meaning |
 | --- | --- |
-| In Warehouse | Bale is under Warehouse custody |
-| Delivered | Bale has been physically transferred to Production |
+| In Warehouse | Bale remains under Warehouse custody |
+| Delivered | Bale has been physically transferred to Production and is treated as used |
 
-**Transition:** In Warehouse → Delivered (one-way).
+The transition from In Warehouse to Delivered occurs once. Delivery is for the
+whole bale and does not associate that bale with a Finished Product, Production
+Identity, or lot code.
 
-- A newly received bale always starts in In Warehouse.
-- The only permitted transition is In Warehouse → Delivered.
-- Delivery is irreversible — no reversal mechanism exists.
-- Controlled reversal (correction) requires a separate capability under Warehouse's
-  general correction policy (audited, authorized, reason documented).
+## Finished Product Requirement
 
-## Reception
+Warehouse defines what must be produced before Lot Processing begins. The
+requirement establishes the Finished Product, unique lot code, target yarn
+count, color, client or destination, classification, and applicable
+specifications.
 
-Reception is the business act of registering a supplier shipment into Warehouse
-custody. Key domain characteristics:
+Completing the requirement makes it available to Operation automatically. No
+separate approval, send, or acceptance is required at this boundary. Operation
+creates or resolves one Production Identity for the same requirement and keeps
+the supplied lot code.
 
-- Registers exactly one raw-material batch and one or more bale records.
-- The entire operation is atomic — all or nothing.
-- The reception date is a **business date** (calendar date of physical reception),
-  not a system timestamp.
-- All bales start with status In Warehouse.
-- Adding bales after initial registration requires a separate correction capability.
+Requirement definition does not mean that finished physical stock already
+exists in Warehouse.
 
-For complete reception rules and acceptance criteria, see the
-[Bale Management PRD](../prd/warehouse/bale-management.md) §7.
+## Finished-Product Handoff
 
-## Delivery
+After productive completion, an authorized Operation actor performs release for
+reception. The business act is role-neutral even when Quality Control currently
+performs it.
 
-Delivery is the act of handing a whole bale from Warehouse to Production.
-In practice, delivery and consumption are the same event — once delivered,
-the bale is considered used.
+Warehouse then verifies the physical product against the authorized
+requirement, productive completion, Operation quality state, delivery
+conditions, and applicable quantities.
 
-- A bale is always delivered whole — partial delivery is not supported.
-- Delivery records the delivery date — a business date entered by the user.
-- Delivery does not link the bale to any production identity or lot code.
-- No authorization workflow is modeled.
+### Successful verification
 
-For complete delivery rules and acceptance criteria, see the
-[Bale Management PRD](../prd/warehouse/bale-management.md) §9.
+When the physical product and authorized information agree, Warehouse records
+Finished Product reception. Reception completes the handoff and places the
+product under Warehouse custody.
 
-## Business Flows
+### Discrepancy before reception
 
-1. **Raw-material custody:** The receiving action registers one complete
-   raw-material batch and one or more independently identified bale records
-   in one transaction. A bale can be delivered once, whole and only to
-   Production. Delivery moves the bale from In Warehouse to Delivered;
-   that custody condition means delivered and used by Production. Delivery never
-   links the bale to a production identity or lot code.
-2. **Production identity:** Separately from bale reception, Warehouse defines
-   one production identity and lot code with the requested yarn count
-   and production requirements. Yarn Spinning and Lot Processing use that
-   identity as shared context; Lot Processing appends the operational stage
-   history.
-3. **Finished-product handoff:** One Quality Send places the identity pending
-   Warehouse validation. Warehouse verifies the existing route-sheet facts and
-   accepts the finished product once. It records acceptance, differences, and
-   physical presentation; it does not recapture Operational weight, bag count,
-   unit count, or quality state.
-4. **Finished-product lifecycle:** After acceptance, Warehouse manages
-   availability state, physical presentation, delivery by direct sale or
-   Commercialization transfer, and returns that reference the original delivery.
-5. **Supplies:** Warehouse receives supplies, delivers them to Production, and
-   records returns to suppliers. Supplier, destination, and category remain
-   labels until a justified catalog is needed.
+When the information and physical product do not agree, Warehouse records a
+handoff issue instead of reception. The issue describes what must be corrected,
+remedied, or clarified.
+
+The issue is not rejection or non-approval. The product must still be delivered
+to Warehouse. Operation records an issue response and the same handoff returns
+to pending verification. Warehouse verifies again and may record reception or
+another issue.
+
+Issues and responses may repeat until reception. They form one chronological,
+append-only history and never create another release, Finished Product,
+Production Identity, or lot code.
+
+## Finished Product After Reception
+
+After reception, Warehouse:
+
+1. records the physical presentation;
+2. classifies Warehouse availability independently from the Operation quality
+   state;
+3. manages custody and stock;
+4. records dispatch through an applicable business channel;
+5. records a return only in relation to a prior dispatch.
+
+Operation quality, Warehouse availability, and physical presentation are
+separate dimensions. Warehouse reads Operation quality as context and does not
+replace it with a Warehouse decision.
+
+## Business Rules
+
+1. Warehouse Finished Product and Operation Production Identity maintain a
+   one-to-one relationship and one lot code.
+2. Each context writes only its own source records.
+3. Bale delivery does not create bale-to-lot genealogy.
+4. Completing a Finished Product requirement makes it available to Operation
+   without a separate approval or acceptance.
+5. Release for reception starts one finished-product handoff.
+6. Warehouse records either a handoff issue or reception after verification.
+7. Operation response returns the same handoff to pending verification.
+8. Handoff issue and response cycles may repeat.
+9. Reception is recorded once and is the only act that completes the handoff.
+10. No rejection or non-approval outcome exists for the mandatory delivery.
+11. Availability classification requires prior reception.
+12. Corrections preserve actor, time, reason, and prior and resulting
+    information under the applicable authorization policy.
+13. Current business actors do not define fixed authorization roles or canonical
+    names for business acts.
 
 ## Boundaries and Non-Goals
 
-- Warehouse does not own Yarn Spinning production records, lot-stage history,
-  process quality, final lot quality, or production waste.
-- A cross-context traceability view may show the full journey, but each context
-  writes only its own records.
-- Quality state, availability state, and physical presentation are separate
-  dimensions. Warehouse reads quality as context and does not persist a quality
-  snapshot.
-- Shared Reference Data owns the minimal yarn counts catalog. Warehouse does
-  not introduce supplier, destination, or category catalogs without evidence.
-- This map does not prescribe tables, field dictionaries, APIs, identifier
-  formats, or authorization assignments.
+- Warehouse does not own Yarn Spinning records, Lot Processing stages,
+  Operation waste, Operation quality, or Production Identity.
+- The handoff does not reopen or reverse a productive stage.
+- Handoff issues and responses are not an independent messaging capability.
+- A transversal view may present authorized information from several contexts
+  without transferring ownership of source records.
+- This map does not prescribe interfaces, storage, functions, classes,
+  components, or implementation technology.
 
-## Vocabulary
+## References
 
-| Term | Meaning in this map |
-| --- | --- |
-| shipment number | Business-visible identity of a raw-material batch; globally unique. |
-| bale number | Bale identifier within a batch; unique within its parent batch only. |
-| reception date | Business date (calendar date) of physical reception. |
-| material type | Raw-material classification; normalized to uppercase. |
-| dtex | Linear density of the raw material. |
-| gross weight | Gross weight of a bale in kilograms. |
-| container weight | Tare/container weight in kilograms. |
-| net weight | Derived net weight (gross minus tare); never persisted. |
-| yarn count | Canonical yarn count used when defining production identity. |
-| production identity | Warehouse-owned technical identity shared across the production flow. |
-| lot code | Visible business code for the same production identity. |
-| availability state | Warehouse operational readiness for release or distribution. |
-| physical presentation | Physical finished-product form under Warehouse handling. |
-
-## Sources
-
-- [Bale Management PRD](../prd/warehouse/bale-management.md) — normative source for bale business rules
-- [Warehouse Area PRD](../prd/warehouse/overview.md) — area-level scope and subdomain overview
-- [Ubiquitous Language](ubiquitous-language.md) — canonical naming contract
-- [Context Map](../architecture/context-map.md) — context ownership and boundaries
+- [Bale Management PRD](../prd/warehouse/bale-management.md)
+- [Finished Product PRD](../prd/warehouse/finished-product.md)
+- [Production Supplies PRD](../prd/warehouse/production-supplies.md)
+- [Lot Processing Domain Map](operation/lot-processing.md)
+- [Context Map](../architecture/context-map.md)
+- [ADR-003](../architecture/decisions/003-single-production-identity.md)
+- [ADR-006](../architecture/decisions/006-role-neutral-business-language.md)

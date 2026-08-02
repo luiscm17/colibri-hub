@@ -4,14 +4,15 @@ status: active
 scope: operation/lot-processing
 authority: normative
 owner: product
-last_reviewed: 2026-07-27
+last_reviewed: 2026-08-01
 ---
 
 # PRD: Lot Processing
 
-> **Part of:** Operation Unit — Colibri Hub
-> **Dependencies:** `docs/prd/operation/overview.md` (Operation PRD), `docs/prd/warehouse/overview.md` (Warehouse PRD)
-> **Related documents:** `docs/prd/operation/yarn-spinning.md`
+> **Part of:** Operation Unit - Colibri Hub
+> **Dependencies:** [Operation Overview](./overview.md), [Warehouse Overview](../warehouse/overview.md), and [Access Control](../access-control.md)
+> **Functional records:** [Lot Processing Records](./lot-processing-records.md)
+> **Related document:** [Yarn Spinning](./yarn-spinning.md)
 > **Next:** `docs/domain/operation/lot-processing.md` (Domain Model)
 
 ---
@@ -20,280 +21,483 @@ last_reviewed: 2026-07-27
 
 ### 1.1 Purpose
 
-Define the transformation process that converts skeins from Yarn Spinning into Finished Product (PT) ready for physical verification, through a sequential flow of 6 stages with individual traceability per lot.
+Lot Processing records the Operation segment of the lifecycle that transforms
+skeins from Yarn Spinning into the physical Finished Product requested by
+Warehouse. It provides sequential traceability for six productive stages while
+preserving one business lot and one unique `lot_code` across Warehouse and
+Operation.
 
-### 1.2 Lot lifecycle in the system
+### 1.2 Contextual identity
 
-The lot traverses three domains during its life in the system. This PRD covers the Operation segment:
+Warehouse owns the `Finished Product` from the definition of its production
+requirement. That requirement contains the unique `lot_code`, target title,
+required color, client or destination, and applicable specifications.
 
-```
-WAREHOUSE                      OPERATION (Lot Processing)                WAREHOUSE
-   │                                │                                       │
-   ├── Assigns unique lot code     │                                       │
-   ├── Defines: yarn count, color, │                                       │
-   │   customer, specifications    │                                       │
-   └── Issues to Operation ────────►│                                       │
-                                    │                                       │
-                                    ├── Inventory (assembles physical lot)  │
-                                    ├── Dyeing (applies color)              │
-                                    ├── Drying                              │
-                                    ├── Winding / Ball Winding              │
-                                    ├── Bagging                             │
-                                    └── Quality (evaluates and documents)   │
-                                         │                                  │
-                                         └── Delivery to Warehouse ────────►│
-                                       (with quality documentation)         │
-                                                                             ├── Physical verification
-                                                                             └── Classification and disposition
-```
+When the requirement becomes available to Operation, Operation creates or
+resolves a contextual representation named `Production Identity`. Its rules
+are:
 
-Warehouse defines the sole lot identity through the production identity and its visible lot code; both are maintained throughout this entire process. Operation does not generate any other identity or new codes. Inventory records the assembly of the set of skeins that will be processed under that identity. The system is the source of all this information; any physical backup (form, label) is merely a printed representation of the system data.
+1. It maps one to one to the Warehouse Finished Product.
+2. It uses the same globally unique `lot_code`.
+3. It does not represent another physical product, another order, or another
+   inventory item.
+4. It allows Operation to own and protect its processing records without
+   overwriting Warehouse data.
+5. Operation must not generate a parallel business identity or replace the
+   `lot_code` supplied by Warehouse.
 
-### 1.3 System boundaries
-
-| Boundary        | Detail                                                                                                                                                                                                                                                                                                                                                        |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Input**       | The production identity defined by Warehouse (production identity, lot code, yarn count, color, customer or destination, and order specifications) and the skeins produced in Madejeras (Skeining). Inventory receives that information digitally and records the physical assembly under the same identity, according to the yarn count and weight specified. |
-| **Output**      | Processed lot, inspected by Quality with complete documentation, delivered to Warehouse for physical verification and disposition.                                                                                                                                                                                                                             |
-| **Not included** | Assignment of the lot code, enrichment with order data, or raw-material issuance (documented in `docs/prd/warehouse/overview.md`). Final physical verification of PT, its classification in Warehouse, or its storage/distribution (documented in `docs/prd/warehouse/overview.md`). Yarn production in the 5 sections of Yarn Spinning (documented in `docs/prd/operation/yarn-spinning.md`). |
-
-### 1.4 Dependencies
-
-- **Yarn Spinning:** Madejeras (Skeining) produces the raw skeins that Inventory uses to assemble physical lots. Without production in Madejeras (Skeining) there are no lots.
-- **Warehouse:** Defines the production identity, lot code, and order specifications (yarn count, color, customer or destination) in the system. That information guides the physical assembly and the production process.
-- **Operation roles:** Inventory, Dyeing personnel, Bagging, and Quality are the actors that record data in the system throughout the process.
-
----
-
-## 2. The 6 Process Stages
-
-Each lot goes through the following stages in strict sequential order. A stage cannot be recorded if the previous one is not completed.
-
-The process usually lasts approximately one to two days, and a lot may physically cross multiple shifts. Each intervention records only the work actually performed at that moment. A lot may have multiple legitimate records in the same stage, business date, or shift, including records by different users or at different times. Business date, shift, actors, and system timestamps describe process history; they do not define uniqueness. The use-case/domain layer rejects a later-stage intervention until the prior stage is complete; this cross-table invariant is not a DBML constraint. Controlled edits remain subject to the existing audit policy.
-
-### 2.1 Inventory — Lot assembly
-
-The lot formally enters the process when Inventory physically assembles the set of skeins under the unique identity previously defined by Warehouse (production identity and lot code, yarn count, color, customer or destination, and order specifications). Inventory queries that information, searches among the available raw skeins (produced by Madejeras (Skeining)), and records the physical assembly according to the **yarn count** and **weight** specified. Color is the responsibility of Warehouse and Dyeing, not Inventory.
-
-| Aspect                    | Description                                                                                                                                                                                                                        |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Who**                   | Inventory                                                                                                                                                                                                                          |
-| **When**                  | When the identity defined by Warehouse exists and skeins of the required yarn count are available |
-| **What is recorded**      | — Production identity and lot code (defined by Warehouse)<br>— Assembly date and shift<br>— Person who assembled the lot<br>— Supervisor in charge<br>— Yarn count<br>— Number of skeins composing the lot<br>— Total lot weight |
-| **Possible issues**       | — Insufficient skeins of the required yarn count<br>— Weight outside the specified range<br>— Incomplete issuance data                                                                                                            |
-| **Result**                | The assembled lot moves to Dyeing                                                                                                                                                                                                  |
-
-### 2.2 Dyeing — Color application
-
-The skeins of the lot enter the vats to be dyed according to the color specified by Warehouse in the system.
-
-| Aspect                    | Description                                                                                                                                                                                                                                                             |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Who**                   | Dyeing personnel                                                                                                                                                                                                                                                        |
-| **When**                  | When the skeins enter the vats                                                                                                                                                                                                                                          |
-| **What is recorded**      | — Entry date and shift<br>— Person who receives the lot<br>— Supervisor in charge<br>— Number of skeins received<br>— Net lot weight at entry<br>— Vat number used<br>— Process temperature<br>— Categorized observations if applicable |
-| **Possible issues**       | — Re-dyeing (non-conforming color, requires a second bath)<br>— Temperature out of range<br>— Incorrect or contaminated vat<br>— Material (fiber type) does not match the process                                                                                      |
-| **Result**                | The dyed lot moves to Drying                                                                                                                                                                                                                                            |
-
-### 2.3 Drying — Moisture removal
-
-The dyed skeins go through the drying process to eliminate residual moisture.
-
-| Aspect                    | Description                                                                                                                                                    |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Who**                   | Dyeing personnel                                                                                                                                               |
-| **When**                  | When the skeins come out of the dyeing process                                                                                                                 |
-| **What is recorded**      | — Entry date and shift<br>— Person who receives the lot<br>— Supervisor in charge<br>— Number of skeins entered<br>— Total lot weight at entry |
-| **Possible issues**       | — Lot does not come from Dyeing (sequence control)<br>— Inconsistently high weight (excess moisture)                                                           |
-| **Result**                | The dried lot moves to Winding or Ball Winding                                                                                                                 |
-
-### 2.4 Winding / Ball Winding — Conversion to final format
-
-The dried skeins are converted to the final format according to the product destination. These are two variants of the same type of process:
-
-| Variant           | Destination                      | Product         |
-| ----------------- | -------------------------------- | --------------- |
-| **Winding**       | Industrial customer              | Yarn cones      |
-| **Ball Winding**  | Direct sale / Retail             | Yarn balls      |
-
-| Aspect                    | Description                                                                                                                                                                                                      |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Who**                   | Operative responsible assigned to Winding/Ball Winding according to current policy. Today this may coincide with the same person handling Bagging.                                                               |
-| **When**                  | When the dried skeins are ready for processing                                                                                                                                                                   |
-| **What is recorded**      | — Process date and shift<br>— Person who receives the lot<br>— Supervisor in charge<br>— Number of skeins processed<br>— Number of cones or balls produced<br>— Waste generated during conversion, recorded in the lot history |
-| **Possible issues**       | — Damaged cones<br>— Incorrect yarn count<br>— Equipment not calibrated for the yarn count<br>— Excessive waste                                                                                                 |
-| **Result**                | The lot in cones or balls moves to Bagging                                                                                                                                                                       |
-
-### 2.5 Bagging — Final product packaging
-
-The cones or balls are packed into bags with their corresponding labels and data sheets.
-
-| Aspect                    | Description                                                                                                                                                                                   |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Who**                   | Bagging                                                                                                                                                                                       |
-| **When**                  | When the cones or balls are ready for packaging                                                                                                                                               |
-| **What is recorded**      | — Packaging date and shift<br>— Person who receives the lot<br>— Supervisor in charge<br>— Number of bags used<br>— Number of cones or balls per bag<br>— Waste generated in Bagging, recorded in the lot history |
-| **Possible issues**       | — Damaged bags<br>— Incorrect label or data sheet<br>— Damaged cones detected during packaging<br>— Cone count does not match what was recorded in Winding                                   |
-| **Result**                | The packaged lot moves to Quality Control                                                                                                                                                     |
-
-### 2.6 Quality — Final inspection and classification
-
-Quality inspects the complete lot, verifies parameters, documents defects, and records the **quality state** in which the lot will be delivered to Warehouse, including special nomenclatures if applicable. If the lot does not meet minimum parameters, it is **flagged** and within Operation all viable resolution options must be exhausted before reporting its delivery conditions to Warehouse. The lot leaves Operation toward Warehouse with its complete quality history.
-
-| Aspect              | Description                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Who**             | Quality Control                                                                                                                                                                                                                                                                                                                                                                                                      |
-| **When**            | Before delivering the lot to Warehouse                                                                                                                                                                                                                                                                                                                                                                               |
-| **What is recorded** | — Inspection date and shift<br>— Person who inspects<br>— Supervisor in charge<br>— Visual defects detected (double tone, staining, rod marks, nicked skeins, tails, slubs, low/high twist, blend)<br>— Internal defects detected (purging, paraffining, data sheet, double strand, bad ties, tie count, contamination, etc.)<br>— Special nomenclature if applicable<br>— Lot quality state at the time of delivery<br>— Delivery conditions if applicable |
-| **Result**          | The lot leaves Operation toward Warehouse with its complete quality documentation and the state in which it is delivered                                                                                                                                                                                                                                                                                              |
-
----
-
-## 3. Issues and Documentation
-
-### 3.1 Categorized observations
-
-Each stage can report issues through a predefined set of categories. This allows filtering, reporting, and analyzing problems without resorting to ambiguous free text.
-
-The category is selected from a specific list for each stage. If none applies, none is selected.
-
-| Stage                 | Issue categories                                                                                                                                                                              |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Inventory**         | Insufficient skeins of the required yarn count / Weight out of range / Incomplete issuance data                                                                                               |
-| **Dyeing**            | Re-dyeing (non-conforming color) / Temperature out of range / Contaminated vat / Incorrect material                                                                                           |
-| **Drying**            | Weight out of range / Excessive moisture                                                                                                                                                      |
-| **Winding/Ball Winding** | Damaged cones / Incorrect yarn count / Equipment not calibrated / Excessive waste                                                                                                          |
-| **Bagging**           | Damaged bags / Incorrect label / Count does not match                                                                                                                                         |
-| **Quality**           | Double tone / Staining / Rod marks / Nicked skeins / Tails / Slubs / Low twist / High twist / Blend / Purging / Paraffining / Data sheet / Double strand / Bad ties / Contamination           |
-
-In addition to the category, an optional **details** field in free text may be included for additional context (e.g., "vat T-03 had residues from the previous lot").
-
-### 3.2 History recording
-
-Each intervention preserves business date, shift, applicable persons responsible, and system timestamps. Pairs of physical entry/exit timestamps are not persisted in the current model. Physical duration per stage is deferred until the business defines what event starts and ends that measurement, how it will be captured, and what decisions will use it.
-
-This allows maintaining responsibility and recording traceability, even when the lot crosses multiple shifts, without inferring a physical duration that the business has not yet defined.
-
-The lot advances when it **physically** changes stage. No formal intermediate states exist outside these stages; if the lot is in Dyeing waiting for a decision about re-dyeing, it remains in Dyeing until it moves to Drying. Delays, observations, or pending decisions are recorded as part of the current stage.
-
----
-
-## 4. Lot Lifecycle and States
-
-### 4.1 State diagram
+### 1.3 Lifecycle across contexts
 
 ```mermaid
-stateDiagram-v2
-    [*] --> In_Warehouse: Unique code definition
-    In_Warehouse --> In_Inventory: Lot assembly
-    In_Inventory --> In_Dyeing
-    In_Dyeing --> In_Drying
-    In_Drying --> In_Winding
-    In_Winding --> In_Bagging
-    In_Bagging --> In_Quality
-    In_Quality --> Awaiting_Warehouse_Receipt: Quality Send
-    Awaiting_Warehouse_Receipt --> In_Warehouse_PT: Warehouse reception
-    In_Warehouse_PT --> [*]
+flowchart LR
+    subgraph WarehouseA["Warehouse"]
+        REQ["Finished Product requirement<br/>assigns unique lot_code · title, color, client, specifications"]
+        FPR["Same Finished Product<br/>physical reception and verification · availability and custody · dispatch and possible return"]
+    end
+    subgraph Operation["Operation"]
+        direction TB
+        PID["Production Identity (1:1)"]
+        INV["Inventory assembles physical lot"]
+        DYE["Dyeing"]
+        DRY["Drying"]
+        WIN["Winding / Ball Winding"]
+        BAG["Bagging"]
+        QUA["Quality"]
+    end
+    REQ -- "handoff" --> PID
+    PID --> INV --> DYE --> DRY --> WIN --> BAG --> QUA
+    QUA -- "completion and release for reception" --> FPR
 ```
 
-### 4.2 States
+Warehouse creates the business requirement before the physical set of skeins is
+assembled. Inventory later assembles that physical set under the already
+existing Production Identity and `lot_code`. Physical assembly therefore starts
+the productive stage history; it does not create another business lot or code.
 
-| State            | Meaning                                                                                     |
-| ---------------- | ------------------------------------------------------------------------------------------- |
-| **In_Warehouse**    | Lot registered by Warehouse, with assigned code. Pending issuance to Operation. |
-| **In_Inventory** | Lot assembled by Inventory, first record in the Operation system.                           |
-| **In_Dyeing**    | Lot in dyeing process.                                                                      |
-| **In_Drying**    | Lot in drying process.                                                                      |
-| **In_Winding**   | Lot in winding or ball winding process.                                                     |
-| **In_Bagging**   | Lot in packaging process.                                                                   |
-| **In_Quality**   | Lot in final inspection.                                                                    |
-| **Awaiting_Warehouse_Receipt** | Quality performed the single permitted send; the lot awaits Warehouse validation and reception. Brief coordination notes are neither acceptance nor another send. |
-| **In_Warehouse_PT** | Warehouse registered reception of the lot after physical validation. |
+The system is the source of this information. Any physical form, route sheet,
+or label is a representation of system data and does not establish a separate
+identity.
 
-### 4.3 Transition rules
+### 1.4 Boundaries
 
-1. **Mandatory sequential:** A stage cannot be recorded if the lot has not completed the previous one. To record in Winding, the current state must be `In_Drying`.
-2. **No rollback:** Once the lot advances to the next stage, it does not go back. The lot always moves forward in the flow.
-3. **Controlled edit with audit:** Data from a stage may be corrected if there was a data-entry error, but every edit must leave complete traceability of who edited, when, what changed, and why.
-4. **Operational correction window:** Editing may be allowed during a defined window after the shift or stage closure (for example 24 or 48 hours, according to current policy).
-5. **Restricted editing outside the window:** Once the operational window expires, only the **SysAdmin** role may edit stage records, maintaining the same mandatory traceability.
-6. **Single Quality Send:** Every lot that completes the 6 stages may perform a single Quality Send toward Warehouse with its complete documentation, including defects and delivery conditions if any. The send places the lot in awaiting Warehouse receipt; it is not repeated nor does it occur concurrently for the same identity.
-7. **Warehouse reception:** Acceptance is evidenced only when Warehouse registers reception for the same lot identity. Brief notes during the wait are neither acceptance nor another send.
+| Boundary | Detail |
+| --- | --- |
+| **Input** | Warehouse Finished Product requirement represented in Operation by one Production Identity, plus skeins produced in Skeining and available for assembly. |
+| **Output** | Completed lot released for Warehouse reception under the same `lot_code`, with complete Operation-owned processing, quality, and handoff-response history. |
+| **Owned by Operation** | Production Identity, stage interventions, stage sequence, Operation waste facts, quality state at handoff, release for reception, and responses to handoff issues. |
+| **Not included** | Creation or modification of the Warehouse Finished Product requirement; assignment of another `lot_code`; raw-material issuance; Warehouse physical reception, availability classification, stock, dispatch, or returns; Yarn Spinning production in its five sections. |
 
-### 4.4 Quality classification
+### 1.5 Dependencies
 
-Quality documents the quality state of the lot at the time of delivery. That information allows Warehouse to verify what was received and then separately define its operational availability, disposition, and physical presentation as appropriate. The lot is always delivered to Warehouse, even when it arrives with observations or special conditions.
-
-| Classification         | Meaning                                                                                     | Usage example                                                                |
-| ---------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| **Standard**           | PT without defects or with minor defects within tolerance                                   | Lot that meets specifications                                                |
-| **With nomenclature**  | PT with special characteristics that modify its classification or value                     | Lot with a special designation defined by Quality according to current policy |
-| **Flagged**            | PT with documented defects or conditions that require decisions within Operation or reporting delivery conditions to Warehouse | Double tone, staining, damaged cones, defects that require defining disposition |
+- **Warehouse:** Defines the Finished Product requirement and unique `lot_code`.
+  Operation consumes authorized requirement data through its Production
+  Identity representation.
+- **Yarn Spinning:** Skeining produces the skeins that Inventory uses to
+  assemble the physical lot.
+- **Access Control:** Determines which users may consult, record, or correct
+  information in the general Lot Processing and stage-specific scopes.
+- **Current business actors:** Inventory, Dyeing Personnel, Packaging, Quality,
+  and Supervisor participate according to operational responsibility, but
+  those names do not grant permission by themselves.
 
 ---
 
-## 5. Business Rules
+## 2. Lot Processing Workspace
 
-### 5.1 Multi-shift traceability
+### 2.1 Navigation
 
-The complete lot process may last between 1 and 2 days, crossing multiple shifts. Each stage record captures:
+The main Lot Processing destination contains:
 
-- The business date and shift of the intervention
-- The person who receives, delivers, or executes, as applicable to the stage
-- The supervisor in charge
-- System registration and correction timestamps
+- **Dashboard**
+- **Lot queue**
 
-This allows answering who did what and in which shift. The physical duration of each stage is not calculated or inferred until an approved business definition exists.
+`Lot detail` is a contextual view opened from a queue row, search result, or
+traceability link. It is not a standalone sidebar destination because it
+requires a selected lot.
 
-### 5.2 Weight per stage
+The six process stages are parts of the same lot lifecycle and must not be
+presented as six unrelated main-navigation modules.
 
-The lot weight is measured at the beginning of each stage to calculate accumulated waste. The difference between consecutive stages reveals material losses during the process.
+### 2.2 Dashboard
 
-### 5.3 Record correction
+The dashboard supports authorized consultation and filters such as:
 
-The records of each stage (dates, persons responsible, technical data) may be corrected if there was a data-entry error, but every correction must leave complete audit: editing user, date/time, previous values, new values, and reason for the change. Operational editing may be allowed within a defined window; outside that window, only **SysAdmin** may edit.
+- current phase or stage;
+- business date;
+- shift;
+- target title;
+- color;
+- lots pending, in process, awaiting Warehouse reception, or completed;
+- other indicators validated by the domain.
 
-### 5.4 Validation before advancing
+Filters refine a permitted query. They are not actions, permissions, or scopes.
+Labels such as Shift Summary or Daily Summary describe filtered dashboard states
+and are not independent capabilities or pages.
 
-Before recording a stage, the system verifies:
+### 2.3 Lot queue
 
-- That the lot exists and has a valid code
-- That the previous stage is completed
-- That mandatory data is present (shift, supervisor, person responsible, weight/quantity)
+The queue provides the transversal information needed to identify and follow a
+lot, subject to `Read` in the general Lot Processing scope. Its minimum fields
+are:
 
-### 5.5 Closure of the lot cycle in Operation
+- `lot_code`;
+- target title;
+- transversal lifecycle phase or current stage;
+- current business actor or responsible area, when applicable;
+- last update date and time;
+- authorized filters and search criteria.
 
-The Operation segment concludes when Quality completes its inspection and performs the single Quality Send. The lot remains in awaiting Warehouse receipt until Warehouse registers its reception. From that acceptance onward, Warehouse verifies what was received, classifies the PT state, and decides its disposition. That decision belongs to the Warehouse domain, not to Operation.
+Stage-specific technical fields are added only when the user has the required
+effective `Read` permission for their owning scope. Unauthorized information
+must not be disclosed merely because the interface can hide it.
+
+### 2.4 Lot detail
+
+The contextual detail presents one continuous, permission-sensitive history:
+
+- Warehouse requirement fields needed by Operation;
+- the six-stage timeline;
+- multiple legitimate interventions in a stage;
+- authorized actors, business dates, shifts, timestamps, technical data,
+  observations, waste, and correction history;
+- applicable registration or correction controls.
+
+When a user lacks `Read` for a stage-specific scope, the system may show only
+the transversal state needed to follow the lot. It must not return that stage's
+internal technical fields.
+
+### 2.5 Effective permissions
+
+| Effective permission | Functional result |
+| --- | --- |
+| `Read` in general Lot Processing scope | Consult dashboard, queue, lot detail, and transversal lifecycle data. |
+| `Read` in a stage-specific scope | Consult the technical fields owned by that stage in addition to transversal data. |
+| `Write` in a stage-specific scope | Register an authorized intervention or domain act for that stage. |
+| `Edit` in a stage-specific scope | Correct an authorized record within its operational window. |
+| `Edit Outside the Operational Window` in a stage-specific scope | Perform an exceptional correction after the ordinary window closes. |
+
+The exact scope identifiers are defined in the Access Control catalog and
+derived specifications. Actions are independent: `Write` does not imply `Read`.
+Effective permissions are the union of all active roles assigned to the user.
+Role names, shifts, actor fields, and page visibility do not authorize access.
 
 ---
 
-## 6. Visibility by Role
+## 3. The Six Process Stages
 
-The following visibility describes the current expected operation. The exact permissions policy may change according to RBAC. Each role sees the information necessary for its work, plus the immediately preceding stage for consistency validation. Quality sees the lot history and its quality characteristics; Supervisor can see information from both processes for operational consolidation.
+Each lot goes through the stages in strict sequential order. A later-stage
+intervention is rejected until the previous stage is complete.
 
-| Role                          | Sees own data          | Sees (read-only)                                 |
-| ----------------------------- | ---------------------- | ------------------------------------------------ |
-| **Inventory**                 | Inventory (assembly and tracking)   | Warehouse information: code, yarn count, customer |
-| **Dyeing personnel**          | Dyeing, Drying         | Inventory: skeins, total weight                  |
-| **Winding/Ball Winding operative** | Winding/Ball Winding   | Drying: skeins, total weight                     |
-| **Bagging**                   | Bagging                | Winding/Ball Winding: cones, waste               |
-| **Quality**                   | Quality                | Lot history and its recorded characteristics     |
-| **Supervisor**                | All (read-only)        | All (read-only). Does not record as a general rule; supervises and consolidates. |
-| **Production Manager**        | Consolidated dashboard | All stages of all active lots                    |
-| **Warehouse**                 | Own movements          | Lot production data (read-only)                  |
+The process usually lasts approximately one to two days and may cross multiple
+shifts. Each intervention records only the work actually performed at that
+moment. A stage may contain multiple legitimate interventions on the same
+business date or shift, including records by different users or at different
+times. Business date, shift, actors, and timestamps are history attributes, not
+uniqueness keys.
+
+Cross-stage sequence is a business invariant independent from the way records
+are represented. Corrections remain subject to the audit and operational-window
+policy.
+
+### 3.1 Inventory - Physical lot assembly
+
+Inventory resolves the Warehouse Finished Product requirement as the Operation
+Production Identity, queries the required title and specifications, selects
+available skeins produced by Skeining, and assembles the physical set under the
+existing `lot_code`. Color is requirement data used by Dyeing; it is not chosen
+by Inventory.
+
+| Aspect | Description |
+| --- | --- |
+| **Current business actor** | Inventory |
+| **When** | When the requirement is available to Operation and sufficient skeins of the required title are available. |
+| **Records** | Production Identity and `lot_code`; assembly business date and shift; individual actor; supervisor in charge; target title; number of skeins assembled; total assembled weight. |
+| **Possible issues** | Insufficient skeins; weight outside the specified range; incomplete requirement or handoff data. |
+| **Result** | The physical lot is assembled under the existing identity and advances to Dyeing. |
+
+### 3.2 Dyeing - Color application
+
+The assembled skeins enter the vats to receive the color specified by the
+Warehouse requirement.
+
+| Aspect | Description |
+| --- | --- |
+| **Current business actor** | Dyeing Personnel |
+| **When** | When the assembled lot enters the vats. |
+| **Records** | Business date and shift; individual actor; supervisor; quantity received; inherited or actually measured entry weight; vat number; process temperature; re-dyeing fact; categorized observations. |
+| **Possible issues** | Non-conforming color; temperature out of range; incorrect or contaminated vat; material mismatch. |
+| **Result** | The dyed lot advances to Drying. |
+
+The record must distinguish inherited values from local measurements. If
+Dyeing does not have a scale, it must not simulate or claim a weight
+measurement.
+
+### 3.3 Drying - Moisture removal
+
+| Aspect | Description |
+| --- | --- |
+| **Current business actor** | Dyeing Personnel |
+| **When** | When the lot leaves Dyeing and enters drying. |
+| **Records** | Business date and shift; individual actor; supervisor; quantity received; actual entry weight only when measured; observations and incidents. |
+| **Possible issues** | Sequence violation; inconsistent weight; excessive moisture. |
+| **Result** | The dried lot advances to Winding or Ball Winding. |
+
+### 3.4 Winding or Ball Winding - Conversion to final format
+
+| Variant | Destination | Product |
+| --- | --- | --- |
+| **Winding** | Industrial customer | Yarn cones |
+| **Ball Winding** | Direct sale or retail | Yarn balls |
+
+| Aspect | Description |
+| --- | --- |
+| **Current business actor** | Person assigned to Winding or Ball Winding under current policy; this may currently coincide with Packaging. |
+| **When** | When the dried skeins are ready for conversion. |
+| **Records** | Business date and shift; individual actor; supervisor; variant; input skeins; cones or balls produced; waste and observations. |
+| **Possible issues** | Damaged cones; incorrect title; equipment not calibrated; excessive waste. |
+| **Result** | The converted lot advances to Bagging. |
+
+### 3.5 Bagging - Final product packaging
+
+| Aspect | Description |
+| --- | --- |
+| **Current business actor** | Packaging |
+| **When** | When cones or balls are ready for packaging. |
+| **Records** | Business date and shift; individual actor; supervisor; bags used; cones or balls per bag; waste; observations and label incidents. |
+| **Possible issues** | Damaged bags; incorrect label or data sheet; damaged units; count differences. |
+| **Result** | The packaged lot advances to Quality. |
+
+### 3.6 Quality - Final inspection
+
+Quality inspects the complete lot and documents its quality state, defects, and
+delivery conditions. Completing Quality does not name or permanently assign the
+separate responsibility for releasing the product to Warehouse.
+
+| Aspect | Description |
+| --- | --- |
+| **Current business actor** | Quality Control |
+| **When** | After Bagging and before Warehouse reception. |
+| **Records** | Inspection business date and shift; individual actor; supervisor; visible and internal defects; special nomenclature when applicable; quality state; and delivery conditions. |
+| **Result** | The final productive stage is complete and the lot is eligible for release for reception. |
+
+If the lot does not meet minimum parameters, it is flagged and Operation must
+exhaust viable internal resolution options before documenting the conditions in
+which it will be released to Warehouse. Quality documents the state at handoff; it does
+not determine Warehouse availability or commercial disposition.
+
+### 3.7 Finished-product handoff
+
+Release for reception is an Operation business act performed after the final
+productive stage is complete. It makes the completed lot available for
+Warehouse physical verification under the same Production Identity and lot
+code. The act is not named after the section or position that currently performs
+it; the responsible actor is determined by current business assignment and
+effective authorization.
+
+Warehouse then verifies the physical product against the authorized requirement,
+processing completion, quality state, delivery conditions, and applicable
+quantities. Two outcomes are possible:
+
+1. If the information and physical product agree, Warehouse records reception.
+2. If they do not agree, Warehouse records a handoff issue instead of reception.
+
+A handoff issue is not a rejection. Operation must correct, remedy, or clarify
+the reported discrepancy and record an issue response. That response returns the
+same handoff to pending verification. Warehouse verifies again and may record
+reception or another issue. The cycle may repeat until reception is recorded.
+
+Release for reception occurs once for the completed lot. Issue responses do not
+create another release, another Product Identity, or another lot.
 
 ---
 
-## 7. Glossary
+## 4. Issues, Waste, and History
 
-| Term                          | Definition                                                                                                                                |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| **Lot**                       | Physical set of skeins sharing yarn count, color, and destination, assembled in this process and identified by the code defined by Warehouse |
-| **Lot code**                  | Unique identifier assigned by Warehouse when defining the order. Its format may be redesigned later                                       |
-| **Lot specifications**        | Information defined by Warehouse in the system: lot code, yarn count, color, customer, and order data                                     |
-| **Lot assembly**              | Process by which Inventory selects raw skeins produced in Madejeras (Skeining) to form a lot according to the yarn count and weight specified |
-| **Quality classification**    | Category assigned by Quality to the PT (standard, with nomenclature, or flagged) documenting its quality state at the time of delivery    |
-| **Nomenclature**              | Special designation assigned by Quality to the PT that modifies its classification according to current policy                             |
-| **Waste**                     | Weight difference between consecutive stages revealing material loss                                                                      |
-| **Winding**                   | Conversion of skeins into cones (format for industrial customer)                                                                          |
-| **Ball Winding**              | Conversion of skeins into yarn balls (format for direct sale)                                                                             |
+### 4.1 Categorized observations
+
+Each stage may report issues through an applicable predefined catalog. An
+optional free-text detail may add context without replacing the category.
+
+| Stage | Example categories |
+| --- | --- |
+| **Inventory** | Insufficient skeins; weight out of range; incomplete requirement or handoff data. |
+| **Dyeing** | Re-dyeing; temperature out of range; contaminated vat; incorrect material. |
+| **Drying** | Weight out of range; excessive moisture. |
+| **Winding or Ball Winding** | Damaged cones; incorrect title; equipment not calibrated; excessive waste. |
+| **Bagging** | Damaged bags; incorrect label; count mismatch. |
+| **Quality** | Double tone; staining; rod marks; nicked skeins; tails; slubs; low or high twist; blend; purging; paraffining; incorrect data sheet; double strand; bad ties; contamination. |
+
+### 4.2 History recording
+
+Each intervention preserves:
+
+- business date;
+- shift;
+- applicable individual actors;
+- system registration timestamp;
+- inherited and locally verified data;
+- generated technical data;
+- observations, waste, and exit condition;
+- correction history when applicable.
+
+Physical entry-and-exit duration is excluded from this capability. Introducing
+that measurement requires a separate requirement defining the start and end
+events, capture responsibility, and business decisions that use the result.
+
+### 4.3 Waste
+
+When the process actually measures weight at consecutive stages, differences
+may support waste analysis. The system must not infer a measurement that did not
+occur. Each stage retains its own waste record, and authorized transversal
+consultation may consolidate those facts without transferring ownership of the
+source records.
+
+---
+
+## 5. Lifecycle and Transitions
+
+### 5.1 Business phases
+
+```mermaid
+flowchart TD
+    REQ["Warehouse requirement defined"]
+    AVA["Available to Operation"]
+    INV["Inventory"]
+    DYE["Dyeing"]
+    DRY["Drying"]
+    WIN["Winding / Ball Winding"]
+    BAG["Bagging"]
+    QUA["Quality"]
+    PEN["Pending verification"]
+    RES["Resolution required"]
+    COM["Warehouse reception completed"]
+    REQ --> AVA
+    AVA --> INV --> DYE --> DRY --> WIN --> BAG --> QUA
+    QUA --> PEN
+    PEN --> COM
+    PEN --> RES
+    RES --> PEN
+```
+
+These phases describe business behavior and do not prescribe a technical state
+representation.
+
+### 5.2 Transition rules
+
+1. **Existing requirement:** Productive processing requires the Warehouse
+   Finished Product requirement and its unique `lot_code`.
+2. **Contextual resolution:** Operation must resolve exactly one Production
+   Identity for the requirement.
+3. **Mandatory sequence:** A later-stage intervention requires completion of
+   the prior stage.
+4. **Forward movement:** Physical movement proceeds forward through the six
+   stages. A correction changes recorded data; it does not silently reverse the
+   physical lifecycle.
+5. **Multiple interventions:** A stage may have more than one legitimate record.
+   Stage completion, not the existence of exactly one row, governs advancement.
+6. **Controlled correction:** Every correction preserves the acting user,
+   timestamp, prior values, resulting values, and reason.
+7. **Operational window:** Ordinary correction requires `Edit` in the owning
+   scope and compliance with the current operational window.
+8. **Exceptional correction:** Correction after that window requires `Edit
+   Outside the Operational Window` in the owning scope.
+9. **Single release:** One release for reception is permitted after the final
+   productive stage is complete. It records the responsible actor and exact
+   time and places the handoff in pending verification.
+10. **Issue reporting:** Warehouse records a handoff issue instead of reception
+    when the physical product and authorized information do not agree.
+11. **Issue response:** Operation records a correction, remedy, or clarification
+    and returns the same handoff to pending verification.
+12. **Repeated verification:** Issue and response cycles may repeat without
+    creating another release, another identity, or another lot.
+13. **Warehouse reception:** Only Warehouse reception for the same Finished
+    Product and `lot_code` completes the handoff. An issue or response is not
+    reception.
+
+### 5.3 Quality state at handoff
+
+| Quality state | Meaning |
+| --- | --- |
+| **Standard** | Product meets specifications or has only minor conditions within tolerance. |
+| **With nomenclature** | Product carries a special designation defined by Quality under current policy. |
+| **Flagged** | Product has documented defects or conditions requiring internal resolution or explicit delivery conditions. |
+
+The Quality state is owned by Operation. Warehouse later records a separate
+availability or disposition decision; it must not overwrite the Quality state.
+
+---
+
+## 6. Business Rules
+
+1. A lot may cross multiple shifts and business dates without changing its
+   identity.
+2. Shift is operational and audit context, not an authorization dimension.
+3. Warehouse Finished Product and Operation Production Identity maintain a 1:1
+   relationship and one `lot_code`.
+4. Inventory physical assembly does not create another business lot.
+5. Each context writes only the facts it owns.
+6. The lot queue and detail may assemble an authorized continuous history
+   without exposing unauthorized stage-specific fields.
+7. Unauthorized information is not disclosed; interface hiding alone is not an
+   authorization rule.
+8. Business actors describe current responsibility but do not define fixed
+   permissions.
+9. `Read`, `Write`, `Edit`, and `Edit Outside the Operational Window` are
+   independent actions.
+10. Record ownership and actor fields do not expand a user's effective
+    permissions.
+11. Dashboard filters do not grant or restrict authorization.
+12. Operation concludes its productive work at the end of Quality and starts
+    the cross-context handoff through release for reception.
+13. Operation remains responsible for addressing handoff issues until Warehouse
+    records reception of the same Finished Product.
+
+---
+
+## 7. Acceptance Criteria
+
+| ID | Criterion |
+| --- | --- |
+| AC-LP-01 | Operation cannot start Lot Processing without an existing Warehouse Finished Product requirement and unique `lot_code`. |
+| AC-LP-02 | Operation creates or resolves exactly one Production Identity for that requirement and retains the same `lot_code`. |
+| AC-LP-03 | Inventory can assemble the physical lot without creating another business identity. |
+| AC-LP-04 | A later-stage intervention is rejected until the previous stage is complete. |
+| AC-LP-05 | Multiple legitimate interventions may be recorded in the same stage, date, or shift. |
+| AC-LP-06 | Inherited values are distinguishable from local measurements and verifications. |
+| AC-LP-07 | Release for reception can occur only once after final productive completion and records the exact actor and time. |
+| AC-LP-08 | Warehouse may report a handoff issue instead of reception when the physical product and authorized information do not agree. |
+| AC-LP-09 | An Operation issue response returns the same handoff to pending verification without creating another release or identity. |
+| AC-LP-10 | Issue and response cycles may repeat until Warehouse reception completes the handoff for the same Finished Product and `lot_code`. |
+| AC-LP-11 | `Read` in general Lot Processing scope provides the dashboard, queue, detail, and authorized transversal information. |
+| AC-LP-12 | Stage-specific technical data is returned only when the user has the corresponding effective `Read`. |
+| AC-LP-13 | Unauthorized technical data is not disclosed, regardless of interface visibility. |
+| AC-LP-14 | `Write` does not grant `Read`, and role names or shifts do not grant access. |
+| AC-LP-15 | Every correction retains a complete audit trail and complies with the applicable correction permission and window. |
+| AC-LP-16 | Shift Summary and Daily Summary can be produced through filters without becoming independent capabilities or permission scopes. |
+
+---
+
+## 8. Glossary
+
+| Term | Definition |
+| --- | --- |
+| **Business lot** | The object called Lote by the enterprise throughout the complete Warehouse and Operation lifecycle. |
+| **Finished Product** | Warehouse representation of the lot from requirement definition through reception, custody, dispatch, and possible return. |
+| **Production Identity** | Operation representation created or resolved one to one from the Warehouse Finished Product requirement under the same `lot_code`. |
+| **Lot code** | Globally unique business identifier assigned with the Warehouse requirement and preserved across contexts. |
+| **Lot specifications** | Title, color, client or destination, and other production requirements defined by Warehouse. |
+| **Physical lot assembly** | Selection and grouping by Inventory of skeins under the existing Production Identity and `lot_code`. |
+| **Release for reception** | Operation act that starts the finished-product handoff after productive completion, independent of the current responsible position. |
+| **Handoff issue** | Warehouse record of a discrepancy that must be corrected, remedied, or clarified before reception. |
+| **Issue response** | Operation record describing how a handoff issue was addressed before another Warehouse verification. |
+| **Quality state** | Operation-owned description of product quality at handoff. |
+| **Warehouse availability** | Separate Warehouse-owned disposition recorded after physical reception. |
+| **Winding** | Conversion of skeins into cones for an industrial destination. |
+| **Ball Winding** | Conversion of skeins into yarn balls for direct sale or retail. |
+
+## References
+
+- [Operation Overview](./overview.md)
+- [Lot Processing Records](./lot-processing-records.md)
+- [Warehouse Finished Product](../warehouse/finished-product.md)
+- [Access Control](../access-control.md)
