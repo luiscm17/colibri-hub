@@ -11,7 +11,6 @@ Business capabilities, rules, and acceptance criteria.
 - **Warehouse**
   - [Warehouse Overview](./prd/warehouse/overview.md) — Area scope, responsibilities, dependencies
   - [Bale Management](./prd/warehouse/bale-management.md) — Reception, inventory, states, delivery
-  - [Production Identity](./prd/warehouse/production-identity.md) — Identity and traceability rules
   - [Finished Product](./prd/warehouse/finished-product.md) — Finished goods management
   - [Production Supplies](./prd/warehouse/production-supplies.md) — Supply tracking
 - **Operation**

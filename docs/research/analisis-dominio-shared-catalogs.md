@@ -16,9 +16,9 @@ last_reviewed: 2026-07-27
 
 ## 1. Análisis del PRD
 
-### 1.1 Catálogos Compartidos (PRD Maestro §4)
+### 1.1 Catálogos Compartidos ([PRD Maestro §3](../prd/product-overview.md#3-business-areas))
 
-Del `docs/prd/product-overview.md` §4:
+Del `docs/prd/product-overview.md` [§3 Business Areas](../prd/product-overview.md#3-business-areas):
 
 | Catálogo | Usado por |
 |---|---|
@@ -39,7 +39,7 @@ Del `docs/prd/product-overview.md` §4:
 
 ## 2. Análisis de la Arquitectura
 
-### 2.1 Context Map (ARCHITECTURE.md §2)
+### 2.1 Context Map ([Context Map §1](../architecture/context-map.md#1-bounded-contexts))
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -58,9 +58,9 @@ Del `docs/prd/product-overview.md` §4:
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 Shared Catalogs (backend.md §5)
+### 2.2 Shared Catalogs ([backend.md §6.5](../../backend/docs/architecture/overview.md#65-catalogs))
 
-Del `backend/docs/architecture/overview.md` §5:
+Del `backend/docs/architecture/overview.md` [§6.5 `catalogs`](../../backend/docs/architecture/overview.md#65-catalogs):
 
 | Catalog | Contains | Used by |
 |---------|----------|---------|

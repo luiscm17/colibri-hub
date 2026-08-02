@@ -27,7 +27,7 @@ architecture. Feature-specific implementation details live in
 | UI Library | Mantine | 9.x | Implemented |
 | Forms | @mantine/form | 9.x | Implemented |
 | Editable Grids | react-data-grid | 7.0.0-beta.61 | Implemented |
-| Routing | react-router-dom | 7.x | Implemented |
+| Routing | react-router | 8.x | Implemented |
 | Build Tool | Vite | 8.x | Implemented |
 | Language | TypeScript | 6.x | Implemented |
 | Styling | CSS Modules + Mantine props | — | Implemented |
@@ -175,8 +175,7 @@ frontend/src/
   lifecycle — replacing ad-hoc fetch patterns.
 - **Standardized data-grid pattern** documented and reused across Warehouse and
   Yarn Spinning features.
-- **Testing strategy**: unit tests (Vitest) + component tests (Testing Library)
-  + accessibility checks.
+- **Testing strategy**: unit tests (Vitest) + component tests (Testing Library) + accessibility checks.
 - **Authorization integration**: backend capabilities inform which actions and
   routes are available per user session.
 

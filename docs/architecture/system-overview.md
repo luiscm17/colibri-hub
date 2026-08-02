@@ -5,7 +5,6 @@ scope: global
 authority: normative
 owner: architecture
 last_reviewed: 2026-08-01
-replaces: docs/architecture/ARCHITECTURE.md
 ---
 
 # System Overview

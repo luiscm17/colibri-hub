@@ -24,26 +24,28 @@ hilado de un título específico a través de 5 secciones en flujo continuo.
 La MP sale de Warehouse y la recibe Inventario en Hilandería. El producto
 final (madejas) sale de Hilandería hacia Lot Processing.
 
+```mermaid
+flowchart LR
+    W["MP desde Warehouse"] --> P["Preparación"]
+    P --> C["Continuas"]
+    C --> B["Bobinados"]
+    B --> R["Retorcido"]
+    R --> M["Madejeras"]
+    M --> LP["LOT PROCESSING"]
+
+    subgraph YS["YARN SPINNING"]
+        direction LR
+        P
+        C
+        B
+        R
+        M
+    end
 ```
-MP desde Warehouse
-       │
-       ▼
-┌─────────────────────────────────────┐
-│          YARN SPINNING                │
-│                                       │
-│  Preparación → Continuas → Bobinados │
-│                              → Retorcido → Madejeras │
-│                                       │
-│  Registros por sección:               │
-│  • Producción (descarga)              │
-│  • Avance (control de proceso)        │
-│  • Calidad de proceso                 │
-│  • Desperdicio                        │
-└──────────────────┬──────────────────┘
-                   │
-                   ▼
-          LOT PROCESSING
-```
+
+Los registros por sección son Producción (descarga), Avance (control de
+proceso), Calidad de proceso y Desperdicio. Ver [Sección 2](#2-lo-que-se-registra)
+y [Sección 3](#3-qué-se-registra-en-cada-sección).
 
 ---
 

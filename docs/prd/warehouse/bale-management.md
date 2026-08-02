@@ -103,7 +103,7 @@ A **bale** is an independently identified raw-material unit with its own lifecyc
 | Attribute | Format | Required | Description |
 | --- | --- | --- | --- |
 | Shipment number | text, up to 10 characters | Yes | Globally unique batch identifier |
-| Reception date | calendar date (no time component) | Yes | Business date of reception (see §5.3) |
+| Reception date | calendar date (no time component) | Yes | Business date of reception (see [§5.3](#53-reception-date-semantics)) |
 | Provider name | text | Yes | Supplier name |
 
 ### 5.2 Bale Attributes
@@ -149,7 +149,7 @@ When computing aggregate weights (e.g., inventory summary):
 
 1. The system groups bales by batch for aggregate queries.
 2. When no bales match the filter criteria, aggregate weights are zero (not null).
-3. Aggregates respect the same filter conjunction as counts (see §11).
+3. Aggregates respect the same filter conjunction as counts (see [§11](#11-query-capabilities)).
 
 ---
 

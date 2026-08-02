@@ -157,7 +157,7 @@ For context ownership, dependencies, aggregate families, and inter-context
 handoffs, see:
 
 - [`../architecture/system-overview.md`](../architecture/system-overview.md)
-- [`../architecture/context-map.md`](../architecture/context-map.md) _(Phase 3)_
+- [`../architecture/context-map.md`](../architecture/context-map.md)
 
 ## 8. Related Documents
 
