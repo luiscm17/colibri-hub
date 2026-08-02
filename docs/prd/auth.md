@@ -120,7 +120,7 @@ and Access Control must not store or validate passwords.
 29. Disablement preserves identity, prior assignments, and attributable business and security history.
 30. An established account is not physically deleted.
 31. Re-enabling an account requires a new provisional password and mandatory replacement.
-32. An account change cannot leave Colibri Hub without an enabled System Administrator capable of governing accounts and access.
+32. No account or access change, including account disablement, administrative password reset, access-profile inactivation, role replacement, or assignment removal, may leave Colibri Hub without an enabled System Administrator capable of authenticating and governing accounts and access.
 33. Provisioning, enablement, disablement, reset, mandatory password replacement, successful and failed login, logout, expiration, and administrative session termination are traceable by identity, date, and time.
 34. Passwords and other authentication secrets never appear in audit history, business records, Access Control records, or ordinary messages.
 35. Administrative authentication events identify the acting System Administrator.
@@ -153,11 +153,11 @@ and Access Control must not store or validate passwords.
 ### Complete first access
 
 1. The user enters the organizational email and provisional password.
-2. The system validates the credentials and account state.
-3. The system requires a different password before exposing protected capabilities.
-4. The provisional password is replaced and becomes unusable.
-5. A session with a maximum duration of eight hours is established.
-6. Access Control resolves the active profile and effective permissions.
+2. The system validates the credentials and account state and establishes a session whose maximum duration of eight hours begins at that login.
+3. While the account remains in Awaiting Password Change, the session is restricted to inspecting Authentication state, replacing the provisional password, and logging out.
+4. The user replaces the provisional password with a different password, and the provisional password becomes unusable.
+5. Completing the mandatory replacement does not restart or extend the session's original eight-hour maximum.
+6. Access Control resolves the active profile and effective permissions only after the account becomes Active.
 7. The user enters an authorized area or is denied when no suitable access exists.
 
 ### Log in
@@ -171,11 +171,12 @@ and Access Control must not store or validate passwords.
 ### Reset a password administratively
 
 1. The user requests assistance through an organizational channel outside Colibri Hub.
-2. The System Administrator defines a new provisional password for the account.
-3. Active sessions are terminated.
-4. Mandatory password replacement is required at the next login.
-5. The event is recorded without the provisional password.
-6. The System Administrator communicates the provisional password outside Colibri Hub.
+2. The system verifies that moving the account to Awaiting Password Change would not leave Colibri Hub without an operational System Administrator.
+3. The System Administrator defines a new provisional password for the account.
+4. Active sessions are terminated.
+5. Mandatory password replacement is required at the next login.
+6. The event is recorded without the provisional password.
+7. The System Administrator communicates the provisional password outside Colibri Hub.
 
 ### Disable an account
 
@@ -241,14 +242,15 @@ Re-enabling a Disabled account also moves it to Awaiting Password Change.
 9. No self-registration, self-service recovery, or voluntary password change is available.
 10. Successful Authentication without an active Access Control profile grants no protected access.
 11. Authentication neither assigns nor evaluates roles or business permissions.
-12. A session cannot remain usable beyond its eight-hour maximum.
-13. Logout, reset, disablement, and expiration make affected sessions unusable.
-14. Disablement prevents login and inactivates the associated access profile without deleting history.
-15. Re-enablement requires a new provisional password and mandatory replacement.
-16. The last enabled System Administrator cannot be disabled.
-17. Login denial does not reveal account existence or state.
-18. Security history identifies affected accounts and acting administrators without exposing secrets.
-19. The initial System Administrator is established without self-registration and replaces the provisional password before protected access.
+12. A session cannot remain usable beyond eight hours from the login that created it, including a login performed with a provisional password.
+13. Mandatory password replacement does not restart or extend the session's original eight-hour maximum.
+14. Logout, reset, disablement, and expiration make affected sessions unusable.
+15. Disablement prevents login and inactivates the associated access profile without deleting history.
+16. Re-enablement requires a new provisional password and mandatory replacement.
+17. Disablement, administrative password reset, profile inactivation, role replacement, assignment removal, or any coordinated access change is rejected when it would leave no operational System Administrator.
+18. Login denial does not reveal account existence or state.
+19. Security history identifies affected accounts and acting administrators without exposing secrets.
+20. The initial System Administrator is established without self-registration and replaces the provisional password before protected access.
 
 ## Capability Boundaries
 

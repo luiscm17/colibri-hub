@@ -159,6 +159,14 @@ not a second application session registry. Every request also checks the local
 account and Access Control state, which makes disablement effective without
 waiting for token expiration.
 
+A successful provider login with a provisional password creates the same
+provider-owned session used by an established login. Its eight-hour maximum
+begins at that login. While the local account remains
+`awaiting_password_change`, the request pipeline restricts that session to
+`GET /api/v1/auth/me`, `POST /api/v1/auth/password-change`, and
+`DELETE /api/v1/auth/session`. Successful mandatory replacement activates the
+account but does not restart or extend the provider session.
+
 ### 5.3 Secrets and Public Configuration
 
 Backend configuration includes:
@@ -266,12 +274,13 @@ failure ordering, and typed errors.
 | Port | Responsibility |
 | --- | --- |
 | `AuthenticationAccountRepository` | Resolve and persist application account state |
-| `AuthenticationAuditRepository` | Append and query redacted authentication evidence |
-| `IdentityProviderPort` | Create identities, update credentials, ban/unban users, revoke sessions, and resolve provider-owned session state |
+| `AuthenticationAuditRepository` | Append and query redacted application-owned Authentication audits |
+| `IdentityProviderPort` | Create identities, update credentials, ban or unban users, revoke sessions, and resolve provider-owned session state |
+| `ProviderAuthenticationEvidencePort` | Query and normalize the required provider-owned Authentication audit evidence without exposing provider schemas to the application layer |
 | `AccessProvisioningPort` | Create, activate, or deactivate the associated profile and assign roles through Access application services |
 | `TransactionPort` | Commit application-owned Authentication and Access changes atomically |
 | `ClockPort` | Supply timestamps |
-| `IdentityPort` | Generate internal identifiers |
+| `IdentityPort` | Generate internal identifiers and coordinated `operation_id` values |
 
 Supabase request and response types do not cross `IdentityProviderPort`.
 
@@ -303,11 +312,13 @@ trusted as identity.
 ### 9.1 Authenticated User Commands
 
 - `GetCurrentAuthentication` returns the account state and required next step for a verified provider identity.
-- `ChangeRequiredPassword` rejects equal provisional and replacement values, updates the provider credential, moves the account to `active`, and records the event.
-- `RecordLogout` requests revocation of the current provider session when supported, records the logout, and remains idempotent when the provider session has already ended.
+- `ChangeRequiredPassword` rejects equal provisional and replacement values, updates the provider credential, moves the account to `active`, records the local transition, and preserves the original provider-session start time.
+- `RecordLogout` requests revocation of the current provider session when supported, records the local logout operation, and remains idempotent when the provider session has already ended.
 
 Ordinary credential validation, session persistence, and refresh belong to the
 Supabase client used by the frontend, not to a backend login endpoint.
+Mandatory password replacement does not create a second application session or
+restart the provider session's eight-hour maximum.
 
 ### 9.2 Administrative Commands and Queries
 
@@ -344,10 +355,14 @@ traces, audit snapshots, or validation echoes.
 Safe orchestration:
 
 1. Authenticate and authorize the acting System Administrator.
-2. Normalize email and validate local uniqueness, roles, and invariants.
-3. Create the provider identity without sending email.
-4. In one PostgreSQL transaction, create the Authentication account in `awaiting_password_change`, create the Access profile, assign roles, and append application audits.
-5. Return only non-secret identifiers and summaries.
+2. Generate one `operation_id` for the coordinated administrative operation.
+3. Normalize the email and validate local uniqueness, a non-empty set of distinct active `role_ids`, and the applicable invariants.
+4. Create the provider identity without sending email.
+5. In one PostgreSQL transaction, create the Authentication account in `awaiting_password_change`, invoke the internal Access Control provisioning service with the same `operation_id`, create the Access profile, assign the initial roles, and append the correlated application audits.
+6. Return only non-secret identifiers and summaries.
+
+Provisioning rejects an empty `role_ids` collection, duplicate role identifiers,
+inactive roles, and roles that violate Access Control assignment rules.
 
 If provider creation succeeds but application persistence fails, the newly
 created, never-established provider identity may be removed as compensation. If
@@ -407,21 +422,82 @@ after provider success.
 | Enable account | `POST` | `/api/v1/auth/accounts/{account_id}/enable` |
 | Query Authentication audits | `GET` | `/api/v1/auth/audits` |
 
-Reset and enablement receive a write-only `provisional_password` and a required
-`reason`. Disablement receives a required `reason`.
+Administrative account-detail responses expose the current optimistic-concurrency
+version:
+
+```json
+{
+  "account_id": "16a4f369-510e-47a9-a99c-6678f858afe0",
+  "email": "example.user@organization.example",
+  "display_name": "Example User",
+  "status": "active",
+  "version": 4
+}
+```
+
+The frontend must use the `version` obtained from the latest account-detail
+response as `expected_version` in the next administrative mutation.
+
+Password-reset request:
+
+```json
+{
+  "provisional_password": "temporary-secret",
+  "reason": "Administrative reset requested.",
+  "expected_version": 4
+}
+```
+
+Disablement request:
+
+```json
+{
+  "reason": "The person no longer requires access.",
+  "expected_version": 4
+}
+```
+
+Enablement request:
+
+```json
+{
+  "provisional_password": "temporary-secret",
+  "reason": "Access has been restored.",
+  "expected_version": 5
+}
+```
+
+`expected_version` is required for all three mutations. The command compares it
+with `authentication_accounts.version` inside the write transaction. A stale
+value returns `409 authentication_version_conflict` without modifying provider,
+Authentication, or Access Control state.
+
+`provisional_password` is write-only. `reason` is required and stored only in
+redacted administrative audit evidence.
 
 Provider subjects, token claims, ban values, password flags, and private
 metadata are not exposed in ordinary administrative responses.
 
 ## 12. Data Model
 
-### 12.1 Provider-Owned Identity and Sessions
+### 12.1 Provider-Owned Identity, Sessions, and Authentication Evidence
 
-Supabase Auth owns `auth.users`, credentials, and provider sessions. The backend
-may read provider session state through the provider adapter solely to validate
-the session identifier, start time, termination, and eight-hour boundary.
-Application migrations do not alter provider tables, write password hashes,
-store roles in metadata, or create a parallel `authentication_sessions` table.
+Supabase Auth owns `auth.users`, credentials, provider sessions, and native
+Authentication audit entries. Application migrations do not alter provider
+tables, write password hashes, store roles in metadata, or create a parallel
+`authentication_sessions` table.
+
+The backend uses a server-only, least-privileged provider adapter to:
+
+- resolve the verified token `session_id` against `auth.sessions`;
+- derive the session start from the corresponding provider session record;
+- verify termination and enforce the exact eight-hour boundary; and
+- read the required redacted evidence from `auth.audit_log_entries`.
+
+Neither `auth.sessions` nor `auth.audit_log_entries` is exposed to the browser or
+accessed with an end-user token. The adapter may use a restricted PostgreSQL
+connection or an equivalently restricted server-side function, but its public
+port returns provider-neutral session and audit DTOs.
 
 The Supabase user UUID is the Authentication `identity_subject`. Established
 provider identities are disabled, not physically deleted.
@@ -446,11 +522,12 @@ contradict it.
 | Column | Type | Rules |
 | --- | --- | --- |
 | `authentication_audit_id` | UUID | Primary key |
-| `event_type` | TEXT | Checked known event |
+| `operation_id` | UUID | Required identifier that correlates coordinated Authentication and Access Control application audits |
+| `event_type` | TEXT | Checked known application event |
 | `outcome` | TEXT | `succeeded` or `failed` |
 | `actor_identity_subject` | UUID | Nullable only when no authenticated actor exists |
 | `affected_account_id` | UUID | Nullable only when no account can safely be resolved |
-| `provider_session_id` | UUID | Optional correlation value; not an application session record |
+| `provider_session_id` | UUID | Optional provider-session correlation value; not an application session record |
 | `reason` | TEXT | Required for administrative mutations |
 | `details` | JSONB | Explicitly allow-listed, redacted metadata |
 | `occurred_at` | TIMESTAMPTZ | Required timestamp |
@@ -482,8 +559,14 @@ retryable failures and persist redacted synchronization evidence when possible.
 Optimistic concurrency prevents administrative mutations from silently
 overwriting a concurrent state transition.
 
-The last-System-Administrator rule is evaluated through an Access Control policy
-port; Authentication does not reproduce role semantics.
+Before disablement or administrative password reset, Authentication asks Access
+Control whether the resulting account state would leave at least one operational
+System Administrator. The same Access Control invariant covers profile
+inactivation, role replacement, and assignment removal.
+
+A rejected operation returns `409 last_system_administrator_required` before
+changing provider credentials, revoking sessions, or persisting account state.
+Authentication consumes the policy result but does not reproduce role semantics.
 
 ## 14. Initial System Administrator
 
@@ -522,9 +605,20 @@ exposed.
 
 ## 16. Audit, Observability, and Security
 
-- Administrative and user Authentication events use redacted application audits.
-- Failed login evidence may be correlated with provider evidence without revealing account existence to the caller.
-- Authorization headers, credential bodies, and token responses are explicitly redacted.
+Authentication evidence has two authoritative sources:
+
+- Supabase Auth audit evidence covers provider-observed login success, failed login, token refresh, provider logout, and provider credential operations.
+- `authentication_audits` covers application-owned provisioning, account-state transitions, mandatory password replacement, administrative reset, disablement, enablement, controlled initialization, and coordinated session termination.
+- `access_change_audits` remains authoritative for profile, role, assignment, permission, preset, and scope changes.
+
+`GET /api/v1/auth/audits` returns a paginated, redacted, provider-neutral view of
+the applicable Supabase and application-owned evidence. Every item identifies
+its source. Provider entries are not duplicated into `authentication_audits`;
+coordinated application-owned Authentication and Access Control entries are
+correlated by `operation_id`.
+
+- Failed login evidence never reveals account existence to the caller.
+- Authorization headers, credential bodies, token responses, and provider secrets are explicitly redacted.
 - Metrics contain no identity or credential values.
 - Administrative provider operations execute only on the backend.
 - Public signup and unsupported providers remain disabled.

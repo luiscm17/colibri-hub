@@ -37,7 +37,7 @@ flowchart TD
     B -->|Change required| C[Mandatory password page]
     B -->|Active| D[Load Access profile]
     B -->|Denied| E[Login page]
-    C --> D
+    C -->|Password replaced; same time-box| D
     D --> F[Authorized application]
 ```
 
@@ -170,6 +170,7 @@ export interface AuthenticationAccountSummary {
   email: string
   displayName: string
   initials: string
+  version: number
 }
 ```
 
@@ -292,10 +293,11 @@ The login form contains:
 
 1. Call `supabase.auth.signInWithPassword({ email, password })` through the provider adapter.
 2. On provider denial, clear the password and show the generic Authentication failure message.
-3. On success, make the provider access token available to the HTTP client.
+3. On success, treat the resulting provider session as the start of the fixed eight-hour maximum and make its access token available only to the HTTP client.
 4. Call `GET /api/v1/auth/me` to validate the Colibri Hub account state.
-5. Route to mandatory password replacement or begin Access bootstrap according to `next_step`.
-6. After Access loads, navigate to the first authorized destination rather than a hard-coded workspace.
+5. For `next_step=change_password`, keep the same session restricted to Authentication state inspection, mandatory replacement, and logout.
+6. For `next_step=load_access`, begin Access bootstrap.
+7. After Access loads, navigate to the first authorized destination rather than a hard-coded workspace.
 
 The provider's error details are mapped to a stable generic UI result and do not
 reveal whether the email exists, the password failed, or the account is disabled.
@@ -327,15 +329,21 @@ storage.
 1. Submit `POST /api/v1/auth/password-change` with current and new passwords.
 2. The backend updates the provider credential and local account atomically as far as the provider boundary permits.
 3. Clear all password fields.
-4. Revalidate `GET /api/v1/auth/me`.
-5. When active, begin Access bootstrap and navigate to an authorized destination.
+4. Revalidate `GET /api/v1/auth/me` with the existing provider session.
+5. When active, begin Access bootstrap and navigate to an authorized destination without restarting the session's original eight-hour maximum.
+6. If the provider invalidated the session during the credential update, clear local Authentication and Access state and return to login; do not create or imply a renewed session automatically.
+
+Mandatory replacement does not create a new session or restart the existing
+session's eight-hour maximum. After `/auth/me` reports `next_step=load_access`,
+the existing provider session may continue for the remainder of its original
+maximum duration.
 
 ## 11. Logout and Expiration
 
 Logout executes in this order:
 
-1. Call `DELETE /api/v1/auth/session` while the token is available so the backend can revoke and audit the provider session.
-2. Call provider `signOut` locally even when the backend response is unavailable.
+1. Call `DELETE /api/v1/auth/session` while the token is available so the backend can revoke and audit the current provider session.
+2. Call `supabase.auth.signOut({ scope: 'local' })` through the provider adapter even when the backend response is unavailable.
 3. Clear the token accessor, Authentication state, Access state, sensitive caches, and protected query data.
 4. Navigate to login.
 
@@ -383,6 +391,33 @@ and refresh use the Supabase browser SDK.
 | Enable account | `POST` | `/api/v1/auth/accounts/{account_id}/enable` |
 | Query Authentication audits | `GET` | `/api/v1/auth/audits` |
 
+Account detail and mutation responses include the current non-secret
+`version`. Versioned administrative requests use these bodies:
+
+```json
+{
+  "provisional_password": "temporary-secret",
+  "reason": "Administrative reset requested.",
+  "expected_version": 4
+}
+```
+
+```json
+{
+  "reason": "The person no longer requires access.",
+  "expected_version": 4
+}
+```
+
+```json
+{
+  "provisional_password": "temporary-secret",
+  "reason": "Access restored after organizational review.",
+  "expected_version": 5
+}
+```
+
+The bodies apply respectively to password reset, disablement, and enablement.
 The role selector in provisioning consumes `GET /api/v1/access/roles`.
 Subsequent authorization state comes from `/api/v1/access/me`.
 
@@ -410,7 +445,8 @@ The list supports status and text filters and displays:
 - available administrative actions.
 
 The detail view separates Authentication information from Access Control
-information visually. It never displays provider subjects, tokens, password
+information visually and retains the loaded Authentication `version` for
+versioned mutations. It never displays provider subjects, tokens, password
 flags, private metadata, or credential history.
 
 ### 14.3 Provisioning Form
@@ -430,21 +466,25 @@ provisional password outside Colibri Hub.
 
 ### 14.4 Password Reset
 
-Reset requires a new provisional password, confirmation, and reason. The
-confirmation dialog explains that active sessions will end and that mandatory
-replacement is required at the next login. The resulting account state is
-Awaiting Password Change.
+Reset requires a new provisional password, confirmation, reason, and the
+account's loaded `expected_version`. The confirmation dialog explains that
+active sessions will end and that mandatory replacement is required at the next
+login. The resulting account state is Awaiting Password Change. Reset of the
+last operational System Administrator is blocked with the same invariant
+message used for other changes that would leave the system without
+administrative coverage.
 
 ### 14.5 Disablement and Enablement
 
-Disablement requires a reason and explicit confirmation. The UI explains that
-login, active sessions, and the Access profile are affected while history is
-preserved. The last-System-Administrator error is presented as a blocked action,
-not as a recoverable validation warning.
+Disablement requires a reason, the loaded `expected_version`, and explicit
+confirmation. The UI explains that login, active sessions, and the Access
+profile are affected while history is preserved. The
+last-System-Administrator error is presented as a blocked action, not as a
+recoverable validation warning.
 
 Enablement requires review of the access profile and roles, a new provisional
-password, confirmation, and reason. The account remains awaiting mandatory
-replacement after success.
+password, confirmation, reason, and the loaded `expected_version`. The account
+remains awaiting mandatory replacement after success.
 
 ## 15. Route Boundaries and Navigation
 
@@ -470,7 +510,11 @@ no-active-access page.
 | `403 access_denied` | Show authorization denial without clearing a valid session |
 | `409 duplicate_authentication_email` | Mark the email field |
 | `409 last_system_administrator_required` | Block action and explain the invariant |
-| `409 authentication_version_conflict` | Reload account data before retry |
+| `404 authentication_account_not_found` | Close or replace stale detail data and show that the account no longer exists |
+| `409 authentication_version_conflict` | Preserve non-secret input, reload account data, and require a new confirmation |
+| `409 authentication_account_state_conflict` | Preserve non-secret input, reload the current state, and reassess available actions |
+| `409 authentication_identity_conflict` | Stop the administrative flow and show a non-recoverable account-identity conflict |
+| `422 authentication_change_reason_required` | Mark the administrative reason field |
 | `422 replacement_password_must_differ` | Mark the new-password field |
 | `422 weak_password` | Show safe password-policy guidance |
 | `503 authentication_provider_unavailable` | Preserve non-secret form data where safe and offer retry |
@@ -515,7 +559,8 @@ explicit confirmation and deterministic disabled states.
 - Provider login maps success and failure without exposing provider messages.
 - Session restore is not trusted before `/auth/me` succeeds.
 - Refresh updates only the central token accessor.
-- Sign-out clears all Authentication and Access state.
+- Logout invokes provider sign-out with `scope: 'local'` and clears all Authentication and Access state.
+- Mandatory replacement preserves the original session time-box and handles provider invalidation by returning to login.
 
 ### 19.2 Component and Integration Tests
 
@@ -523,6 +568,9 @@ explicit confirmation and deterministic disabled states.
 - Mandatory replacement route isolation and password clearing.
 - HTTP bearer attachment and centralized `401`/`403` behavior.
 - Provisioning, reset, disablement, and enablement forms never echo secrets.
+- Reset, disablement, and enablement submit the loaded `expected_version` and preserve non-secret drafts on conflict.
+- Password reset and disablement both render the last-System-Administrator invariant as a blocked action.
+- Every documented backend Authentication error maps to stable UI behavior.
 - Account administration requires effective `Manage Access`.
 - Active Authentication loads Access exactly once per resolved transition.
 - Default navigation uses effective permissions rather than role names.
@@ -530,7 +578,8 @@ explicit confirmation and deterministic disabled states.
 ### 19.3 End-to-End Scenarios
 
 - Controlled initial administrator password replacement.
-- Unified provisioning through first access.
+- Unified provisioning rejects empty initial roles and proceeds through first access.
+- Provisional login starts a restricted session whose time-box is not restarted by mandatory replacement.
 - Established login, page refresh, and provider token refresh.
 - Eight-hour provider session expiration.
 - Logout and attempted session reuse.
