@@ -2,7 +2,7 @@
 
 **Mode:** Standard (`strict_tdd: false`)
 **Delivery:** `auto-chain`, `feature-branch-chain`
-**Current recorded boundary:** PR #2 `back/access-auth-spine-persistence` targets `back/access-auth-spine` after PR #1 merged.
+**PR #3 provenance:** branch `back/access-auth-spine-http` was created from merged tracker `origin/back/access-auth-spine` at `d83eb17` (`d83eb173cc70a351904b0a6112aa8aacada09425`); its PR targets `back/access-auth-spine`.
 **Artifact continuity correction:** This document consolidates the earlier blocked planning attempt, approved replan, PR #1 completion, initial PR #2 blocker, and the maintainer-authorized PR #2 correction. No implementation or verification was performed by this artifact-only update.
 
 ## Cumulative Status
@@ -13,10 +13,10 @@
 - [x] 2.1 SQLAlchemy persistence and registry
 - [x] 2.2 Migration safeguards
 - [x] 2.3 PostgreSQL persistence proof
-- [ ] 3.1–3.4 HTTP, composition, and Warehouse integration
-- [ ] 4.1 Final chain verification
+- [x] 3.1–3.4 HTTP, composition, and Warehouse integration
+- [x] 4.1 Final chain verification
 
-**Task total:** 6/11 complete. Phase 3 and Phase 4 remain pending.
+**Task total:** 11/11 complete. All phases are complete.
 
 ## History: Original Blocked Forecast and Approved Replan
 
@@ -37,7 +37,7 @@ The maintainer-approved replan changed delivery to three `feature-branch-chain` 
 2. PR #2: persistence, migration, safeguards, and PostgreSQL proof, estimated ~720 lines.
 3. PR #3: HTTP/composition/Warehouse integration, estimated ~360 lines.
 
-PR #1 and PR #2 retain High 400-line review risk but remain within the approved 800-line slice budget. In this chain, each child targets its immediate parent; no child targets `main` directly.
+PR #1 and PR #2 retain High 400-line review risk but remain within the approved 800-line slice budget. Each completed slice targets tracker `back/access-auth-spine` after its predecessor has merged there; no child targets `main` directly.
 
 ## Completed PR #1: Domain and Application
 
@@ -84,3 +84,23 @@ The maintainer authorized only stale expectation alignment and the Access servic
 ## Preserved Boundaries
 
 No HTTP, FastAPI, CORS, Warehouse authorization port, Authentication/Supabase Auth, frontend, or Phase 3/4 behavior was implemented in PR #2. No packages were installed and no commit, push, PR, review-lifecycle, or native-attempt-state operation was performed.
+## Completed PR #3: HTTP, Composition, and Warehouse Gate
+**Branch/scope:** `back/access-auth-spine-http`, created from merged tracker `origin/back/access-auth-spine` at `d83eb17` (`d83eb173cc70a351904b0a6112aa8aacada09425`) and targeting `back/access-auth-spine`; Access self HTTP, Access-to-Warehouse adapter, fail-closed identity seam, CORS header, and only the bale-registration authorization gate. No Authentication provider, migration, package, frontend, other route protection, commit, push, PR, review, or native-attempt operation was performed.
+**Deployment constraint — Critical, known and intentional:** production HTTP fails closed with `401` until a future Authentication adapter supplies validated trusted identities. This is not an implementation failure; deployment cannot provide protected access before that successor capability exists.
+| Evidence | Recorded result |
+|---|---|
+| Focused HTTP/composition tests | `uv run --locked --package backend python -m unittest backend.tests.api.test_access_http_authorization backend.tests.api.test_registration_endpoint backend.tests.api.test_openapi backend.tests.runtime.test_composition -v` — exit 0; 14 passed. |
+| Runtime harness | The focused TestClient suite proved production `create_app` returns `401` without an identity resolver, accepts deterministic injected identities, returns ordinary/global `/access/me` snapshots, returns specific missing/inactive self outcomes, returns generic `403 access_denied` before invalid request mapping or mutation, and accepts the CORS `Authorization` request header. No server process was started. |
+| Full unit suite | `uv run --locked --package backend python -m unittest discover -s backend/tests -v` — exit 0; 43 passed. The only output was the existing FastAPI/Starlette TestClient deprecation warning. |
+| Guarded PostgreSQL integration suite | `TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres uv run --locked --package backend python -m unittest discover -s backend/integration_tests -v` — exit 0; 14 passed. No reset or schema change was needed. |
+| Diff hygiene | `git diff --check -- backend/src/access backend/src/bootstrap backend/src/warehouse backend/tests/api` — exit 0. |
+| Cleanup/process evidence | TestClient was in-process; no server was started. `pgrep -af 'python.*(unittest|fastapi|uvicorn)'` reported only the checking shell process after verification. |
+| Rollback boundary | Revert only PR #3 `backend/src/access/adapters/{http_router,warehouse_authorization}.py`, `backend/src/warehouse/bales/ports/authorization.py`, the listed bootstrap/Warehouse HTTP files, and API/composition tests; retain PR #1–2 domain/persistence/migration work. |
+## Completed Phase 4: Chain Verification
+
+- **Base and merged boundaries:** `origin/back/access-auth-spine` resolves to `d83eb173cc70a351904b0a6112aa8aacada09425`; PR #37 merged core into that tracker at `de57496`, and PR #38 merged persistence at `d83eb17`. The HTTP worktree is based directly on that merged tracker, so no PR #1/PR #2 paths replay in the intended PR #3 set.
+- **Intended path boundary and count:** only the HTTP/composition/Warehouse source paths, their API/runtime tests, and these two SDD artifacts are included. They measure **466 implementation/test + 50 SDD artifact = 516 additions plus deletions**; **496** and **503** remain historical intermediate counts only.
+- **Explicit preservation/exclusion:** unstaged unrelated `main.py`, root `pyproject.toml`, and `uv.lock` remain preserved and excluded; they are not PR #3 pollution because manual delivery MUST selectively stage only the intended paths.
+- **Focused evidence:** read-only Git/GitHub checks confirmed PR #37/#38 merged bases, the direct `d83eb17` base, intended-path-only source/test accounting, and absence of PR #1/PR #2 replay. No tests, installs, database reset, commit, push, PR, review, or native-attempt action ran.
+- **Runtime harness:** N/A for this final read-only chain-verification unit; the persisted PR #3 TestClient runtime evidence remains the applicable runtime proof.
+- **Rollback boundary:** revert only the intended PR #3 HTTP/composition/Warehouse source and API/runtime test paths plus `openspec/changes/access-auth-spine/{tasks,apply-progress}.md`; retain PR #1/PR #2 and all explicitly excluded unrelated paths.

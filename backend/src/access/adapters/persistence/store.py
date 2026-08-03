@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from contextlib import contextmanager
 
 from sqlalchemy import select
@@ -15,7 +16,7 @@ class PostgresAccessStore:
         self._session = session
 
     @contextmanager
-    def serialized(self):
+    def serialized(self) -> Iterator[None]:
         with self._session.begin():
             self._session.execute(select(AccessBootstrapLockRecord).where(AccessBootstrapLockRecord.id == 1).with_for_update()).scalar_one()
             role = self._session.execute(select(AccessRoleRecord).where(AccessRoleRecord.code == SYSTEM_ADMINISTRATOR).with_for_update()).scalar_one_or_none()
