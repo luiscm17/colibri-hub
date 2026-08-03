@@ -30,6 +30,7 @@ from warehouse.bales.application.errors import (
     InvalidStatusFilterError,
 )
 from warehouse.bales.domain.domain_errors import DomainError
+from warehouse.bales.ports.authorization import AuthorizationDenied
 
 
 logger = logging.getLogger(__name__)
@@ -80,6 +81,10 @@ def register_exception_handlers(app: FastAPI) -> None:
         DomainError,
         cast(ExceptionHandler, domain_error_handler),
     )
+    app.add_exception_handler(
+        AuthorizationDenied,
+        cast(ExceptionHandler, authorization_denied_handler),
+    )
     # Framework and generic handlers (least specific)
     app.add_exception_handler(
         RequestValidationError,
@@ -115,6 +120,18 @@ async def request_validation_error_handler(
         code="request_validation_error",
         message="The request is invalid.",
         fields=fields,
+    )
+
+
+async def authorization_denied_handler(
+    request: Request, error: AuthorizationDenied
+) -> JSONResponse:
+    """Return the same generic business denial for every Access failure."""
+    del request, error
+    return error_json_response(
+        status_code=status.HTTP_403_FORBIDDEN,
+        code="access_denied",
+        message="Access is denied.",
     )
 
 

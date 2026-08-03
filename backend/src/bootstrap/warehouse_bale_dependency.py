@@ -1,8 +1,11 @@
+from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
+from access.adapters.persistence.store import PostgresAccessStore
+from access.application.services import AccessApplication
 from bootstrap.database_session_dependency import SessionProvider
 from warehouse.bales.adapters.http.router import BaleUseCases, UseCaseProvider
 from warehouse.bales.adapters.identity.identity_generator import Uuid4IdentityGenerator
@@ -23,6 +26,19 @@ from warehouse.bales.application.get_stock_summary import GetStockSummary
 from warehouse.bales.application.register_raw_material_batch import (
     RegisterRawMaterialBatch,
 )
+
+
+def access_application_dependency(
+    session_provider: SessionProvider,
+) -> Callable[..., AccessApplication]:
+    """Build the request-scoped Access application dependency."""
+
+    def provide_access_application(
+        session: Annotated[Session, Depends(session_provider)],
+    ) -> AccessApplication:
+        return AccessApplication(PostgresAccessStore(session))
+
+    return provide_access_application
 
 
 def build_use_cases(session: Session) -> BaleUseCases:

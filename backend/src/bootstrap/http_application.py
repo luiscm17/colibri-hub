@@ -1,7 +1,8 @@
 from collections.abc import Callable
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
@@ -13,17 +14,31 @@ from bootstrap.database_session_dependency import (
 from bootstrap.api_router import create_api_router
 from bootstrap.http_error_handlers import register_exception_handlers
 from bootstrap.warehouse_bale_dependency import (
+    access_application_dependency,
     use_case_dependency,
 )
+from access.adapters.http_router import AccessApplicationProvider
+from access.adapters.warehouse_authorization import WarehouseAuthorizationAdapter
+from access.application.services import AccessApplication
 from infra.configuration import ApplicationSettings, DatabaseSettings
 from infra.persistence.database_engine import create_db_engine
 from infra.persistence.database_session_factory import create_session_factory
+from warehouse.bales.ports.authorization import (
+    AuthenticatedIdentity,
+    AuthorizationPort,
+    IdentityResolver,
+)
 
 EngineFactory = Callable[[DatabaseSettings], Engine]
 """Type alias for a factory that creates a database Engine from settings."""
 
 SessionFactoryBuilder = Callable[[Engine], Callable[[], Session]]
 """Type alias for a factory that builds a session factory from an Engine."""
+
+
+def unauthenticated_identity() -> AuthenticatedIdentity:
+    """Fail closed until Authentication provides a validated identity."""
+    raise HTTPException(status_code=401, detail="authentication_required")
 
 
 def create_app(
@@ -34,6 +49,7 @@ def create_app(
     session_factory: SessionFactory | None = None,
     engine_factory: EngineFactory = create_db_engine,
     session_factory_builder: SessionFactoryBuilder = create_session_factory,
+    identity_resolver: IdentityResolver = unauthenticated_identity,
 ) -> FastAPI:
     """Create and configure the FastAPI application.
     
@@ -63,6 +79,14 @@ def create_app(
 
     session_provider = session_dependency(session_factory)
     use_case_provider = use_case_dependency(session_provider)
+    access_application_provider = access_application_dependency(session_provider)
+
+    def authorization_provider(
+        access_application: Annotated[
+            AccessApplication, Depends(access_application_provider)
+        ],
+    ) -> AuthorizationPort:
+        return WarehouseAuthorizationAdapter(access_application)
 
     app = FastAPI()
 
@@ -71,10 +95,17 @@ def create_app(
             CORSMiddleware,
             allow_origins=resolved_settings.cors.allowed_origins,
             allow_methods=["GET", "POST"],
-            allow_headers=["Content-Type"],
+            allow_headers=["Content-Type", "Authorization"],
         )
 
     register_exception_handlers(app)
 
-    app.include_router(create_api_router(use_case_provider))
+    app.include_router(
+        create_api_router(
+            use_case_provider,
+            identity_resolver,
+            authorization_provider,
+            access_application_provider,
+        )
+    )
     return app

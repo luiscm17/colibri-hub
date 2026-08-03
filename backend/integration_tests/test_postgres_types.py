@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime, timezone
+from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 
@@ -21,11 +21,11 @@ class PostgreSQLTypeRoundTripTests(unittest.TestCase):
     def setUp(self) -> None:
         cleanup_slice_five_rows(self.engine)
 
-    def test_aware_timestamp_and_decimals_round_trip_through_postgresql(self) -> None:
+    def test_date_and_decimals_round_trip_through_postgresql(self) -> None:
         batch_id, bale_id = uuid4(), uuid4()
         shipment_number = f"S5{batch_id.hex[:8].upper()}"
         bale_number = f"S5{bale_id.hex[:8].upper()}"
-        received_at = datetime(2026, 7, 25, 15, 30, tzinfo=timezone.utc)
+        received_at = date(2026, 7, 25)
         with self.engine.begin() as connection:
             connection.execute(text("INSERT INTO raw_material_batches (id, received_at, shipment_number, provider_name) VALUES (:id, :received_at, :shipment_number, 'slice5-test')"), {"id": batch_id, "received_at": received_at, "shipment_number": shipment_number})
             connection.execute(text("INSERT INTO raw_material_bales (id, raw_material_batch_id, bale_number, material_type, dtex, gross_weight_kg, container_weight_kg, status) VALUES (:id, :batch_id, :bale_number, 'COTTON', :dtex, :gross_weight_kg, :container_weight_kg, 'in_warehouse')"), {"id": bale_id, "batch_id": batch_id, "bale_number": bale_number, "dtex": Decimal("167.25"), "gross_weight_kg": Decimal("42.75"), "container_weight_kg": Decimal("0.25")})

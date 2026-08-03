@@ -19,6 +19,7 @@ from warehouse.bales.application import (
     RegisterRawMaterialBatchResult,
 )
 from warehouse.bales.domain.domain_errors import InvalidDtexError
+from warehouse.bales.ports.authorization import AuthenticatedIdentity
 
 
 class RecordingUseCase:
@@ -42,6 +43,11 @@ class _StubUseCase:
 
     def execute(self, *args: object, **kwargs: object) -> None:
         raise NotImplementedError("Stub use case — should not be called.")
+
+
+class _AllowAuthorization:
+    def require(self, *args: object, **kwargs: object) -> None:
+        return None
 
 
 def registration_result() -> RegisterRawMaterialBatchResult:
@@ -69,7 +75,14 @@ def client_for(
     )
     app = FastAPI()
     register_exception_handlers(app)
-    app.include_router(create_api_router(lambda: use_cases))
+    app.include_router(
+        create_api_router(
+            lambda: use_cases,
+            lambda: AuthenticatedIdentity("test-subject"),
+            lambda: _AllowAuthorization(),
+            lambda: object(),  # type: ignore[return-value]
+        )
+    )
     return TestClient(app, raise_server_exceptions=False), use_case
 
 

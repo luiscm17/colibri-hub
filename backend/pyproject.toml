@@ -17,4 +17,4 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["warehouse*", "infra*", "bootstrap*"]
+include = ["warehouse*", "infra*", "bootstrap*", "access*"]
