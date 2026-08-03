@@ -6,7 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
-from access.adapters.persistence.store import PostgresAccessStore
+from access.adapters.persistence.store import AccessStoreAdapter
 from access.application.services import AccessApplication, BootstrapConflict, FinalAdministratorRemoval, MutationCommand
 from access.domain.models import SYSTEM_ADMINISTRATOR
 from backend.integration_tests.database_test_support import test_engine
@@ -18,7 +18,7 @@ class AccessPostgreSQLTests(unittest.TestCase):
         cls.engine = test_engine()
         cls.tag = uuid4().hex
         session = Session(cls.engine)
-        AccessApplication(PostgresAccessStore(session)).bootstrap(f"subject-{cls.tag}", f"PROFILE-{cls.tag}", f"bootstrap-{cls.tag}")
+        AccessApplication(AccessStoreAdapter(session)).bootstrap(f"subject-{cls.tag}", f"PROFILE-{cls.tag}", f"bootstrap-{cls.tag}")
         session.close()
 
     @classmethod
@@ -27,7 +27,7 @@ class AccessPostgreSQLTests(unittest.TestCase):
 
     def app(self):
         session = Session(self.engine)
-        return session, AccessApplication(PostgresAccessStore(session))
+        return session, AccessApplication(AccessStoreAdapter(session))
 
     def bootstrap(self):
         session, app = self.app(); tag = uuid4().hex
@@ -41,7 +41,7 @@ class AccessPostgreSQLTests(unittest.TestCase):
         self.assertEqual(session.execute(text("select array_agg(code order by code) from access_scopes")).scalar_one()[-2:], ["access_control", "warehouse.raw_materials"])
         session.close()
         partial = Session(self.engine); partial.execute(text("insert into access_scopes (code) values (:code)"), {"code": f"partial-{uuid4().hex}"}); partial.commit()
-        with self.assertRaises(BootstrapConflict): AccessApplication(PostgresAccessStore(partial)).bootstrap("partial-subject", "PARTIAL", "partial-op")
+        with self.assertRaises(BootstrapConflict): AccessApplication(AccessStoreAdapter(partial)).bootstrap("partial-subject", "PARTIAL", "partial-op")
         partial.close()
 
     def test_constraints_immutable_history_and_restricted_roles(self):

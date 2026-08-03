@@ -1,5 +1,5 @@
 """PostgreSQL persistence adapter for Access application ports."""
 
-from access.adapters.persistence.store import PostgresAccessStore
+from access.adapters.persistence.store import AccessStoreAdapter
 
-__all__ = ["PostgresAccessStore"]
+__all__ = ["AccessStoreAdapter"]
