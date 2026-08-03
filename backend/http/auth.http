@@ -1,0 +1,132 @@
+### Variables
+@host = http://127.0.0.1:8000
+@supabase = http://127.0.0.1:54321
+@anon_key = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+@token = <paste_access_token_here>
+
+### ─────────────────────────────────────────────────────
+### Sign in (Supabase Auth) — get access_token
+### ─────────────────────────────────────────────────────
+
+POST {{supabase}}/auth/v1/token?grant_type=password
+apikey: {{anon_key}}
+Content-Type: application/json
+
+{
+  "email": "admin@colibri.test",
+  "password": "TestAdmin123!"
+}
+
+### ─────────────────────────────────────────────────────
+### GET /auth/me — current authentication state
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/auth/me
+Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────────────────
+### POST /auth/password-change — mandatory replacement
+### ─────────────────────────────────────────────────────
+
+POST {{host}}/api/v1/auth/password-change
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "current_password": "TestAdmin123!",
+  "new_password": "NewSecurePass456!"
+}
+
+### ─────────────────────────────────────────────────────
+### DELETE /auth/session — logout
+### ─────────────────────────────────────────────────────
+
+DELETE {{host}}/api/v1/auth/session
+Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────────────────
+### GET /auth/accounts — list all accounts (admin)
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/auth/accounts
+Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────────────────
+### POST /auth/accounts — provision new account (admin)
+### ─────────────────────────────────────────────────────
+
+POST {{host}}/api/v1/auth/accounts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "email": "operator@colibri.test",
+  "provisional_password": "TempPass123!",
+  "user_code": "USR-002",
+  "display_name": "Operator User",
+  "role_codes": ["operator"],
+  "reason": "New operator for spinning section"
+}
+
+### ─────────────────────────────────────────────────────
+### GET /auth/accounts/{id} — get account detail (admin)
+### ─────────────────────────────────────────────────────
+
+@account_id = <paste_account_id_here>
+
+GET {{host}}/api/v1/auth/accounts/{{account_id}}
+Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────────────────
+### POST /auth/accounts/{id}/password-reset (admin)
+### ─────────────────────────────────────────────────────
+
+POST {{host}}/api/v1/auth/accounts/{{account_id}}/password-reset
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "provisional_password": "ResetTemp789!",
+  "reason": "User forgot password",
+  "expected_version": 1
+}
+
+### ─────────────────────────────────────────────────────
+### POST /auth/accounts/{id}/disable (admin)
+### ─────────────────────────────────────────────────────
+
+POST {{host}}/api/v1/auth/accounts/{{account_id}}/disable
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "reason": "User no longer with organization",
+  "expected_version": 1
+}
+
+### ─────────────────────────────────────────────────────
+### POST /auth/accounts/{id}/enable (admin)
+### ─────────────────────────────────────────────────────
+
+POST {{host}}/api/v1/auth/accounts/{{account_id}}/enable
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "provisional_password": "EnableTemp321!",
+  "reason": "User reinstated",
+  "expected_version": 2
+}
+
+### ─────────────────────────────────────────────────────
+### GET /auth/audits — authentication audit history
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/auth/audits
+Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────────────────
+### Unauthenticated request — should return 401
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/auth/me

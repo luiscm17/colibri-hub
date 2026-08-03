@@ -2,7 +2,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
@@ -49,13 +49,14 @@ def create_app(
     session_factory: SessionFactory | None = None,
     engine_factory: EngineFactory = create_db_engine,
     session_factory_builder: SessionFactoryBuilder = create_session_factory,
-    identity_resolver: IdentityResolver = unauthenticated_identity,
+    identity_resolver: IdentityResolver | None = None,
 ) -> FastAPI:
     """Create and configure the FastAPI application.
-    
-    Composes settings, database engine, session factory, exception handlers,
-    and all API routes. Accepts optional overrides for testability.
-    
+
+    When auth provider settings are present and no explicit identity_resolver is
+    provided, composes the real TokenValidatorAdapter as the identity resolver
+    and mounts the auth HTTP router with real use cases.
+
     Args:
         settings: Pre-resolved application settings. Resolved from env if omitted.
         settings_env_file: Optional .env file path for settings resolution.
@@ -63,7 +64,10 @@ def create_app(
         session_factory: Pre-built session factory. Created from engine if omitted.
         engine_factory: Factory to create an engine (injectable for testing).
         session_factory_builder: Factory to create a session factory (injectable).
-    
+        identity_resolver: Override identity resolution (for testing). When None,
+            uses TokenValidatorAdapter if auth provider config is present, otherwise
+            fails closed with 401.
+
     Returns:
         Configured FastAPI application ready to serve requests.
     """
@@ -81,6 +85,18 @@ def create_app(
     use_case_provider = use_case_dependency(session_provider)
     access_application_provider = access_application_dependency(session_provider)
 
+    # Resolve identity resolver and auth use case provider
+    auth_use_case_provider = None
+
+    if identity_resolver is not None:
+        resolved_identity_resolver = identity_resolver
+    elif resolved_settings is not None and resolved_settings.auth_provider is not None:
+        resolved_identity_resolver, auth_use_case_provider = (
+            _compose_auth(resolved_settings, session_provider)
+        )
+    else:
+        resolved_identity_resolver = unauthenticated_identity
+
     def authorization_provider(
         access_application: Annotated[
             AccessApplication, Depends(access_application_provider)
@@ -94,7 +110,7 @@ def create_app(
         app.add_middleware(
             CORSMiddleware,
             allow_origins=resolved_settings.cors.allowed_origins,
-            allow_methods=["GET", "POST"],
+            allow_methods=["GET", "POST", "DELETE"],
             allow_headers=["Content-Type", "Authorization"],
         )
 
@@ -103,9 +119,155 @@ def create_app(
     app.include_router(
         create_api_router(
             use_case_provider,
-            identity_resolver,
+            resolved_identity_resolver,
             authorization_provider,
             access_application_provider,
+            auth_use_case_provider,
         )
     )
     return app
+
+
+def _compose_auth(
+    settings: ApplicationSettings,
+    session_provider: Callable,
+) -> tuple[IdentityResolver, Callable]:
+    """Compose the real authentication stack from provider settings.
+
+    Returns the identity resolver (JWT validator) and the auth use case factory.
+    """
+    from supabase import create_client
+
+    from auth.adapters.identity_provider.admin_client import IdentityProviderAdapter
+    from auth.adapters.identity_provider.jwt_validator import TokenValidatorAdapter
+    from auth.adapters.persistence.repositories import (
+        AccountRepositoryAdapter,
+        AuditRepositoryAdapter,
+    )
+    from auth.application.change_required_password import ChangeRequiredPassword
+    from auth.application.disable_account import DisableAccount
+    from auth.application.enable_account import EnableAccount
+    from auth.application.get_account import GetAccount
+    from auth.application.get_current_authentication import GetCurrentAuthentication
+    from auth.application.list_accounts import ListAccounts
+    from auth.application.list_audits import ListAudits
+    from auth.application.provision_account import ProvisionAccount
+    from auth.application.record_logout import RecordLogout
+    from auth.application.reset_password import ResetPassword
+    from infra.persistence.record_registry import register_auth_records
+
+    register_auth_records()
+
+    provider_settings = settings.auth_provider
+    assert provider_settings is not None
+
+    jwt_secret = provider_settings.jwt_secret.get_secret_value()
+    service_role_key = provider_settings.service_role_key.get_secret_value()
+
+    # Create admin client for server-side identity operations
+    provider_client = create_client(provider_settings.url, service_role_key)
+    identity_provider = IdentityProviderAdapter(provider_client)
+
+    # Token validator as the identity resolver (JWKS preferred, HMAC fallback)
+    jwks_url = f"{provider_settings.url}/auth/v1/.well-known/jwks.json"
+    token_validator = TokenValidatorAdapter(
+        jwks_url=jwks_url,
+        jwt_secret=jwt_secret,
+    )
+
+    def identity_resolver(request: Request) -> AuthenticatedIdentity:
+        return token_validator.resolve_identity(request)
+
+    # Auth use case factory (builds fresh use cases per request with DB session)
+    class _FakeClock:
+        def now(self):
+            from datetime import datetime, timezone
+            return datetime.now(timezone.utc)
+
+    class _FakeIdentity:
+        def generate_id(self):
+            from uuid import uuid4
+            return str(uuid4())
+
+        def generate_operation_id(self):
+            from uuid import uuid4
+            return str(uuid4())
+
+    class _FakeAccessProvisioning:
+        """Stub until AccessApplication exposes a provision_profile method.
+
+        TODO: Replace with a real adapter that calls AccessApplication once the
+        Access spine adds coordinated provisioning (create profile + assign roles).
+        Tracked in: openspec/changes/authentication-foundation/exploration.md
+        (Gap: "AccessApplication lacks a provisioning method").
+        """
+
+        def provision_profile(self, **kwargs): pass
+        def activate_profile(self, **kwargs): pass
+        def deactivate_profile(self, **kwargs): pass
+        def would_remove_last_administrator(self, subject): return False
+
+    clock = _FakeClock()
+    identity_gen = _FakeIdentity()
+    access_provisioning = _FakeAccessProvisioning()
+
+    def auth_use_case_factory(
+        session: Annotated[Session, Depends(session_provider)],
+    ) -> dict:
+        account_repo = AccountRepositoryAdapter(session)
+        audit_repo = AuditRepositoryAdapter(session)
+
+        return {
+            "get_current_authentication": GetCurrentAuthentication(account_repo),
+            "change_required_password": ChangeRequiredPassword(
+                account_repository=account_repo,
+                audit_repository=audit_repo,
+                identity_provider=identity_provider,
+                clock=clock,
+                identity=identity_gen,
+            ),
+            "record_logout": RecordLogout(
+                account_repository=account_repo,
+                audit_repository=audit_repo,
+                identity_provider=identity_provider,
+                clock=clock,
+                identity=identity_gen,
+            ),
+            "provision_account": ProvisionAccount(
+                account_repository=account_repo,
+                audit_repository=audit_repo,
+                identity_provider=identity_provider,
+                access_provisioning=access_provisioning,
+                clock=clock,
+                identity=identity_gen,
+            ),
+            "reset_password": ResetPassword(
+                account_repository=account_repo,
+                audit_repository=audit_repo,
+                identity_provider=identity_provider,
+                access_provisioning=access_provisioning,
+                clock=clock,
+                identity=identity_gen,
+            ),
+            "disable_account": DisableAccount(
+                account_repository=account_repo,
+                audit_repository=audit_repo,
+                identity_provider=identity_provider,
+                access_provisioning=access_provisioning,
+                clock=clock,
+                identity=identity_gen,
+            ),
+            "enable_account": EnableAccount(
+                account_repository=account_repo,
+                audit_repository=audit_repo,
+                identity_provider=identity_provider,
+                access_provisioning=access_provisioning,
+                clock=clock,
+                identity=identity_gen,
+            ),
+            "get_account": GetAccount(account_repo),
+            "list_accounts": ListAccounts(account_repo),
+            "list_audits": ListAudits(audit_repo),
+        }
+
+    return identity_resolver, auth_use_case_factory

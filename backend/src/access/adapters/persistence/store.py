@@ -9,8 +9,8 @@ from access.ports import AccessState, AuditCommand
 from access.adapters.persistence.records import AccessBootstrapLockRecord, AccessChangeAuditRecord, AccessProfileRecord, AccessRoleAssignmentRecord, AccessRolePermissionRecord, AccessRoleRecord, AccessScopeRecord
 
 
-class PostgresAccessStore:
-    """Maps the framework-free Access state to one serialized PostgreSQL transaction."""
+class AccessStoreAdapter:
+    """Maps the framework-free Access state to one serialized persistence transaction."""
 
     def __init__(self, session: Session) -> None:
         self._session = session
