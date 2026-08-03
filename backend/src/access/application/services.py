@@ -18,9 +18,16 @@ from access.domain.models import (
 from access.ports import AccessState, AccessStore, AuditCommand
 
 
-class AccessDenied(Exception): pass
-class BootstrapConflict(Exception): pass
-class FinalAdministratorRemoval(Exception): pass
+class AccessDenied(Exception):
+    pass
+
+
+class BootstrapConflict(Exception):
+    pass
+
+
+class FinalAdministratorRemoval(Exception):
+    pass
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,7 +105,17 @@ class AccessApplication:
 
     @staticmethod
     def _operational_administrator_exists(state: AccessState) -> bool:
-        return any(snapshot_for(profile.subject, state.profiles, state.roles, state.scopes, state.assignments).global_access for profile in state.profiles if snapshot_for(profile.subject, state.profiles, state.roles, state.scopes, state.assignments))
+        for profile in state.profiles:
+            snapshot = snapshot_for(
+                profile.subject,
+                state.profiles,
+                state.roles,
+                state.scopes,
+                state.assignments,
+            )
+            if snapshot is not None and snapshot.global_access:
+                return True
+        return False
 
     @staticmethod
     def _profile(state: AccessState, subject: str) -> AccessProfile:

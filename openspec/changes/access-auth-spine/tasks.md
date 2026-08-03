@@ -33,9 +33,9 @@ Chain strategy: feature-branch-chain
 
 ## Phase 2: Persistence and PostgreSQL Proof (PR #2)
 
-- [ ] 2.1 Create SQLAlchemy records/repositories under `backend/src/access/adapters/persistence/`; register records in `backend/src/infra/persistence/record_registry.py` and expose `access*` in `backend/pyproject.toml`.
-- [ ] 2.2 Create `supabase/migrations/<timestamp>_create_access_authorization_spine.sql`: all tables, singleton lock, named constraints/restrictive FKs, active/current/admin indexes, immutable redacted audit, RLS/ACL, and no policy seeds.
-- [ ] 2.3 Add `backend/integration_tests/` PostgreSQL proof for bootstrap retry/conflict/partial state, constraints, RLS/ACL, immutable history, two scopes, and concurrent final-admin removals; reset is verification-only and user-run.
+- [x] 2.1 Create SQLAlchemy records/repositories under `backend/src/access/adapters/persistence/`; register records in `backend/src/infra/persistence/record_registry.py` and expose `access*` in `backend/pyproject.toml`.
+- [x] 2.2 Create `supabase/migrations/<timestamp>_create_access_authorization_spine.sql`: all tables, singleton lock, named constraints/restrictive FKs, active/current/admin indexes, immutable redacted audit, RLS/ACL, and no policy seeds.
+- [x] 2.3 Add `backend/integration_tests/` PostgreSQL proof for bootstrap retry/conflict/partial state, constraints, RLS/ACL, immutable history, two scopes, and concurrent final-admin removals; reset is verification-only and user-run.
 
 ## Phase 3: HTTP, Composition, and Warehouse Gate (PR #3)
 
