@@ -5,7 +5,8 @@ from decimal import Decimal, InvalidOperation
 import re
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from warehouse.bales.adapters.http.bale_detail_response import BaleDetailResponse
@@ -46,6 +47,11 @@ from warehouse.bales.application.get_stock_summary import (
 from warehouse.bales.application.register_raw_material_batch import (
     RegisterRawMaterialBatch,
 )
+from warehouse.bales.ports.authorization import (
+    AuthenticatedIdentity,
+    AuthorizationPort,
+    IdentityResolver,
+)
 
 
 @dataclass(frozen=True)
@@ -65,7 +71,11 @@ class BaleUseCases:
 UseCaseProvider = Callable[..., BaleUseCases]
 
 
-def create_router(use_case_provider: UseCaseProvider) -> APIRouter:
+def create_router(
+    use_case_provider: UseCaseProvider,
+    identity_resolver: IdentityResolver,
+    authorization_provider: Callable[..., AuthorizationPort],
+) -> APIRouter:
     """Create the HTTP router for bale management endpoints.
 
     Defines four endpoints:
@@ -101,8 +111,12 @@ def create_router(use_case_provider: UseCaseProvider) -> APIRouter:
             },
         },
     )
-    def register(
-        request: BaleReceptionRequest,
+    async def register(
+        request: Request,
+        identity: Annotated[AuthenticatedIdentity, Depends(identity_resolver)],
+        authorization: Annotated[
+            AuthorizationPort, Depends(authorization_provider)
+        ],
         use_cases: Annotated[BaleUseCases, Depends(use_case_provider)],
     ) -> BaleReceptionResponse:
         """POST /bales — register a complete raw-material batch.
@@ -111,8 +125,15 @@ def create_router(use_case_provider: UseCaseProvider) -> APIRouter:
         Returns 201 on success, 409 on duplicate shipment number,
         422 on validation errors, and 500 on unexpected errors.
         """
+        authorization.require(
+            identity, action="write", scope="warehouse.raw_materials"
+        )
+        try:
+            reception_request = BaleReceptionRequest.model_validate(await request.json())
+        except ValueError as error:
+            raise RequestValidationError(error.errors()) from error
         return bale_reception_to_response(
-            use_cases.register.execute(bale_reception_to_input(request))
+            use_cases.register.execute(bale_reception_to_input(reception_request))
         )
 
     @router.get(

@@ -10,6 +10,7 @@ from warehouse.bales.application import (
     RegisterRawMaterialBatchCommand,
     RegisterRawMaterialBatchResult,
 )
+from warehouse.bales.ports.authorization import AuthenticatedIdentity
 
 
 class _StubUseCase:
@@ -17,6 +18,11 @@ class _StubUseCase:
 
     def execute(self, *args: object, **kwargs: object) -> None:
         raise AssertionError("OpenAPI generation must not execute any use case.")
+
+
+class _AllowAuthorization:
+    def require(self, *args: object, **kwargs: object) -> None:
+        return None
 
 
 def _build_stub_use_cases() -> BaleUseCases:
@@ -36,7 +42,14 @@ class BaleRegistrationOpenApiTests(unittest.TestCase):
     def test_documents_all_bale_endpoints_with_expected_operations(self) -> None:
         app = FastAPI()
         register_exception_handlers(app)
-        app.include_router(create_api_router(lambda: _build_stub_use_cases()))
+        app.include_router(
+            create_api_router(
+                lambda: _build_stub_use_cases(),
+                lambda: AuthenticatedIdentity("test-subject"),
+                lambda: _AllowAuthorization(),
+                lambda: object(),  # type: ignore[return-value]
+            )
+        )
         client = TestClient(app)
 
         schema = client.get("/openapi.json").json()
