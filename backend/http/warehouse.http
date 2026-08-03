@@ -1,0 +1,51 @@
+### Variables
+@host = http://127.0.0.1:8000
+@token = <paste_access_token_here>
+
+### ─────────────────────────────────────────────────────
+### GET /warehouse/bales — list bale stock
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/warehouse/bales
+
+### ─────────────────────────────────────────────────────
+### POST /warehouse/bales — register a batch (requires auth + authorization)
+### ─────────────────────────────────────────────────────
+
+POST {{host}}/api/v1/warehouse/bales
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "provider_name": "Textil Norte",
+  "shipment_number": "ENV-2026-001",
+  "received_at": "2026-08-03",
+  "bales": [
+    {
+      "bale_number": "F-001",
+      "gross_weight_kg": 250.5,
+      "tare_weight_kg": 5.0,
+      "material_type": "polyester",
+      "color": "white"
+    }
+  ]
+}
+
+### ─────────────────────────────────────────────────────
+### GET /warehouse/bales/{shipment}/{bale} — bale detail
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/warehouse/bales/ENV-2026-001/F-001
+
+### ─────────────────────────────────────────────────────
+### POST /warehouse/bales/deliver — deliver a bale
+### ─────────────────────────────────────────────────────
+
+POST {{host}}/api/v1/warehouse/bales/deliver
+Content-Type: application/json
+
+{
+  "shipment_number": "ENV-2026-001",
+  "bale_number": "F-001",
+  "delivery_date": "2026-08-04"
+}
