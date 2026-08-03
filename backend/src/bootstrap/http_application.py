@@ -194,6 +194,14 @@ def _compose_auth(
             return str(uuid4())
 
     class _FakeAccessProvisioning:
+        """Stub until AccessApplication exposes a provision_profile method.
+
+        TODO: Replace with a real adapter that calls AccessApplication once the
+        Access spine adds coordinated provisioning (create profile + assign roles).
+        Tracked in: openspec/changes/authentication-foundation/exploration.md
+        (Gap: "AccessApplication lacks a provisioning method").
+        """
+
         def provision_profile(self, **kwargs): pass
         def activate_profile(self, **kwargs): pass
         def deactivate_profile(self, **kwargs): pass
