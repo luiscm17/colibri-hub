@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from access.adapters.persistence.store import PostgresAccessStore
+from access.adapters.persistence.store import AccessStoreAdapter
 from access.application.services import AccessApplication
 from bootstrap.database_session_dependency import SessionProvider
 from warehouse.bales.adapters.http.router import BaleUseCases, UseCaseProvider
@@ -36,7 +36,7 @@ def access_application_dependency(
     def provide_access_application(
         session: Annotated[Session, Depends(session_provider)],
     ) -> AccessApplication:
-        return AccessApplication(PostgresAccessStore(session))
+        return AccessApplication(AccessStoreAdapter(session))
 
     return provide_access_application
 
