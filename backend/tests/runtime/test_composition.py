@@ -24,7 +24,7 @@ class ApplicationCompositionTests(unittest.TestCase):
     def test_default_settings_load_once_and_compose_router_and_handlers(self) -> None:
         """Settings are loaded once from the env file; the application wires router and exception handlers."""
         database = DatabaseSettings(url="postgresql+psycopg://user:secret@host/database")
-        default_settings = Mock(database=database)
+        default_settings = Mock(database=database, cors=None, auth_provider=None)
         engine = cast(Engine, Mock())
         with patch("bootstrap.http_application.ApplicationSettings", return_value=default_settings) as load:
             app = create_app(

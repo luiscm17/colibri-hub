@@ -32,9 +32,9 @@ _ERROR_STATUS_MAP: dict[str, int] = {
     "last_system_administrator_required": status.HTTP_409_CONFLICT,
     "authentication_account_state_conflict": status.HTTP_409_CONFLICT,
     "authentication_identity_conflict": status.HTTP_409_CONFLICT,
-    "replacement_password_must_differ": status.HTTP_422_UNPROCESSABLE_ENTITY,
-    "weak_password": status.HTTP_422_UNPROCESSABLE_ENTITY,
-    "authentication_change_reason_required": status.HTTP_422_UNPROCESSABLE_ENTITY,
+    "replacement_password_must_differ": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "weak_password": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "authentication_change_reason_required": status.HTTP_422_UNPROCESSABLE_CONTENT,
     "authentication_provider_unavailable": status.HTTP_503_SERVICE_UNAVAILABLE,
 }
 

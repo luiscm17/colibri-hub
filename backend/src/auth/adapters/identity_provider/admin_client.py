@@ -1,8 +1,8 @@
-"""Supabase Auth admin adapter implementing IdentityProviderPort.
+"""Identity provider admin adapter.
 
 All operations use the service_role key (server-only, never exposed to frontend).
-Supabase request/response types do NOT cross this boundary — the port returns
-provider-neutral DTOs.
+Provider-specific request/response types do NOT cross this boundary — the port
+returns provider-neutral DTOs.
 """
 
 from __future__ import annotations
@@ -122,7 +122,7 @@ class IdentityProviderAdapter:
             )
 
     def _handle_provider_error(self, exc: Exception, *, context: str) -> None:
-        """Map Supabase errors to domain errors without exposing provider details."""
+        """Map provider errors to domain errors without exposing provider details."""
         error_msg = str(exc).lower()
 
         if "duplicate" in error_msg or "already" in error_msg:

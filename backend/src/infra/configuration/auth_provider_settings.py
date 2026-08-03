@@ -1,10 +1,16 @@
 """Authentication provider configuration for backend identity services."""
 
-from pydantic import BaseModel, ConfigDict, SecretStr, field_validator
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import SecretStr
 
 
-class AuthProviderSettings(BaseModel):
+class AuthProviderSettings(BaseSettings):
     """Authentication provider connection settings.
+
+    Loaded from environment variables with prefix SUPABASE_ (the concrete
+    provider for this project). The class name and field names remain
+    provider-neutral — only the env_prefix ties it to the deployment choice.
 
     Required for the Authentication capability. Startup fails clearly
     when these values are absent.
@@ -15,8 +21,9 @@ class AuthProviderSettings(BaseModel):
         jwt_secret: Shared HMAC secret for local JWT validation.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
+    model_config = SettingsConfigDict(
+        env_prefix="SUPABASE_",
+        extra="ignore",
         frozen=True,
         hide_input_in_errors=True,
     )

@@ -1,6 +1,6 @@
-"""Port for the external identity provider (Supabase Auth).
+"""Port for the external identity provider.
 
-Supabase request/response types do NOT cross this boundary.
+Provider-specific request/response types do NOT cross this boundary.
 """
 
 from __future__ import annotations
