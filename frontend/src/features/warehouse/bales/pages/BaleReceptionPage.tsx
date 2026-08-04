@@ -2,7 +2,7 @@ import { Alert, Button, Group, Modal, Stack, Text } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { notifications } from '@mantine/notifications'
 import { IconAlertCircle, IconCheck } from '@tabler/icons-react'
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useReducer, useRef } from 'react'
 import { PageHeader } from '@/common/components/PageHeader'
 import { registerBatch } from '../api/baleApi'
 import { BaleApiError } from '../api/baleApi.errors'
@@ -14,27 +14,59 @@ import type { ReceptionGridRow, ReceptionHeader as ReceptionHeaderModel, Registe
 
 type FieldErrors = Readonly<Record<string, string>>
 
+interface SubmissionState {
+  submitting: boolean
+  attempted: boolean
+  headerErrors: FieldErrors
+  cellErrors: FieldErrors
+  result: RegisteredBatch | undefined
+  message: string | undefined
+}
+
+type SubmissionAction =
+  | { type: 'ATTEMPT' }
+  | { type: 'SUBMIT_START' }
+  | { type: 'SUBMIT_SUCCESS'; result: RegisteredBatch }
+  | { type: 'SUBMIT_FAILURE'; headerErrors: FieldErrors; cellErrors: FieldErrors; message: string }
+  | { type: 'RESET' }
+
+const INITIAL_SUBMISSION: SubmissionState = {
+  submitting: false,
+  attempted: false,
+  headerErrors: {},
+  cellErrors: {},
+  result: undefined,
+  message: undefined,
+}
+
+function submissionReducer(state: SubmissionState, action: SubmissionAction): SubmissionState {
+  switch (action.type) {
+    case 'ATTEMPT':
+      return { ...state, attempted: true, message: undefined, headerErrors: {}, cellErrors: {} }
+    case 'SUBMIT_START':
+      return { ...state, submitting: true }
+    case 'SUBMIT_SUCCESS':
+      return { ...state, submitting: false, result: action.result, message: undefined }
+    case 'SUBMIT_FAILURE':
+      return { ...state, submitting: false, headerErrors: action.headerErrors, cellErrors: action.cellErrors, message: action.message }
+    case 'RESET':
+      return INITIAL_SUBMISSION
+  }
+}
+
 export default function BaleReceptionPage() {
   const reception = useBaleReception()
   const [confirmOpened, confirm] = useDisclosure(false)
   const [clearOpened, clear] = useDisclosure(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [attempted, setAttempted] = useState(false)
-  const [headerErrors, setHeaderErrors] = useState<FieldErrors>({})
-  const [cellErrors, setCellErrors] = useState<FieldErrors>({})
-  const [result, setResult] = useState<RegisteredBatch>()
-  const [message, setMessage] = useState<string>()
+  const [state, dispatch] = useReducer(submissionReducer, INITIAL_SUBMISSION)
   const saveButtonRef = useRef<HTMLButtonElement>(null)
-  const firstHeaderError = useMemo(() => Object.keys({ ...reception.headerErrors, ...headerErrors })[0], [headerErrors, reception.headerErrors])
+  const firstHeaderError = useMemo(() => Object.keys({ ...reception.headerErrors, ...state.headerErrors })[0], [state.headerErrors, reception.headerErrors])
 
   const hasDraft = reception.summary.contentCount > 0 || Object.values(reception.header).some(Boolean)
-  const editingLocked = submitting || Boolean(result)
+  const editingLocked = state.submitting || Boolean(state.result)
 
   function requestSave() {
-    setAttempted(true)
-    setMessage(undefined)
-    setHeaderErrors({})
-    setCellErrors({})
+    dispatch({ type: 'ATTEMPT' })
     if (!reception.isReadyForSubmission) return
     confirm.open()
   }
@@ -42,30 +74,21 @@ export default function BaleReceptionPage() {
   async function submit() {
     const snapshot = reception.createSubmissionSnapshot()
     confirm.close()
-    setSubmitting(true)
+    dispatch({ type: 'SUBMIT_START' })
     try {
       const registered = await registerBatch({ ...snapshot.header, bales: snapshot.bales.map(bale => ({ ...bale })) })
-      setResult(registered)
-      setMessage(undefined)
+      dispatch({ type: 'SUBMIT_SUCCESS', result: registered })
       notifications.show({ color: 'green', title: 'Recepción guardada', message: 'La recepción se registró correctamente.' })
     } catch (error) {
       const mapped = mapRemoteErrors(error, snapshot)
-      setHeaderErrors(mapped.header)
-      setCellErrors(mapped.cells)
-      setMessage(mapped.message)
+      dispatch({ type: 'SUBMIT_FAILURE', headerErrors: mapped.header, cellErrors: mapped.cells, message: mapped.message })
       notifications.show({ color: 'red', title: 'No se pudo guardar', message: mapped.message })
-    } finally {
-      setSubmitting(false)
     }
   }
 
   function clearDraft() {
     reception.reset()
-    setAttempted(false)
-    setHeaderErrors({})
-    setCellErrors({})
-    setMessage(undefined)
-    setResult(undefined)
+    dispatch({ type: 'RESET' })
     clear.close()
     saveButtonRef.current?.focus()
   }
@@ -73,31 +96,31 @@ export default function BaleReceptionPage() {
   return (
     <Stack gap="lg">
       <PageHeader title="Recepción de fardos" />
-      {result ? (
+      {state.result ? (
         <Alert color="green" icon={<IconCheck size={16} />} role="status" title="Recepción guardada">
-          Se registraron {result.baleCount} fardo{result.baleCount === 1 ? '' : 's'} del remito {result.shipmentNumber}.
+          Se registraron {state.result.baleCount} fardo{state.result.baleCount === 1 ? '' : 's'} del remito {state.result.shipmentNumber}.
         </Alert>
       ) : null}
-      {message ? <Alert color="red" icon={<IconAlertCircle size={16} />} role="alert">{message}</Alert> : null}
+      {state.message ? <Alert color="red" icon={<IconAlertCircle size={16} />} role="alert">{state.message}</Alert> : null}
       <ReceptionHeader
         header={reception.header}
-        errors={attempted ? { ...reception.headerErrors, ...headerErrors } : headerErrors}
+        errors={state.attempted ? { ...reception.headerErrors, ...state.headerErrors } : state.headerErrors}
         onChange={reception.updateHeader}
         disabled={editingLocked}
-        focusField={attempted ? firstHeaderError as keyof ReceptionHeaderModel : undefined}
+        focusField={state.attempted ? firstHeaderError as keyof ReceptionHeaderModel : undefined}
       />
       <ReceptionGrid
         rows={reception.rows}
         feedback={reception.feedback}
         onRowsChange={reception.updateRows}
         onPaste={reception.paste}
-        errors={cellErrors}
+        errors={state.cellErrors}
         disabled={editingLocked}
       />
       <ReceptionSummary summary={reception.summary} />
       <Group>
-        <Button ref={saveButtonRef} onClick={requestSave} loading={submitting} disabled={editingLocked}>Guardar</Button>
-        <Button variant="default" onClick={() => hasDraft ? clear.open() : clearDraft()} disabled={submitting}>Limpiar</Button>
+        <Button ref={saveButtonRef} onClick={requestSave} loading={state.submitting} disabled={editingLocked}>Guardar</Button>
+        <Button variant="default" onClick={() => hasDraft ? clear.open() : clearDraft()} disabled={state.submitting}>Limpiar</Button>
       </Group>
 
       <Modal opened={confirmOpened} onClose={confirm.close} title="Confirmar recepción" centered>

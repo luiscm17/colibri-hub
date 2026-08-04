@@ -1,0 +1,5 @@
+{
+  "rules": {
+    "artifact-baas-authority-surface": "off"
+  }
+}
