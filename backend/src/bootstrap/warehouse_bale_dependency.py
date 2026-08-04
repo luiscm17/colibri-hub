@@ -4,8 +4,9 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from access.adapters.persistence.legacy_store import LegacyStoreAdapter
-from access.application.services import AccessApplication
+from access.adapters.warehouse_authorization import WarehouseAuthorizationAdapter
+from access.application.authorize_action import AuthorizeAction
+from access.application.get_current_access import GetCurrentAccess
 from bootstrap.database_session_dependency import SessionProvider
 from warehouse.bales.adapters.http.router import BaleUseCases, UseCaseProvider
 from warehouse.bales.adapters.identity.identity_generator import Uuid4IdentityGenerator
@@ -26,33 +27,78 @@ from warehouse.bales.application.get_stock_summary import GetStockSummary
 from warehouse.bales.application.register_raw_material_batch import (
     RegisterRawMaterialBatch,
 )
+from warehouse.bales.ports.authorization import AuthorizationPort
 
 
-def access_application_dependency(
+def authorize_action_dependency(
     session_provider: SessionProvider,
-) -> Callable[..., AccessApplication]:
-    """Build the request-scoped Access application dependency."""
+) -> Callable[..., AuthorizeAction]:
+    """Build the request-scoped AuthorizeAction dependency."""
+    from access.adapters.persistence.legacy_store import (
+        UserRepositoryShim,
+        RoleRepositoryShim,
+        ScopeRepositoryShim,
+    )
 
-    def provide_access_application(
+    def provide(
         session: Annotated[Session, Depends(session_provider)],
-    ) -> AccessApplication:
-        return AccessApplication(LegacyStoreAdapter(session))
+    ) -> AuthorizeAction:
+        return AuthorizeAction(
+            user_repository=UserRepositoryShim(session),
+            role_repository=RoleRepositoryShim(session),
+            scope_repository=ScopeRepositoryShim(session),
+        )
 
-    return provide_access_application
+    return provide
+
+
+def get_current_access_dependency(
+    session_provider: SessionProvider,
+) -> Callable[..., GetCurrentAccess]:
+    """Build the request-scoped GetCurrentAccess dependency."""
+    from access.adapters.persistence.legacy_store import (
+        UserRepositoryShim,
+        RoleRepositoryShim,
+        ScopeRepositoryShim,
+    )
+
+    def provide(
+        session: Annotated[Session, Depends(session_provider)],
+    ) -> GetCurrentAccess:
+        return GetCurrentAccess(
+            user_repository=UserRepositoryShim(session),
+            role_repository=RoleRepositoryShim(session),
+            scope_repository=ScopeRepositoryShim(session),
+        )
+
+    return provide
+
+
+def authorization_provider_dependency(
+    session_provider: SessionProvider,
+) -> Callable[..., AuthorizationPort]:
+    """Build the request-scoped authorization port for Warehouse."""
+    from access.adapters.persistence.legacy_store import (
+        UserRepositoryShim,
+        RoleRepositoryShim,
+        ScopeRepositoryShim,
+    )
+
+    def provide(
+        session: Annotated[Session, Depends(session_provider)],
+    ) -> AuthorizationPort:
+        authorize = AuthorizeAction(
+            user_repository=UserRepositoryShim(session),
+            role_repository=RoleRepositoryShim(session),
+            scope_repository=ScopeRepositoryShim(session),
+        )
+        return WarehouseAuthorizationAdapter(authorize)
+
+    return provide
 
 
 def build_use_cases(session: Session) -> BaleUseCases:
-    """Build all bale use cases with their adapter dependencies.
-
-    Wires the session into repository, transaction, identity, and query adapters
-    and returns the typed container.
-
-    Args:
-        session: A SQLAlchemy session.
-
-    Returns:
-        A configured BaleUseCases container with all four use cases.
-    """
+    """Build all bale use cases with their adapter dependencies."""
     bale_repo = BaleRepositoryAdapter(session)
     batch_repo = RawMaterialBatchRepositoryAdapter(session)
     transaction = TransactionAdapter(session)
@@ -74,17 +120,7 @@ def build_use_cases(session: Session) -> BaleUseCases:
 def use_case_dependency(
     session_provider: SessionProvider,
 ) -> UseCaseProvider:
-    """Build a FastAPI dependency that resolves the bale use cases container.
-
-    Wraps the session factory into a FastAPI-compatible dependency
-    chain: session → BaleUseCases.
-
-    Args:
-        session_provider: A FastAPI session dependency.
-
-    Returns:
-        A callable that FastAPI can use as a Depends target.
-    """
+    """Build a FastAPI dependency that resolves the bale use cases container."""
     def provide_use_cases(
         session: Annotated[Session, Depends(session_provider)],
     ) -> BaleUseCases:

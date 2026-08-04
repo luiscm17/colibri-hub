@@ -22,6 +22,10 @@ class AccessUserRepository(Protocol):
         """Persist a new or updated access user. Raises on constraint violation."""
         ...
 
+    def list_all(self) -> list[AccessUser]:
+        """Return all access users ordered by creation time."""
+        ...
+
     def count_active_administrators(
         self, *, exclude_user_id: str | None = None, for_update: bool = False
     ) -> int:
@@ -117,4 +121,8 @@ class AccessAuditRepository(Protocol):
         after_values: dict,
     ) -> None:
         """Record one audit entry. Append-only — updates and deletes are forbidden."""
+        ...
+
+    def list_recent(self, *, limit: int = 50) -> list:
+        """Return recent audit entries ordered by occurred_at descending."""
         ...
