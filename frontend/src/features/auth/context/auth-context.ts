@@ -1,17 +1,22 @@
 import { createContext, useContext } from 'react'
-import type { User } from './AuthContext'
+import type {
+  AuthenticationState,
+  AuthenticationAccountSummary,
+} from '../model/authenticationState'
 
-interface AuthContextValue {
-  user: User | null
+export interface AuthContextValue {
+  authState: AuthenticationState
+  account: AuthenticationAccountSummary | null
   isAuthenticated: boolean
   isResourceAllowed: (resourceType: string) => boolean
-  login: (username: string, password: string) => Promise<void>
-  logout: () => void
+  login: (email: string, password: string) => Promise<void>
+  logout: () => Promise<void>
+  revalidate: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
 
-export function useAuth() {
+export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext)
   if (!ctx) {
     throw new Error('useAuth must be used within AuthProvider')

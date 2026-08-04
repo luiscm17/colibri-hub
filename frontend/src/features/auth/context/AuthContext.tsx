@@ -1,64 +1,155 @@
-import { useState, useCallback, useMemo, type ReactNode } from 'react'
+import { useReducer, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react'
 import { AuthContext } from './auth-context'
+import type {
+  AuthenticationState,
+  AuthenticationAccountSummary,
+} from '../model/authenticationState'
+import { setTokenAccessor, clearTokenAccessor } from '@/api/httpClient'
+import * as providerSession from '../provider/providerSession'
+import { fetchCurrentAuthentication, mapToAccountSummary, terminateSession } from '../api/authApi'
+import { isApiError } from '@/api/httpError'
 
-export interface User {
-  id: string
-  username: string
-  name: string
-  initials: string
-  /**
-   * Resource types a los que el usuario tiene acceso `read`.
-   * Vacío/indefinido = todos visibles (fallback mientras el backend
-   * de RBAC no está conectado).
-   */
-  allowedResources: string[]
+type Action =
+  | { type: 'SESSION_RESTORED'; account: AuthenticationAccountSummary }
+  | { type: 'PASSWORD_CHANGE_REQUIRED'; account: AuthenticationAccountSummary }
+  | { type: 'UNAUTHENTICATED'; reason?: 'logged-out' | 'expired' | 'denied' }
+  | { type: 'UNAVAILABLE'; retryable: boolean }
+
+function reducer(_state: AuthenticationState, action: Action): AuthenticationState {
+  switch (action.type) {
+    case 'SESSION_RESTORED':
+      return { status: 'authenticated', account: action.account }
+    case 'PASSWORD_CHANGE_REQUIRED':
+      return { status: 'password-change-required', account: action.account }
+    case 'UNAUTHENTICATED':
+      return { status: 'unauthenticated', reason: action.reason }
+    case 'UNAVAILABLE':
+      return { status: 'unavailable', retryable: action.retryable }
+  }
 }
 
+const INITIAL_STATE: AuthenticationState = { status: 'initializing' }
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [authState, dispatch] = useReducer(reducer, INITIAL_STATE)
+  const mountedRef = useRef(true)
+  const logoutInitiatedRef = useRef(false)
 
-  const isResourceAllowed = useCallback(
-    (resourceType: string) => {
-      if (!user || user.allowedResources.length === 0) return true
-      return user.allowedResources.includes(resourceType)
-    },
-    [user],
-  )
+  const validateAccount = useCallback(async (): Promise<void> => {
+    try {
+      const response = await fetchCurrentAuthentication()
+      const account = mapToAccountSummary(response)
 
-  const login = useCallback(async (username: string, _password: string) => {
-    // Mock login — en producción reemplazar con llamada a API
-    void _password
-    await new Promise((r) => setTimeout(r, 400))
+      if (!mountedRef.current) return
 
-    // TODO: el backend devolverá allowedResources basado en roles + scopes
-    setUser({
-      id: '1',
-      username,
-      name: username.charAt(0).toUpperCase() + username.slice(1),
-      initials: username.charAt(0).toUpperCase(),
-      allowedResources: [], // vacío = acceso total (sin backend aún)
-    })
+      if (response.next_step === 'change_password') {
+        dispatch({ type: 'PASSWORD_CHANGE_REQUIRED', account })
+      } else {
+        dispatch({ type: 'SESSION_RESTORED', account })
+      }
+    } catch (error) {
+      if (!mountedRef.current) return
+
+      if (isApiError(error)) {
+        if (error.status === 401 || error.status === 403) {
+          await providerSession.signOut()
+          dispatch({ type: 'UNAUTHENTICATED', reason: 'denied' })
+          return
+        }
+        if (error.kind === 'network') {
+          dispatch({ type: 'UNAVAILABLE', retryable: true })
+          return
+        }
+      }
+      dispatch({ type: 'UNAUTHENTICATED', reason: 'denied' })
+    }
   }, [])
 
-  const logout = useCallback(() => {
-    setUser(null)
+  useEffect(() => {
+    mountedRef.current = true
+
+    setTokenAccessor(providerSession.getAccessToken)
+
+    async function initialize() {
+      const active = await providerSession.hasSession()
+      if (!mountedRef.current) return
+
+      if (!active) {
+        dispatch({ type: 'UNAUTHENTICATED' })
+        return
+      }
+
+      await validateAccount()
+    }
+
+    initialize()
+
+    const subscription = providerSession.onAuthStateChange((event) => {
+      if (!mountedRef.current) return
+
+      if (event === 'SIGNED_OUT') {
+        const reason = logoutInitiatedRef.current ? 'logged-out' : 'expired'
+        logoutInitiatedRef.current = false
+        dispatch({ type: 'UNAUTHENTICATED', reason })
+      } else if (event === 'TOKEN_REFRESHED') {
+        // Token accessor already returns fresh token — no action needed
+      }
+    })
+
+    return () => {
+      mountedRef.current = false
+      subscription.unsubscribe()
+      clearTokenAccessor()
+    }
+  }, [validateAccount])
+
+  const login = useCallback(async (email: string, password: string): Promise<void> => {
+    const { error } = await providerSession.signIn(email, password)
+    if (error) {
+      throw new Error(error)
+    }
+    await validateAccount()
+  }, [validateAccount])
+
+  const logout = useCallback(async (): Promise<void> => {
+    logoutInitiatedRef.current = true
+    try {
+      await terminateSession()
+    } catch {
+      // Best-effort backend notification — proceed with local cleanup
+    }
+    await providerSession.signOut()
+    dispatch({ type: 'UNAUTHENTICATED', reason: 'logged-out' })
+  }, [])
+
+  const revalidate = useCallback(async (): Promise<void> => {
+    await validateAccount()
+  }, [validateAccount])
+
+  const account: AuthenticationAccountSummary | null =
+    authState.status === 'authenticated' || authState.status === 'password-change-required'
+      ? authState.account
+      : null
+
+  const isAuthenticated = authState.status === 'authenticated'
+
+  const isResourceAllowed = useCallback((_resourceType: string): boolean => {
+    // Stub: returns true until Access Control is implemented
+    return true
   }, [])
 
   const value = useMemo(
     () => ({
-      user,
-      isAuthenticated: user !== null,
+      authState,
+      account,
+      isAuthenticated,
       isResourceAllowed,
       login,
       logout,
+      revalidate,
     }),
-    [user, isResourceAllowed, login, logout],
+    [authState, account, isAuthenticated, isResourceAllowed, login, logout, revalidate],
   )
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
-
