@@ -2,8 +2,20 @@ import { ApiError, parseApiErrorPayload } from './httpError'
 
 const API_BASE_PATH = '/api/v1'
 
+type TokenAccessor = () => Promise<string | null>
+
+let tokenAccessor: TokenAccessor | null = null
+
+export function setTokenAccessor(accessor: TokenAccessor): void {
+  tokenAccessor = accessor
+}
+
+export function clearTokenAccessor(): void {
+  tokenAccessor = null
+}
+
 export interface HttpJsonOptions {
-  method?: 'GET' | 'POST'
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: unknown
   signal?: AbortSignal
   headers?: HeadersInit
@@ -35,10 +47,30 @@ export async function httpJson<T>(path: string, options: HttpJsonOptions = {}): 
 
 async function request(path: string, { method = 'GET', body, signal, headers }: HttpJsonOptions): Promise<Response> {
   try {
+    const resolvedHeaders: Record<string, string> = {}
+
+    if (body !== undefined) {
+      resolvedHeaders['Content-Type'] = 'application/json'
+    }
+
+    if (tokenAccessor) {
+      const token = await tokenAccessor()
+      if (token) {
+        resolvedHeaders['Authorization'] = `Bearer ${token}`
+      }
+    }
+
+    if (headers) {
+      const normalized = new Headers(headers)
+      normalized.forEach((value, key) => {
+        resolvedHeaders[key] = value
+      })
+    }
+
     return await fetch(`${API_BASE_PATH}${path}`, {
       method,
       signal,
-      headers: body === undefined ? headers : { 'Content-Type': 'application/json', ...headers },
+      headers: resolvedHeaders,
       body: body === undefined ? undefined : JSON.stringify(body),
     })
   } catch (error) {

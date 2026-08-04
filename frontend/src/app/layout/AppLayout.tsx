@@ -1,4 +1,4 @@
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import {
     Box,
     Flex,
@@ -15,10 +15,11 @@ import {
 } from "@mantine/core";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { IconSun, IconMoon, IconChevronDown, IconMenu2 } from "@tabler/icons-react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router";
 import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import { useAuth } from "@/features/auth";
+import { SessionExpiredDialog } from "@/features/auth/components/SessionExpiredDialog";
 import { ErrorBoundary } from "@/common/components/ErrorBoundary";
 import { AppBreadcrumbs } from "@/common/components/AppBreadcrumbs";
 import { PageSkeleton } from "@/common/components/PageState";
@@ -36,10 +37,14 @@ export function AppLayout() {
         return localStorage.getItem("sidebarCollapsed") === "true";
     });
 
+    useEffect(() => {
+        localStorage.setItem("sidebarCollapsed", String(sidebarCollapsed));
+    }, [sidebarCollapsed]);
+
     const { setColorScheme } = useMantineColorScheme();
     const computedScheme = useComputedColorScheme("light");
     const isDark = computedScheme === "dark";
-    const { user, logout, isResourceAllowed } = useAuth();
+    const { account, logout, isResourceAllowed } = useAuth();
 
     const handleNavClick = () => {
         closeMobileNav();
@@ -50,14 +55,14 @@ export function AppLayout() {
             openMobileNav();
         } else {
             setSidebarCollapsed((prev) => {
-                const next = !prev;
-                localStorage.setItem("sidebarCollapsed", String(next));
-                return next;
+                return !prev;
             });
         }
     };
 
     return (
+        <>
+        <SessionExpiredDialog />
         <Flex direction="column" h="100vh">
             <Box h={56} style={{ flexShrink: 0 }}>
                 <TopBar
@@ -93,11 +98,11 @@ export function AppLayout() {
                                     <Group gap={6} className={classes.clickable} wrap="nowrap">
                                         <Indicator size={8} offset={2} color="green" withBorder>
                                             <Avatar size={28} color="brand-cyan" radius="xl">
-                                                {user?.initials ?? "?"}
+                                                {account?.initials ?? "?"}
                                             </Avatar>
                                         </Indicator>
                                         <Text size="sm" visibleFrom="sm">
-                                            {user?.name ?? "Usuario"}
+                                            {account?.displayName ?? "User"}
                                         </Text>
                                         <IconChevronDown
                                             size={14}
@@ -114,8 +119,7 @@ export function AppLayout() {
                                     <Menu.Item
                                         color="red"
                                         onClick={() => {
-                                            logout();
-                                            navigate("/login", { replace: true });
+                                            void logout();
                                         }}
                                     >
                                         Cerrar sesión
@@ -178,5 +182,6 @@ export function AppLayout() {
                 </Box>
             </Flex>
         </Flex>
+        </>
     );
 }

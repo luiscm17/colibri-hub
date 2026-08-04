@@ -1,4 +1,4 @@
-import { useRouteError, isRouteErrorResponse, useNavigate } from 'react-router-dom'
+import { useRouteError, isRouteErrorResponse, useNavigate } from 'react-router'
 import { Center, Stack, Title, Text, Button } from '@mantine/core'
 import { IconAlertTriangle } from '@tabler/icons-react'
 

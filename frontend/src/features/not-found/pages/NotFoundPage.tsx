@@ -1,5 +1,5 @@
 import { Center, Stack, Title, Text, Button } from '@mantine/core'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 
 export default function NotFoundPage() {
   const navigate = useNavigate()

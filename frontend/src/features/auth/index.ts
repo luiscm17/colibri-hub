@@ -1,4 +1,10 @@
-export { useAuth, AuthContext } from './context/auth-context'
+export { useAuth } from './context/auth-context'
+export { AuthContext } from './context/auth-context'
 export { AuthProvider } from './context/AuthContext'
-export type { User } from './context/AuthContext'
-
+export { AuthenticationBoundary } from './components/AuthenticationBoundary'
+export { SessionExpiredDialog } from './components/SessionExpiredDialog'
+export { UnauthenticatedOnly } from './components/UnauthenticatedOnly'
+export { AuthenticatedOnly } from './components/AuthenticatedOnly'
+export { PasswordChangeOnly } from './components/PasswordChangeOnly'
+export type { AuthenticationAccountSummary } from './model/authenticationState'
+export type { AuthenticationState } from './model/authenticationState'

@@ -1,50 +1,33 @@
 import { useState } from 'react'
-import { useNavigate, useLocation, Navigate } from 'react-router-dom'
-import {
-  Paper,
-  TextInput,
-  PasswordInput,
-  Button,
-  Text,
-  Alert,
-} from '@mantine/core'
+import { Paper, TextInput, PasswordInput, Button, Text, Alert } from '@mantine/core'
 import { IconAlertCircle } from '@tabler/icons-react'
 import { useAuth } from '../context/auth-context'
 import { ProductLogo } from '@/common/components/ProductLogo'
 import classes from '@/styles/components/LoginPage.module.css'
 
 export default function LoginPage() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { login, isAuthenticated } = useAuth()
+  const { login } = useAuth()
 
-  const from = (location.state as { from?: { pathname: string } })?.from
-    ?.pathname || '/warehouse/bales'
-
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  if (isAuthenticated) {
-    return <Navigate to={from} replace />
-  }
-
-  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
 
-    if (!username.trim() || !password.trim()) {
-      setError('Completá ambos campos para iniciar sesión')
+    if (!email.trim() || !password.trim()) {
+      setError('Complete both fields to sign in.')
       return
     }
 
     setLoading(true)
     try {
-      await login(username.trim(), password)
-      navigate(from, { replace: true })
+      await login(email.trim(), password)
     } catch {
-      setError('Credenciales inválidas. Intentalo de nuevo.')
+      setPassword('')
+      setError('Invalid email or password. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -57,7 +40,7 @@ export default function LoginPage() {
           <ProductLogo variant="full" size="lg" />
         </div>
         <Text c="dimmed" size="sm" ta="center" mb="lg">
-          Ingresá a tu cuenta
+          Sign in to your account
         </Text>
 
         <form onSubmit={handleSubmit}>
@@ -67,6 +50,7 @@ export default function LoginPage() {
               color="red"
               variant="light"
               mb="md"
+              role="alert"
               styles={{ body: { fontSize: 'var(--mantine-font-size-sm)' } }}
             >
               {error}
@@ -74,24 +58,27 @@ export default function LoginPage() {
           )}
 
           <TextInput
-            label="Usuario"
-            placeholder="Tu nombre de usuario"
-            value={username}
-            onChange={(e) => setUsername(e.currentTarget.value)}
+            label="Email"
+            placeholder="your@email.com"
+            type="email"
+            autoComplete="username"
+            value={email}
+            onChange={(e) => setEmail(e.currentTarget.value)}
             autoFocus
             mb="sm"
           />
 
           <PasswordInput
-            label="Contraseña"
-            placeholder="Tu contraseña"
+            label="Password"
+            placeholder="Your password"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.currentTarget.value)}
             mb="lg"
           />
 
           <Button type="submit" fullWidth loading={loading}>
-            Ingresar
+            Sign in
           </Button>
         </form>
       </Paper>

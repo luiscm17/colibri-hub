@@ -5,7 +5,7 @@ import {
   IconPackages,
   IconTruckDelivery,
 } from '@tabler/icons-react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import classes from './BaleManagementPage.module.css'
 
 const workflowCards = [

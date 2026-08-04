@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router'
 import { navData } from '@/app/navigation-data'
 
 function resolveTitle(pathname: string): string {
