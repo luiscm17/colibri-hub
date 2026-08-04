@@ -1,5 +1,5 @@
 import { Modal, Text, Button, Stack } from '@mantine/core'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { useAuth } from '../context/auth-context'
 
 export function SessionExpiredDialog() {

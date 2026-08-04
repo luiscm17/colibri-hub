@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate } from 'react-router'
 import { Center, Loader, Stack, Text, Button } from '@mantine/core'
 import { useAuth } from '../context/auth-context'
 

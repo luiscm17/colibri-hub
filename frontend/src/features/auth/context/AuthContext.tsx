@@ -133,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = authState.status === 'authenticated'
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const isResourceAllowed = useCallback((_resourceType: string): boolean => {
     // Stub: returns true until Access Control is implemented
     return true

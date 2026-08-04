@@ -1,5 +1,5 @@
 import { Breadcrumbs as MantineBreadcrumbs, Anchor, Text } from '@mantine/core'
-import { useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router'
 import { navData } from '@/app/navigation-data'
 
 type Crumb = { label: string; path?: string }

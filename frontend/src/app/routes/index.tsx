@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router'
 import { AppLayout } from '@/app/layout/AppLayout'
 import { AuthenticationBoundary } from '@/features/auth/components/AuthenticationBoundary'
 import { UnauthenticatedOnly } from '@/features/auth/components/UnauthenticatedOnly'
