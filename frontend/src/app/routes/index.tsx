@@ -1,12 +1,16 @@
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import { AppLayout } from '@/app/layout/AppLayout'
-import { ProtectedRoute } from './ProtectedRoute'
+import { AuthenticationBoundary } from '@/features/auth/components/AuthenticationBoundary'
+import { UnauthenticatedOnly } from '@/features/auth/components/UnauthenticatedOnly'
+import { PasswordChangeOnly } from '@/features/auth/components/PasswordChangeOnly'
+import { AuthenticatedOnly } from '@/features/auth/components/AuthenticatedOnly'
 import { RouteErrorBoundary } from './RouteErrorBoundary'
 import { ComingSoon } from '@/common/components/ComingSoon'
 import {
   AdminPage,
   BaleManagementPage,
   LoginPage,
+  MandatoryPasswordChangePage,
   LotsPage,
   NotFoundPage,
   ProfilePage,
@@ -20,15 +24,30 @@ import {
 const router = createBrowserRouter([
   {
     path: '/login',
-    element: <LoginPage />,
+    element: (
+      <UnauthenticatedOnly>
+        <LoginPage />
+      </UnauthenticatedOnly>
+    ),
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: '/password-change',
+    element: (
+      <PasswordChangeOnly>
+        <MandatoryPasswordChangePage />
+      </PasswordChangeOnly>
+    ),
     errorElement: <RouteErrorBoundary />,
   },
   {
     path: '/',
     element: (
-      <ProtectedRoute>
-        <AppLayout />
-      </ProtectedRoute>
+      <AuthenticationBoundary>
+        <AuthenticatedOnly>
+          <AppLayout />
+        </AuthenticatedOnly>
+      </AuthenticationBoundary>
     ),
     errorElement: <RouteErrorBoundary />,
     children: [

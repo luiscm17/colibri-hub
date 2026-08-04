@@ -4,86 +4,59 @@ import {
   Group,
   Stack,
   Text,
-  Divider,
-  Grid,
-  Badge,
 } from '@mantine/core'
 import { useAuth } from '@/features/auth'
 import { PageHeader } from '@/common/components/PageHeader'
 
 export default function ProfilePage() {
-  const { user } = useAuth()
+  const { account } = useAuth()
 
-  if (!user) return null
+  if (!account) return null
 
   return (
     <Stack gap="lg">
       <PageHeader title="Mi perfil" />
 
-      {/* Avatar + nombre */}
+      {/* Avatar + name */}
       <Card withBorder radius="md" padding="lg">
         <Group gap="lg" wrap="nowrap">
           <Avatar
             size={80}
             color="brand-cyan"
             radius={100}
-            name={user.name}
+            name={account.displayName}
           >
-            {user.initials}
+            {account.initials}
           </Avatar>
 
           <Stack gap={4}>
             <Text size="xl" fw={600}>
-              {user.name}
+              {account.displayName}
             </Text>
             <Text size="sm" c="dimmed">
-              @{user.username}
+              {account.email}
             </Text>
           </Stack>
         </Group>
       </Card>
 
-      {/* Datos de cuenta */}
+      {/* Account details */}
       <Card withBorder radius="md" padding="lg">
         <Text fw={500} mb="md">
-          Datos de cuenta
+          Account details
         </Text>
 
-        <Grid>
-          <Grid.Col span={{ base: 12, sm: 6 }}>
-            <Text size="sm" c="dimmed">
-              Usuario
-            </Text>
-            <Text>{user.username}</Text>
-          </Grid.Col>
-
-          <Grid.Col span={{ base: 12, sm: 6 }}>
-            <Text size="sm" c="dimmed">
-              Nombre
-            </Text>
-            <Text>{user.name}</Text>
-          </Grid.Col>
-        </Grid>
+        <Stack gap="xs">
+          <div>
+            <Text size="sm" c="dimmed">Email</Text>
+            <Text>{account.email}</Text>
+          </div>
+          <div>
+            <Text size="sm" c="dimmed">Display name</Text>
+            <Text>{account.displayName}</Text>
+          </div>
+        </Stack>
       </Card>
-
-      {/* Permisos */}
-      {user.allowedResources.length > 0 && (
-        <>
-          <Divider />
-          <Card withBorder radius="md" padding="lg">
-            <Text fw={500} mb="md">
-              Accesos
-            </Text>
-            <Group gap="xs">
-              {user.allowedResources.map((r) => (
-                <Badge key={r} variant="light" color="brand-cyan">
-                  {r}
-                </Badge>
-              ))}
-            </Group>
-          </Card>
-        </>
-      )}
     </Stack>
   )
 }
