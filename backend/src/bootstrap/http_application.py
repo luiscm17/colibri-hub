@@ -14,6 +14,7 @@ from bootstrap.database_session_dependency import (
 from bootstrap.api_router import create_api_router
 from bootstrap.http_error_handlers import register_exception_handlers
 from bootstrap.warehouse_bale_dependency import (
+    authorize_action_dependency,
     authorization_provider_dependency,
     get_current_access_dependency,
     use_case_dependency,
@@ -82,6 +83,7 @@ def create_app(
     session_provider = session_dependency(session_factory)
     use_case_provider = use_case_dependency(session_provider)
     get_current_access_provider = get_current_access_dependency(session_provider)
+    authorize_action_provider = authorize_action_dependency(session_provider)
     authorization_provider = authorization_provider_dependency(session_provider)
 
     # Resolve identity resolver and auth use case provider
@@ -108,12 +110,20 @@ def create_app(
 
     register_exception_handlers(app)
 
+    # Build admin use case provider if auth is configured
+    admin_use_case_provider = None
+    if auth_use_case_provider is not None:
+        from bootstrap.access_admin_dependency import admin_use_case_dependency
+        admin_use_case_provider = admin_use_case_dependency(session_provider)
+
     app.include_router(
         create_api_router(
             use_case_provider,
             resolved_identity_resolver,
             authorization_provider,
             get_current_access_provider,
+            authorize_action_provider,
+            admin_use_case_provider,
             auth_use_case_provider,
         )
     )

@@ -35,6 +35,9 @@ from warehouse.bales.ports.authorization import AuthorizationDenied
 from auth.domain.errors import AuthenticationError
 from auth.adapters.http.error_handlers import authentication_error_handler
 
+from access.domain.errors import AccessError
+from access.adapters.http.error_handlers import access_error_handler
+
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +94,10 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(
         AuthenticationError,
         cast(ExceptionHandler, authentication_error_handler),
+    )
+    app.add_exception_handler(
+        AccessError,
+        cast(ExceptionHandler, access_error_handler),
     )
     # Framework and generic handlers (least specific)
     app.add_exception_handler(
