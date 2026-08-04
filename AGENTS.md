@@ -2,18 +2,18 @@
 
 ## Start here
 
-- Treat `docs/prd/` as business authority, followed by `docs/architecture/`, `docs/domain/ubiquitous-language.md`, and `docs/db/`.
+- Treat the capability PRDs under `docs/prd/` as business authority, then `docs/architecture/` and `docs/domain/ubiquitous-language.md`.
 - Keep Warehouse, Yarn Spinning, Lot Processing, Access Control, and Shared Reference Data separate. Their code aliases are `warehouse`, `yarn-production`, `batch-processing`, `access`, and `catalogs`; `shared` is not a business context.
 - Frontend validation is advisory; backend domain and application policy is authoritative.
 
 ## Backend
 
-- Python 3.13 is pinned by `.python-version`. Run `uv` from the repository root; `backend/` is a uv workspace member and uses a setuptools `src` layout for `warehouse*`, `infra*`, and `bootstrap*`.
+- Python 3.13 is pinned by `.python-version`. Run `uv` from the repository root; `backend/` is a uv workspace member and uses a setuptools `src` layout.
 - Root dependencies live in `pyproject.toml`; backend-only dependencies live in `backend/pyproject.toml`. Keep `uv.lock` synchronized with both manifests and provision with `uv sync --locked`.
 - `backend/main.py` exposes the ASGI `app`; root `[tool.fastapi]` declares `backend.main:app`.
 - For local startup, create untracked `backend/.env` from `backend/.env.example`, then run `uv run --package backend fastapi dev` from the root. The entrypoint explicitly loads that sibling file; OS environment values take precedence.
 - `bootstrap.http_application.create_app` is the composition root. Inject a session factory in tests to avoid settings and database creation.
-- Keep domain/application contracts under `warehouse.bales`, ports in `warehouse.bales.ports`, SQLAlchemy adapters in `warehouse.bales.adapters`, and shared persistence/configuration under `infra`.
+- Package by capability and keep dependencies inward: domain, application, ports, then adapters. Current top-level packages are `warehouse`, `access`, `auth`, `infra`, and `bootstrap`; `infra` owns shared technical persistence/configuration and `bootstrap` may wire all layers.
 
 ## Backend tests
 
@@ -29,7 +29,7 @@
 - Schema changes are imperative SQL migrations under `supabase/migrations/`; there is no Alembic configuration. Generate migration timestamps with the Supabase CLI.
 - Local provisioning requires the Supabase CLI and a Docker-compatible runtime: run `pnpm supabase start`, then `pnpm supabase db reset --local --no-seed` from the root.
 - `--no-seed` is required because `supabase/config.toml` enables `./seed.sql`, but `supabase/seed.sql` is absent.
-- Read all migrations in timestamp order. Later migrations change `raw_material_batches.received_at` to `date` and add the bale `delivery_date` state invariant and query indexes; do not infer the current schema from the first migration alone.
+- Read all migrations in timestamp order; never infer the current schema from an earlier migration alone.
 - Keep SQLAlchemy records and migrations aligned. Named constraints are part of conflict translation and integration-test diagnostics.
 - Inspect local migration state with `pnpm supabase migration list --local`.
 
