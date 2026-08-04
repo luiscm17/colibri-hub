@@ -1,5 +1,7 @@
-from access.application.services import AccessApplication, AccessDenied
-from access.domain.models import Action, ScopeCode
+"""Adapts Warehouse's consumer-owned authorization port to Access policy."""
+
+from access.application.authorize_action import AuthorizeAction
+from access.domain.errors import AccessDenied, AccessProfileNotFound, AccessUserInactive
 from warehouse.bales.ports.authorization import (
     AuthenticatedIdentity,
     AuthorizationDenied,
@@ -7,17 +9,17 @@ from warehouse.bales.ports.authorization import (
 
 
 class WarehouseAuthorizationAdapter:
-    """Adapts Warehouse's consumer-owned port to Access policy decisions."""
+    """Adapts Warehouse's consumer-owned port to Access authorization decisions."""
 
-    def __init__(self, access_application: AccessApplication) -> None:
-        self._access_application = access_application
+    def __init__(self, authorize_action: AuthorizeAction) -> None:
+        self._authorize = authorize_action
 
     def require(
         self, identity: AuthenticatedIdentity, *, action: str, scope: str
     ) -> None:
         try:
-            self._access_application.authorize(
-                identity.subject, Action(action), ScopeCode(scope)
+            self._authorize.execute(
+                subject=identity.subject, action=action, scope_code=scope
             )
-        except (AccessDenied, ValueError) as error:
+        except (AccessDenied, AccessProfileNotFound, AccessUserInactive, ValueError) as error:
             raise AuthorizationDenied("access_denied") from error

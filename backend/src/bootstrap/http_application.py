@@ -14,11 +14,10 @@ from bootstrap.database_session_dependency import (
 from bootstrap.api_router import create_api_router
 from bootstrap.http_error_handlers import register_exception_handlers
 from bootstrap.warehouse_bale_dependency import (
-    access_application_dependency,
+    authorization_provider_dependency,
+    get_current_access_dependency,
     use_case_dependency,
 )
-from access.adapters.warehouse_authorization import WarehouseAuthorizationAdapter
-from access.application.services import AccessApplication
 from infra.configuration import ApplicationSettings, DatabaseSettings
 from infra.persistence.database_engine import create_db_engine
 from infra.persistence.database_session_factory import create_session_factory
@@ -82,7 +81,8 @@ def create_app(
 
     session_provider = session_dependency(session_factory)
     use_case_provider = use_case_dependency(session_provider)
-    access_application_provider = access_application_dependency(session_provider)
+    get_current_access_provider = get_current_access_dependency(session_provider)
+    authorization_provider = authorization_provider_dependency(session_provider)
 
     # Resolve identity resolver and auth use case provider
     auth_use_case_provider = None
@@ -95,13 +95,6 @@ def create_app(
         )
     else:
         resolved_identity_resolver = unauthenticated_identity
-
-    def authorization_provider(
-        access_application: Annotated[
-            AccessApplication, Depends(access_application_provider)
-        ],
-    ) -> AuthorizationPort:
-        return WarehouseAuthorizationAdapter(access_application)
 
     app = FastAPI()
 
@@ -120,7 +113,7 @@ def create_app(
             use_case_provider,
             resolved_identity_resolver,
             authorization_provider,
-            access_application_provider,
+            get_current_access_provider,
             auth_use_case_provider,
         )
     )
