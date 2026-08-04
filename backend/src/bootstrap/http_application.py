@@ -185,29 +185,59 @@ def _compose_auth(
             from uuid import uuid4
             return str(uuid4())
 
-    class _FakeAccessProvisioning:
-        """Stub until AccessApplication exposes a provision_profile method.
-
-        TODO: Replace with a real adapter that calls AccessApplication once the
-        Access spine adds coordinated provisioning (create profile + assign roles).
-        Tracked in: openspec/changes/authentication-foundation/exploration.md
-        (Gap: "AccessApplication lacks a provisioning method").
-        """
-
-        def provision_profile(self, **kwargs): pass
-        def activate_profile(self, **kwargs): pass
-        def deactivate_profile(self, **kwargs): pass
-        def would_remove_last_administrator(self, subject): return False
-
     clock = _FakeClock()
     identity_gen = _FakeIdentity()
-    access_provisioning = _FakeAccessProvisioning()
 
     def auth_use_case_factory(
         session: Annotated[Session, Depends(session_provider)],
     ) -> dict:
         account_repo = AccountRepositoryAdapter(session)
         audit_repo = AuditRepositoryAdapter(session)
+
+        # Build the real Access provisioning adapter sharing this session
+        from access.adapters.access_provisioning import AccessProvisioningAdapter
+        from access.adapters.persistence.repositories import (
+            AccessAuditRepositoryAdapter,
+            AccessUserRepositoryAdapter,
+            RoleRepositoryAdapter,
+        )
+        from access.adapters.persistence.transaction import TransactionAdapter as AccessTransactionAdapter
+        from access.application.activate_access_user import ActivateAccessUser
+        from access.application.create_access_user import CreateAccessUser
+        from access.application.deactivate_access_user import DeactivateAccessUser
+
+        access_user_repo = AccessUserRepositoryAdapter(session)
+        access_role_repo = RoleRepositoryAdapter(session)
+        access_audit_repo = AccessAuditRepositoryAdapter(session)
+        access_transaction = AccessTransactionAdapter(session)
+
+        create_access_user = CreateAccessUser(
+            user_repository=access_user_repo,
+            role_repository=access_role_repo,
+            audit_repository=access_audit_repo,
+            transaction=access_transaction,
+            clock=clock,
+            identity=identity_gen,
+        )
+        activate_access_user = ActivateAccessUser(
+            user_repository=access_user_repo,
+            audit_repository=access_audit_repo,
+            transaction=access_transaction,
+            clock=clock,
+        )
+        deactivate_access_user = DeactivateAccessUser(
+            user_repository=access_user_repo,
+            audit_repository=access_audit_repo,
+            transaction=access_transaction,
+            clock=clock,
+        )
+
+        access_provisioning = AccessProvisioningAdapter(
+            create_user=create_access_user,
+            activate_user=activate_access_user,
+            deactivate_user=deactivate_access_user,
+            user_repository=access_user_repo,
+        )
 
         return {
             "get_current_authentication": GetCurrentAuthentication(account_repo),

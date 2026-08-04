@@ -1,9 +1,16 @@
+"""FastAPI dependency factories for Warehouse and Access composition."""
+
 from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
+from access.adapters.persistence.repositories import (
+    AccessUserRepositoryAdapter,
+    RoleRepositoryAdapter,
+    ScopeRepositoryAdapter,
+)
 from access.adapters.warehouse_authorization import WarehouseAuthorizationAdapter
 from access.application.authorize_action import AuthorizeAction
 from access.application.get_current_access import GetCurrentAccess
@@ -33,20 +40,15 @@ from warehouse.bales.ports.authorization import AuthorizationPort
 def authorize_action_dependency(
     session_provider: SessionProvider,
 ) -> Callable[..., AuthorizeAction]:
-    """Build the request-scoped AuthorizeAction dependency."""
-    from access.adapters.persistence.legacy_store import (
-        UserRepositoryShim,
-        RoleRepositoryShim,
-        ScopeRepositoryShim,
-    )
+    """Build the request-scoped AuthorizeAction use case."""
 
     def provide(
         session: Annotated[Session, Depends(session_provider)],
     ) -> AuthorizeAction:
         return AuthorizeAction(
-            user_repository=UserRepositoryShim(session),
-            role_repository=RoleRepositoryShim(session),
-            scope_repository=ScopeRepositoryShim(session),
+            user_repository=AccessUserRepositoryAdapter(session),
+            role_repository=RoleRepositoryAdapter(session),
+            scope_repository=ScopeRepositoryAdapter(session),
         )
 
     return provide
@@ -55,20 +57,15 @@ def authorize_action_dependency(
 def get_current_access_dependency(
     session_provider: SessionProvider,
 ) -> Callable[..., GetCurrentAccess]:
-    """Build the request-scoped GetCurrentAccess dependency."""
-    from access.adapters.persistence.legacy_store import (
-        UserRepositoryShim,
-        RoleRepositoryShim,
-        ScopeRepositoryShim,
-    )
+    """Build the request-scoped GetCurrentAccess use case."""
 
     def provide(
         session: Annotated[Session, Depends(session_provider)],
     ) -> GetCurrentAccess:
         return GetCurrentAccess(
-            user_repository=UserRepositoryShim(session),
-            role_repository=RoleRepositoryShim(session),
-            scope_repository=ScopeRepositoryShim(session),
+            user_repository=AccessUserRepositoryAdapter(session),
+            role_repository=RoleRepositoryAdapter(session),
+            scope_repository=ScopeRepositoryAdapter(session),
         )
 
     return provide
@@ -78,19 +75,14 @@ def authorization_provider_dependency(
     session_provider: SessionProvider,
 ) -> Callable[..., AuthorizationPort]:
     """Build the request-scoped authorization port for Warehouse."""
-    from access.adapters.persistence.legacy_store import (
-        UserRepositoryShim,
-        RoleRepositoryShim,
-        ScopeRepositoryShim,
-    )
 
     def provide(
         session: Annotated[Session, Depends(session_provider)],
     ) -> AuthorizationPort:
         authorize = AuthorizeAction(
-            user_repository=UserRepositoryShim(session),
-            role_repository=RoleRepositoryShim(session),
-            scope_repository=ScopeRepositoryShim(session),
+            user_repository=AccessUserRepositoryAdapter(session),
+            role_repository=RoleRepositoryAdapter(session),
+            scope_repository=ScopeRepositoryAdapter(session),
         )
         return WarehouseAuthorizationAdapter(authorize)
 
@@ -120,7 +112,8 @@ def build_use_cases(session: Session) -> BaleUseCases:
 def use_case_dependency(
     session_provider: SessionProvider,
 ) -> UseCaseProvider:
-    """Build a FastAPI dependency that resolves the bale use cases container."""
+    """Build a FastAPI dependency for bale use cases."""
+
     def provide_use_cases(
         session: Annotated[Session, Depends(session_provider)],
     ) -> BaleUseCases:
