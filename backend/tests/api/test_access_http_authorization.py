@@ -159,6 +159,7 @@ def _client_for(subject: str) -> tuple[TestClient, _RecordingRegister]:
             lambda: AuthenticatedIdentity(subject),
             lambda: WarehouseAuthorizationAdapter(authorize),
             lambda: get_current,
+            lambda: authorize,
         )
     )
     return TestClient(app, raise_server_exceptions=False), register
@@ -174,14 +175,14 @@ class AccessHttpAuthorizationTests(unittest.TestCase):
         resp = ordinary.get("/api/v1/access/me")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
-        self.assertFalse(data["authorization"]["global"])
+        self.assertFalse(data["authorization"]["global_access"])
         self.assertEqual(
             data["authorization"]["permissions"],
-            [{"action": "write", "scope": "warehouse.raw_materials"}],
+            [{"action": "write", "scope_code": "warehouse.raw_materials"}],
         )
 
         resp = admin.get("/api/v1/access/me")
-        self.assertTrue(resp.json()["authorization"]["global"])
+        self.assertTrue(resp.json()["authorization"]["global_access"])
 
         self.assertEqual(missing.get("/api/v1/access/me").json(), {"detail": "profile_not_found"})
         self.assertEqual(inactive.get("/api/v1/access/me").json(), {"detail": "profile_inactive"})

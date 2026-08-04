@@ -81,6 +81,7 @@ def client_for(
             lambda: AuthenticatedIdentity("test-subject"),
             lambda: _AllowAuthorization(),
             lambda: object(),  # type: ignore[return-value]
+            lambda: object(),  # type: ignore[return-value]
         )
     )
     return TestClient(app, raise_server_exceptions=False), use_case
