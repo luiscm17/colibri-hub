@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from access.adapters.warehouse_authorization import WarehouseAuthorizationAdapter
-from access.application.services import AccessApplication
+from access.application.services import AccessApplication, AccessState
 from access.domain.models import (
     SYSTEM_ADMINISTRATOR,
     Action,
@@ -16,7 +16,6 @@ from access.domain.models import (
     Scope,
     ScopeCode,
 )
-from access.ports import AccessState
 from backend.tests.support.http_payloads import bale_reception_payload
 from backend.tests.support.values import BATCH_ID, RECEIVED_AT
 from bootstrap.api_router import create_api_router

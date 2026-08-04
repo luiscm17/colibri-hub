@@ -1,5 +1,21 @@
+"""Backward-compatibility bridge — removed in PR 4.
+
+Re-exports spine-era types from new domain modules so that existing consumers
+(application/services.py, adapters/persistence/store.py, warehouse_authorization.py)
+compile without changes until they are replaced in later PRs.
+
+DO NOT add new code here. DO NOT import from this module in new code.
+"""
+
+# Re-export Action (spine only used READ/WRITE; new enum has all 5)
+from access.domain.actions import Action as Action
+
+# Re-export ScopeCode value object (same shape, moved to scopes module)
+from access.domain.scopes import ScopeCode as ScopeCode
+
+# Spine-era types that have no direct equivalent in the new domain.
+# These are used ONLY by services.py and store.py (eliminated in PR 3–4).
 from dataclasses import dataclass
-from enum import StrEnum
 
 
 SYSTEM_ADMINISTRATOR = "system_administrator"
@@ -7,34 +23,26 @@ ACCESS_CONTROL = "access_control"
 WAREHOUSE_RAW_MATERIALS = "warehouse.raw_materials"
 
 
-class Action(StrEnum):
-    READ = "read"
-    WRITE = "write"
-
-
-@dataclass(frozen=True, slots=True)
-class ScopeCode:
-    value: str
-
-    def __post_init__(self) -> None:
-        if not self.value or self.value != self.value.strip():
-            raise ValueError("Scope code must be non-empty and normalized.")
-
-
 @dataclass(frozen=True, slots=True)
 class Permission:
+    """Spine-era permission — uses ScopeCode value object."""
+
     action: Action
     scope: ScopeCode
 
 
 @dataclass(slots=True)
 class Scope:
+    """Spine-era scope — flat code + active flag."""
+
     code: ScopeCode
     is_active: bool = True
 
 
 @dataclass(slots=True)
 class Role:
+    """Spine-era role — flat code + permission set."""
+
     code: str
     permissions: frozenset[Permission] = frozenset()
     is_active: bool = True
@@ -46,6 +54,8 @@ class Role:
 
 @dataclass(slots=True)
 class AccessProfile:
+    """Spine-era access profile."""
+
     subject: str
     code: str
     is_active: bool = True
@@ -57,6 +67,8 @@ class AccessProfile:
 
 @dataclass(slots=True)
 class RoleAssignment:
+    """Spine-era role assignment."""
+
     subject: str
     role_code: str
     is_active: bool = True
@@ -65,6 +77,8 @@ class RoleAssignment:
 
 @dataclass(frozen=True, slots=True)
 class AccessSnapshot:
+    """Spine-era authorization snapshot."""
+
     subject: str
     profile_code: str
     global_access: bool
@@ -100,7 +114,12 @@ def snapshot_for(
     return AccessSnapshot(subject, profile.code, False, permissions)
 
 
-def allows(snapshot: AccessSnapshot | None, action: Action, scope: ScopeCode, scopes: list[Scope]) -> bool:
+def allows(
+    snapshot: AccessSnapshot | None,
+    action: Action,
+    scope: ScopeCode,
+    scopes: list[Scope],
+) -> bool:
     if snapshot is None or scope not in {item.code for item in scopes if item.is_active}:
         return False
     return snapshot.global_access or Permission(action, scope) in snapshot.permissions

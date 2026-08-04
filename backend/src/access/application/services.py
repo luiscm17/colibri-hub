@@ -1,5 +1,14 @@
+"""Spine-era monolithic application service — replaced in PR 3.
+
+This module exists only to keep WarehouseAuthorizationAdapter and the
+bootstrap command functional until the new per-use-case application layer
+is wired (PR 3–4). Do NOT add new features here.
+"""
+
+from contextlib import AbstractContextManager
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Protocol
 
 from access.domain.models import (
     ACCESS_CONTROL,
@@ -15,7 +24,33 @@ from access.domain.models import (
     allows,
     snapshot_for,
 )
-from access.ports import AccessState, AccessStore, AuditCommand
+
+
+# Legacy store protocol — inlined here since only this module uses it.
+@dataclass(slots=True)
+class AccessState:
+    bootstrap_operation_id: str | None = None
+    profiles: list[AccessProfile] = field(default_factory=list)
+    roles: list[Role] = field(default_factory=list)
+    scopes: list[Scope] = field(default_factory=list)
+    assignments: list[RoleAssignment] = field(default_factory=list)
+
+
+@dataclass(frozen=True, slots=True)
+class AuditCommand:
+    actor_subject: str | None
+    affected_subject: str
+    change_kind: str
+    reason: str | None
+    operation_id: str
+    before: dict[str, object]
+    after: dict[str, object]
+
+
+class AccessStore(Protocol):
+    def serialized(self) -> AbstractContextManager[None]: ...
+    def load(self) -> AccessState: ...
+    def commit(self, state: AccessState, audit: AuditCommand) -> None: ...
 
 
 class AccessDenied(Exception):

@@ -17,7 +17,6 @@ from bootstrap.warehouse_bale_dependency import (
     access_application_dependency,
     use_case_dependency,
 )
-from access.adapters.http_router import AccessApplicationProvider
 from access.adapters.warehouse_authorization import WarehouseAuthorizationAdapter
 from access.application.services import AccessApplication
 from infra.configuration import ApplicationSettings, DatabaseSettings

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from access.domain.models import AccessProfile, Action, Permission, Role, RoleAssignment, Scope, ScopeCode, SYSTEM_ADMINISTRATOR
-from access.ports import AccessState, AuditCommand
+from access.application.services import AccessState, AuditCommand
 from access.adapters.persistence.records import AccessBootstrapLockRecord, AccessChangeAuditRecord, AccessProfileRecord, AccessRoleAssignmentRecord, AccessRolePermissionRecord, AccessRoleRecord, AccessScopeRecord
 
 
