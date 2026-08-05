@@ -13,18 +13,26 @@ def session_dependency(
     session_factory: SessionFactory,
 ) -> SessionProvider:
     """Build a FastAPI dependency that yields a session per request.
-    
-    Creates a new session from the factory for each request and
-    ensures it is closed when the request completes.
-    
+
+    Creates a new session from the factory for each request. Commits on
+    successful completion and rolls back on exception. Always closes the
+    session when the request completes.
+
     Args:
         session_factory: A callable that returns a new SQLAlchemy Session.
-    
+
     Returns:
         A generator-based dependency for use with FastAPI Depends.
     """
     def database_session() -> Generator[Session, None, None]:
-        with session_factory() as session:
+        session = session_factory()
+        try:
             yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
     return database_session

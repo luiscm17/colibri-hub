@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 from auth.application.change_required_password import ChangeRequiredPassword
 from auth.application.disable_account import DisableAccount
-from auth.application.dto import (
+from auth.application.commands import (
     ChangePasswordCommand,
     DisableAccountCommand,
     EnableAccountCommand,
@@ -29,7 +29,7 @@ from auth.domain.errors import (
     ReplacementPasswordMustDiffer,
     VersionConflict,
 )
-from auth.ports.audit_repository import AuditEntry
+from auth.ports.audit_repository import AuthAuditEntry
 from auth.ports.identity_provider import ProviderIdentity
 
 
@@ -67,9 +67,9 @@ class InMemoryAccountRepository:
 
 class InMemoryAuditRepository:
     def __init__(self):
-        self.entries: list[AuditEntry] = []
+        self.entries: list[AuthAuditEntry] = []
 
-    def append(self, entry: AuditEntry):
+    def append(self, entry: AuthAuditEntry):
         self.entries.append(entry)
 
     def list_by_account(self, account_id: str):

@@ -2,14 +2,14 @@
 
 from auth.domain.account_status import AuthenticationAccountStatus
 from auth.domain.errors import AccountNotFound
-from auth.application.dto import CurrentAuthenticationResult
-from auth.ports.account_repository import AccountRepository
+from auth.application.results import CurrentAuthenticationResult
+from auth.ports.account_repository import AuthAccountRepository
 
 
 class GetCurrentAuthentication:
     """Return account state and required next step for a verified provider identity."""
 
-    def __init__(self, account_repository: AccountRepository) -> None:
+    def __init__(self, account_repository: AuthAccountRepository) -> None:
         self._accounts = account_repository
 
     def execute(self, identity_subject: str) -> CurrentAuthenticationResult:

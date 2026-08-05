@@ -9,10 +9,13 @@ from access.adapters.http.router import (
     create_self_access_router,
 )
 from access.application.authorize_action import AuthorizeAction
-from auth.adapters.http.router import AuthUseCaseProvider, create_auth_router
+from auth.adapters.http.admin_router import create_auth_admin_router
+from auth.adapters.http.user_router import create_auth_user_router
+from auth.application.auth_use_cases import AuthUseCaseProvider
 from fastapi import APIRouter
+from shared.identity import IdentityResolver
 from warehouse.bales.adapters.http.router import UseCaseProvider
-from warehouse.bales.ports.authorization import AuthorizationPort, IdentityResolver
+from warehouse.bales.ports.authorization import AuthorizationPort
 
 
 def create_api_router(
@@ -44,6 +47,9 @@ def create_api_router(
         )
     if auth_use_case_provider is not None:
         router.include_router(
-            create_auth_router(identity_resolver, auth_use_case_provider)
+            create_auth_user_router(identity_resolver, auth_use_case_provider)
+        )
+        router.include_router(
+            create_auth_admin_router(identity_resolver, auth_use_case_provider)
         )
     return router

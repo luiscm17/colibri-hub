@@ -310,46 +310,34 @@ Business use cases and domain entities never parse tokens or depend on a specifi
 
 ## 8. Hexagonal architecture
 
-### 8.1 Proposed module structure
+### 8.1 Layer Responsibilities
 
-```text
-backend/src/access/
-├── domain/
-│   ├── actions.py
-│   ├── users.py
-│   ├── roles.py
-│   ├── presets.py
-│   ├── scopes.py
-│   └── errors.py
-├── application/
-│   ├── authorization.py
-│   ├── users.py
-│   ├── roles.py
-│   ├── presets.py
-│   ├── scopes.py
-│   ├── audits.py
-│   └── dto.py
-├── ports/
-│   ├── repositories.py
-│   ├── transaction.py
-│   ├── identity.py
-│   └── clock.py
-└── adapters/
-    ├── http/
-    │   ├── models.py
-    │   ├── router.py
-    │   └── error_handlers.py
-    └── persistence/
-        ├── models.py
-        ├── repositories.py
-        └── authorization.py
-```
+The Access Control module follows hexagonal architecture with inward dependency
+direction. File organization, naming, and splitting decisions follow the
+project's architecture documentation and DDD conventions rather than this
+specification.
 
-HTTP models, routes, and Access-specific error translation are adapters of the
-capability. Authentication composition, session-factory ownership, dependency
-wiring, and router registration belong to the outer composition layer under
-`bootstrap`. Backend package discovery includes `access*` while preserving the
-capability-first layout.
+**Domain** owns supported action values, user and role lifecycle invariants,
+role permission-set validation, preset copy semantics, reserved System
+Administrator invariants, and prevention of privileged actions on ordinary
+roles. It does not know about HTTP, persistence, or authentication providers.
+
+**Application** provides one use case per business operation, coordrating
+authenticated identity resolution, authorization decisions, user lifecycle
+changes, role and preset management, scope registration, impact previews,
+transaction boundaries, audit entry creation, and cross-record invariant
+validation.
+
+**Ports** define the contracts the application layer requires from
+infrastructure. Each port is a Protocol using domain types exclusively.
+
+**Adapters** implement ports with concrete infrastructure: HTTP endpoints
+(split by scope or actor), ORM persistence, authorization query adapters, and
+anti-corruption layer adapters for cross-context integration.
+
+**Composition root** wires adapters to ports per request through the
+application's bootstrap layer. Internal provisioning commands share a database
+session scope with Authentication to guarantee transactional consistency.
 
 ### 8.2 Domain responsibilities
 
@@ -384,17 +372,17 @@ Application use cases orchestrate:
 
 The capability requires explicit ports for:
 
-| Port | Responsibility |
+| Responsibility | Contract |
 | --- | --- |
-| `AccessUserRepository` | Resolve by identity subject and load/change user state |
-| `RoleRepository` | Load roles, permissions, assignments, and affected users |
-| `PresetRepository` | Load and persist presets and their permission sets |
-| `ScopeDefinitionRegistry` | Expose the immutable set of product-recognized scope definitions |
-| `ScopeRepository` | Resolve registered stable scope codes and scope state |
-| `AccessAuditRepository` | Append and query access-change evidence |
-| `TransactionPort` | Commit or roll back one administrative mutation and its audit atomically |
-| `IdentityPort` | Generate internal identifiers |
-| `ClockPort` | Supply system timestamps for deterministic tests |
+| User persistence | Resolve by identity subject and load/change user state |
+| Role persistence | Load roles, permissions, assignments, and affected users |
+| Assignment persistence | Create and revoke user-role assignments |
+| Scope persistence | Resolve registered stable scope codes and scope state |
+| Scope definition registry | Expose the immutable set of product-recognized scope definitions |
+| Audit persistence | Append and query access-change evidence |
+| Transaction | Commit or roll back one administrative mutation and its audit atomically |
+| Identity generation | Generate internal identifiers |
+| Clock | Supply system timestamps for deterministic tests |
 
 The runtime authorization policy is exposed as an application service callable from composition. Protected contexts depend on a narrow authorization port rather than on Access repositories.
 
@@ -438,27 +426,27 @@ and Access Control does not change batch, bale, stock, or delivery invariants.
 
 ### 9.1 Queries
 
-- `GetCurrentAccess`: resolve the current user, assigned roles, and effective permissions.
-- `AuthorizeAction`: require one action in one scope for an authenticated actor.
-- `ListAccessUsers`: filter and paginate access profiles.
-- `GetAccessUser`: return one user, current assignments, and effective permissions.
-- `ListRoles` and `GetRole`: return role configuration and assigned-user counts.
-- `ListRolePresets` and `GetRolePreset`: return preset configuration.
-- `ListScopeDefinitions`: return product-recognized definitions and whether each is registered.
-- `ListScopes`: return registered scopes and lifecycle state.
-- `ListAccessAudits`: filter and paginate immutable access-change evidence.
-- `PreviewRoleChange`: calculate affected users and added or removed effective permissions.
-- `PreviewUserRoleReplacement`: calculate role and effective-permission differences for one user.
+- Get current access: resolve the current user, assigned roles, and effective permissions.
+- Authorize action: require one action in one scope for an authenticated actor.
+- List access users: filter and paginate access profiles.
+- Get access user: return one user, current assignments, and effective permissions.
+- List roles and get role: return role configuration and assigned-user counts.
+- List role presets and get role preset: return preset configuration.
+- List scope definitions: return product-recognized definitions and whether each is registered.
+- List scopes: return registered scopes and lifecycle state.
+- List access audits: filter and paginate immutable access-change evidence.
+- Preview role change: calculate affected users and added or removed effective permissions.
+- Preview user role replacement: calculate role and effective-permission differences for one user.
 
 ### 9.2 Commands
 
-- `CreateAccessUser` as an internal provisioning command invoked only by Authentication.
-- `ActivateAccessUser` and `DeactivateAccessUser`.
-- `CreateRole`, `UpdateRole`, `ActivateRole`, and `DeactivateRole`.
-- `ReplaceUserRoles`.
-- `CreateRoleFromPreset`.
-- `CreateRolePreset`, `UpdateRolePreset`, `ActivateRolePreset`, and `DeactivateRolePreset`.
-- `RegisterRecognizedScope`, `ActivateScope`, and `DeactivateScope`.
+- Create access user as an internal provisioning command invoked only by Authentication.
+- Activate access user and deactivate access user.
+- Create role, update role, activate role, and deactivate role.
+- Replace user roles.
+- Create role from preset.
+- Create role preset, update role preset, activate role preset, and deactivate role preset.
+- Register recognized scope, activate scope, and deactivate scope.
 
 Public administrative commands require `manage_access` in the `access_control`
 scope. Coordinated internal commands receive the already-authorized actor from
@@ -610,8 +598,8 @@ frontend:
   "identity_subject": "opaque-authenticated-subject",
   "user_code": "USR-014",
   "display_name": "Example User",
-  "role_ids": [
-    "248dd6f1-70bc-4b10-8c60-c25509ab71f8"
+  "role_codes": [
+    "ring-spinning-responsible"
   ],
   "reason": "Provision account and access for the assigned responsibility.",
   "operation_id": "5da77f74-bf0d-44f0-ad0f-e56dc1aa063e"
@@ -619,8 +607,8 @@ frontend:
 ```
 
 The identity subject must already have been established by Authentication.
-`role_ids` must contain one or more distinct active roles. Access Control rejects
-an empty role set, duplicate identifiers, inactive roles, invalid assignments,
+`role_codes` must contain one or more distinct active role codes. Access Control rejects
+an empty role set, duplicate codes, inactive roles, invalid assignments,
 and any configuration that violates the last-System-Administrator invariant.
 
 The internal operation uses the `operation_id` generated by Authentication so
@@ -710,7 +698,7 @@ A partial unique index permits only one current assignment for each `(user_id, r
 
 No parent identifier, wildcard, path matcher, or implicit hierarchy is stored.
 `scope_code` punctuation is naming structure only. Registration must resolve
-`definition_key` through `ScopeDefinitionRegistry`; free-form scope metadata is
+`definition_key` through the scope definition registry; free-form scope metadata is
 never persisted from the request.
 
 ### 11.5 `access_role_permissions`

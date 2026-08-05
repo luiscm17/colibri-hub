@@ -6,7 +6,7 @@ from auth.domain.account import AuthenticationAccount
 from auth.domain.email import NormalizedEmail
 
 
-class AccountRepository(Protocol):
+class AuthAccountRepository(Protocol):
     """Resolve and persist application-owned authentication account state."""
 
     def find_by_subject(self, identity_subject: str) -> AuthenticationAccount | None:

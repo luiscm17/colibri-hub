@@ -215,74 +215,51 @@ business state is exposed. It must never create usable access.
 
 ## 7. Hexagonal Architecture
 
-### 7.1 Module Structure
+### 7.1 Layer Responsibilities
 
-```text
-backend/src/auth/
-├── domain/
-│   ├── account.py
-│   ├── account_status.py
-│   ├── email.py
-│   └── errors.py
-├── application/
-│   ├── change_required_password.py
-│   ├── provision_account.py
-│   ├── reset_password.py
-│   ├── disable_account.py
-│   ├── enable_account.py
-│   ├── get_current_authentication.py
-│   ├── record_logout.py
-│   ├── list_accounts.py
-│   ├── get_account.py
-│   ├── list_audits.py
-│   └── dto.py
-├── ports/
-│   ├── account_repository.py
-│   ├── audit_repository.py
-│   ├── identity_provider.py
-│   ├── access_provisioning.py
-│   ├── transaction.py
-│   ├── clock.py
-│   └── identity.py
-└── adapters/
-    ├── http/
-    │   ├── models.py
-    │   ├── router.py
-    │   ├── dependencies.py
-    │   └── error_handlers.py
-    ├── identity_provider/
-    │   ├── supabase_auth.py
-    │   └── jwt_validator.py
-    └── persistence/
-        ├── models.py
-        └── repositories.py
-```
+The Authentication module follows hexagonal architecture with inward dependency
+direction. File organization, naming, and splitting decisions follow the
+project's architecture documentation and DDD conventions rather than this
+specification.
 
-### 7.2 Responsibility Boundaries
-
-The domain owns account transitions, mandatory-password-change state, normalized
+**Domain** owns account transitions, mandatory-password-change state, normalized
 email semantics, preservation of established accounts, and the invariant that a
 System Administrator remains available. It does not parse JWTs, hash passwords,
 call Supabase, or evaluate permissions.
 
-Application use cases coordinate provider operations, local account and audit
-persistence, Access Control application services, transaction boundaries, safe
-failure ordering, and typed errors.
+**Application** provides one use case per business operation, coordinating
+provider operations, local account and audit persistence, Access Control
+application services, transaction boundaries, safe failure ordering, and typed
+errors. Use cases accept typed command objects and are composed via a typed
+container that replaces stringly-typed provider patterns.
 
-### 7.3 Ports
+**Ports** define the contracts the application layer requires from
+infrastructure. Each port is a Protocol that uses domain types exclusively.
 
-| Port | Responsibility |
+**Adapters** implement ports with concrete infrastructure: HTTP endpoints (split
+by actor: self-service vs administrative), identity provider operations, ORM
+persistence, and the initial-administrator deployment command.
+
+**Composition root** wires adapters to ports per request, sharing a single
+database session scope between Authentication and Access Control adapters to
+guarantee transactional consistency without an auth-owned transaction port.
+
+### 7.2 Ports
+
+| Responsibility | Contract |
 | --- | --- |
-| `AuthenticationAccountRepository` | Resolve and persist application account state |
-| `AuthenticationAuditRepository` | Append and query redacted application-owned Authentication audits |
-| `IdentityProviderPort` | Create identities, update credentials, ban or unban users, revoke sessions, and resolve provider-owned session state |
-| `ProviderAuthenticationEvidencePort` | Query and normalize the required provider-owned Authentication audit evidence without exposing provider schemas to the application layer |
-| `AccessProvisioningPort` | Create, activate, or deactivate the associated profile and assign roles through Access application services |
-| `TransactionPort` | Commit application-owned Authentication and Access changes atomically |
-| `ClockPort` | Supply timestamps |
-| `IdentityPort` | Generate internal identifiers and coordinated `operation_id` values |
+| Account persistence | Resolve and persist application-owned authentication account state |
+| Audit persistence | Append and query redacted application-owned authentication audits |
+| Identity provider | Create identities, update credentials, ban or unban users, revoke sessions, and resolve provider-owned session state |
+| Access provisioning | Create, activate, or deactivate the associated profile and assign roles through Access application services |
+| Clock | Supply timestamps |
+| Identity generation | Generate internal identifiers and coordinated `operation_id` values |
 
-Supabase request and response types do not cross `IdentityProviderPort`.
+Supabase request and response types do not cross the identity provider port.
+
+The shared kernel provides `AuthenticatedIdentity` as a cross-context value
+object. Shared infrastructure adapters satisfy the clock and identity generation
+contracts via structural typing without importing bounded-context ports.
 
 ## 8. Request Authentication Pipeline
 
@@ -311,9 +288,9 @@ trusted as identity.
 
 ### 9.1 Authenticated User Commands
 
-- `GetCurrentAuthentication` returns the account state and required next step for a verified provider identity.
-- `ChangeRequiredPassword` rejects equal provisional and replacement values, updates the provider credential, moves the account to `active`, records the local transition, and preserves the original provider-session start time.
-- `RecordLogout` requests revocation of the current provider session when supported, records the local logout operation, and remains idempotent when the provider session has already ended.
+- Get current authentication returns the account state and required next step for a verified provider identity.
+- Change required password rejects equal provisional and replacement values, updates the provider credential, moves the account to `active`, records the local transition, and preserves the original provider-session start time.
+- Record logout requests revocation of the current provider session when supported, records the local logout operation, and remains idempotent when the provider session has already ended.
 
 Ordinary credential validation, session persistence, and refresh belong to the
 Supabase client used by the frontend, not to a backend login endpoint.
@@ -322,12 +299,12 @@ restart the provider session's eight-hour maximum.
 
 ### 9.2 Administrative Commands and Queries
 
-- `ProvisionAccount` creates the provider identity and coordinates the Access profile and initial roles.
-- `ListAuthenticationAccounts` and `GetAuthenticationAccount` return account and profile summaries.
-- `ResetAccountPassword` sets a new provisional password, revokes provider sessions, and moves the account to `awaiting_password_change`.
-- `DisableAuthenticationAccount` establishes local denial, deactivates the Access profile, bans provider login, and revokes provider sessions.
-- `EnableAuthenticationAccount` sets a new provisional password, validates Access configuration, unbans the provider identity, and moves the account to `awaiting_password_change`.
-- `ListAuthenticationAudits` returns paginated, redacted evidence.
+- Provision account creates the provider identity and coordinates the Access profile and initial roles.
+- List accounts and get account return account and profile summaries.
+- Reset password sets a new provisional password, revokes provider sessions, and moves the account to `awaiting_password_change`.
+- Disable account establishes local denial, deactivates the Access profile, bans provider login, and revokes provider sessions.
+- Enable account sets a new provisional password, validates Access configuration, unbans the provider identity, and moves the account to `awaiting_password_change`.
+- List audits returns paginated, redacted evidence.
 
 Administrative operations require an active System Administrator authorized by
 Access Control's `manage_access` permission.
@@ -344,7 +321,7 @@ remains an internal application service, not a second account-creation endpoint.
   "provisional_password": "temporary-secret",
   "user_code": "USR-014",
   "display_name": "Example User",
-  "role_ids": ["248dd6f1-70bc-4b10-8c60-c25509ab71f8"],
+  "role_codes": ["operator"],
   "reason": "Provision access for the assigned responsibility."
 }
 ```
@@ -356,12 +333,12 @@ Safe orchestration:
 
 1. Authenticate and authorize the acting System Administrator.
 2. Generate one `operation_id` for the coordinated administrative operation.
-3. Normalize the email and validate local uniqueness, a non-empty set of distinct active `role_ids`, and the applicable invariants.
+3. Normalize the email and validate local uniqueness, a non-empty set of distinct active `role_codes`, and the applicable invariants.
 4. Create the provider identity without sending email.
 5. In one PostgreSQL transaction, create the Authentication account in `awaiting_password_change`, invoke the internal Access Control provisioning service with the same `operation_id`, create the Access profile, assign the initial roles, and append the correlated application audits.
 6. Return only non-secret identifiers and summaries.
 
-Provisioning rejects an empty `role_ids` collection, duplicate role identifiers,
+Provisioning rejects an empty `role_codes` collection, duplicate role codes,
 inactive roles, and roles that violate Access Control assignment rules.
 
 If provider creation succeeds but application persistence fails, the newly
@@ -430,6 +407,7 @@ version:
   "account_id": "16a4f369-510e-47a9-a99c-6678f858afe0",
   "email": "example.user@organization.example",
   "display_name": "Example User",
+  "user_code": "USR-014",
   "status": "active",
   "version": 4
 }
@@ -509,6 +487,8 @@ provider identities are disabled, not physically deleted.
 | `authentication_account_id` | UUID | Primary key |
 | `identity_subject` | UUID | Unique and immutable provider identifier |
 | `normalized_email` | TEXT | Immutable lowercase comparison form; unique |
+| `display_name` | TEXT | Human-readable display name |
+| `user_code` | VARCHAR(40) | Unique stable administrative code |
 | `status` | TEXT | `awaiting_password_change`, `active`, or `disabled` |
 | `version` | BIGINT | Positive optimistic-concurrency version |
 | `created_at` | TIMESTAMPTZ | Required system timestamp |
@@ -545,9 +525,9 @@ headers, cookies, provider secrets, or raw credential request bodies.
 
 ## 13. Transaction and Failure Rules
 
-Application-owned Authentication and Access changes share a PostgreSQL
-transaction. Provider administration cannot participate in it, so use cases use
-safe ordering:
+Application-owned Authentication and Access changes share a single database
+session scope provided by the composition root. Provider administration cannot
+participate in the database transaction, so use cases use safe ordering:
 
 - provisioning keeps an identity unusable until application persistence succeeds;
 - disablement establishes local and Access Control denial before completing provider ban and revocation;

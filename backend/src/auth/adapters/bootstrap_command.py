@@ -18,9 +18,9 @@ import logging
 from auth.domain.account import AuthenticationAccount
 from auth.domain.email import NormalizedEmail
 from auth.domain.errors import DuplicateEmail, IdentityConflict
-from auth.ports.account_repository import AccountRepository
+from auth.ports.account_repository import AuthAccountRepository
 from auth.ports.access_provisioning import AccessProvisioningPort
-from auth.ports.audit_repository import AuditEntry, AuditRepository
+from auth.ports.audit_repository import AuthAuditEntry, AuthAuditRepository
 from auth.ports.clock import ClockPort
 from auth.ports.identity import IdentityPort
 from auth.ports.identity_provider import IdentityProviderPort
@@ -38,8 +38,8 @@ class BootstrapInitialAdministrator:
     def __init__(
         self,
         *,
-        account_repository: AccountRepository,
-        audit_repository: AuditRepository,
+        account_repository: AuthAccountRepository,
+        audit_repository: AuthAuditRepository,
         identity_provider: IdentityProviderPort,
         access_provisioning: AccessProvisioningPort,
         clock: ClockPort,
@@ -107,7 +107,7 @@ class BootstrapInitialAdministrator:
             )
 
             self._audits.append(
-                AuditEntry(
+                AuthAuditEntry(
                     audit_id=self._identity.generate_id(),
                     operation_id=operation_id,
                     event_type="initial_bootstrap",

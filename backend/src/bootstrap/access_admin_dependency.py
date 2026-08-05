@@ -22,29 +22,11 @@ from access.application.list_scopes import ListScopes
 from access.application.register_recognized_scope import RegisterRecognizedScope
 from access.application.replace_user_roles import ReplaceUserRoles
 from fastapi import Depends
+from infra.clock import SystemClock
+from infra.identity import SystemIdentity
 from sqlalchemy.orm import Session
 
 from bootstrap.database_session_dependency import SessionProvider
-
-
-class _SimpleIdentity:
-    """Simple identity generator for operation IDs."""
-
-    def generate_id(self) -> str:
-        from uuid import uuid4
-        return str(uuid4())
-
-    def generate_operation_id(self) -> str:
-        from uuid import uuid4
-        return str(uuid4())
-
-
-class _SimpleClock:
-    """Simple clock for timestamps."""
-
-    def now(self):
-        from datetime import datetime, timezone
-        return datetime.now(timezone.utc)
 
 
 def admin_use_case_dependency(
@@ -52,8 +34,8 @@ def admin_use_case_dependency(
 ) -> Callable[..., AdminUseCases]:
     """Build the request-scoped admin use case container."""
 
-    identity = _SimpleIdentity()
-    clock = _SimpleClock()
+    identity = SystemIdentity()
+    clock = SystemClock()
 
     def provide(
         session: Annotated[Session, Depends(session_provider)],

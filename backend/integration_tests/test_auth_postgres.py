@@ -18,7 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
-from auth.adapters.persistence.models import (
+from auth.adapters.persistence.records import (
     AuthenticationAccountRecord,
     AuthenticationAuditRecord,
 )

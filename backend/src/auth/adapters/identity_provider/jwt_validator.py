@@ -16,7 +16,7 @@ from jwt import PyJWKClient
 from fastapi import Request
 
 from auth.domain.errors import AuthenticationRequired
-from warehouse.bales.ports.authorization import AuthenticatedIdentity
+from shared.identity import AuthenticatedIdentity
 
 logger = logging.getLogger(__name__)
 

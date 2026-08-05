@@ -17,9 +17,9 @@ from auth.domain.errors import (
     AuthenticationRequired,
     PasswordChangeRequired,
 )
-from auth.ports.account_repository import AccountRepository
+from auth.ports.account_repository import AuthAccountRepository
 from auth.ports.identity_provider import IdentityProviderPort
-from warehouse.bales.ports.authorization import AuthenticatedIdentity
+from shared.identity import AuthenticatedIdentity
 
 
 SESSION_MAX_DURATION = timedelta(hours=8)
@@ -44,7 +44,7 @@ class RequestPipeline:
     def __init__(
         self,
         *,
-        account_repository: AccountRepository,
+        account_repository: AuthAccountRepository,
         identity_provider: IdentityProviderPort,
     ) -> None:
         self._accounts = account_repository
