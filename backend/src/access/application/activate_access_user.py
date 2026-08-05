@@ -28,9 +28,7 @@ class ActivateAccessUser:
                 raise AccessUserNotFound()
 
             before_active = user.is_active
-            user.is_active = True
-            user.version += 1
-            user.updated_at = self._clock.now()
+            user.activate(at=self._clock.now())
             self._users.save(user)
 
             actor = self._users.find_by_subject(command.actor_subject)
