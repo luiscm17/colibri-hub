@@ -487,6 +487,8 @@ provider identities are disabled, not physically deleted.
 | `authentication_account_id` | UUID | Primary key |
 | `identity_subject` | UUID | Unique and immutable provider identifier |
 | `normalized_email` | TEXT | Immutable lowercase comparison form; unique |
+| `display_name` | TEXT | Human-readable display name |
+| `user_code` | VARCHAR(40) | Unique stable administrative code |
 | `status` | TEXT | `awaiting_password_change`, `active`, or `disabled` |
 | `version` | BIGINT | Positive optimistic-concurrency version |
 | `created_at` | TIMESTAMPTZ | Required system timestamp |
