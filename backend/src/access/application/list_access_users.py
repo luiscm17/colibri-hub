@@ -1,7 +1,7 @@
 """Use case: list all access user profiles."""
 
-from access.application.dto import AccessUserResult
-from access.ports.repositories import AccessUserRepository
+from access.application.results import AccessUserResult
+from access.ports.users import AccessUserRepository
 
 
 class ListAccessUsers:

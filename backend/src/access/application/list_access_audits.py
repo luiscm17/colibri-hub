@@ -1,7 +1,7 @@
 """Use case: query access-change audit history."""
 
-from access.application.dto import AuditEntryResult
-from access.ports.repositories import AccessAuditRepository
+from access.application.results import AuditEntryResult
+from access.ports.audit import AccessAuditRepository
 
 
 class ListAccessAudits:

@@ -2,10 +2,12 @@
 
 from collections.abc import Callable
 
-from access.adapters.http.router import (
+from access.adapters.http.admin_router import (
     AdminUseCaseProvider,
-    GetCurrentAccessProvider,
     create_admin_router,
+)
+from access.adapters.http.self_access_router import (
+    GetCurrentAccessProvider,
     create_self_access_router,
 )
 from access.application.authorize_action import AuthorizeAction

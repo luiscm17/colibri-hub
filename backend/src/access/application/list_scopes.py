@@ -1,7 +1,7 @@
 """Use case: list all registered scopes."""
 
-from access.application.dto import ScopeResult
-from access.ports.repositories import ScopeRepository
+from access.application.results import ScopeResult
+from access.ports.scopes import ScopeRepository
 
 
 class ListScopes:

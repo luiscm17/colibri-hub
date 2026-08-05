@@ -1,6 +1,6 @@
 """Use case: replace the complete role set for an access user."""
 
-from access.application.dto import ReplaceUserRolesCommand
+from access.application.commands import ReplaceUserRolesCommand
 from access.domain.errors import (
     AccessRoleNotFound,
     AccessUserNotFound,
@@ -11,11 +11,9 @@ from access.domain.errors import (
 from access.ports.clock import ClockPort
 from access.ports.identity import IdentityPort
 from access.ports.assignments import AssignmentRepository
-from access.ports.repositories import (
-    AccessAuditRepository,
-    AccessUserRepository,
-    RoleRepository,
-)
+from access.ports.audit import AccessAuditRepository
+from access.ports.roles import RoleRepository
+from access.ports.users import AccessUserRepository
 from access.ports.transaction import TransactionPort
 
 

@@ -1,14 +1,12 @@
 """Use case: register a recognized scope definition as an active scope."""
 
-from access.application.dto import RegisterRecognizedScopeCommand, ScopeResult
+from access.application.commands import RegisterRecognizedScopeCommand
+from access.application.results import ScopeResult
 from access.domain.errors import DuplicateScopeCode, UnrecognizedScopeDefinition
 from access.ports.clock import ClockPort
 from access.ports.identity import IdentityPort
-from access.ports.repositories import (
-    AccessAuditRepository,
-    ScopeDefinitionRegistry,
-    ScopeRepository,
-)
+from access.ports.audit import AccessAuditRepository
+from access.ports.scopes import ScopeDefinitionRegistry, ScopeRepository
 from access.ports.transaction import TransactionPort
 
 

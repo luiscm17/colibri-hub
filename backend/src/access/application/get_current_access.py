@@ -1,14 +1,12 @@
 """Use case: resolve current user access snapshot for /access/me."""
 
-from access.application.dto import CurrentAccessResult, PermissionResult
+from access.application.results import CurrentAccessResult, PermissionResult
 from access.domain.authorization import effective_permissions
 from access.domain.errors import AccessProfileNotFound, AccessUserInactive
 from access.ports.assignments import AssignmentRepository
-from access.ports.repositories import (
-    AccessUserRepository,
-    RoleRepository,
-    ScopeRepository,
-)
+from access.ports.roles import RoleRepository
+from access.ports.scopes import ScopeRepository
+from access.ports.users import AccessUserRepository
 
 
 class GetCurrentAccess:
