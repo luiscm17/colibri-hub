@@ -1,14 +1,14 @@
 """Use case: get a single authentication account by ID."""
 
-from auth.application.dto import AccountSummary
+from auth.application.results import AccountSummary
 from auth.domain.errors import AccountNotFound
-from auth.ports.account_repository import AccountRepository
+from auth.ports.account_repository import AuthAccountRepository
 
 
 class GetAccount:
     """Return a non-secret account summary for administrative detail view."""
 
-    def __init__(self, account_repository: AccountRepository) -> None:
+    def __init__(self, account_repository: AuthAccountRepository) -> None:
         self._accounts = account_repository
 
     def execute(self, account_id: str) -> AccountSummary:

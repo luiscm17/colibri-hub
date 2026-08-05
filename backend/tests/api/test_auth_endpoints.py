@@ -7,7 +7,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from auth.adapters.http.error_handlers import authentication_error_handler
-from auth.adapters.http.router import create_auth_router
+from auth.adapters.http.admin_router import create_auth_admin_router
+from auth.adapters.http.user_router import create_auth_user_router
+from auth.application.auth_use_cases import AuthUseCases
 from auth.application.change_required_password import ChangeRequiredPassword
 from auth.application.disable_account import DisableAccount
 from auth.application.enable_account import EnableAccount
@@ -22,10 +24,10 @@ from auth.domain.account import AuthenticationAccount
 from auth.domain.account_status import AuthenticationAccountStatus
 from auth.domain.email import NormalizedEmail
 from auth.domain.errors import AuthenticationError
-from auth.ports.audit_repository import AuditEntry
+from auth.ports.audit_repository import AuthAuditEntry
 from auth.ports.identity_provider import ProviderIdentity
 from bootstrap.http_error_handlers import register_exception_handlers
-from warehouse.bales.ports.authorization import AuthenticatedIdentity
+from shared.identity import AuthenticatedIdentity
 
 
 # ─── Test Doubles ───────────────────────────────────────────────────────────────
@@ -62,7 +64,7 @@ class InMemoryAccountRepository:
 
 class InMemoryAuditRepository:
     def __init__(self):
-        self.entries: list[AuditEntry] = []
+        self.entries: list[AuthAuditEntry] = []
 
     def append(self, entry):
         self.entries.append(entry)
@@ -138,31 +140,23 @@ def _build_test_app(
     clock = FakeClock()
     identity = FakeIdentity()
 
-    use_cases = {
-        "get_current_authentication": GetCurrentAuthentication(repo),
-        "change_required_password": ChangeRequiredPassword(
+    use_cases = AuthUseCases(
+        get_current_authentication=GetCurrentAuthentication(repo),
+        change_required_password=ChangeRequiredPassword(
             account_repository=repo,
             audit_repository=audits,
             identity_provider=provider,
             clock=clock,
             identity=identity,
         ),
-        "record_logout": RecordLogout(
+        record_logout=RecordLogout(
             account_repository=repo,
             audit_repository=audits,
             identity_provider=provider,
             clock=clock,
             identity=identity,
         ),
-        "provision_account": ProvisionAccount(
-            account_repository=repo,
-            audit_repository=audits,
-            identity_provider=provider,
-            access_provisioning=access,
-            clock=clock,
-            identity=identity,
-        ),
-        "reset_password": ResetPassword(
+        provision_account=ProvisionAccount(
             account_repository=repo,
             audit_repository=audits,
             identity_provider=provider,
@@ -170,7 +164,7 @@ def _build_test_app(
             clock=clock,
             identity=identity,
         ),
-        "disable_account": DisableAccount(
+        reset_password=ResetPassword(
             account_repository=repo,
             audit_repository=audits,
             identity_provider=provider,
@@ -178,7 +172,7 @@ def _build_test_app(
             clock=clock,
             identity=identity,
         ),
-        "enable_account": EnableAccount(
+        disable_account=DisableAccount(
             account_repository=repo,
             audit_repository=audits,
             identity_provider=provider,
@@ -186,15 +180,23 @@ def _build_test_app(
             clock=clock,
             identity=identity,
         ),
-        "get_account": GetAccount(repo),
-        "list_accounts": ListAccounts(repo),
-        "list_audits": ListAudits(audits),
-    }
+        enable_account=EnableAccount(
+            account_repository=repo,
+            audit_repository=audits,
+            identity_provider=provider,
+            access_provisioning=access,
+            clock=clock,
+            identity=identity,
+        ),
+        get_account=GetAccount(repo),
+        list_accounts=ListAccounts(repo),
+        list_audits=ListAudits(audits),
+    )
 
     def identity_resolver() -> AuthenticatedIdentity:
         return AuthenticatedIdentity(subject=identity_subject, session_id="ses-test")
 
-    def use_case_factory() -> dict:
+    def use_case_factory() -> AuthUseCases:
         return use_cases
 
     app = FastAPI()
@@ -202,7 +204,10 @@ def _build_test_app(
     from fastapi import APIRouter
     api_router = APIRouter(prefix="/api/v1")
     api_router.include_router(
-        create_auth_router(identity_resolver, use_case_factory)
+        create_auth_user_router(identity_resolver, use_case_factory)
+    )
+    api_router.include_router(
+        create_auth_admin_router(identity_resolver, use_case_factory)
     )
     app.include_router(api_router)
 

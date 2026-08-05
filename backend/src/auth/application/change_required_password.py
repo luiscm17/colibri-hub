@@ -1,6 +1,6 @@
 """Use case: mandatory replacement of a provisional password."""
 
-from auth.application.dto import ChangePasswordCommand
+from auth.application.commands import ChangePasswordCommand
 from auth.domain.errors import (
     AccountNotFound,
     AccountStateConflict,
@@ -8,8 +8,8 @@ from auth.domain.errors import (
     ReplacementPasswordMustDiffer,
 )
 from auth.domain.account_status import AuthenticationAccountStatus
-from auth.ports.account_repository import AccountRepository
-from auth.ports.audit_repository import AuditEntry, AuditRepository
+from auth.ports.account_repository import AuthAccountRepository
+from auth.ports.audit_repository import AuthAuditEntry, AuthAuditRepository
 from auth.ports.clock import ClockPort
 from auth.ports.identity import IdentityPort
 from auth.ports.identity_provider import IdentityProviderPort
@@ -24,8 +24,8 @@ class ChangeRequiredPassword:
     def __init__(
         self,
         *,
-        account_repository: AccountRepository,
-        audit_repository: AuditRepository,
+        account_repository: AuthAccountRepository,
+        audit_repository: AuthAuditRepository,
         identity_provider: IdentityProviderPort,
         clock: ClockPort,
         identity: IdentityPort,
@@ -60,7 +60,7 @@ class ChangeRequiredPassword:
         self._accounts.save(account)
 
         self._audits.append(
-            AuditEntry(
+            AuthAuditEntry(
                 audit_id=self._identity.generate_id(),
                 operation_id=self._identity.generate_operation_id(),
                 event_type="password_changed",

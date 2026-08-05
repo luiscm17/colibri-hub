@@ -18,4 +18,4 @@ def register_access_records() -> None:
 def register_auth_records() -> None:
     """Load Authentication mappings into the shared SQLAlchemy metadata registry."""
 
-    from auth.adapters.persistence import models  # noqa: F401
+    from auth.adapters.persistence import records  # noqa: F401

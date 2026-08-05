@@ -1,8 +1,8 @@
 """Use case: record and terminate a logout."""
 
 from auth.domain.errors import AccountNotFound
-from auth.ports.account_repository import AccountRepository
-from auth.ports.audit_repository import AuditEntry, AuditRepository
+from auth.ports.account_repository import AuthAccountRepository
+from auth.ports.audit_repository import AuthAuditEntry, AuthAuditRepository
 from auth.ports.clock import ClockPort
 from auth.ports.identity import IdentityPort
 from auth.ports.identity_provider import IdentityProviderPort
@@ -17,8 +17,8 @@ class RecordLogout:
     def __init__(
         self,
         *,
-        account_repository: AccountRepository,
-        audit_repository: AuditRepository,
+        account_repository: AuthAccountRepository,
+        audit_repository: AuthAuditRepository,
         identity_provider: IdentityProviderPort,
         clock: ClockPort,
         identity: IdentityPort,
@@ -39,7 +39,7 @@ class RecordLogout:
 
         now = self._clock.now()
         self._audits.append(
-            AuditEntry(
+            AuthAuditEntry(
                 audit_id=self._identity.generate_id(),
                 operation_id=self._identity.generate_operation_id(),
                 event_type="logout",

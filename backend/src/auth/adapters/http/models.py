@@ -129,3 +129,23 @@ class EnableAccountRequest(_AuthModel):
     provisional_password: str
     reason: str
     expected_version: int
+
+
+class AuditEntryResponse(_AuthModel):
+    """Authentication audit entry response.
+
+    Attributes:
+        audit_id: Unique audit entry identifier.
+        operation_id: Correlated operation identifier.
+        event_type: Type of authentication event.
+        outcome: Result of the operation.
+        affected_account_id: Account affected by the event, if any.
+        occurred_at: ISO 8601 timestamp of the event.
+    """
+
+    audit_id: str
+    operation_id: str
+    event_type: str
+    outcome: str
+    affected_account_id: str | None
+    occurred_at: str | None

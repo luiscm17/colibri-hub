@@ -13,7 +13,7 @@ from auth.domain.errors import (
     PasswordChangeRequired,
 )
 from auth.ports.identity_provider import ProviderSession
-from warehouse.bales.ports.authorization import AuthenticatedIdentity
+from shared.identity import AuthenticatedIdentity
 
 
 # ─── Test Doubles ───────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ from typing import Protocol
 
 
 @dataclass(frozen=True, slots=True)
-class AuditEntry:
+class AuthAuditEntry:
     """Redacted application-owned authentication audit entry."""
 
     audit_id: str
@@ -22,17 +22,17 @@ class AuditEntry:
     occurred_at: str | None = None
 
 
-class AuditRepository(Protocol):
+class AuthAuditRepository(Protocol):
     """Append and query redacted application-owned authentication audits."""
 
-    def append(self, entry: AuditEntry) -> None:
+    def append(self, entry: AuthAuditEntry) -> None:
         """Append an immutable audit entry."""
         ...
 
-    def list_by_account(self, account_id: str) -> list[AuditEntry]:
+    def list_by_account(self, account_id: str) -> list[AuthAuditEntry]:
         """Return audit entries for a specific account, ordered by time."""
         ...
 
-    def list_recent(self, limit: int = 50) -> list[AuditEntry]:
+    def list_recent(self, limit: int = 50) -> list[AuthAuditEntry]:
         """Return the most recent audit entries."""
         ...

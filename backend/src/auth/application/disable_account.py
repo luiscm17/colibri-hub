@@ -1,14 +1,14 @@
 """Use case: disable an authentication account."""
 
-from auth.application.dto import DisableAccountCommand
+from auth.application.commands import DisableAccountCommand
 from auth.domain.errors import (
     AccountNotFound,
     LastSystemAdministratorRequired,
     VersionConflict,
 )
-from auth.ports.account_repository import AccountRepository
+from auth.ports.account_repository import AuthAccountRepository
 from auth.ports.access_provisioning import AccessProvisioningPort
-from auth.ports.audit_repository import AuditEntry, AuditRepository
+from auth.ports.audit_repository import AuthAuditEntry, AuthAuditRepository
 from auth.ports.clock import ClockPort
 from auth.ports.identity import IdentityPort
 from auth.ports.identity_provider import IdentityProviderPort
@@ -23,8 +23,8 @@ class DisableAccount:
     def __init__(
         self,
         *,
-        account_repository: AccountRepository,
-        audit_repository: AuditRepository,
+        account_repository: AuthAccountRepository,
+        audit_repository: AuthAuditRepository,
         identity_provider: IdentityProviderPort,
         access_provisioning: AccessProvisioningPort,
         clock: ClockPort,
@@ -69,7 +69,7 @@ class DisableAccount:
         self._provider.revoke_sessions(subject=account.identity_subject)
 
         self._audits.append(
-            AuditEntry(
+            AuthAuditEntry(
                 audit_id=self._identity.generate_id(),
                 operation_id=operation_id,
                 event_type="account_disabled",
