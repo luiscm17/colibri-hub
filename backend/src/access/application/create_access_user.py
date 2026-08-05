@@ -8,6 +8,7 @@ from access.domain.errors import (
 )
 from access.ports.clock import ClockPort
 from access.ports.identity import IdentityPort
+from access.ports.assignments import AssignmentRepository
 from access.ports.repositories import (
     AccessAuditRepository,
     AccessUserRepository,
@@ -28,6 +29,7 @@ class CreateAccessUser:
         *,
         user_repository: AccessUserRepository,
         role_repository: RoleRepository,
+        assignment_repository: AssignmentRepository,
         audit_repository: AccessAuditRepository,
         transaction: TransactionPort,
         clock: ClockPort,
@@ -35,6 +37,7 @@ class CreateAccessUser:
     ) -> None:
         self._users = user_repository
         self._roles = role_repository
+        self._assignments = assignment_repository
         self._audits = audit_repository
         self._transaction = transaction
         self._clock = clock
@@ -90,7 +93,7 @@ class CreateAccessUser:
                     assigned_by_user_id=actor_user_id,
                     assigned_at=now,
                 )
-                self._roles.save_assignment(assignment)
+                self._assignments.save(assignment)
 
             # Audit
             self._audits.append(

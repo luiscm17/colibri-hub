@@ -205,6 +205,7 @@ def _compose_auth(
         from access.adapters.persistence.repositories import (
             AccessAuditRepositoryAdapter,
             AccessUserRepositoryAdapter,
+            AssignmentRepositoryAdapter,
             RoleRepositoryAdapter,
         )
         from access.adapters.persistence.transaction import (
@@ -216,12 +217,14 @@ def _compose_auth(
 
         access_user_repo = AccessUserRepositoryAdapter(session)
         access_role_repo = RoleRepositoryAdapter(session)
+        access_assignment_repo = AssignmentRepositoryAdapter(session)
         access_audit_repo = AccessAuditRepositoryAdapter(session)
         access_transaction = AccessTransactionAdapter(session)
 
         create_access_user = CreateAccessUser(
             user_repository=access_user_repo,
             role_repository=access_role_repo,
+            assignment_repository=access_assignment_repo,
             audit_repository=access_audit_repo,
             transaction=access_transaction,
             clock=clock,
