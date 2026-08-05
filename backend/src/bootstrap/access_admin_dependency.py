@@ -12,6 +12,7 @@ from access.adapters.persistence.repositories import (
     ScopeRepositoryAdapter,
 )
 from access.adapters.persistence.transaction import TransactionAdapter
+from access.application.containers import AdminUseCases
 from access.application.create_role import CreateRole
 from access.application.list_access_audits import ListAccessAudits
 from access.application.list_access_users import ListAccessUsers
@@ -48,15 +49,15 @@ class _SimpleClock:
 
 def admin_use_case_dependency(
     session_provider: SessionProvider,
-) -> Callable[..., dict]:
-    """Build the request-scoped admin use case dict."""
+) -> Callable[..., AdminUseCases]:
+    """Build the request-scoped admin use case container."""
 
     identity = _SimpleIdentity()
     clock = _SimpleClock()
 
     def provide(
         session: Annotated[Session, Depends(session_provider)],
-    ) -> dict:
+    ) -> AdminUseCases:
         user_repo = AccessUserRepositoryAdapter(session)
         role_repo = RoleRepositoryAdapter(session)
         scope_repo = ScopeRepositoryAdapter(session)
@@ -65,16 +66,16 @@ def admin_use_case_dependency(
         audit_repo = AccessAuditRepositoryAdapter(session)
         transaction = TransactionAdapter(session)
 
-        return {
-            "list_access_users": ListAccessUsers(user_repository=user_repo),
-            "list_roles": ListRoles(role_repository=role_repo),
-            "list_scopes": ListScopes(scope_repository=scope_repo),
-            "list_scope_definitions": ListScopeDefinitions(
+        return AdminUseCases(
+            list_access_users=ListAccessUsers(user_repository=user_repo),
+            list_roles=ListRoles(role_repository=role_repo),
+            list_scopes=ListScopes(scope_repository=scope_repo),
+            list_scope_definitions=ListScopeDefinitions(
                 scope_definition_registry=definition_registry,
                 scope_repository=scope_repo,
             ),
-            "list_access_audits": ListAccessAudits(audit_repository=audit_repo),
-            "create_role": CreateRole(
+            list_access_audits=ListAccessAudits(audit_repository=audit_repo),
+            create_role=CreateRole(
                 role_repository=role_repo,
                 scope_repository=scope_repo,
                 scope_definition_registry=definition_registry,
@@ -83,7 +84,7 @@ def admin_use_case_dependency(
                 clock=clock,
                 identity=identity,
             ),
-            "replace_user_roles": ReplaceUserRoles(
+            replace_user_roles=ReplaceUserRoles(
                 user_repository=user_repo,
                 role_repository=role_repo,
                 assignment_repository=assignment_repo,
@@ -92,7 +93,7 @@ def admin_use_case_dependency(
                 clock=clock,
                 identity=identity,
             ),
-            "register_recognized_scope": RegisterRecognizedScope(
+            register_recognized_scope=RegisterRecognizedScope(
                 scope_repository=scope_repo,
                 scope_definition_registry=definition_registry,
                 audit_repository=audit_repo,
@@ -100,8 +101,8 @@ def admin_use_case_dependency(
                 clock=clock,
                 identity=identity,
             ),
-            "user_repository": user_repo,
-            "identity": identity,
-        }
+            user_repository=user_repo,
+            identity=identity,
+        )
 
     return provide
