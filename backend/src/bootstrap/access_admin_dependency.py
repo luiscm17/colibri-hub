@@ -6,6 +6,7 @@ from typing import Annotated
 from access.adapters.persistence.repositories import (
     AccessAuditRepositoryAdapter,
     AccessUserRepositoryAdapter,
+    AssignmentRepositoryAdapter,
     RoleRepositoryAdapter,
     ScopeDefinitionRegistryAdapter,
     ScopeRepositoryAdapter,
@@ -59,6 +60,7 @@ def admin_use_case_dependency(
         user_repo = AccessUserRepositoryAdapter(session)
         role_repo = RoleRepositoryAdapter(session)
         scope_repo = ScopeRepositoryAdapter(session)
+        assignment_repo = AssignmentRepositoryAdapter(session)
         definition_registry = ScopeDefinitionRegistryAdapter(session)
         audit_repo = AccessAuditRepositoryAdapter(session)
         transaction = TransactionAdapter(session)
@@ -84,7 +86,7 @@ def admin_use_case_dependency(
             "replace_user_roles": ReplaceUserRoles(
                 user_repository=user_repo,
                 role_repository=role_repo,
-                assignment_repository=role_repo,
+                assignment_repository=assignment_repo,
                 audit_repository=audit_repo,
                 transaction=transaction,
                 clock=clock,

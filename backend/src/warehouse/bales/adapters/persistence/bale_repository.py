@@ -1,6 +1,8 @@
 from collections.abc import Sequence
+from typing import Any
 
 from sqlalchemy import select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
 
 from warehouse.bales.adapters.persistence.bale_mapper import BaleMapper
@@ -40,14 +42,15 @@ class BaleRepositoryAdapter(BaleRepositoryPort):
 
     def update_delivery(self, bale: Bale) -> bool:
         """Conditional update: sets delivered + delivery_date only if status is still in_warehouse."""
+        assert bale.delivery_date is not None, "delivery_date must be set when delivering"
         stmt = (
             update(BaleRecord)
             .where(
                 BaleRecord.id == bale.id.value,
                 BaleRecord.status == "in_warehouse",
             )
-            .values(status="delivered", delivery_date=bale.delivery_date.value)  # type: ignore[union-attr]
+            .values(status="delivered", delivery_date=bale.delivery_date.value)
         )
-        result = self._session.execute(stmt)
+        result: CursorResult[Any] = self._session.execute(stmt)
         self._session.flush()
-        return result.rowcount > 0  # type: ignore[union-attr]
+        return result.rowcount > 0

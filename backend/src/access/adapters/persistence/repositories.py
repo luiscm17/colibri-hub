@@ -166,18 +166,8 @@ class RoleRepositoryAdapter:
         ).scalars().all()
         return [self._to_domain(r) for r in rows]
 
-    def save(self, entity: Role | Assignment) -> None:
-        """Persist a role or assignment.
-
-        Handles both RoleRepository.save(Role) and AssignmentRepository.save(Assignment)
-        until PR3 extracts a dedicated AssignmentRepositoryAdapter.
-        """
-        if isinstance(entity, Assignment):
-            self._save_assignment(entity)
-            return
-        self._save_role(entity)
-
-    def _save_role(self, role: Role) -> None:
+    def save(self, role: Role) -> None:
+        """Persist a new or updated role."""
         existing = self._session.execute(
             select(AccessRoleRecord).where(
                 AccessRoleRecord.role_id == UUID(role.role_id)
@@ -227,51 +217,6 @@ class RoleRepositoryAdapter:
             if role.updated_at is not None:
                 existing.updated_at = role.updated_at
 
-    def find_for_user(self, user_id: str) -> list[Assignment]:
-        rows = self._session.execute(
-            select(AccessUserRoleAssignmentRecord).where(
-                AccessUserRoleAssignmentRecord.user_id == UUID(user_id),
-                AccessUserRoleAssignmentRecord.revoked_at.is_(None),
-            )
-        ).scalars().all()
-        return [self._to_assignment(r) for r in rows]
-
-    def find_for_role(self, role_id: str) -> list[Assignment]:
-        rows = self._session.execute(
-            select(AccessUserRoleAssignmentRecord).where(
-                AccessUserRoleAssignmentRecord.role_id == UUID(role_id),
-                AccessUserRoleAssignmentRecord.revoked_at.is_(None),
-            )
-        ).scalars().all()
-        return [self._to_assignment(r) for r in rows]
-
-    def save_assignment(self, assignment: Assignment) -> None:
-        """Persist assignment (legacy convenience alias)."""
-        self._save_assignment(assignment)
-
-    def _save_assignment(self, assignment: Assignment) -> None:
-        existing = self._session.execute(
-            select(AccessUserRoleAssignmentRecord).where(
-                AccessUserRoleAssignmentRecord.assignment_id == UUID(assignment.assignment_id)
-            )
-        ).scalar_one_or_none()
-
-        if existing is None:
-            self._session.add(AccessUserRoleAssignmentRecord(
-                assignment_id=UUID(assignment.assignment_id),
-                user_id=UUID(assignment.user_id),
-                role_id=UUID(assignment.role_id),
-                assigned_by_user_id=UUID(assignment.assigned_by_user_id),
-                assigned_at=assignment.assigned_at,
-                revoked_by_user_id=UUID(assignment.revoked_by_user_id) if assignment.revoked_by_user_id else None,
-                revoked_at=assignment.revoked_at,
-                revoke_reason=assignment.revoke_reason,
-            ))
-        else:
-            existing.revoked_by_user_id = UUID(assignment.revoked_by_user_id) if assignment.revoked_by_user_id else None
-            existing.revoked_at = assignment.revoked_at
-            existing.revoke_reason = assignment.revoke_reason
-
     def _to_domain(self, row: AccessRoleRecord) -> Role:
         perm_rows = self._session.execute(
             select(AccessRolePermissionRecord).where(
@@ -307,6 +252,55 @@ class RoleRepositoryAdapter:
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
+
+
+class AssignmentRepositoryAdapter:
+    """Persists and queries user-role assignments independently of roles."""
+
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def find_for_user(self, user_id: str) -> list[Assignment]:
+        rows = self._session.execute(
+            select(AccessUserRoleAssignmentRecord).where(
+                AccessUserRoleAssignmentRecord.user_id == UUID(user_id),
+                AccessUserRoleAssignmentRecord.revoked_at.is_(None),
+            )
+        ).scalars().all()
+        return [self._to_assignment(r) for r in rows]
+
+    def find_for_role(self, role_id: str) -> list[Assignment]:
+        rows = self._session.execute(
+            select(AccessUserRoleAssignmentRecord).where(
+                AccessUserRoleAssignmentRecord.role_id == UUID(role_id),
+                AccessUserRoleAssignmentRecord.revoked_at.is_(None),
+            )
+        ).scalars().all()
+        return [self._to_assignment(r) for r in rows]
+
+    def save(self, assignment: Assignment) -> None:
+        """Persist a new or updated assignment."""
+        existing = self._session.execute(
+            select(AccessUserRoleAssignmentRecord).where(
+                AccessUserRoleAssignmentRecord.assignment_id == UUID(assignment.assignment_id)
+            )
+        ).scalar_one_or_none()
+
+        if existing is None:
+            self._session.add(AccessUserRoleAssignmentRecord(
+                assignment_id=UUID(assignment.assignment_id),
+                user_id=UUID(assignment.user_id),
+                role_id=UUID(assignment.role_id),
+                assigned_by_user_id=UUID(assignment.assigned_by_user_id),
+                assigned_at=assignment.assigned_at,
+                revoked_by_user_id=UUID(assignment.revoked_by_user_id) if assignment.revoked_by_user_id else None,
+                revoked_at=assignment.revoked_at,
+                revoke_reason=assignment.revoke_reason,
+            ))
+        else:
+            existing.revoked_by_user_id = UUID(assignment.revoked_by_user_id) if assignment.revoked_by_user_id else None
+            existing.revoked_at = assignment.revoked_at
+            existing.revoke_reason = assignment.revoke_reason
 
     @staticmethod
     def _to_assignment(row: AccessUserRoleAssignmentRecord) -> Assignment:
