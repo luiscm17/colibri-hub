@@ -23,7 +23,7 @@ from access.adapters.http.models import (
     ScopeResponse,
 )
 from access.application.authorize_action import AuthorizeAction
-from access.application.create_role import CreateRole
+from access.application.containers import AdminUseCases
 from access.application.dto import (
     CreateRoleCommand,
     RegisterRecognizedScopeCommand,
@@ -33,19 +33,12 @@ from access.application.dto import (
     PermissionInput as DtoPermissionInput,
 )
 from access.application.get_current_access import GetCurrentAccess
-from access.application.list_access_audits import ListAccessAudits
-from access.application.list_access_users import ListAccessUsers
-from access.application.list_roles import ListRoles
-from access.application.list_scope_definitions import ListScopeDefinitions
-from access.application.list_scopes import ListScopes
-from access.application.register_recognized_scope import RegisterRecognizedScope
-from access.application.replace_user_roles import ReplaceUserRoles
 from access.domain.actions import Action
 from access.domain.errors import AccessProfileNotFound, AccessUserInactive
 
 # Type aliases for dependency providers
 GetCurrentAccessProvider = Callable[..., GetCurrentAccess]
-AdminUseCaseProvider = Callable[..., dict]
+AdminUseCaseProvider = Callable[..., AdminUseCases]
 
 
 def create_self_access_router(
@@ -122,9 +115,8 @@ def create_admin_router(
     @router.get("/users")
     def list_users(
         identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
-        use_cases: Annotated[dict, Depends(admin_use_case_provider)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
     ) -> list[AccessUserResponse]:
-        list_uc: ListAccessUsers = use_cases["list_access_users"]
         return [
             AccessUserResponse(
                 user_id=u.user_id, identity_subject=u.identity_subject,
@@ -132,24 +124,23 @@ def create_admin_router(
                 is_active=u.is_active, authorization_version=u.authorization_version,
                 version=u.version,
             )
-            for u in list_uc.execute()
+            for u in use_cases.list_access_users.execute()
         ]
 
     @router.put("/users/{user_id}/roles")
     def replace_user_roles(
         user_id: str,
         identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
-        use_cases: Annotated[dict, Depends(admin_use_case_provider)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
         body: ReplaceUserRolesRequest,
     ) -> None:
-        uc: ReplaceUserRoles = use_cases["replace_user_roles"]
-        uc.execute(ReplaceUserRolesCommand(
+        use_cases.replace_user_roles.execute(ReplaceUserRolesCommand(
             user_id=user_id,
             role_ids=body.role_ids,
             expected_version=body.expected_version,
             reason=body.reason,
             actor_user_id=_resolve_user_id(use_cases, identity.subject),
-            operation_id=use_cases["identity"].generate_operation_id(),
+            operation_id=use_cases.identity.generate_operation_id(),
         ))
 
     # --- Roles ---
@@ -157,9 +148,8 @@ def create_admin_router(
     @router.get("/roles")
     def list_roles(
         identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
-        use_cases: Annotated[dict, Depends(admin_use_case_provider)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
     ) -> list[RoleResponse]:
-        list_uc: ListRoles = use_cases["list_roles"]
         return [
             RoleResponse(
                 role_id=r.role_id, role_code=r.role_code, role_name=r.role_name,
@@ -167,24 +157,23 @@ def create_admin_router(
                 is_active=r.is_active, version=r.version,
                 permissions=[PermissionResponse(action=p.action, scope_code=p.scope_code) for p in r.permissions],
             )
-            for r in list_uc.execute()
+            for r in use_cases.list_roles.execute()
         ]
 
     @router.post("/roles", status_code=201)
     def create_role(
         identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
-        use_cases: Annotated[dict, Depends(admin_use_case_provider)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
         body: CreateRoleRequest,
     ) -> RoleResponse:
-        uc: CreateRole = use_cases["create_role"]
-        result = uc.execute(CreateRoleCommand(
+        result = use_cases.create_role.execute(CreateRoleCommand(
             role_code=body.role_code,
             role_name=body.role_name,
             description=body.description,
             permissions=[DtoPermissionInput(action=p.action, scope_id=p.scope_id) for p in body.permissions],
             reason=body.reason,
             actor_user_id=_resolve_user_id(use_cases, identity.subject),
-            operation_id=use_cases["identity"].generate_operation_id(),
+            operation_id=use_cases.identity.generate_operation_id(),
         ))
         return RoleResponse(
             role_id=result.role_id, role_code=result.role_code,
@@ -199,24 +188,22 @@ def create_admin_router(
     @router.get("/scopes")
     def list_scopes(
         identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
-        use_cases: Annotated[dict, Depends(admin_use_case_provider)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
     ) -> list[ScopeResponse]:
-        list_uc: ListScopes = use_cases["list_scopes"]
         return [
             ScopeResponse(
                 scope_id=s.scope_id, definition_key=s.definition_key,
                 scope_code=s.scope_code, scope_name=s.scope_name,
                 owning_context=s.owning_context, is_active=s.is_active, version=s.version,
             )
-            for s in list_uc.execute()
+            for s in use_cases.list_scopes.execute()
         ]
 
     @router.get("/scope-definitions")
     def list_scope_definitions(
         identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
-        use_cases: Annotated[dict, Depends(admin_use_case_provider)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
     ) -> list[ScopeDefinitionResponse]:
-        list_uc: ListScopeDefinitions = use_cases["list_scope_definitions"]
         return [
             ScopeDefinitionResponse(
                 definition_key=d.definition_key, scope_code=d.scope_code,
@@ -224,21 +211,20 @@ def create_admin_router(
                 description=d.description, supported_actions=d.supported_actions,
                 is_registered=d.is_registered,
             )
-            for d in list_uc.execute()
+            for d in use_cases.list_scope_definitions.execute()
         ]
 
     @router.post("/scopes", status_code=201)
     def register_scope(
         identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
-        use_cases: Annotated[dict, Depends(admin_use_case_provider)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
         body: RegisterScopeRequest,
     ) -> ScopeResponse:
-        uc: RegisterRecognizedScope = use_cases["register_recognized_scope"]
-        result = uc.execute(RegisterRecognizedScopeCommand(
+        result = use_cases.register_recognized_scope.execute(RegisterRecognizedScopeCommand(
             definition_key=body.definition_key,
             reason=body.reason,
             actor_user_id=_resolve_user_id(use_cases, identity.subject),
-            operation_id=use_cases["identity"].generate_operation_id(),
+            operation_id=use_cases.identity.generate_operation_id(),
         ))
         return ScopeResponse(
             scope_id=result.scope_id, definition_key=result.definition_key,
@@ -251,10 +237,9 @@ def create_admin_router(
     @router.get("/audits")
     def list_audits(
         identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
-        use_cases: Annotated[dict, Depends(admin_use_case_provider)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
     ) -> list[AuditEntryResponse]:
-        list_uc: ListAccessAudits = use_cases["list_access_audits"]
-        entries = list_uc.execute()
+        entries = use_cases.list_access_audits.execute()
         return [
             AuditEntryResponse(
                 audit_id=e.audit_id, operation_id=e.operation_id,
@@ -268,11 +253,9 @@ def create_admin_router(
     return router
 
 
-def _resolve_user_id(use_cases: dict, subject: str) -> str:
+def _resolve_user_id(use_cases: AdminUseCases, subject: str) -> str:
     """Helper to resolve the actor's internal user_id from their identity subject."""
-    user_repo = use_cases.get("user_repository")
-    if user_repo:
-        user = user_repo.find_by_subject(subject)
-        if user:
-            return user.user_id
+    user = use_cases.user_repository.find_by_subject(subject)
+    if user:
+        return user.user_id
     raise ValueError(f"Cannot resolve user_id for subject: {subject}")
