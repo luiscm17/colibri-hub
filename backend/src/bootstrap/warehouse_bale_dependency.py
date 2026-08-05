@@ -45,9 +45,11 @@ def authorize_action_dependency(
     def provide(
         session: Annotated[Session, Depends(session_provider)],
     ) -> AuthorizeAction:
+        role_repo = RoleRepositoryAdapter(session)
         return AuthorizeAction(
             user_repository=AccessUserRepositoryAdapter(session),
-            role_repository=RoleRepositoryAdapter(session),
+            role_repository=role_repo,
+            assignment_repository=role_repo,
             scope_repository=ScopeRepositoryAdapter(session),
         )
 
@@ -62,9 +64,11 @@ def get_current_access_dependency(
     def provide(
         session: Annotated[Session, Depends(session_provider)],
     ) -> GetCurrentAccess:
+        role_repo = RoleRepositoryAdapter(session)
         return GetCurrentAccess(
             user_repository=AccessUserRepositoryAdapter(session),
-            role_repository=RoleRepositoryAdapter(session),
+            role_repository=role_repo,
+            assignment_repository=role_repo,
             scope_repository=ScopeRepositoryAdapter(session),
         )
 
@@ -79,9 +83,11 @@ def authorization_provider_dependency(
     def provide(
         session: Annotated[Session, Depends(session_provider)],
     ) -> AuthorizationPort:
+        role_repo = RoleRepositoryAdapter(session)
         authorize = AuthorizeAction(
             user_repository=AccessUserRepositoryAdapter(session),
-            role_repository=RoleRepositoryAdapter(session),
+            role_repository=role_repo,
+            assignment_repository=role_repo,
             scope_repository=ScopeRepositoryAdapter(session),
         )
         return WarehouseAuthorizationAdapter(authorize)

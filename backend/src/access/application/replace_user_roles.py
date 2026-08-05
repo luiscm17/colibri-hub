@@ -10,6 +10,7 @@ from access.domain.errors import (
 )
 from access.ports.clock import ClockPort
 from access.ports.identity import IdentityPort
+from access.ports.assignments import AssignmentRepository
 from access.ports.repositories import (
     AccessAuditRepository,
     AccessUserRepository,
@@ -30,6 +31,7 @@ class ReplaceUserRoles:
         *,
         user_repository: AccessUserRepository,
         role_repository: RoleRepository,
+        assignment_repository: AssignmentRepository,
         audit_repository: AccessAuditRepository,
         transaction: TransactionPort,
         clock: ClockPort,
@@ -37,6 +39,7 @@ class ReplaceUserRoles:
     ) -> None:
         self._users = user_repository
         self._roles = role_repository
+        self._assignments = assignment_repository
         self._audits = audit_repository
         self._transaction = transaction
         self._clock = clock
@@ -61,7 +64,7 @@ class ReplaceUserRoles:
                 new_roles.append(role)
 
             # Current assignments
-            current_assignments = self._roles.find_assignments_for_user(user.user_id)
+            current_assignments = self._assignments.find_for_user(user.user_id)
             current_role_ids = {a.role_id for a in current_assignments if a.is_current}
             desired_role_ids = set(command.role_ids)
 
@@ -84,7 +87,7 @@ class ReplaceUserRoles:
                         reason=command.reason,
                         at=now,
                     )
-                    self._roles.save_assignment(assignment)
+                    self._assignments.save(assignment)
 
             # Create new assignments
             from access.domain.roles import Assignment
@@ -96,7 +99,7 @@ class ReplaceUserRoles:
                     assigned_by_user_id=command.actor_user_id,
                     assigned_at=now,
                 )
-                self._roles.save_assignment(assignment)
+                self._assignments.save(assignment)
 
             # Bump authorization version
             user.authorization_version += 1

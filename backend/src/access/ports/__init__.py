@@ -4,6 +4,7 @@ Per hexagonal architecture: ports define WHAT the domain/application needs,
 adapters (in infrastructure) implement HOW.
 """
 
+from access.ports.assignments import AssignmentRepository as AssignmentRepository
 from access.ports.clock import ClockPort as ClockPort
 from access.ports.identity import IdentityPort as IdentityPort
 from access.ports.repositories import (
