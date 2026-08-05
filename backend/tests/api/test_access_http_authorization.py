@@ -176,14 +176,24 @@ class AccessHttpAuthorizationTests(unittest.TestCase):
         resp = ordinary.get("/api/v1/access/me")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
-        self.assertFalse(data["authorization"]["global_access"])
+        self.assertFalse(data["authorization"]["is_global"])
         self.assertEqual(
             data["authorization"]["permissions"],
             [{"action": "write", "scope_code": "warehouse.raw_materials"}],
         )
+        self.assertIn("roles", data)
+        self.assertEqual(
+            data["roles"],
+            [{"role_id": "role-1", "code": "warehouse_writer", "name": "Warehouse Writer"}],
+        )
 
         resp = admin.get("/api/v1/access/me")
-        self.assertTrue(resp.json()["authorization"]["global_access"])
+        admin_data = resp.json()
+        self.assertTrue(admin_data["authorization"]["is_global"])
+        self.assertEqual(
+            admin_data["roles"],
+            [{"role_id": "role-2", "code": "system_administrator", "name": "System Administrator"}],
+        )
 
         self.assertEqual(missing.get("/api/v1/access/me").json(), {"detail": "profile_not_found"})
         self.assertEqual(inactive.get("/api/v1/access/me").json(), {"detail": "profile_inactive"})

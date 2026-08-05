@@ -302,6 +302,52 @@ class RoleTest(unittest.TestCase):
         with self.assertRaises(DuplicateRolePermission):
             role.grant_permission(perm)
 
+    def test_grant_permission_rejects_privileged_on_ordinary_role(self):
+        from access.domain.errors import PrivilegedActionRequiresSystemAdministrator
+        role = _role(is_system_administrator=False)
+        perm = Permission(action=Action.MANAGE_ACCESS, scope_code="access_control")
+        with self.assertRaises(PrivilegedActionRequiresSystemAdministrator):
+            role.grant_permission(perm)
+
+    def test_set_permissions_replaces_entire_set(self):
+        old_perm = Permission(action=Action.READ, scope_code="warehouse.raw_materials")
+        new_perms = {
+            Permission(action=Action.WRITE, scope_code="warehouse.raw_materials"),
+            Permission(action=Action.EDIT, scope_code="warehouse.raw_materials"),
+        }
+        role = _role(permissions={old_perm})
+        role.set_permissions(new_perms)
+        self.assertEqual(role.permissions, new_perms)
+        self.assertNotIn(old_perm, role.permissions)
+
+    def test_set_permissions_rejects_privileged_on_ordinary_role(self):
+        from access.domain.errors import PrivilegedActionRequiresSystemAdministrator
+        role = _role(is_system_administrator=False)
+        perms = {
+            Permission(action=Action.READ, scope_code="warehouse.raw_materials"),
+            Permission(action=Action.MANAGE_ACCESS, scope_code="access_control"),
+        }
+        with self.assertRaises(PrivilegedActionRequiresSystemAdministrator):
+            role.set_permissions(perms)
+        # Permissions unchanged on failure
+        self.assertEqual(role.permissions, set())
+
+    def test_set_permissions_allows_privileged_on_sysadmin_role(self):
+        role = _role(is_system_administrator=True)
+        perms = {
+            Permission(action=Action.MANAGE_ACCESS, scope_code="access_control"),
+            Permission(action=Action.EDIT_OUTSIDE_WINDOW, scope_code="warehouse.raw_materials"),
+        }
+        role.set_permissions(perms)
+        self.assertEqual(role.permissions, perms)
+
+    def test_set_permissions_rejects_edit_outside_window_on_ordinary(self):
+        from access.domain.errors import PrivilegedActionRequiresSystemAdministrator
+        role = _role(is_system_administrator=False)
+        perms = {Permission(action=Action.EDIT_OUTSIDE_WINDOW, scope_code="warehouse.raw_materials")}
+        with self.assertRaises(PrivilegedActionRequiresSystemAdministrator):
+            role.set_permissions(perms)
+
 
 # --- Assignment Entity ---
 

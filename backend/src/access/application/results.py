@@ -57,12 +57,22 @@ class ScopeDefinitionResult:
 
 
 @dataclass(frozen=True, slots=True)
+class RoleSummaryResult:
+    """Compact role info for /access/me response."""
+
+    role_id: str
+    code: str
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
 class CurrentAccessResult:
     user_id: str
     user_code: str
     display_name: str
     is_active: bool
     is_global: bool
+    roles: list[RoleSummaryResult]
     permissions: list[PermissionResult]
     authorization_version: int
 

@@ -10,6 +10,7 @@ from access.adapters.http.models import (
     AuthorizationResponse,
     CurrentAccessResponse,
     PermissionResponse,
+    RoleSummaryResponse,
 )
 from access.application.get_current_access import GetCurrentAccess
 from access.domain.actions import Action
@@ -40,14 +41,20 @@ def create_self_access_router(
             from fastapi import HTTPException, status
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="profile_inactive")
 
+        roles = [
+            RoleSummaryResponse(role_id=r.role_id, code=r.code, name=r.name)
+            for r in result.roles
+        ]
+
         if result.is_global:
             return CurrentAccessResponse(
                 user_id=result.user_id,
                 user_code=result.user_code,
                 display_name=result.display_name,
                 is_active=result.is_active,
+                roles=roles,
                 authorization=AuthorizationResponse(
-                    global_access=True,
+                    is_global=True,
                     actions=sorted(a.value for a in Action),
                     permissions=[],
                     version=result.authorization_version,
@@ -59,8 +66,9 @@ def create_self_access_router(
             user_code=result.user_code,
             display_name=result.display_name,
             is_active=result.is_active,
+            roles=roles,
             authorization=AuthorizationResponse(
-                global_access=False,
+                is_global=False,
                 permissions=[
                     PermissionResponse(action=p.action, scope_code=p.scope_code)
                     for p in result.permissions

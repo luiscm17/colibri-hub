@@ -3,8 +3,12 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from access.domain.actions import Permission
-from access.domain.errors import AssignmentAlreadyRevoked, DuplicateRolePermission
+from access.domain.actions import PRIVILEGED_ACTIONS, Permission
+from access.domain.errors import (
+    AssignmentAlreadyRevoked,
+    DuplicateRolePermission,
+    PrivilegedActionRequiresSystemAdministrator,
+)
 
 
 @dataclass(slots=True)
@@ -26,7 +30,27 @@ class Role:
         """Add a permission to the role. Raises if already present."""
         if permission in self.permissions:
             raise DuplicateRolePermission()
+        if not self.is_system_administrator and permission.action in PRIVILEGED_ACTIONS:
+            raise PrivilegedActionRequiresSystemAdministrator()
         self.permissions.add(permission)
+
+    def set_permissions(self, permissions: set[Permission]) -> None:
+        """Full-replace the role's permission set.
+
+        Validates that ordinary roles do not receive privileged actions.
+        System Administrator roles accept any action.
+
+        Raises:
+            PrivilegedActionRequiresSystemAdministrator: if an ordinary role
+                receives manage_access or edit_outside_window.
+            DuplicateRolePermission: if the input set contains duplicates
+                (impossible for a set, but kept for contract clarity).
+        """
+        if not self.is_system_administrator:
+            for p in permissions:
+                if p.action in PRIVILEGED_ACTIONS:
+                    raise PrivilegedActionRequiresSystemAdministrator()
+        self.permissions = set(permissions)
 
 
 @dataclass(slots=True)

@@ -112,14 +112,29 @@ class AuditEntryResponse(_StrictModel):
 
 
 class AuthorizationResponse(_StrictModel):
-    """Authorization section of /access/me response."""
+    """Authorization section of /access/me response.
 
-    global_access: bool = False
+    Field `is_global` serializes as `global` per spec §10.1.
+    """
+
+    is_global: bool = False
     actions: list[str] = []
     permissions: list[PermissionResponse] = []
     version: int
 
-    model_config = ConfigDict(strict=True, extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(
+        strict=True,
+        extra="forbid",
+        populate_by_name=True,
+    )
+
+
+class RoleSummaryResponse(_StrictModel):
+    """Compact role info in /access/me response (spec §10.1)."""
+
+    role_id: str
+    code: str
+    name: str
 
 
 class CurrentAccessResponse(_StrictModel):
@@ -127,4 +142,5 @@ class CurrentAccessResponse(_StrictModel):
     user_code: str
     display_name: str
     is_active: bool
+    roles: list[RoleSummaryResponse]
     authorization: AuthorizationResponse

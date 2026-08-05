@@ -1,6 +1,10 @@
 """Use case: resolve current user access snapshot for /access/me."""
 
-from access.application.results import CurrentAccessResult, PermissionResult
+from access.application.results import (
+    CurrentAccessResult,
+    PermissionResult,
+    RoleSummaryResult,
+)
 from access.domain.authorization import effective_permissions
 from access.domain.errors import AccessProfileNotFound, AccessUserInactive
 from access.ports.assignments import AssignmentRepository
@@ -42,12 +46,19 @@ class GetCurrentAccess:
         is_global = any(r.is_system_administrator for r in roles if r.is_active)
         perms = effective_permissions(user, assignments, roles, scopes)
 
+        role_summaries = [
+            RoleSummaryResult(role_id=r.role_id, code=r.role_code, name=r.role_name)
+            for r in roles
+            if r.is_active
+        ]
+
         return CurrentAccessResult(
             user_id=user.user_id,
             user_code=user.user_code,
             display_name=user.display_name,
             is_active=user.is_active,
             is_global=is_global,
+            roles=role_summaries,
             permissions=[
                 PermissionResult(action=p.action, scope_code=p.scope_code)
                 for p in sorted(perms, key=lambda x: (x.action, x.scope_code))
