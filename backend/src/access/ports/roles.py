@@ -20,8 +20,12 @@ class RoleRepository(Protocol):
         """Resolve the reserved System Administrator role."""
         ...
 
-    def list_all(self) -> list[Role]:
-        """Return all roles ordered by creation time."""
+    def list_all(self, *, limit: int | None = None, offset: int = 0) -> list[Role]:
+        """Return roles ordered by creation time with optional pagination."""
+        ...
+
+    def count(self) -> int:
+        """Return total count of roles."""
         ...
 
     def save(self, role: Role) -> None:

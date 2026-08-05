@@ -16,8 +16,12 @@ class ScopeRepository(Protocol):
         """Resolve a scope by its exact code."""
         ...
 
-    def list_all(self) -> list[Scope]:
-        """Return all registered scopes."""
+    def list_all(self, *, limit: int | None = None, offset: int = 0) -> list[Scope]:
+        """Return registered scopes with optional pagination."""
+        ...
+
+    def count(self) -> int:
+        """Return total count of registered scopes."""
         ...
 
     def save(self, scope: Scope) -> None:

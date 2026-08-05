@@ -20,8 +20,12 @@ class AccessUserRepository(Protocol):
         """Persist a new or updated access user. Raises on constraint violation."""
         ...
 
-    def list_all(self) -> list[AccessUser]:
-        """Return all access users ordered by creation time."""
+    def list_all(self, *, limit: int | None = None, offset: int = 0) -> list[AccessUser]:
+        """Return access users ordered by creation time with optional pagination."""
+        ...
+
+    def count(self) -> int:
+        """Return total count of access users."""
         ...
 
     def count_active_administrators(

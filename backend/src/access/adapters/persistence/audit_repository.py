@@ -2,7 +2,7 @@
 
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from access.adapters.persistence.records import AccessChangeAuditRecord
@@ -39,12 +39,22 @@ class AccessAuditRepositoryAdapter:
             after_values=after_values,
         ))
 
-    def list_recent(self, *, limit: int = 50) -> list[AccessAuditEntry]:
-        rows = self._session.execute(
-            select(AccessChangeAuditRecord)
-            .order_by(AccessChangeAuditRecord.occurred_at.desc())
-            .limit(limit)
-        ).scalars().all()
+    def list_recent(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        subject_type: str | None = None,
+        change_kind: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> list[AccessAuditEntry]:
+        stmt = select(AccessChangeAuditRecord).order_by(
+            AccessChangeAuditRecord.occurred_at.desc()
+        )
+        stmt = self._apply_filters(stmt, subject_type, change_kind, date_from, date_to)
+        stmt = stmt.offset(offset).limit(limit)
+        rows = self._session.execute(stmt).scalars().all()
         return [
             AccessAuditEntry(
                 audit_id=str(r.access_change_audit_id),
@@ -58,3 +68,27 @@ class AccessAuditRepositoryAdapter:
             )
             for r in rows
         ]
+
+    def count(
+        self,
+        *,
+        subject_type: str | None = None,
+        change_kind: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> int:
+        stmt = select(func.count()).select_from(AccessChangeAuditRecord)
+        stmt = self._apply_filters(stmt, subject_type, change_kind, date_from, date_to)
+        return self._session.execute(stmt).scalar() or 0
+
+    @staticmethod
+    def _apply_filters(stmt, subject_type, change_kind, date_from, date_to):
+        if subject_type:
+            stmt = stmt.where(AccessChangeAuditRecord.subject_type == subject_type)
+        if change_kind:
+            stmt = stmt.where(AccessChangeAuditRecord.change_kind == change_kind)
+        if date_from:
+            stmt = stmt.where(AccessChangeAuditRecord.occurred_at >= date_from)
+        if date_to:
+            stmt = stmt.where(AccessChangeAuditRecord.occurred_at <= date_to)
+        return stmt

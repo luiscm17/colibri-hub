@@ -3,11 +3,26 @@
 All models use strict mode and forbid extra fields.
 """
 
+from typing import Generic, TypeVar
+
 from pydantic import BaseModel, ConfigDict
+
+T = TypeVar("T")
 
 
 class _StrictModel(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid")
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    """Page-based pagination envelope."""
+
+    items: list[T]
+    page: int
+    page_size: int
+    total: int
+
+    model_config = ConfigDict(strict=True)
 
 
 # --- Requests ---

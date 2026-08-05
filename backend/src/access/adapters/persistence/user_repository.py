@@ -35,11 +35,17 @@ class AccessUserRepositoryAdapter:
         ).scalar_one_or_none()
         return self._to_domain(row) if row else None
 
-    def list_all(self) -> list[AccessUser]:
-        rows = self._session.execute(
-            select(AccessUserRecord).order_by(AccessUserRecord.created_at)
-        ).scalars().all()
+    def list_all(self, *, limit: int | None = None, offset: int = 0) -> list[AccessUser]:
+        stmt = select(AccessUserRecord).order_by(AccessUserRecord.created_at).offset(offset)
+        if limit is not None:
+            stmt = stmt.limit(limit)
+        rows = self._session.execute(stmt).scalars().all()
         return [self._to_domain(r) for r in rows]
+
+    def count(self) -> int:
+        return self._session.execute(
+            select(func.count()).select_from(AccessUserRecord)
+        ).scalar() or 0
 
     def save(self, user: AccessUser) -> None:
         existing = self._session.execute(

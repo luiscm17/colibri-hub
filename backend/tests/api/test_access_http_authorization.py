@@ -74,8 +74,14 @@ class _FakeUserRepo:
         return next((u for u in _USERS if u.identity_subject == subject), None)
     def find_by_id(self, uid):
         return next((u for u in _USERS if u.user_id == uid), None)
-    def list_all(self):
-        return _USERS
+    def list_all(self, *, limit=None, offset=0):
+        result = _USERS
+        if offset:
+            result = result[offset:]
+        if limit is not None:
+            result = result[:limit]
+        return result
+    def count(self): return len(_USERS)
     def save(self, u): pass
     def count_active_administrators(self, **kw): return 1
 
@@ -87,8 +93,14 @@ class _FakeRoleRepo:
         return next((r for r in _ROLES if r.role_code == code), None)
     def find_system_administrator_role(self):
         return next((r for r in _ROLES if r.is_system_administrator), None)
-    def list_all(self):
-        return _ROLES
+    def list_all(self, *, limit=None, offset=0):
+        result = _ROLES
+        if offset:
+            result = result[offset:]
+        if limit is not None:
+            result = result[:limit]
+        return result
+    def count(self): return len(_ROLES)
     def find_for_user(self, user_id):
         return [a for a in _ASSIGNMENTS if a.user_id == user_id and a.is_current]
     def find_for_role(self, role_id):
@@ -101,8 +113,14 @@ class _FakeScopeRepo:
         return _WAREHOUSE_SCOPE if sid == "scope-1" else None
     def find_by_code(self, code):
         return _WAREHOUSE_SCOPE if code == "warehouse.raw_materials" else None
-    def list_all(self):
-        return [_WAREHOUSE_SCOPE]
+    def list_all(self, *, limit=None, offset=0):
+        result = [_WAREHOUSE_SCOPE]
+        if offset:
+            result = result[offset:]
+        if limit is not None:
+            result = result[:limit]
+        return result
+    def count(self): return 1
     def save(self, s): pass
 
 
