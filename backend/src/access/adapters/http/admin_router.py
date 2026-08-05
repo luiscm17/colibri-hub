@@ -10,13 +10,16 @@ from fastapi import APIRouter, Depends
 from shared.identity import AuthenticatedIdentity, IdentityResolver
 
 from access.adapters.http.models import (
+    AccessUserDetailResponse,
     AccessUserResponse,
+    AssignmentResponse,
     AuditEntryResponse,
     CreateRoleRequest,
     PermissionResponse,
     RegisterScopeRequest,
     ReplaceUserRolesRequest,
     RoleResponse,
+    RoleSummaryResponse,
     ScopeDefinitionResponse,
     ScopeResponse,
     StatusChangeRequest,
@@ -24,9 +27,11 @@ from access.adapters.http.models import (
 )
 from access.application.authorize_action import AuthorizeAction
 from access.application.commands import (
+    ActivateAccessUserCommand,
     ActivateRoleCommand,
     ActivateScopeCommand,
     CreateRoleCommand,
+    DeactivateAccessUserCommand,
     DeactivateRoleCommand,
     DeactivateScopeCommand,
     RegisterRecognizedScopeCommand,
@@ -90,6 +95,63 @@ def create_admin_router(
             actor_user_id=_resolve_user_id(use_cases, identity.subject),
             operation_id=use_cases.identity.generate_operation_id(),
         ))
+
+    @router.get("/users/{user_id}")
+    def get_user(
+        user_id: str,
+        identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
+    ) -> AccessUserDetailResponse:
+        result = use_cases.get_access_user.execute(user_id=user_id)
+        return AccessUserDetailResponse(
+            user_id=result.user.user_id,
+            identity_subject=result.user.identity_subject,
+            user_code=result.user.user_code,
+            display_name=result.user.display_name,
+            is_active=result.user.is_active,
+            authorization_version=result.user.authorization_version,
+            version=result.user.version,
+            roles=[RoleSummaryResponse(role_id=r.role_id, code=r.code, name=r.name) for r in result.roles],
+            assignments=[
+                AssignmentResponse(
+                    assignment_id=a.assignment_id, role_id=a.role_id,
+                    role_code=a.role_code, role_name=a.role_name, assigned_at=a.assigned_at,
+                )
+                for a in result.assignments
+            ],
+            is_global=result.is_global,
+            permissions=[PermissionResponse(action=p.action, scope_code=p.scope_code) for p in result.permissions],
+        )
+
+    @router.patch("/users/{user_id}/status")
+    def change_user_status(
+        user_id: str,
+        identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
+        body: StatusChangeRequest,
+    ) -> None:
+        # Resolve internal user by user_id to get subject
+        user = use_cases.user_repository.find_by_id(user_id)
+        if user is None:
+            from fastapi import HTTPException, status
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="access_user_not_found")
+
+        actor_subject = identity.subject
+        operation_id = use_cases.identity.generate_operation_id()
+        if body.is_active:
+            use_cases.activate_access_user.execute(ActivateAccessUserCommand(
+                subject=user.identity_subject,
+                actor_subject=actor_subject,
+                reason=body.reason,
+                operation_id=operation_id,
+            ))
+        else:
+            use_cases.deactivate_access_user.execute(DeactivateAccessUserCommand(
+                subject=user.identity_subject,
+                actor_subject=actor_subject,
+                reason=body.reason,
+                operation_id=operation_id,
+            ))
 
     # --- Roles ---
 

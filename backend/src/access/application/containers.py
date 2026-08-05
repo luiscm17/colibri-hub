@@ -2,11 +2,14 @@
 
 from dataclasses import dataclass
 
+from access.application.activate_access_user import ActivateAccessUser
 from access.application.activate_role import ActivateRole
 from access.application.activate_scope import ActivateScope
 from access.application.create_role import CreateRole
+from access.application.deactivate_access_user import DeactivateAccessUser
 from access.application.deactivate_role import DeactivateRole
 from access.application.deactivate_scope import DeactivateScope
+from access.application.get_access_user import GetAccessUser
 from access.application.list_access_audits import ListAccessAudits
 from access.application.list_access_users import ListAccessUsers
 from access.application.list_roles import ListRoles
@@ -37,6 +40,9 @@ class AdminUseCases:
     deactivate_role: DeactivateRole
     activate_scope: ActivateScope
     deactivate_scope: DeactivateScope
+    get_access_user: GetAccessUser
+    activate_access_user: ActivateAccessUser
+    deactivate_access_user: DeactivateAccessUser
     replace_user_roles: ReplaceUserRoles
     register_recognized_scope: RegisterRecognizedScope
     user_repository: AccessUserRepository

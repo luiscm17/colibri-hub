@@ -80,6 +80,30 @@ class AccessUserResponse(_StrictModel):
     version: int
 
 
+class AccessUserDetailResponse(_StrictModel):
+    """Full user detail with roles, assignments, and permissions."""
+
+    user_id: str
+    identity_subject: str
+    user_code: str
+    display_name: str
+    is_active: bool
+    authorization_version: int
+    version: int
+    roles: list["RoleSummaryResponse"]
+    assignments: list["AssignmentResponse"]
+    is_global: bool
+    permissions: list[PermissionResponse]
+
+
+class AssignmentResponse(_StrictModel):
+    assignment_id: str
+    role_id: str
+    role_code: str
+    role_name: str
+    assigned_at: str
+
+
 class ScopeResponse(_StrictModel):
     scope_id: str
     definition_key: str

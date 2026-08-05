@@ -26,6 +26,9 @@ from access.application.containers import AdminUseCases
 from access.application.create_role import CreateRole
 from access.application.deactivate_role import DeactivateRole
 from access.application.deactivate_scope import DeactivateScope
+from access.application.get_access_user import GetAccessUser
+from access.application.activate_access_user import ActivateAccessUser
+from access.application.deactivate_access_user import DeactivateAccessUser
 from access.application.list_access_audits import ListAccessAudits
 from access.application.list_access_users import ListAccessUsers
 from access.application.list_roles import ListRoles
@@ -107,6 +110,24 @@ def admin_use_case_dependency(
             ),
             deactivate_scope=DeactivateScope(
                 scope_repository=scope_repo,
+                audit_repository=audit_repo,
+                transaction=transaction,
+                clock=clock,
+            ),
+            get_access_user=GetAccessUser(
+                user_repository=user_repo,
+                role_repository=role_repo,
+                assignment_repository=assignment_repo,
+                scope_repository=scope_repo,
+            ),
+            activate_access_user=ActivateAccessUser(
+                user_repository=user_repo,
+                audit_repository=audit_repo,
+                transaction=transaction,
+                clock=clock,
+            ),
+            deactivate_access_user=DeactivateAccessUser(
+                user_repository=user_repo,
                 audit_repository=audit_repo,
                 transaction=transaction,
                 clock=clock,
