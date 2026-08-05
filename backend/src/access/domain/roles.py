@@ -52,6 +52,22 @@ class Role:
                     raise PrivilegedActionRequiresSystemAdministrator()
         self.permissions = set(permissions)
 
+    def activate(self, *, at: datetime) -> None:
+        """Reactivate the role. Idempotent when already active."""
+        if self.is_active:
+            return
+        self.is_active = True
+        self.version += 1
+        self.updated_at = at
+
+    def deactivate(self, *, at: datetime) -> None:
+        """Deactivate the role. Idempotent when already inactive."""
+        if not self.is_active:
+            return
+        self.is_active = False
+        self.version += 1
+        self.updated_at = at
+
 
 @dataclass(slots=True)
 class Assignment:

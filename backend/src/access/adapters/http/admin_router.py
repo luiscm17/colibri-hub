@@ -19,12 +19,19 @@ from access.adapters.http.models import (
     RoleResponse,
     ScopeDefinitionResponse,
     ScopeResponse,
+    StatusChangeRequest,
+    UpdateRoleRequest,
 )
 from access.application.authorize_action import AuthorizeAction
 from access.application.commands import (
+    ActivateRoleCommand,
+    ActivateScopeCommand,
     CreateRoleCommand,
+    DeactivateRoleCommand,
+    DeactivateScopeCommand,
     RegisterRecognizedScopeCommand,
     ReplaceUserRolesCommand,
+    UpdateRoleCommand,
 )
 from access.application.commands import (
     PermissionInput as DtoPermissionInput,
@@ -124,6 +131,68 @@ def create_admin_router(
             permissions=[PermissionResponse(action=p.action, scope_code=p.scope_code) for p in result.permissions],
         )
 
+    @router.get("/roles/{role_id}")
+    def get_role(
+        role_id: str,
+        identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
+    ) -> RoleResponse:
+        role = use_cases.role_repository.find_by_id(role_id)
+        if role is None:
+            from fastapi import HTTPException, status
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="access_role_not_found")
+        return RoleResponse(
+            role_id=role.role_id, role_code=role.role_code, role_name=role.role_name,
+            description=role.description, is_system_administrator=role.is_system_administrator,
+            is_active=role.is_active, version=role.version,
+            permissions=[PermissionResponse(action=p.action, scope_code=p.scope_code) for p in role.permissions],
+        )
+
+    @router.put("/roles/{role_id}")
+    def update_role(
+        role_id: str,
+        identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
+        body: UpdateRoleRequest,
+    ) -> RoleResponse:
+        result = use_cases.update_role.execute(UpdateRoleCommand(
+            role_id=role_id,
+            role_name=body.role_name,
+            description=body.description,
+            permissions=[DtoPermissionInput(action=p.action, scope_id=p.scope_id) for p in body.permissions],
+            expected_version=body.expected_version,
+            reason=body.reason,
+            actor_user_id=_resolve_user_id(use_cases, identity.subject),
+            operation_id=use_cases.identity.generate_operation_id(),
+        ))
+        return RoleResponse(
+            role_id=result.role_id, role_code=result.role_code,
+            role_name=result.role_name, description=result.description,
+            is_system_administrator=result.is_system_administrator,
+            is_active=result.is_active, version=result.version,
+            permissions=[PermissionResponse(action=p.action, scope_code=p.scope_code) for p in result.permissions],
+        )
+
+    @router.patch("/roles/{role_id}/status")
+    def change_role_status(
+        role_id: str,
+        identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
+        body: StatusChangeRequest,
+    ) -> None:
+        actor_user_id = _resolve_user_id(use_cases, identity.subject)
+        operation_id = use_cases.identity.generate_operation_id()
+        if body.is_active:
+            use_cases.activate_role.execute(ActivateRoleCommand(
+                role_id=role_id, expected_version=body.expected_version,
+                reason=body.reason, actor_user_id=actor_user_id, operation_id=operation_id,
+            ))
+        else:
+            use_cases.deactivate_role.execute(DeactivateRoleCommand(
+                role_id=role_id, expected_version=body.expected_version,
+                reason=body.reason, actor_user_id=actor_user_id, operation_id=operation_id,
+            ))
+
     # --- Scopes ---
 
     @router.get("/scopes")
@@ -172,6 +241,26 @@ def create_admin_router(
             scope_code=result.scope_code, scope_name=result.scope_name,
             owning_context=result.owning_context, is_active=result.is_active, version=result.version,
         )
+
+    @router.patch("/scopes/{scope_id}/status")
+    def change_scope_status(
+        scope_id: str,
+        identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
+        body: StatusChangeRequest,
+    ) -> None:
+        actor_user_id = _resolve_user_id(use_cases, identity.subject)
+        operation_id = use_cases.identity.generate_operation_id()
+        if body.is_active:
+            use_cases.activate_scope.execute(ActivateScopeCommand(
+                scope_id=scope_id, expected_version=body.expected_version,
+                reason=body.reason, actor_user_id=actor_user_id, operation_id=operation_id,
+            ))
+        else:
+            use_cases.deactivate_scope.execute(DeactivateScopeCommand(
+                scope_id=scope_id, expected_version=body.expected_version,
+                reason=body.reason, actor_user_id=actor_user_id, operation_id=operation_id,
+            ))
 
     # --- Audits ---
 
