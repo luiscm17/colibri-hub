@@ -2,7 +2,8 @@
 
 from typing import Protocol
 
-from access.domain.roles import Assignment, Role
+from access.domain.audit import AccessAuditEntry
+from access.domain.roles import Role
 from access.domain.scopes import Scope, ScopeDefinition
 from access.domain.users import AccessUser
 
@@ -60,18 +61,6 @@ class RoleRepository(Protocol):
         """Persist a new or updated role. Raises on constraint violation."""
         ...
 
-    def find_assignments_for_user(self, user_id: str) -> list[Assignment]:
-        """Return all current assignments for a given user."""
-        ...
-
-    def find_assignments_for_role(self, role_id: str) -> list[Assignment]:
-        """Return all current assignments for a given role."""
-        ...
-
-    def save_assignment(self, assignment: Assignment) -> None:
-        """Persist a new or updated assignment."""
-        ...
-
 
 class ScopeRepository(Protocol):
     """Resolve and persist scope state."""
@@ -123,6 +112,6 @@ class AccessAuditRepository(Protocol):
         """Record one audit entry. Append-only — updates and deletes are forbidden."""
         ...
 
-    def list_recent(self, *, limit: int = 50) -> list:
+    def list_recent(self, *, limit: int = 50) -> list[AccessAuditEntry]:
         """Return recent audit entries ordered by occurred_at descending."""
         ...

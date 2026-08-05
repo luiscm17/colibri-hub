@@ -3,6 +3,7 @@
 from access.application.dto import CurrentAccessResult, PermissionResult
 from access.domain.authorization import effective_permissions
 from access.domain.errors import AccessProfileNotFound, AccessUserInactive
+from access.ports.assignments import AssignmentRepository
 from access.ports.repositories import (
     AccessUserRepository,
     RoleRepository,
@@ -18,10 +19,12 @@ class GetCurrentAccess:
         *,
         user_repository: AccessUserRepository,
         role_repository: RoleRepository,
+        assignment_repository: AssignmentRepository,
         scope_repository: ScopeRepository,
     ) -> None:
         self._users = user_repository
         self._roles = role_repository
+        self._assignments = assignment_repository
         self._scopes = scope_repository
 
     def execute(self, *, subject: str) -> CurrentAccessResult:
@@ -31,7 +34,7 @@ class GetCurrentAccess:
         if not user.is_active:
             raise AccessUserInactive()
 
-        assignments = self._roles.find_assignments_for_user(user.user_id)
+        assignments = self._assignments.find_for_user(user.user_id)
         roles = [
             r for r in (self._roles.find_by_id(a.role_id) for a in assignments if a.is_current)
             if r is not None

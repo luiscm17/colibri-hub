@@ -18,8 +18,8 @@ from access.adapters.persistence.records import (
     AccessUserRecord,
     AccessUserRoleAssignmentRecord,
 )
-from access.application.dto import AuditEntryResult
 from access.domain.actions import Action, Permission
+from access.domain.audit import AccessAuditEntry
 from access.domain.roles import Assignment, Role
 from access.domain.scopes import Scope, ScopeDefinition
 from access.domain.users import AccessUser
@@ -166,7 +166,18 @@ class RoleRepositoryAdapter:
         ).scalars().all()
         return [self._to_domain(r) for r in rows]
 
-    def save(self, role: Role) -> None:
+    def save(self, entity: Role | Assignment) -> None:
+        """Persist a role or assignment.
+
+        Handles both RoleRepository.save(Role) and AssignmentRepository.save(Assignment)
+        until PR3 extracts a dedicated AssignmentRepositoryAdapter.
+        """
+        if isinstance(entity, Assignment):
+            self._save_assignment(entity)
+            return
+        self._save_role(entity)
+
+    def _save_role(self, role: Role) -> None:
         existing = self._session.execute(
             select(AccessRoleRecord).where(
                 AccessRoleRecord.role_id == UUID(role.role_id)
@@ -216,7 +227,7 @@ class RoleRepositoryAdapter:
             if role.updated_at is not None:
                 existing.updated_at = role.updated_at
 
-    def find_assignments_for_user(self, user_id: str) -> list[Assignment]:
+    def find_for_user(self, user_id: str) -> list[Assignment]:
         rows = self._session.execute(
             select(AccessUserRoleAssignmentRecord).where(
                 AccessUserRoleAssignmentRecord.user_id == UUID(user_id),
@@ -225,7 +236,7 @@ class RoleRepositoryAdapter:
         ).scalars().all()
         return [self._to_assignment(r) for r in rows]
 
-    def find_assignments_for_role(self, role_id: str) -> list[Assignment]:
+    def find_for_role(self, role_id: str) -> list[Assignment]:
         rows = self._session.execute(
             select(AccessUserRoleAssignmentRecord).where(
                 AccessUserRoleAssignmentRecord.role_id == UUID(role_id),
@@ -235,6 +246,10 @@ class RoleRepositoryAdapter:
         return [self._to_assignment(r) for r in rows]
 
     def save_assignment(self, assignment: Assignment) -> None:
+        """Persist assignment (legacy convenience alias)."""
+        self._save_assignment(assignment)
+
+    def _save_assignment(self, assignment: Assignment) -> None:
         existing = self._session.execute(
             select(AccessUserRoleAssignmentRecord).where(
                 AccessUserRoleAssignmentRecord.assignment_id == UUID(assignment.assignment_id)
@@ -441,14 +456,14 @@ class AccessAuditRepositoryAdapter:
             after_values=after_values,
         ))
 
-    def list_recent(self, *, limit: int = 50) -> list[AuditEntryResult]:
+    def list_recent(self, *, limit: int = 50) -> list[AccessAuditEntry]:
         rows = self._session.execute(
             select(AccessChangeAuditRecord)
             .order_by(AccessChangeAuditRecord.occurred_at.desc())
             .limit(limit)
         ).scalars().all()
         return [
-            AuditEntryResult(
+            AccessAuditEntry(
                 audit_id=str(r.access_change_audit_id),
                 operation_id=str(r.operation_id),
                 change_kind=r.change_kind,
@@ -456,7 +471,7 @@ class AccessAuditRepositoryAdapter:
                 subject_id=str(r.subject_id),
                 performed_by_user_id=str(r.performed_by_user_id) if r.performed_by_user_id else None,
                 reason=r.reason,
-                occurred_at=r.occurred_at.isoformat() if r.occurred_at else "",
+                occurred_at=r.occurred_at,
             )
             for r in rows
         ]

@@ -84,6 +84,7 @@ def admin_use_case_dependency(
             "replace_user_roles": ReplaceUserRoles(
                 user_repository=user_repo,
                 role_repository=role_repo,
+                assignment_repository=role_repo,
                 audit_repository=audit_repo,
                 transaction=transaction,
                 clock=clock,

@@ -7,7 +7,7 @@ from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from warehouse.bales.ports.authorization import AuthenticatedIdentity, IdentityResolver
+from shared.identity import AuthenticatedIdentity, IdentityResolver
 
 from access.adapters.http.models import (
     AccessUserResponse,

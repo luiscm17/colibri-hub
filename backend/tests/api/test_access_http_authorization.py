@@ -89,12 +89,11 @@ class _FakeRoleRepo:
         return next((r for r in _ROLES if r.is_system_administrator), None)
     def list_all(self):
         return _ROLES
-    def find_assignments_for_user(self, user_id):
+    def find_for_user(self, user_id):
         return [a for a in _ASSIGNMENTS if a.user_id == user_id and a.is_current]
-    def find_assignments_for_role(self, role_id):
+    def find_for_role(self, role_id):
         return [a for a in _ASSIGNMENTS if a.role_id == role_id]
     def save(self, r): pass
-    def save_assignment(self, a): pass
 
 
 class _FakeScopeRepo:
@@ -138,10 +137,12 @@ def _client_for(subject: str) -> tuple[TestClient, _RecordingRegister]:
     scope_repo = _FakeScopeRepo()
 
     authorize = AuthorizeAction(
-        user_repository=user_repo, role_repository=role_repo, scope_repository=scope_repo
+        user_repository=user_repo, role_repository=role_repo,
+        assignment_repository=role_repo, scope_repository=scope_repo
     )
     get_current = GetCurrentAccess(
-        user_repository=user_repo, role_repository=role_repo, scope_repository=scope_repo
+        user_repository=user_repo, role_repository=role_repo,
+        assignment_repository=role_repo, scope_repository=scope_repo
     )
 
     register = _RecordingRegister()

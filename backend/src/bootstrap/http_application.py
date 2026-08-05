@@ -7,12 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from infra.configuration import ApplicationSettings, DatabaseSettings
 from infra.persistence.database_engine import create_db_engine
 from infra.persistence.database_session_factory import create_session_factory
+from shared.identity import AuthenticatedIdentity, IdentityResolver
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
-from warehouse.bales.ports.authorization import (
-    AuthenticatedIdentity,
-    IdentityResolver,
-)
 
 from bootstrap.api_router import create_api_router
 from bootstrap.database_session_dependency import (
