@@ -188,6 +188,39 @@ class ScopeDefinitionTest(unittest.TestCase):
         self.assertNotIn(Action.MANAGE_ACCESS, sd.supported_actions)
 
 
+# --- Scope Entity Behavior ---
+
+
+class ScopeBehaviorTest(unittest.TestCase):
+    def test_deactivate_sets_inactive_and_bumps_version(self):
+        scope = _scope()
+        later = datetime(2025, 6, 1, tzinfo=timezone.utc)
+        scope.deactivate(at=later)
+        self.assertFalse(scope.is_active)
+        self.assertEqual(scope.version, 2)
+        self.assertEqual(scope.updated_at, later)
+
+    def test_deactivate_idempotent_when_already_inactive(self):
+        scope = _scope(is_active=False)
+        original_version = scope.version
+        scope.deactivate(at=datetime(2025, 6, 1, tzinfo=timezone.utc))
+        self.assertEqual(scope.version, original_version)
+
+    def test_activate_sets_active_and_bumps_version(self):
+        scope = _scope(is_active=False)
+        later = datetime(2025, 6, 1, tzinfo=timezone.utc)
+        scope.activate(at=later)
+        self.assertTrue(scope.is_active)
+        self.assertEqual(scope.version, 2)
+        self.assertEqual(scope.updated_at, later)
+
+    def test_activate_idempotent_when_already_active(self):
+        scope = _scope()
+        original_version = scope.version
+        scope.activate(at=datetime(2025, 6, 1, tzinfo=timezone.utc))
+        self.assertEqual(scope.version, original_version)
+
+
 # --- AccessUser Entity ---
 
 
@@ -206,6 +239,34 @@ class AccessUserTest(unittest.TestCase):
         user = _user()
         user.authorization_version += 1
         self.assertEqual(user.authorization_version, 2)
+
+    def test_deactivate_sets_inactive_and_bumps_version(self):
+        user = _user()
+        later = datetime(2025, 6, 1, tzinfo=timezone.utc)
+        user.deactivate(at=later)
+        self.assertFalse(user.is_active)
+        self.assertEqual(user.version, 2)
+        self.assertEqual(user.updated_at, later)
+
+    def test_deactivate_idempotent_when_already_inactive(self):
+        user = _user(is_active=False)
+        original_version = user.version
+        user.deactivate(at=datetime(2025, 6, 1, tzinfo=timezone.utc))
+        self.assertEqual(user.version, original_version)
+
+    def test_activate_sets_active_and_bumps_version(self):
+        user = _user(is_active=False)
+        later = datetime(2025, 6, 1, tzinfo=timezone.utc)
+        user.activate(at=later)
+        self.assertTrue(user.is_active)
+        self.assertEqual(user.version, 2)
+        self.assertEqual(user.updated_at, later)
+
+    def test_activate_idempotent_when_already_active(self):
+        user = _user()
+        original_version = user.version
+        user.activate(at=datetime(2025, 6, 1, tzinfo=timezone.utc))
+        self.assertEqual(user.version, original_version)
 
 
 # --- Role Entity ---
@@ -227,6 +288,19 @@ class RoleTest(unittest.TestCase):
         }
         role = _role(permissions=perms)
         self.assertEqual(len(role.permissions), 2)
+
+    def test_grant_permission_adds_to_set(self):
+        role = _role()
+        perm = Permission(action=Action.READ, scope_code="warehouse.raw_materials")
+        role.grant_permission(perm)
+        self.assertIn(perm, role.permissions)
+
+    def test_grant_permission_duplicate_raises(self):
+        from access.domain.errors import DuplicateRolePermission
+        perm = Permission(action=Action.READ, scope_code="warehouse.raw_materials")
+        role = _role(permissions={perm})
+        with self.assertRaises(DuplicateRolePermission):
+            role.grant_permission(perm)
 
 
 # --- Assignment Entity ---
@@ -250,6 +324,30 @@ class AssignmentTest(unittest.TestCase):
             revoke_reason="Reassigned",
         )
         self.assertFalse(a.is_current)
+
+    def test_revoke_sets_fields_and_marks_not_current(self):
+        a = _assignment()
+        later = datetime(2025, 6, 1, tzinfo=timezone.utc)
+        a.revoke(by="admin-1", reason="No longer needed", at=later)
+        self.assertFalse(a.is_current)
+        self.assertEqual(a.revoked_by_user_id, "admin-1")
+        self.assertEqual(a.revoke_reason, "No longer needed")
+        self.assertEqual(a.revoked_at, later)
+
+    def test_revoke_already_revoked_raises(self):
+        from access.domain.errors import AssignmentAlreadyRevoked
+        a = Assignment(
+            assignment_id="asgn-1",
+            user_id="user-1",
+            role_id="role-1",
+            assigned_by_user_id="admin-1",
+            assigned_at=NOW,
+            revoked_by_user_id="admin-1",
+            revoked_at=NOW,
+            revoke_reason="Reassigned",
+        )
+        with self.assertRaises(AssignmentAlreadyRevoked):
+            a.revoke(by="admin-2", reason="Retry", at=NOW)
 
 
 # --- Authorization: Default Deny (Property 1) ---

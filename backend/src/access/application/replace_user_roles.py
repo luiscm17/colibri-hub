@@ -79,9 +79,11 @@ class ReplaceUserRoles:
             # Revoke removed assignments
             for assignment in current_assignments:
                 if assignment.is_current and assignment.role_id not in desired_role_ids:
-                    assignment.revoked_at = now
-                    assignment.revoked_by_user_id = command.actor_user_id
-                    assignment.revoke_reason = command.reason
+                    assignment.revoke(
+                        by=command.actor_user_id,
+                        reason=command.reason,
+                        at=now,
+                    )
                     self._roles.save_assignment(assignment)
 
             # Create new assignments

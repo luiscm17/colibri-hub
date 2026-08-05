@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from access.domain.actions import Permission
+from access.domain.errors import AssignmentAlreadyRevoked, DuplicateRolePermission
 
 
 @dataclass(slots=True)
@@ -20,6 +21,12 @@ class Role:
     permissions: set[Permission] = field(default_factory=set)
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    def grant_permission(self, permission: Permission) -> None:
+        """Add a permission to the role. Raises if already present."""
+        if permission in self.permissions:
+            raise DuplicateRolePermission()
+        self.permissions.add(permission)
 
 
 @dataclass(slots=True)
@@ -39,3 +46,11 @@ class Assignment:
     def is_current(self) -> bool:
         """An assignment is current when it has not been revoked."""
         return self.revoked_at is None
+
+    def revoke(self, *, by: str, reason: str, at: datetime) -> None:
+        """Revoke this assignment. Raises if already revoked."""
+        if not self.is_current:
+            raise AssignmentAlreadyRevoked()
+        self.revoked_by_user_id = by
+        self.revoke_reason = reason
+        self.revoked_at = at

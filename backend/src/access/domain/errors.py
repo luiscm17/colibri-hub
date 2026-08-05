@@ -210,3 +210,12 @@ class ReservedRoleMutationForbidden(AccessError):
 
     def __init__(self) -> None:
         super().__init__("The reserved System Administrator role cannot be modified.")
+
+
+class AssignmentAlreadyRevoked(AccessError):
+    """Revocation attempted on an already-revoked assignment."""
+
+    code = "assignment_already_revoked"
+
+    def __init__(self) -> None:
+        super().__init__("This assignment has already been revoked.")

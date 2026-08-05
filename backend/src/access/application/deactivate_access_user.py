@@ -35,9 +35,7 @@ class DeactivateAccessUser:
                 raise LastSystemAdministratorRequired()
 
             before_active = user.is_active
-            user.is_active = False
-            user.version += 1
-            user.updated_at = self._clock.now()
+            user.deactivate(at=self._clock.now())
             self._users.save(user)
 
             actor = self._users.find_by_subject(command.actor_subject)
