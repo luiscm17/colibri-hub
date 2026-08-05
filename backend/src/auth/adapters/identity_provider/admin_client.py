@@ -8,7 +8,7 @@ returns provider-neutral DTOs.
 from __future__ import annotations
 
 import logging
-from typing import Never
+from typing import Any, Never, cast
 
 from auth.domain.errors import (
     DuplicateEmail,
@@ -99,10 +99,11 @@ class IdentityProviderAdapter:
                 .execute()
             )
 
-            if not response.data:
+            data = response.data
+            if not data:
                 return None
 
-            row: dict = response.data[0]  # type: ignore[assignment]
+            row = cast(dict[str, Any], data[0])
             return ProviderSession(
                 session_id=str(row["id"]),
                 created_at=row["created_at"],
