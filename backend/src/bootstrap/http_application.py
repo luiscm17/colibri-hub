@@ -4,29 +4,24 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from infra.configuration import ApplicationSettings, DatabaseSettings
+from infra.persistence.database_engine import create_db_engine
+from infra.persistence.database_session_factory import create_session_factory
+from shared.identity import AuthenticatedIdentity, IdentityResolver
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
+from bootstrap.api_router import create_api_router
 from bootstrap.database_session_dependency import (
     SessionFactory,
     session_dependency,
 )
-from bootstrap.api_router import create_api_router
 from bootstrap.http_error_handlers import register_exception_handlers
 from bootstrap.warehouse_bale_dependency import (
-    access_application_dependency,
+    authorization_provider_dependency,
+    authorize_action_dependency,
+    get_current_access_dependency,
     use_case_dependency,
-)
-from access.adapters.http_router import AccessApplicationProvider
-from access.adapters.warehouse_authorization import WarehouseAuthorizationAdapter
-from access.application.services import AccessApplication
-from infra.configuration import ApplicationSettings, DatabaseSettings
-from infra.persistence.database_engine import create_db_engine
-from infra.persistence.database_session_factory import create_session_factory
-from warehouse.bales.ports.authorization import (
-    AuthenticatedIdentity,
-    AuthorizationPort,
-    IdentityResolver,
 )
 
 EngineFactory = Callable[[DatabaseSettings], Engine]
@@ -83,7 +78,9 @@ def create_app(
 
     session_provider = session_dependency(session_factory)
     use_case_provider = use_case_dependency(session_provider)
-    access_application_provider = access_application_dependency(session_provider)
+    get_current_access_provider = get_current_access_dependency(session_provider)
+    authorize_action_provider = authorize_action_dependency(session_provider)
+    authorization_provider = authorization_provider_dependency(session_provider)
 
     # Resolve identity resolver and auth use case provider
     auth_use_case_provider = None
@@ -97,13 +94,6 @@ def create_app(
     else:
         resolved_identity_resolver = unauthenticated_identity
 
-    def authorization_provider(
-        access_application: Annotated[
-            AccessApplication, Depends(access_application_provider)
-        ],
-    ) -> AuthorizationPort:
-        return WarehouseAuthorizationAdapter(access_application)
-
     app = FastAPI()
 
     if resolved_settings is not None and resolved_settings.cors is not None:
@@ -116,12 +106,20 @@ def create_app(
 
     register_exception_handlers(app)
 
+    # Build admin use case provider if auth is configured
+    admin_use_case_provider = None
+    if auth_use_case_provider is not None:
+        from bootstrap.access_admin_dependency import admin_use_case_dependency
+        admin_use_case_provider = admin_use_case_dependency(session_provider)
+
     app.include_router(
         create_api_router(
             use_case_provider,
             resolved_identity_resolver,
             authorization_provider,
-            access_application_provider,
+            get_current_access_provider,
+            authorize_action_provider,
+            admin_use_case_provider,
             auth_use_case_provider,
         )
     )
@@ -136,8 +134,6 @@ def _compose_auth(
 
     Returns the identity resolver (JWT validator) and the auth use case factory.
     """
-    from supabase import create_client
-
     from auth.adapters.identity_provider.admin_client import IdentityProviderAdapter
     from auth.adapters.identity_provider.jwt_validator import TokenValidatorAdapter
     from auth.adapters.persistence.repositories import (
@@ -155,6 +151,8 @@ def _compose_auth(
     from auth.application.record_logout import RecordLogout
     from auth.application.reset_password import ResetPassword
     from infra.persistence.record_registry import register_auth_records
+
+    from supabase import create_client
 
     register_auth_records()
 
@@ -193,29 +191,64 @@ def _compose_auth(
             from uuid import uuid4
             return str(uuid4())
 
-    class _FakeAccessProvisioning:
-        """Stub until AccessApplication exposes a provision_profile method.
-
-        TODO: Replace with a real adapter that calls AccessApplication once the
-        Access spine adds coordinated provisioning (create profile + assign roles).
-        Tracked in: openspec/changes/authentication-foundation/exploration.md
-        (Gap: "AccessApplication lacks a provisioning method").
-        """
-
-        def provision_profile(self, **kwargs): pass
-        def activate_profile(self, **kwargs): pass
-        def deactivate_profile(self, **kwargs): pass
-        def would_remove_last_administrator(self, subject): return False
-
     clock = _FakeClock()
     identity_gen = _FakeIdentity()
-    access_provisioning = _FakeAccessProvisioning()
 
     def auth_use_case_factory(
         session: Annotated[Session, Depends(session_provider)],
     ) -> dict:
         account_repo = AccountRepositoryAdapter(session)
         audit_repo = AuditRepositoryAdapter(session)
+
+        # Build the real Access provisioning adapter sharing this session
+        from access.adapters.access_provisioning import AccessProvisioningAdapter
+        from access.adapters.persistence.repositories import (
+            AccessAuditRepositoryAdapter,
+            AccessUserRepositoryAdapter,
+            AssignmentRepositoryAdapter,
+            RoleRepositoryAdapter,
+        )
+        from access.adapters.persistence.transaction import (
+            TransactionAdapter as AccessTransactionAdapter,
+        )
+        from access.application.activate_access_user import ActivateAccessUser
+        from access.application.create_access_user import CreateAccessUser
+        from access.application.deactivate_access_user import DeactivateAccessUser
+
+        access_user_repo = AccessUserRepositoryAdapter(session)
+        access_role_repo = RoleRepositoryAdapter(session)
+        access_assignment_repo = AssignmentRepositoryAdapter(session)
+        access_audit_repo = AccessAuditRepositoryAdapter(session)
+        access_transaction = AccessTransactionAdapter(session)
+
+        create_access_user = CreateAccessUser(
+            user_repository=access_user_repo,
+            role_repository=access_role_repo,
+            assignment_repository=access_assignment_repo,
+            audit_repository=access_audit_repo,
+            transaction=access_transaction,
+            clock=clock,
+            identity=identity_gen,
+        )
+        activate_access_user = ActivateAccessUser(
+            user_repository=access_user_repo,
+            audit_repository=access_audit_repo,
+            transaction=access_transaction,
+            clock=clock,
+        )
+        deactivate_access_user = DeactivateAccessUser(
+            user_repository=access_user_repo,
+            audit_repository=access_audit_repo,
+            transaction=access_transaction,
+            clock=clock,
+        )
+
+        access_provisioning = AccessProvisioningAdapter(
+            create_user=create_access_user,
+            activate_user=activate_access_user,
+            deactivate_user=deactivate_access_user,
+            user_repository=access_user_repo,
+        )
 
         return {
             "get_current_authentication": GetCurrentAuthentication(account_repo),

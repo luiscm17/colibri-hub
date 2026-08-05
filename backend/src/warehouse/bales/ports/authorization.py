@@ -1,17 +1,7 @@
-from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Protocol
 
-
-@dataclass(frozen=True, slots=True)
-class AuthenticatedIdentity:
-    """Trusted, provider-neutral identity supplied by Authentication."""
-
-    subject: str
-    session_id: str | None = None
-
-
-IdentityResolver = Callable[[], AuthenticatedIdentity]
+from shared.identity import AuthenticatedIdentity as AuthenticatedIdentity
+from shared.identity import IdentityResolver as IdentityResolver
 
 
 class AuthorizationDenied(Exception):

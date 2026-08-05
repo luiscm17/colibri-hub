@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -44,19 +45,29 @@ class ApplicationSettings(BaseSettings):
         _env_file: Path | None = None,
     ) -> None:
         """Load settings from explicit values, the environment, or a dotenv file."""
+        env_kwargs: dict[str, Any] = {}
+        if _env_file is not None:
+            env_kwargs["_env_file"] = _env_file
+
         if database is None and cors is None and auth_provider is None:
-            # AuthProviderSettings uses its own env_prefix so it resolves independently
+            # AuthProviderSettings uses its own env_prefix so it resolves independently.
+            # pydantic-settings resolves fields from env vars at runtime.
             try:
-                resolved_auth = AuthProviderSettings(_env_file=_env_file)
+                resolved_auth = AuthProviderSettings(**env_kwargs)
             except Exception:
                 resolved_auth = None
-            super().__init__(_env_file=_env_file, auth_provider=resolved_auth)
+            super().__init__(auth_provider=resolved_auth, **env_kwargs)
             return
-        kwargs: dict = {}
+        kwargs: dict[str, Any] = {}
         if database is not None:
             kwargs["database"] = database
         if cors is not None:
             kwargs["cors"] = cors
         if auth_provider is not None:
             kwargs["auth_provider"] = auth_provider
-        super().__init__(**kwargs, _env_file=_env_file)
+        super().__init__(**kwargs, **env_kwargs)
+
+    @classmethod
+    def from_environment(cls, env_file: Path | None = None) -> "ApplicationSettings":
+        """Resolve settings from environment variables and optional dotenv file."""
+        return cls(_env_file=env_file)

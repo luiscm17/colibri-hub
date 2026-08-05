@@ -48,6 +48,7 @@ class BaleRegistrationOpenApiTests(unittest.TestCase):
                 lambda: AuthenticatedIdentity("test-subject"),
                 lambda: _AllowAuthorization(),
                 lambda: object(),  # type: ignore[return-value]
+                lambda: object(),  # type: ignore[return-value]
             )
         )
         client = TestClient(app)

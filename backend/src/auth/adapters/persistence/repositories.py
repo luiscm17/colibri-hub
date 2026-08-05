@@ -71,15 +71,18 @@ class AccountRepositoryAdapter:
                 user_code=account.user_code,
                 status=account.status.value,
                 version=account.version,
-                created_at=account.created_at,
-                updated_at=account.updated_at,
             )
+            if account.created_at is not None:
+                record.created_at = account.created_at
+            if account.updated_at is not None:
+                record.updated_at = account.updated_at
             self._session.add(record)
         else:
             existing.status = account.status.value
             existing.display_name = account.display_name
             existing.version = account.version
-            existing.updated_at = account.updated_at
+            if account.updated_at is not None:
+                existing.updated_at = account.updated_at
         self._session.flush()
 
     @staticmethod
