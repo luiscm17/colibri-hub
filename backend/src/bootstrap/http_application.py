@@ -4,28 +4,27 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from infra.configuration import ApplicationSettings, DatabaseSettings
+from infra.persistence.database_engine import create_db_engine
+from infra.persistence.database_session_factory import create_session_factory
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
+from warehouse.bales.ports.authorization import (
+    AuthenticatedIdentity,
+    IdentityResolver,
+)
 
+from bootstrap.api_router import create_api_router
 from bootstrap.database_session_dependency import (
     SessionFactory,
     session_dependency,
 )
-from bootstrap.api_router import create_api_router
 from bootstrap.http_error_handlers import register_exception_handlers
 from bootstrap.warehouse_bale_dependency import (
-    authorize_action_dependency,
     authorization_provider_dependency,
+    authorize_action_dependency,
     get_current_access_dependency,
     use_case_dependency,
-)
-from infra.configuration import ApplicationSettings, DatabaseSettings
-from infra.persistence.database_engine import create_db_engine
-from infra.persistence.database_session_factory import create_session_factory
-from warehouse.bales.ports.authorization import (
-    AuthenticatedIdentity,
-    AuthorizationPort,
-    IdentityResolver,
 )
 
 EngineFactory = Callable[[DatabaseSettings], Engine]
@@ -138,8 +137,6 @@ def _compose_auth(
 
     Returns the identity resolver (JWT validator) and the auth use case factory.
     """
-    from supabase import create_client
-
     from auth.adapters.identity_provider.admin_client import IdentityProviderAdapter
     from auth.adapters.identity_provider.jwt_validator import TokenValidatorAdapter
     from auth.adapters.persistence.repositories import (
@@ -157,6 +154,8 @@ def _compose_auth(
     from auth.application.record_logout import RecordLogout
     from auth.application.reset_password import ResetPassword
     from infra.persistence.record_registry import register_auth_records
+
+    from supabase import create_client
 
     register_auth_records()
 
@@ -211,7 +210,9 @@ def _compose_auth(
             AccessUserRepositoryAdapter,
             RoleRepositoryAdapter,
         )
-        from access.adapters.persistence.transaction import TransactionAdapter as AccessTransactionAdapter
+        from access.adapters.persistence.transaction import (
+            TransactionAdapter as AccessTransactionAdapter,
+        )
         from access.application.activate_access_user import ActivateAccessUser
         from access.application.create_access_user import CreateAccessUser
         from access.application.deactivate_access_user import DeactivateAccessUser

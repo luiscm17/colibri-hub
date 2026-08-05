@@ -1,19 +1,18 @@
-"""Use case: create an access user during unified provisioning (internal contract §10.6)."""
+"""Use case: create an access user during unified provisioning."""
 
 from access.application.dto import AccessUserResult, CreateAccessUserCommand
 from access.domain.errors import (
-    DuplicateAccessIdentity,
-    DuplicateUserCode,
-    InactiveAccessRole,
     AccessRoleNotFound,
+    DuplicateAccessIdentity,
+    InactiveAccessRole,
 )
+from access.ports.clock import ClockPort
+from access.ports.identity import IdentityPort
 from access.ports.repositories import (
     AccessAuditRepository,
     AccessUserRepository,
     RoleRepository,
 )
-from access.ports.clock import ClockPort
-from access.ports.identity import IdentityPort
 from access.ports.transaction import TransactionPort
 
 
@@ -65,8 +64,8 @@ class CreateAccessUser:
                 raise ValueError("Duplicate role codes in provisioning request.")
 
             now = self._clock.now()
-            from access.domain.users import AccessUser
             from access.domain.roles import Assignment
+            from access.domain.users import AccessUser
 
             user = AccessUser(
                 user_id=self._identity.generate_id(),

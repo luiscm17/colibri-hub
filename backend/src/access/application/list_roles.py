@@ -1,6 +1,6 @@
 """Use case: list all roles."""
 
-from access.application.dto import RoleResult, PermissionResult
+from access.application.dto import PermissionResult, RoleResult
 from access.ports.repositories import RoleRepository
 
 

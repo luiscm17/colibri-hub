@@ -11,7 +11,7 @@ class AuthenticatedIdentity:
     session_id: str | None = None
 
 
-IdentityResolver = Callable[[], AuthenticatedIdentity]
+IdentityResolver = Callable[..., AuthenticatedIdentity]
 
 
 class AuthorizationDenied(Exception):

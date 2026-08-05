@@ -1,8 +1,9 @@
-"""SQLAlchemy mapped classes for Access Control tables (spec §11)."""
+"""SQLAlchemy mapped classes for Access Control tables."""
 
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from infra.persistence.record_registry import RecordRegistry
 from sqlalchemy import (
     ARRAY,
     BigInteger,
@@ -18,8 +19,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
-
-from infra.persistence.record_registry import RecordRegistry
 
 
 class AccessScopeDefinitionRecord(RecordRegistry):

@@ -1,4 +1,4 @@
-"""Authorization evaluation functions per tech spec §6.4–§6.6.
+"""Authorization evaluation functions.
 
 Correctness properties:
 - Default-deny: if no matching permission exists, deny.
@@ -19,11 +19,20 @@ def effective_permissions(
     roles: list[Role],
     scopes: list[Scope],
 ) -> frozenset[Permission]:
-    """Compute effective permissions per §6.4.
+    """Compute effective permissions for a user.
 
     Returns the distinct union of permissions from all active roles
     with current active assignments to this active user, filtered to
     active scopes.
+
+    Args:
+        user: The access user to compute permissions for.
+        assignments: All assignments in the system.
+        roles: All roles in the system.
+        scopes: All registered scopes in the system.
+
+    Returns:
+        Frozen set of effective permissions, empty if user is inactive.
     """
     if not user.is_active:
         return frozenset()
@@ -68,16 +77,25 @@ def authorize(
     roles: list[Role],
     scopes: list[Scope],
 ) -> bool:
-    """Evaluate authorization per §6.6 — returns True if allowed.
+    """Evaluate authorization — returns True if allowed.
 
     Evaluation order:
-    1. Require an active user (caller responsibility to resolve identity).
-    2. Deny if user is inactive.
-    3. Allow if user is an active System Administrator.
-    4. Deny if scope is absent or inactive.
-    5. Load permissions from active assigned ordinary roles.
-    6. Allow if exact (action, scope_code) permission exists.
-    7. Deny otherwise.
+        1. Deny if user is inactive.
+        2. Allow if user is an active System Administrator.
+        3. Deny if scope is absent or inactive.
+        4. Allow if exact (action, scope_code) permission exists.
+        5. Deny otherwise.
+
+    Args:
+        user: The access user requesting authorization.
+        action: The action being requested.
+        scope_code: The scope code to authorize within.
+        assignments: All assignments in the system.
+        roles: All roles in the system.
+        scopes: All registered scopes in the system.
+
+    Returns:
+        True if the request is authorized, False otherwise.
     """
     if not user.is_active:
         return False

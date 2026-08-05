@@ -1,6 +1,6 @@
 """Supported access control actions and Permission value object.
 
-Actions describe business intent per tech spec §6.1.
+Actions describe business intent, not HTTP methods or UI interactions.
 """
 
 from dataclasses import dataclass

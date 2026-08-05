@@ -2,8 +2,8 @@
 
 from access.application.dto import ActivateAccessUserCommand
 from access.domain.errors import AccessUserNotFound
-from access.ports.repositories import AccessAuditRepository, AccessUserRepository
 from access.ports.clock import ClockPort
+from access.ports.repositories import AccessAuditRepository, AccessUserRepository
 from access.ports.transaction import TransactionPort
 
 

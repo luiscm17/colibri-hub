@@ -2,8 +2,8 @@
 
 from access.application.dto import DeactivateAccessUserCommand
 from access.domain.errors import AccessUserNotFound, LastSystemAdministratorRequired
-from access.ports.repositories import AccessAuditRepository, AccessUserRepository
 from access.ports.clock import ClockPort
+from access.ports.repositories import AccessAuditRepository, AccessUserRepository
 from access.ports.transaction import TransactionPort
 
 
@@ -27,7 +27,7 @@ class DeactivateAccessUser:
             if user is None:
                 raise AccessUserNotFound()
 
-            # Last-admin invariant (§6.5, §12)
+            # Last-admin invariant
             remaining = self._users.count_active_administrators(
                 exclude_user_id=user.user_id, for_update=True
             )

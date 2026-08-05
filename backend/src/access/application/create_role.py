@@ -1,23 +1,23 @@
 """Use case: create a new configurable role."""
 
-from access.application.dto import CreateRoleCommand, RoleResult, PermissionResult
-from access.domain.actions import Action, Permission, PRIVILEGED_ACTIONS
+from access.application.dto import CreateRoleCommand, PermissionResult, RoleResult
+from access.domain.actions import PRIVILEGED_ACTIONS, Action, Permission
 from access.domain.errors import (
+    AccessScopeNotFound,
     DuplicateRoleCode,
     DuplicateRolePermission,
     InactiveAccessScope,
-    AccessScopeNotFound,
     PrivilegedActionRequiresSystemAdministrator,
     UnsupportedActionForScope,
 )
+from access.ports.clock import ClockPort
+from access.ports.identity import IdentityPort
 from access.ports.repositories import (
     AccessAuditRepository,
     RoleRepository,
-    ScopeRepository,
     ScopeDefinitionRegistry,
+    ScopeRepository,
 )
-from access.ports.clock import ClockPort
-from access.ports.identity import IdentityPort
 from access.ports.transaction import TransactionPort
 
 

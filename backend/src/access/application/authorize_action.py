@@ -1,21 +1,30 @@
-"""Use case: evaluate an authorization request per §6.6."""
+"""Use case: evaluate an authorization request."""
 
 from access.domain.actions import Action
 from access.domain.authorization import authorize
 from access.domain.errors import AccessDenied, AccessProfileNotFound, AccessUserInactive
-from access.ports.repositories import AccessUserRepository, RoleRepository, ScopeRepository
+from access.ports.repositories import (
+    AccessUserRepository,
+    RoleRepository,
+    ScopeRepository,
+)
 
 
 class AuthorizeAction:
     """Evaluate whether a subject may perform an action in a scope.
 
-    Evaluation order (§6.6):
-    1. Resolve identity to access user.
-    2. Deny if user is absent or inactive.
-    3. Allow if System Administrator.
-    4. Deny if scope is absent or inactive.
-    5. Allow if exact (action, scope) permission exists.
-    6. Deny otherwise.
+    Evaluation order:
+        1. Resolve identity to access user.
+        2. Deny if user is absent or inactive.
+        3. Allow if System Administrator.
+        4. Deny if scope is absent or inactive.
+        5. Allow if exact (action, scope) permission exists.
+        6. Deny otherwise.
+
+    Raises:
+        AccessProfileNotFound: If identity has no access profile.
+        AccessUserInactive: If user is inactive.
+        AccessDenied: If authorization fails.
     """
 
     def __init__(

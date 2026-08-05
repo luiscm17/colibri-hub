@@ -1,0 +1,203 @@
+### Variables
+@host = http://127.0.0.1:8000
+@supabase = http://127.0.0.1:54321
+@anon_key = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+@token = <paste_access_token_here>
+
+### ─────────────────────────────────────────────────────
+### Sign in — get fresh access_token
+### ─────────────────────────────────────────────────────
+
+POST {{supabase}}/auth/v1/token?grant_type=password
+apikey: {{anon_key}}
+Content-Type: application/json
+
+{
+  "email": "admin@colibri.test",
+  "password": "TestAdmin123!"
+}
+
+### ═════════════════════════════════════════════════════
+###                SELF-ACCESS
+### ═════════════════════════════════════════════════════
+
+### ─────────────────────────────────────────────────────
+### GET /access/me — current user effective permissions
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/access/me
+Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────────────────
+### GET /access/me — unauthenticated (expect 401)
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/access/me
+
+### ═════════════════════════════════════════════════════
+###         SCOPE DEFINITIONS (catalog)
+### ═════════════════════════════════════════════════════
+
+### ─────────────────────────────────────────────────────
+### GET /access/scope-definitions — list recognized catalog
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/access/scope-definitions
+Authorization: Bearer {{token}}
+
+### ═════════════════════════════════════════════════════
+###              SCOPES (registered)
+### ═════════════════════════════════════════════════════
+
+### ─────────────────────────────────────────────────────
+### GET /access/scopes — list registered scopes
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/access/scopes
+Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────────────────
+### POST /access/scopes — register a recognized scope
+### ─────────────────────────────────────────────────────
+
+POST {{host}}/api/v1/access/scopes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "definition_key": "warehouse.raw_materials",
+  "reason": "Enable warehouse raw materials scope for role configuration"
+}
+
+### ─────────────────────────────────────────────────────
+### POST /access/scopes — register access_control scope
+### ─────────────────────────────────────────────────────
+
+POST {{host}}/api/v1/access/scopes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "definition_key": "access_control",
+  "reason": "Enable access control scope for system administration"
+}
+
+### ─────────────────────────────────────────────────────
+### POST /access/scopes — unrecognized (expect 422)
+### ─────────────────────────────────────────────────────
+
+POST {{host}}/api/v1/access/scopes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "definition_key": "unknown.fake.scope",
+  "reason": "This should fail"
+}
+
+### ═════════════════════════════════════════════════════
+###                  ROLES
+### ═════════════════════════════════════════════════════
+
+### ─────────────────────────────────────────────────────
+### GET /access/roles — list all roles
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/access/roles
+Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────────────────
+### POST /access/roles — create an ordinary role
+### ─────────────────────────────────────────────────────
+
+@scope_id = <paste_scope_id_from_scopes_list>
+
+POST {{host}}/api/v1/access/roles
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "role_code": "warehouse-reader",
+  "role_name": "Warehouse Reader",
+  "description": "Read access to warehouse raw materials",
+  "permissions": [
+    {"action": "read", "scope_id": "{{scope_id}}"}
+  ],
+  "reason": "Initial role for warehouse consultation"
+}
+
+### ─────────────────────────────────────────────────────
+### POST /access/roles — privileged action (expect 422)
+### ─────────────────────────────────────────────────────
+
+POST {{host}}/api/v1/access/roles
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "role_code": "sneaky-admin",
+  "role_name": "Sneaky Admin",
+  "permissions": [
+    {"action": "manage_access", "scope_id": "{{scope_id}}"}
+  ],
+  "reason": "This should fail — privileged action"
+}
+
+### ═════════════════════════════════════════════════════
+###                  USERS
+### ═════════════════════════════════════════════════════
+
+### ─────────────────────────────────────────────────────
+### GET /access/users — list all access users
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/access/users
+Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────────────────
+### PUT /access/users/{id}/roles — replace user roles
+### ─────────────────────────────────────────────────────
+
+@user_id = <paste_user_id_here>
+@role_id = <paste_role_id_here>
+
+PUT {{host}}/api/v1/access/users/{{user_id}}/roles
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "role_ids": ["{{role_id}}"],
+  "expected_version": 1,
+  "reason": "Assign warehouse reader role"
+}
+
+### ═════════════════════════════════════════════════════
+###                  AUDITS
+### ═════════════════════════════════════════════════════
+
+### ─────────────────────────────────────────────────────
+### GET /access/audits — access-change history
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/access/audits
+Authorization: Bearer {{token}}
+
+### ═════════════════════════════════════════════════════
+###           AUTHORIZATION DENIAL TESTS
+### ═════════════════════════════════════════════════════
+
+### ─────────────────────────────────────────────────────
+### Admin endpoint without auth (expect 401)
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/access/roles
+
+### ─────────────────────────────────────────────────────
+### Admin endpoint with ordinary user (expect 403)
+### (Use a token from a non-admin user after provisioning one)
+### ─────────────────────────────────────────────────────
+
+@ordinary_token = <paste_ordinary_user_token_here>
+
+GET {{host}}/api/v1/access/roles
+Authorization: Bearer {{ordinary_token}}

@@ -4,10 +4,9 @@ Implements the repository protocols from access.ports.repositories using
 SQLAlchemy 2.0 select/execute pattern against the administration schema.
 """
 
-from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from sqlalchemy import select, update, func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from access.adapters.persistence.records import (
@@ -183,9 +182,11 @@ class RoleRepositoryAdapter:
                 is_system_administrator=role.is_system_administrator,
                 is_active=role.is_active,
                 version=role.version,
-                created_at=role.created_at,
-                updated_at=role.updated_at,
             )
+            if role.created_at is not None:
+                record.created_at = role.created_at
+            if role.updated_at is not None:
+                record.updated_at = role.updated_at
             self._session.add(record)
             self._session.flush()
 
@@ -197,20 +198,23 @@ class RoleRepositoryAdapter:
                     )
                 ).scalar_one_or_none()
                 if scope_row:
-                    self._session.add(AccessRolePermissionRecord(
+                    perm_record = AccessRolePermissionRecord(
                         role_permission_id=uuid4(),
                         role_id=UUID(role.role_id),
                         scope_id=scope_row,
                         action=perm.action,
                         created_by_user_id=UUID(role.role_id),  # placeholder
-                        created_at=role.created_at,
-                    ))
+                    )
+                    if role.created_at is not None:
+                        perm_record.created_at = role.created_at
+                    self._session.add(perm_record)
         else:
             existing.role_name = role.role_name
             existing.description = role.description
             existing.is_active = role.is_active
             existing.version = role.version
-            existing.updated_at = role.updated_at
+            if role.updated_at is not None:
+                existing.updated_at = role.updated_at
 
     def find_assignments_for_user(self, user_id: str) -> list[Assignment]:
         rows = self._session.execute(
@@ -354,7 +358,8 @@ class ScopeRepositoryAdapter:
         else:
             existing.is_active = scope.is_active
             existing.version = scope.version
-            existing.updated_at = scope.updated_at
+            if scope.updated_at is not None:
+                existing.updated_at = scope.updated_at
 
     @staticmethod
     def _to_domain(row: AccessScopeRecord) -> Scope:

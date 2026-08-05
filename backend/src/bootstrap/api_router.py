@@ -2,19 +2,17 @@
 
 from collections.abc import Callable
 
-from fastapi import APIRouter
-
 from access.adapters.http.router import (
     AdminUseCaseProvider,
     GetCurrentAccessProvider,
     create_admin_router,
     create_self_access_router,
 )
+from access.application.authorize_action import AuthorizeAction
 from auth.adapters.http.router import AuthUseCaseProvider, create_auth_router
+from fastapi import APIRouter
 from warehouse.bales.adapters.http.router import UseCaseProvider
 from warehouse.bales.ports.authorization import AuthorizationPort, IdentityResolver
-
-from access.application.authorize_action import AuthorizeAction
 
 
 def create_api_router(

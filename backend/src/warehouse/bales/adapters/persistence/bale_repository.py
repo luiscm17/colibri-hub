@@ -46,8 +46,8 @@ class BaleRepositoryAdapter(BaleRepositoryPort):
                 BaleRecord.id == bale.id.value,
                 BaleRecord.status == "in_warehouse",
             )
-            .values(status="delivered", delivery_date=bale.delivery_date.value)
+            .values(status="delivered", delivery_date=bale.delivery_date.value)  # type: ignore[union-attr]
         )
         result = self._session.execute(stmt)
         self._session.flush()
-        return result.rowcount > 0
+        return result.rowcount > 0  # type: ignore[union-attr]

@@ -1,7 +1,4 @@
-"""Role and Assignment entities.
-
-Role invariants per tech spec §6.5 and §11.2–§11.3.
-"""
+"""Role and Assignment entities."""
 
 from dataclasses import dataclass, field
 from datetime import datetime

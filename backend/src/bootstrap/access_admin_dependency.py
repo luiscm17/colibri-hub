@@ -3,9 +3,6 @@
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import Depends
-from sqlalchemy.orm import Session
-
 from access.adapters.persistence.repositories import (
     AccessAuditRepositoryAdapter,
     AccessUserRepositoryAdapter,
@@ -22,6 +19,9 @@ from access.application.list_scope_definitions import ListScopeDefinitions
 from access.application.list_scopes import ListScopes
 from access.application.register_recognized_scope import RegisterRecognizedScope
 from access.application.replace_user_roles import ReplaceUserRoles
+from fastapi import Depends
+from sqlalchemy.orm import Session
+
 from bootstrap.database_session_dependency import SessionProvider
 
 

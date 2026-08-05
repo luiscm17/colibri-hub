@@ -1,11 +1,14 @@
 import logging
 from typing import cast
 
+from access.adapters.http.error_handlers import access_error_handler
+from access.domain.errors import AccessError
+from auth.adapters.http.error_handlers import authentication_error_handler
+from auth.domain.errors import AuthenticationError
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.types import ExceptionHandler
-
 from warehouse.bales.adapters.http.error_handlers import (
     bale_not_found_handler,
     domain_error_handler,
@@ -31,13 +34,6 @@ from warehouse.bales.application.errors import (
 )
 from warehouse.bales.domain.domain_errors import DomainError
 from warehouse.bales.ports.authorization import AuthorizationDenied
-
-from auth.domain.errors import AuthenticationError
-from auth.adapters.http.error_handlers import authentication_error_handler
-
-from access.domain.errors import AccessError
-from access.adapters.http.error_handlers import access_error_handler
-
 
 logger = logging.getLogger(__name__)
 

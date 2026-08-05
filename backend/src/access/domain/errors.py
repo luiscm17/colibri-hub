@@ -1,6 +1,6 @@
-"""Typed access control domain errors per tech spec §14.
+"""Typed access control domain errors.
 
-Each error maps to a specific HTTP response code.
+Each error maps to a specific HTTP response code and uses the shared envelope.
 Errors never contain tokens, credentials, or provider secrets.
 """
 
@@ -15,7 +15,7 @@ class AccessError(Exception):
 
 
 class AccessDenied(AccessError):
-    """Active user lacks the required exact permission. → 403"""
+    """Active user lacks the required exact permission."""
 
     code = "access_denied"
 
@@ -24,7 +24,7 @@ class AccessDenied(AccessError):
 
 
 class AccessUserInactive(AccessError):
-    """Authenticated identity maps to an inactive user. → 403"""
+    """Authenticated identity maps to an inactive user."""
 
     code = "access_user_inactive"
 
@@ -33,7 +33,7 @@ class AccessUserInactive(AccessError):
 
 
 class AccessProfileNotFound(AccessError):
-    """Authenticated identity has no Access profile. → 403"""
+    """Authenticated identity has no Access profile."""
 
     code = "access_profile_not_found"
 
@@ -45,7 +45,7 @@ class AccessProfileNotFound(AccessError):
 
 
 class AccessUserNotFound(AccessError):
-    """Requested Access user does not exist. → 404"""
+    """Requested Access user does not exist."""
 
     code = "access_user_not_found"
 
@@ -54,7 +54,7 @@ class AccessUserNotFound(AccessError):
 
 
 class AccessRoleNotFound(AccessError):
-    """Requested role does not exist. → 404"""
+    """Requested role does not exist."""
 
     code = "access_role_not_found"
 
@@ -63,7 +63,7 @@ class AccessRoleNotFound(AccessError):
 
 
 class AccessScopeNotFound(AccessError):
-    """Requested scope does not exist. → 404"""
+    """Requested scope does not exist."""
 
     code = "access_scope_not_found"
 
@@ -75,7 +75,7 @@ class AccessScopeNotFound(AccessError):
 
 
 class DuplicateAccessIdentity(AccessError):
-    """Identity subject is already mapped. → 409"""
+    """Identity subject is already mapped."""
 
     code = "duplicate_access_identity"
 
@@ -84,7 +84,7 @@ class DuplicateAccessIdentity(AccessError):
 
 
 class DuplicateUserCode(AccessError):
-    """User code already exists. → 409"""
+    """User code already exists."""
 
     code = "duplicate_access_user_code"
 
@@ -93,7 +93,7 @@ class DuplicateUserCode(AccessError):
 
 
 class DuplicateRoleCode(AccessError):
-    """Role code already exists. → 409"""
+    """Role code already exists."""
 
     code = "duplicate_access_role_code"
 
@@ -102,7 +102,7 @@ class DuplicateRoleCode(AccessError):
 
 
 class DuplicateScopeCode(AccessError):
-    """Scope code already exists. → 409"""
+    """Scope code already exists."""
 
     code = "duplicate_access_scope_code"
 
@@ -111,7 +111,7 @@ class DuplicateScopeCode(AccessError):
 
 
 class AccessVersionConflict(AccessError):
-    """Expected version differs from persisted version. → 409"""
+    """Expected version differs from persisted version."""
 
     code = "access_version_conflict"
 
@@ -120,7 +120,7 @@ class AccessVersionConflict(AccessError):
 
 
 class LastSystemAdministratorRequired(AccessError):
-    """Mutation would leave no active System Administrator. → 409"""
+    """Mutation would leave no active System Administrator."""
 
     code = "last_system_administrator_required"
 
@@ -129,7 +129,7 @@ class LastSystemAdministratorRequired(AccessError):
 
 
 class InactiveAccessRole(AccessError):
-    """Assignment references an inactive role. → 409"""
+    """Assignment references an inactive role."""
 
     code = "inactive_access_role"
 
@@ -138,7 +138,7 @@ class InactiveAccessRole(AccessError):
 
 
 class InactiveAccessScope(AccessError):
-    """Permission references an inactive scope. → 409"""
+    """Permission references an inactive scope."""
 
     code = "inactive_access_scope"
 
@@ -150,7 +150,7 @@ class InactiveAccessScope(AccessError):
 
 
 class InvalidAccessAction(AccessError):
-    """Unsupported action value. → 422"""
+    """Unsupported action value."""
 
     code = "invalid_access_action"
 
@@ -159,7 +159,7 @@ class InvalidAccessAction(AccessError):
 
 
 class UnsupportedActionForScope(AccessError):
-    """Recognized scope does not support the requested action. → 422"""
+    """Recognized scope does not support the requested action."""
 
     code = "unsupported_action_for_scope"
 
@@ -168,7 +168,7 @@ class UnsupportedActionForScope(AccessError):
 
 
 class UnrecognizedScopeDefinition(AccessError):
-    """Registration references a definition not declared by the application. → 422"""
+    """Registration references a definition not declared by the application."""
 
     code = "unrecognized_scope_definition"
 
@@ -177,7 +177,7 @@ class UnrecognizedScopeDefinition(AccessError):
 
 
 class PrivilegedActionRequiresSystemAdministrator(AccessError):
-    """Ordinary role or preset includes a reserved action. → 422"""
+    """Ordinary role or preset includes a reserved action."""
 
     code = "privileged_action_requires_system_administrator"
 
@@ -186,7 +186,7 @@ class PrivilegedActionRequiresSystemAdministrator(AccessError):
 
 
 class DuplicateRolePermission(AccessError):
-    """Request repeats an action-and-scope pair. → 422"""
+    """Request repeats an action-and-scope pair."""
 
     code = "duplicate_role_permission"
 
@@ -195,7 +195,7 @@ class DuplicateRolePermission(AccessError):
 
 
 class AccessChangeReasonRequired(AccessError):
-    """Required administrative reason is absent. → 422"""
+    """Required administrative reason is absent."""
 
     code = "access_change_reason_required"
 
@@ -204,7 +204,7 @@ class AccessChangeReasonRequired(AccessError):
 
 
 class ReservedRoleMutationForbidden(AccessError):
-    """Request would alter reserved System Administrator semantics. → 422"""
+    """Request would alter reserved System Administrator semantics."""
 
     code = "reserved_role_mutation_forbidden"
 

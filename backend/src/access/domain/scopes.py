@@ -1,6 +1,6 @@
 """Scope value object, Scope entity, and ScopeDefinition catalog entry.
 
-Scope codes use exact-match semantics per tech spec §6.2.
+Scope codes use exact-match semantics.
 Dot-separated segments are naming structure only — no inheritance.
 """
 

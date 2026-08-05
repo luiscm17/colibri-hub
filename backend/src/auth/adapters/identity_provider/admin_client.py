@@ -8,8 +8,7 @@ returns provider-neutral DTOs.
 from __future__ import annotations
 
 import logging
-
-from supabase import Client as SupabaseClient
+from typing import Never
 
 from auth.domain.errors import (
     DuplicateEmail,
@@ -18,6 +17,7 @@ from auth.domain.errors import (
     WeakPassword,
 )
 from auth.ports.identity_provider import ProviderIdentity, ProviderSession
+from supabase import Client as SupabaseClient
 
 logger = logging.getLogger(__name__)
 
@@ -91,14 +91,18 @@ class IdentityProviderAdapter:
         does not expose individual session lookup.
         """
         try:
-            response = self._client.from_("sessions").select(
-                "id, created_at, not_after"
-            ).eq("id", session_id).schema("auth").execute()
+            response = (
+                self._client.schema("auth")
+                .from_("sessions")
+                .select("id, created_at, not_after")
+                .eq("id", session_id)
+                .execute()
+            )
 
             if not response.data:
                 return None
 
-            row = response.data[0]
+            row: dict = response.data[0]  # type: ignore[assignment]
             return ProviderSession(
                 session_id=str(row["id"]),
                 created_at=row["created_at"],
@@ -121,8 +125,15 @@ class IdentityProviderAdapter:
                 exc,
             )
 
-    def _handle_provider_error(self, exc: Exception, *, context: str) -> None:
-        """Map provider errors to domain errors without exposing provider details."""
+    def _handle_provider_error(self, exc: Exception, *, context: str) -> Never:
+        """Map provider errors to domain errors without exposing provider details.
+
+        Raises:
+            DuplicateEmail: On duplicate user creation.
+            IdentityConflict: On conflicting identity state.
+            WeakPassword: On password policy violation.
+            ProviderUnavailable: On all other provider errors.
+        """
         error_msg = str(exc).lower()
 
         if "duplicate" in error_msg or "already" in error_msg:

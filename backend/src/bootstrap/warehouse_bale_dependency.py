@@ -3,9 +3,6 @@
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import Depends
-from sqlalchemy.orm import Session
-
 from access.adapters.persistence.repositories import (
     AccessUserRepositoryAdapter,
     RoleRepositoryAdapter,
@@ -14,7 +11,8 @@ from access.adapters.persistence.repositories import (
 from access.adapters.warehouse_authorization import WarehouseAuthorizationAdapter
 from access.application.authorize_action import AuthorizeAction
 from access.application.get_current_access import GetCurrentAccess
-from bootstrap.database_session_dependency import SessionProvider
+from fastapi import Depends
+from sqlalchemy.orm import Session
 from warehouse.bales.adapters.http.router import BaleUseCases, UseCaseProvider
 from warehouse.bales.adapters.identity.identity_generator import Uuid4IdentityGenerator
 from warehouse.bales.adapters.persistence.bale_detail_query_adapter import (
@@ -35,6 +33,8 @@ from warehouse.bales.application.register_raw_material_batch import (
     RegisterRawMaterialBatch,
 )
 from warehouse.bales.ports.authorization import AuthorizationPort
+
+from bootstrap.database_session_dependency import SessionProvider
 
 
 def authorize_action_dependency(

@@ -26,4 +26,5 @@ Copy the `access_token` value into the `@token` variable in the `.http` files.
 ## File Index
 
 - `auth.http` — Authentication endpoints (user + admin)
+- `access.http` — Access Control endpoints (self-access + admin)
 - `warehouse.http` — Warehouse bale management

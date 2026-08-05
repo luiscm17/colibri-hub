@@ -1,4 +1,4 @@
-"""AccessUser entity per tech spec §11.1."""
+"""AccessUser entity."""
 
 from dataclasses import dataclass
 from datetime import datetime

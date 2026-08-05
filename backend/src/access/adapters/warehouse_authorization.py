@@ -1,11 +1,12 @@
 """Adapts Warehouse's consumer-owned authorization port to Access policy."""
 
-from access.application.authorize_action import AuthorizeAction
-from access.domain.errors import AccessDenied, AccessProfileNotFound, AccessUserInactive
 from warehouse.bales.ports.authorization import (
     AuthenticatedIdentity,
     AuthorizationDenied,
 )
+
+from access.application.authorize_action import AuthorizeAction
+from access.domain.errors import AccessDenied, AccessProfileNotFound, AccessUserInactive
 
 
 class WarehouseAuthorizationAdapter:

@@ -7,6 +7,7 @@ from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from warehouse.bales.ports.authorization import AuthenticatedIdentity, IdentityResolver
 
 from access.adapters.http.models import (
     AccessUserResponse,
@@ -20,21 +21,16 @@ from access.adapters.http.models import (
     RoleResponse,
     ScopeDefinitionResponse,
     ScopeResponse,
-    StatusChangeRequest,
-    UpdateRoleRequest,
 )
 from access.application.authorize_action import AuthorizeAction
 from access.application.create_role import CreateRole
 from access.application.dto import (
-    ActivateRoleCommand,
-    ActivateScopeCommand,
     CreateRoleCommand,
-    DeactivateRoleCommand,
-    DeactivateScopeCommand,
-    PermissionInput as DtoPermissionInput,
     RegisterRecognizedScopeCommand,
     ReplaceUserRolesCommand,
-    UpdateRoleCommand,
+)
+from access.application.dto import (
+    PermissionInput as DtoPermissionInput,
 )
 from access.application.get_current_access import GetCurrentAccess
 from access.application.list_access_audits import ListAccessAudits
@@ -46,8 +42,6 @@ from access.application.register_recognized_scope import RegisterRecognizedScope
 from access.application.replace_user_roles import ReplaceUserRoles
 from access.domain.actions import Action
 from access.domain.errors import AccessProfileNotFound, AccessUserInactive
-from warehouse.bales.ports.authorization import AuthenticatedIdentity, IdentityResolver
-
 
 # Type aliases for dependency providers
 GetCurrentAccessProvider = Callable[..., GetCurrentAccess]
@@ -148,7 +142,6 @@ def create_admin_router(
         use_cases: Annotated[dict, Depends(admin_use_case_provider)],
         body: ReplaceUserRolesRequest,
     ) -> None:
-        from access.ports.identity import IdentityPort
         uc: ReplaceUserRoles = use_cases["replace_user_roles"]
         uc.execute(ReplaceUserRolesCommand(
             user_id=user_id,
@@ -277,7 +270,6 @@ def create_admin_router(
 
 def _resolve_user_id(use_cases: dict, subject: str) -> str:
     """Helper to resolve the actor's internal user_id from their identity subject."""
-    from access.adapters.persistence.repositories import AccessUserRepositoryAdapter
     user_repo = use_cases.get("user_repository")
     if user_repo:
         user = user_repo.find_by_subject(subject)

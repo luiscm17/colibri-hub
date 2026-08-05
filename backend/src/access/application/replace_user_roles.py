@@ -1,16 +1,20 @@
-"""Use case: replace the complete role set for an access user (§10.5)."""
+"""Use case: replace the complete role set for an access user."""
 
 from access.application.dto import ReplaceUserRolesCommand
 from access.domain.errors import (
+    AccessRoleNotFound,
     AccessUserNotFound,
     AccessVersionConflict,
     InactiveAccessRole,
-    AccessRoleNotFound,
     LastSystemAdministratorRequired,
 )
-from access.ports.repositories import AccessAuditRepository, AccessUserRepository, RoleRepository
 from access.ports.clock import ClockPort
 from access.ports.identity import IdentityPort
+from access.ports.repositories import (
+    AccessAuditRepository,
+    AccessUserRepository,
+    RoleRepository,
+)
 from access.ports.transaction import TransactionPort
 
 

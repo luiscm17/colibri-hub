@@ -45,12 +45,18 @@ class ApplicationSettings(BaseSettings):
     ) -> None:
         """Load settings from explicit values, the environment, or a dotenv file."""
         if database is None and cors is None and auth_provider is None:
-            # AuthProviderSettings uses its own env_prefix so it resolves independently
+            # AuthProviderSettings uses its own env_prefix so it resolves independently.
+            # pydantic-settings resolves fields from env vars at runtime.
             try:
-                resolved_auth = AuthProviderSettings(_env_file=_env_file)
+                resolved_auth = AuthProviderSettings(
+                    _env_file=_env_file,  # type: ignore[call-arg]
+                )
             except Exception:
                 resolved_auth = None
-            super().__init__(_env_file=_env_file, auth_provider=resolved_auth)
+            super().__init__(
+                _env_file=_env_file,  # type: ignore[call-arg]
+                auth_provider=resolved_auth,
+            )
             return
         kwargs: dict = {}
         if database is not None:

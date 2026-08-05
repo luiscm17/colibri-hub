@@ -1,11 +1,10 @@
-"""Access Control HTTP error handlers per tech spec §14."""
+"""Access Control HTTP error handlers."""
 
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
-
-from access.domain.errors import AccessError
 from infra.http.error_envelope import error_json_response
 
+from access.domain.errors import AccessError
 
 _ERROR_STATUS_MAP: dict[str, int] = {
     # 403
