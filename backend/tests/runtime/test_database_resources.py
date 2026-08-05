@@ -1,6 +1,5 @@
 import unittest
-from types import TracebackType
-from typing import Self, cast
+from typing import cast
 from unittest.mock import patch
 
 from sqlalchemy import event
@@ -13,22 +12,21 @@ from infra.persistence.database_engine import create_db_engine
 
 
 class RecordingSession:
-    """Context-manager session double that records exit exception types."""
+    """Session double that records commit/rollback/close lifecycle calls."""
 
     def __init__(self) -> None:
-        self.exit_types: list[type[BaseException] | None] = []
+        self.committed: bool = False
+        self.rolled_back: bool = False
+        self.closed: bool = False
 
-    def __enter__(self) -> Self:
-        return self
+    def commit(self) -> None:
+        self.committed = True
 
-    def __exit__(
-        self,
-        exception_type: type[BaseException] | None,
-        exception: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> None:
-        del exception, traceback
-        self.exit_types.append(exception_type)
+    def rollback(self) -> None:
+        self.rolled_back = True
+
+    def close(self) -> None:
+        self.closed = True
 
 
 class RecordingSessionFactory:
@@ -73,20 +71,27 @@ class DatabaseResourceTests(unittest.TestCase):
         create_engine.assert_called_once_with(settings.url.get_secret_value())
 
     def test_session_dependency_creates_and_closes_one_session_per_invocation(self) -> None:
-        """The session_dependency generator creates a new session per invocation and exits it on normal completion or exception."""
+        """The session_dependency generator commits on success, rolls back on exception, and always closes."""
         factory = RecordingSessionFactory()
         provider = session_dependency(factory)
 
+        # Normal path: yield session, then commit + close
         normal = provider()
-        self.assertIs(next(normal), factory.sessions[0])
+        session = next(normal)
+        self.assertIs(session, factory.sessions[0])
         with self.assertRaises(StopIteration):
             next(normal)
+        self.assertTrue(factory.sessions[0].committed)
+        self.assertFalse(factory.sessions[0].rolled_back)
+        self.assertTrue(factory.sessions[0].closed)
 
+        # Exception path: yield session, then rollback + close
         exceptional = provider()
         next(exceptional)
         with self.assertRaises(RuntimeError):
             exceptional.throw(RuntimeError("request failure"))
+        self.assertFalse(factory.sessions[1].committed)
+        self.assertTrue(factory.sessions[1].rolled_back)
+        self.assertTrue(factory.sessions[1].closed)
 
         self.assertEqual(len(factory.sessions), 2)
-        self.assertEqual(factory.sessions[0].exit_types, [None])
-        self.assertEqual(factory.sessions[1].exit_types, [RuntimeError])
