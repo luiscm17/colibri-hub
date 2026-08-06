@@ -2,7 +2,7 @@
 
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from access.adapters.persistence.records import (
@@ -56,7 +56,7 @@ class RoleRepositoryAdapter:
             select(func.count()).select_from(AccessRoleRecord)
         ).scalar() or 0
 
-    def save(self, role: Role) -> None:
+    def save(self, role: Role, *, created_by_user_id: str | None = None) -> None:
         """Persist a new or updated role."""
         existing = self._session.execute(
             select(AccessRoleRecord).where(
@@ -81,23 +81,7 @@ class RoleRepositoryAdapter:
             self._session.add(record)
             self._session.flush()
 
-            for perm in role.permissions:
-                scope_row = self._session.execute(
-                    select(AccessScopeRecord.scope_id).where(
-                        AccessScopeRecord.scope_code == perm.scope_code
-                    )
-                ).scalar_one_or_none()
-                if scope_row:
-                    perm_record = AccessRolePermissionRecord(
-                        role_permission_id=uuid4(),
-                        role_id=UUID(role.role_id),
-                        scope_id=scope_row,
-                        action=perm.action,
-                        created_by_user_id=UUID(role.role_id),  # placeholder
-                    )
-                    if role.created_at is not None:
-                        perm_record.created_at = role.created_at
-                    self._session.add(perm_record)
+            self._replace_permissions(role, created_by_user_id)
         else:
             existing.role_name = role.role_name
             existing.description = role.description
@@ -105,6 +89,42 @@ class RoleRepositoryAdapter:
             existing.version = role.version
             if role.updated_at is not None:
                 existing.updated_at = role.updated_at
+
+            if created_by_user_id is not None:
+                self._replace_permissions(role, created_by_user_id)
+
+    def _replace_permissions(
+        self,
+        role: Role,
+        created_by_user_id: str | None,
+    ) -> None:
+        """Replace the role's permission rows with the aggregate's set."""
+        self._session.execute(
+            delete(AccessRolePermissionRecord).where(
+                AccessRolePermissionRecord.role_id == UUID(role.role_id)
+            )
+        )
+
+        for perm in role.permissions:
+            scope_row = self._session.execute(
+                select(AccessScopeRecord.scope_id).where(
+                    AccessScopeRecord.scope_code == perm.scope_code
+                )
+            ).scalar_one_or_none()
+            if not scope_row:
+                continue
+            if created_by_user_id is None:
+                raise ValueError("created_by_user_id is required to persist permissions")
+            perm_record = AccessRolePermissionRecord(
+                role_permission_id=uuid4(),
+                role_id=UUID(role.role_id),
+                scope_id=scope_row,
+                action=perm.action,
+                created_by_user_id=UUID(created_by_user_id),
+            )
+            if role.updated_at is not None:
+                perm_record.created_at = role.updated_at
+            self._session.add(perm_record)
 
     def _to_domain(self, row: AccessRoleRecord) -> Role:
         perm_rows = self._session.execute(

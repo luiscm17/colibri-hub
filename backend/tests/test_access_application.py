@@ -104,7 +104,7 @@ class FakeRoleRepo:
     def count(self):
         return len(self.roles)
 
-    def save(self, role):
+    def save(self, role, **kwargs):
         self.roles[role.role_id] = role
 
 

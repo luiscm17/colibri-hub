@@ -65,7 +65,7 @@ class CreateRole:
                 created_at=now,
                 updated_at=now,
             )
-            self._roles.save(role)
+            self._roles.save(role, created_by_user_id=command.actor_user_id)
 
             self._audits.append(
                 operation_id=command.operation_id,
