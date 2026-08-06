@@ -2,7 +2,13 @@
 @host = http://127.0.0.1:8000
 @supabase = http://127.0.0.1:54321
 @anon_key = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+
+# Access token — expires after ~1h. Run the Sign in request below, copy the
+# access_token from the response, and paste it here. See CREDENTIALS.md.
 @token = <paste_access_token_here>
+
+# IDs below are instance-specific: fill them from the corresponding list GET
+# before running requests that reference them.
 
 ### ─────────────────────────────────────────────────────
 ### Sign in — get fresh access_token
@@ -14,7 +20,7 @@ Content-Type: application/json
 
 {
   "email": "admin@colibri.test",
-  "password": "TestAdmin123!"
+  "password": "AdminTest123!"
 }
 
 ### ═════════════════════════════════════════════════════
@@ -71,6 +77,7 @@ Content-Type: application/json
 
 ### ─────────────────────────────────────────────────────
 ### POST /access/scopes — register access_control scope
+### ⚠ 409 (duplicate) when already registered by setup/bootstrap
 ### ─────────────────────────────────────────────────────
 
 POST {{host}}/api/v1/access/scopes
@@ -97,6 +104,8 @@ Content-Type: application/json
 
 ### ─────────────────────────────────────────────────────
 ### PATCH /access/scopes/{id}/status — deactivate scope
+### @scope_id_to_deactivate — paste a scope_id from GET /access/scopes.
+###   ⚠ expected_version must equal the scope's current version.
 ### ─────────────────────────────────────────────────────
 
 @scope_id_to_deactivate = <paste_scope_id_here>
@@ -138,9 +147,10 @@ Authorization: Bearer {{token}}
 
 ### ─────────────────────────────────────────────────────
 ### POST /access/roles — create an ordinary role
+### @scope_id — paste a scope_id from GET /access/scopes
 ### ─────────────────────────────────────────────────────
 
-@scope_id = <paste_scope_id_from_scopes_list>
+@scope_id = <paste_scope_id_here>
 
 POST {{host}}/api/v1/access/roles
 Authorization: Bearer {{token}}
@@ -158,6 +168,8 @@ Content-Type: application/json
 
 ### ─────────────────────────────────────────────────────
 ### GET /access/roles/{id} — get role detail
+### @role_detail_id — paste a role_id from GET /access/roles.
+###   ⚠ expected_version must equal the role's current version.
 ### ─────────────────────────────────────────────────────
 
 @role_detail_id = <paste_role_id_here>
@@ -242,6 +254,8 @@ Authorization: Bearer {{token}}
 
 ### ─────────────────────────────────────────────────────
 ### GET /access/users/{id} — get user detail
+### @user_id — paste a user_id from GET /access/users.
+###   ⚠ expected_version must equal the user's current version.
 ### ─────────────────────────────────────────────────────
 
 @user_id = <paste_user_id_here>
@@ -279,6 +293,7 @@ Content-Type: application/json
 
 ### ─────────────────────────────────────────────────────
 ### PUT /access/users/{id}/roles — replace user roles
+### @role_id — paste a role_id from GET /access/roles
 ### ─────────────────────────────────────────────────────
 
 @role_id = <paste_role_id_here>
@@ -289,7 +304,7 @@ Content-Type: application/json
 
 {
   "role_ids": ["{{role_id}}"],
-  "expected_version": 1,
+  "expected_version": 3,
   "reason": "Assign warehouse reader role"
 }
 
@@ -337,10 +352,11 @@ GET {{host}}/api/v1/access/roles
 
 ### ─────────────────────────────────────────────────────
 ### Admin endpoint with ordinary user (expect 403)
-### (Use a token from a non-admin user after provisioning one)
+### @ordinary_token — access token for operator@colibri.test
+###   (see CREDENTIALS.md for credentials and token retrieval)
 ### ─────────────────────────────────────────────────────
 
-@ordinary_token = <paste_ordinary_user_token_here>
+@ordinary_token = <paste_operator_access_token_here>
 
 GET {{host}}/api/v1/access/roles
 Authorization: Bearer {{ordinary_token}}

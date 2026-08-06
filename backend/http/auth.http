@@ -2,7 +2,13 @@
 @host = http://127.0.0.1:8000
 @supabase = http://127.0.0.1:54321
 @anon_key = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+
+# Access token — expires after ~1h. Run the Sign in request below, copy the
+# access_token from the response, and paste it here.
 @token = <paste_access_token_here>
+
+# Credentials: see CREDENTIALS.md (admin@colibri.test / AdminTest123!,
+# operator@colibri.test / OperatorTest123!).
 
 ### ─────────────────────────────────────────────────────
 ### Sign in (Supabase Auth) — get access_token
@@ -14,7 +20,7 @@ Content-Type: application/json
 
 {
   "email": "admin@colibri.test",
-  "password": "TestAdmin123!"
+  "password": "AdminTest123!"
 }
 
 ### ─────────────────────────────────────────────────────
@@ -26,6 +32,8 @@ Authorization: Bearer {{token}}
 
 ### ─────────────────────────────────────────────────────
 ### POST /auth/password-change — mandatory replacement
+### ⚠ Running this rotates the account password. The new password
+###   replaces the one documented in CREDENTIALS.md — update it there.
 ### ─────────────────────────────────────────────────────
 
 POST {{host}}/api/v1/auth/password-change
@@ -33,8 +41,8 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "current_password": "TestAdmin123!",
-  "new_password": "NewSecurePass456!"
+  "current_password": "<current_password>",
+  "new_password": "<new_password>"
 }
 
 ### ─────────────────────────────────────────────────────
@@ -53,6 +61,8 @@ Authorization: Bearer {{token}}
 
 ### ─────────────────────────────────────────────────────
 ### POST /auth/accounts — provision new account (admin)
+### ⚠ role_codes must exist in Access Control; `operator` is created
+###   by scripts/setup_local_db.py.
 ### ─────────────────────────────────────────────────────
 
 POST {{host}}/api/v1/auth/accounts
@@ -70,6 +80,7 @@ Content-Type: application/json
 
 ### ─────────────────────────────────────────────────────
 ### GET /auth/accounts/{id} — get account detail (admin)
+### @account_id — paste the account_id from GET /auth/accounts
 ### ─────────────────────────────────────────────────────
 
 @account_id = <paste_account_id_here>
@@ -79,6 +90,10 @@ Authorization: Bearer {{token}}
 
 ### ─────────────────────────────────────────────────────
 ### POST /auth/accounts/{id}/password-reset (admin)
+### ⚠ expected_version must equal the account's current version
+###   (see GET /auth/accounts/{id}); reset only works on an ACTIVE
+###   account, not one awaiting_password_change. Post-setup example:
+###   operator version is 2 → use 2, then 3 for disable, 4 for enable.
 ### ─────────────────────────────────────────────────────
 
 POST {{host}}/api/v1/auth/accounts/{{account_id}}/password-reset
@@ -88,7 +103,7 @@ Content-Type: application/json
 {
   "provisional_password": "ResetTemp789!",
   "reason": "User forgot password",
-  "expected_version": 1
+  "expected_version": 2
 }
 
 ### ─────────────────────────────────────────────────────
@@ -101,7 +116,7 @@ Content-Type: application/json
 
 {
   "reason": "User no longer with organization",
-  "expected_version": 1
+  "expected_version": 3
 }
 
 ### ─────────────────────────────────────────────────────
@@ -115,7 +130,7 @@ Content-Type: application/json
 {
   "provisional_password": "EnableTemp321!",
   "reason": "User reinstated",
-  "expected_version": 2
+  "expected_version": 4
 }
 
 ### ─────────────────────────────────────────────────────
