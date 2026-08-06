@@ -1,5 +1,5 @@
 def main():
-    print("Hello from yarn-epr!")
+    print("Hello from colibri-hub!")
 
 
 if __name__ == "__main__":
