@@ -73,9 +73,19 @@ class IdentityProviderAdapter:
             self._handle_provider_error(exc, context="unban_user")
 
     def revoke_sessions(self, *, subject: str) -> None:
-        """Revoke all active provider sessions for this identity."""
+        """Revoke all active provider sessions for this identity.
+
+        Uses direct deletion from auth.sessions via service-role schema
+        query. This is the same mechanism used by get_session for lookups.
+        """
         try:
-            self._client.auth.admin.sign_out(subject, "global")
+            (
+                self._client.schema("auth")
+                .from_("sessions")
+                .delete()
+                .eq("user_id", subject)
+                .execute()
+            )
         except Exception as exc:
             # Session revocation is best-effort; log but don't fail
             logger.warning(
