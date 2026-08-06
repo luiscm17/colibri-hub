@@ -14,12 +14,16 @@ class AccessProvisioningPort(Protocol):
         *,
         subject: str,
         profile_code: str,
+        display_name: str = "",
         role_codes: list[str],
         actor_subject: str,
         reason: str,
         operation_id: str,
     ) -> None:
         """Create an Access profile and assign initial roles for a newly provisioned account.
+
+        Args:
+            display_name: The user's display name. Falls back to profile_code if empty.
 
         Raises if role_codes is empty, contains duplicates, or references inactive roles.
         """
