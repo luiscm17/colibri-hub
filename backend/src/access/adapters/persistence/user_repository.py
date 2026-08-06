@@ -86,6 +86,27 @@ class AccessUserRepositoryAdapter:
         if admin_role is None:
             return 0
 
+        base_conditions = [
+            AccessUserRoleAssignmentRecord.role_id == admin_role,
+            AccessUserRoleAssignmentRecord.revoked_at.is_(None),
+            AccessUserRecord.is_active.is_(True),
+        ]
+        if exclude_user_id:
+            base_conditions.append(AccessUserRecord.user_id != UUID(exclude_user_id))
+
+        if for_update:
+            rows = self._session.execute(
+                select(AccessUserRoleAssignmentRecord.user_id)
+                .select_from(AccessUserRoleAssignmentRecord)
+                .join(
+                    AccessUserRecord,
+                    AccessUserRoleAssignmentRecord.user_id == AccessUserRecord.user_id,
+                )
+                .where(*base_conditions)
+                .with_for_update()
+            ).scalars().all()
+            return len(rows)
+
         stmt = (
             select(func.count())
             .select_from(AccessUserRoleAssignmentRecord)
@@ -93,19 +114,8 @@ class AccessUserRepositoryAdapter:
                 AccessUserRecord,
                 AccessUserRoleAssignmentRecord.user_id == AccessUserRecord.user_id,
             )
-            .where(
-                AccessUserRoleAssignmentRecord.role_id == admin_role,
-                AccessUserRoleAssignmentRecord.revoked_at.is_(None),
-                AccessUserRecord.is_active.is_(True),
-            )
+            .where(*base_conditions)
         )
-
-        if exclude_user_id:
-            stmt = stmt.where(AccessUserRecord.user_id != UUID(exclude_user_id))
-
-        if for_update:
-            stmt = stmt.with_for_update()
-
         return self._session.execute(stmt).scalar() or 0
 
     @staticmethod
