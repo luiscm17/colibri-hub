@@ -50,10 +50,10 @@ Authorization: Bearer {{token}}
 ### ═════════════════════════════════════════════════════
 
 ### ─────────────────────────────────────────────────────
-### GET /access/scopes — list registered scopes
+### GET /access/scopes — list registered scopes (paginated)
 ### ─────────────────────────────────────────────────────
 
-GET {{host}}/api/v1/access/scopes
+GET {{host}}/api/v1/access/scopes?page=1&page_size=50
 Authorization: Bearer {{token}}
 
 ### ─────────────────────────────────────────────────────
@@ -95,15 +95,45 @@ Content-Type: application/json
   "reason": "This should fail"
 }
 
+### ─────────────────────────────────────────────────────
+### PATCH /access/scopes/{id}/status — deactivate scope
+### ─────────────────────────────────────────────────────
+
+@scope_id_to_deactivate = <paste_scope_id_here>
+
+PATCH {{host}}/api/v1/access/scopes/{{scope_id_to_deactivate}}/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "is_active": false,
+  "expected_version": 1,
+  "reason": "Deactivate scope for testing"
+}
+
+### ─────────────────────────────────────────────────────
+### PATCH /access/scopes/{id}/status — reactivate scope
+### ─────────────────────────────────────────────────────
+
+PATCH {{host}}/api/v1/access/scopes/{{scope_id_to_deactivate}}/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "is_active": true,
+  "expected_version": 2,
+  "reason": "Reactivate scope after testing"
+}
+
 ### ═════════════════════════════════════════════════════
 ###                  ROLES
 ### ═════════════════════════════════════════════════════
 
 ### ─────────────────────────────────────────────────────
-### GET /access/roles — list all roles
+### GET /access/roles — list all roles (paginated)
 ### ─────────────────────────────────────────────────────
 
-GET {{host}}/api/v1/access/roles
+GET {{host}}/api/v1/access/roles?page=1&page_size=50
 Authorization: Bearer {{token}}
 
 ### ─────────────────────────────────────────────────────
@@ -124,6 +154,62 @@ Content-Type: application/json
     {"action": "read", "scope_id": "{{scope_id}}"}
   ],
   "reason": "Initial role for warehouse consultation"
+}
+
+### ─────────────────────────────────────────────────────
+### GET /access/roles/{id} — get role detail
+### ─────────────────────────────────────────────────────
+
+@role_detail_id = <paste_role_id_here>
+
+GET {{host}}/api/v1/access/roles/{{role_detail_id}}
+Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────────────────
+### PUT /access/roles/{id} — update role (full-replace permissions)
+### ─────────────────────────────────────────────────────
+
+PUT {{host}}/api/v1/access/roles/{{role_detail_id}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "role_name": "Warehouse Reader + Writer",
+  "description": "Full access to warehouse raw materials",
+  "permissions": [
+    {"action": "read", "scope_id": "{{scope_id}}"},
+    {"action": "write", "scope_id": "{{scope_id}}"}
+  ],
+  "expected_version": 1,
+  "reason": "Expand role to include write access"
+}
+
+### ─────────────────────────────────────────────────────
+### PATCH /access/roles/{id}/status — deactivate role
+### ─────────────────────────────────────────────────────
+
+PATCH {{host}}/api/v1/access/roles/{{role_detail_id}}/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "is_active": false,
+  "expected_version": 2,
+  "reason": "Deactivate role for testing"
+}
+
+### ─────────────────────────────────────────────────────
+### PATCH /access/roles/{id}/status — reactivate role
+### ─────────────────────────────────────────────────────
+
+PATCH {{host}}/api/v1/access/roles/{{role_detail_id}}/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "is_active": true,
+  "expected_version": 3,
+  "reason": "Reactivate role after testing"
 }
 
 ### ─────────────────────────────────────────────────────
@@ -148,17 +234,53 @@ Content-Type: application/json
 ### ═════════════════════════════════════════════════════
 
 ### ─────────────────────────────────────────────────────
-### GET /access/users — list all access users
+### GET /access/users — list all access users (paginated)
 ### ─────────────────────────────────────────────────────
 
-GET {{host}}/api/v1/access/users
+GET {{host}}/api/v1/access/users?page=1&page_size=50
 Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────────────────
+### GET /access/users/{id} — get user detail
+### ─────────────────────────────────────────────────────
+
+@user_id = <paste_user_id_here>
+
+GET {{host}}/api/v1/access/users/{{user_id}}
+Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────────────────
+### PATCH /access/users/{id}/status — deactivate user
+### ─────────────────────────────────────────────────────
+
+PATCH {{host}}/api/v1/access/users/{{user_id}}/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "is_active": false,
+  "expected_version": 1,
+  "reason": "Deactivate user for testing"
+}
+
+### ─────────────────────────────────────────────────────
+### PATCH /access/users/{id}/status — reactivate user
+### ─────────────────────────────────────────────────────
+
+PATCH {{host}}/api/v1/access/users/{{user_id}}/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "is_active": true,
+  "expected_version": 2,
+  "reason": "Reactivate user after testing"
+}
 
 ### ─────────────────────────────────────────────────────
 ### PUT /access/users/{id}/roles — replace user roles
 ### ─────────────────────────────────────────────────────
 
-@user_id = <paste_user_id_here>
 @role_id = <paste_role_id_here>
 
 PUT {{host}}/api/v1/access/users/{{user_id}}/roles
@@ -176,10 +298,31 @@ Content-Type: application/json
 ### ═════════════════════════════════════════════════════
 
 ### ─────────────────────────────────────────────────────
-### GET /access/audits — access-change history
+### GET /access/audits — access-change history (paginated)
 ### ─────────────────────────────────────────────────────
 
-GET {{host}}/api/v1/access/audits
+GET {{host}}/api/v1/access/audits?page=1&page_size=50
+Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────────────────
+### GET /access/audits — filter by subject_type
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/access/audits?subject_type=role
+Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────────────────
+### GET /access/audits — filter by change_kind
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/access/audits?change_kind=role_created
+Authorization: Bearer {{token}}
+
+### ─────────────────────────────────────────────────────
+### GET /access/audits — filter by date range
+### ─────────────────────────────────────────────────────
+
+GET {{host}}/api/v1/access/audits?date_from=2025-01-01T00:00:00Z&date_to=2027-12-31T23:59:59Z
 Authorization: Bearer {{token}}
 
 ### ═════════════════════════════════════════════════════
