@@ -1,5 +1,6 @@
 """Repository adapter for access change audit evidence."""
 
+from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import func, select
@@ -88,7 +89,11 @@ class AccessAuditRepositoryAdapter:
         if change_kind:
             stmt = stmt.where(AccessChangeAuditRecord.change_kind == change_kind)
         if date_from:
-            stmt = stmt.where(AccessChangeAuditRecord.occurred_at >= date_from)
+            stmt = stmt.where(
+                AccessChangeAuditRecord.occurred_at >= datetime.fromisoformat(date_from)
+            )
         if date_to:
-            stmt = stmt.where(AccessChangeAuditRecord.occurred_at <= date_to)
+            stmt = stmt.where(
+                AccessChangeAuditRecord.occurred_at <= datetime.fromisoformat(date_to)
+            )
         return stmt
