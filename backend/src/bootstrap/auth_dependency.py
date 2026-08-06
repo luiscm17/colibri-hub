@@ -82,10 +82,16 @@ def compose_auth(
 
         # Build the real Access provisioning adapter sharing this session
         from access.adapters.access_provisioning import AccessProvisioningAdapter
-        from access.adapters.persistence.repositories import (
+        from access.adapters.persistence.audit_repository import (
             AccessAuditRepositoryAdapter,
+        )
+        from access.adapters.persistence.user_repository import (
             AccessUserRepositoryAdapter,
+        )
+        from access.adapters.persistence.assignment_repository import (
             AssignmentRepositoryAdapter,
+        )
+        from access.adapters.persistence.role_repository import (
             RoleRepositoryAdapter,
         )
         from access.adapters.persistence.transaction import (

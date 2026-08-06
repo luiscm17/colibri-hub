@@ -20,10 +20,20 @@ class RoleRepository(Protocol):
         """Resolve the reserved System Administrator role."""
         ...
 
-    def list_all(self) -> list[Role]:
-        """Return all roles ordered by creation time."""
+    def list_all(self, *, limit: int | None = None, offset: int = 0) -> list[Role]:
+        """Return roles ordered by creation time with optional pagination."""
         ...
 
-    def save(self, role: Role) -> None:
-        """Persist a new or updated role. Raises on constraint violation."""
+    def count(self) -> int:
+        """Return total count of roles."""
+        ...
+
+    def save(self, role: Role, *, created_by_user_id: str | None = None) -> None:
+        """Persist a new or updated role. Raises on constraint violation.
+
+        Args:
+            role: The role aggregate to persist.
+            created_by_user_id: The access user who created/updated the role.
+                Required when the persisted permission set is non-empty.
+        """
         ...

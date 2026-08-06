@@ -1,9 +1,10 @@
 """Use case: deactivate an access user profile."""
 
-from access.application.dto import DeactivateAccessUserCommand
+from access.application.commands import DeactivateAccessUserCommand
 from access.domain.errors import AccessUserNotFound, LastSystemAdministratorRequired
 from access.ports.clock import ClockPort
-from access.ports.repositories import AccessAuditRepository, AccessUserRepository
+from access.ports.audit import AccessAuditRepository
+from access.ports.users import AccessUserRepository
 from access.ports.transaction import TransactionPort
 
 

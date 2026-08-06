@@ -4,11 +4,9 @@ from access.domain.actions import Action
 from access.domain.authorization import authorize
 from access.domain.errors import AccessDenied, AccessProfileNotFound, AccessUserInactive
 from access.ports.assignments import AssignmentRepository
-from access.ports.repositories import (
-    AccessUserRepository,
-    RoleRepository,
-    ScopeRepository,
-)
+from access.ports.roles import RoleRepository
+from access.ports.scopes import ScopeRepository
+from access.ports.users import AccessUserRepository
 
 
 class AuthorizeAction:

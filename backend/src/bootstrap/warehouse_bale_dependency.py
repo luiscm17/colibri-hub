@@ -3,10 +3,16 @@
 from collections.abc import Callable
 from typing import Annotated
 
-from access.adapters.persistence.repositories import (
+from access.adapters.persistence.user_repository import (
     AccessUserRepositoryAdapter,
+)
+from access.adapters.persistence.assignment_repository import (
     AssignmentRepositoryAdapter,
+)
+from access.adapters.persistence.role_repository import (
     RoleRepositoryAdapter,
+)
+from access.adapters.persistence.scope_repository import (
     ScopeRepositoryAdapter,
 )
 from access.adapters.warehouse_authorization import WarehouseAuthorizationAdapter

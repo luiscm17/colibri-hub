@@ -3,11 +3,26 @@
 All models use strict mode and forbid extra fields.
 """
 
+from typing import Generic, TypeVar
+
 from pydantic import BaseModel, ConfigDict
+
+T = TypeVar("T")
 
 
 class _StrictModel(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid")
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    """Page-based pagination envelope."""
+
+    items: list[T]
+    page: int
+    page_size: int
+    total: int
+
+    model_config = ConfigDict(strict=True)
 
 
 # --- Requests ---
@@ -80,6 +95,30 @@ class AccessUserResponse(_StrictModel):
     version: int
 
 
+class AccessUserDetailResponse(_StrictModel):
+    """Full user detail with roles, assignments, and permissions."""
+
+    user_id: str
+    identity_subject: str
+    user_code: str
+    display_name: str
+    is_active: bool
+    authorization_version: int
+    version: int
+    roles: list["RoleSummaryResponse"]
+    assignments: list["AssignmentResponse"]
+    is_global: bool
+    permissions: list[PermissionResponse]
+
+
+class AssignmentResponse(_StrictModel):
+    assignment_id: str
+    role_id: str
+    role_code: str
+    role_name: str
+    assigned_at: str
+
+
 class ScopeResponse(_StrictModel):
     scope_id: str
     definition_key: str
@@ -112,14 +151,29 @@ class AuditEntryResponse(_StrictModel):
 
 
 class AuthorizationResponse(_StrictModel):
-    """Authorization section of /access/me response."""
+    """Authorization section of /access/me response.
 
-    global_access: bool = False
+    Field `is_global` serializes as `global` per spec §10.1.
+    """
+
+    is_global: bool = False
     actions: list[str] = []
     permissions: list[PermissionResponse] = []
     version: int
 
-    model_config = ConfigDict(strict=True, extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(
+        strict=True,
+        extra="forbid",
+        populate_by_name=True,
+    )
+
+
+class RoleSummaryResponse(_StrictModel):
+    """Compact role info in /access/me response (spec §10.1)."""
+
+    role_id: str
+    code: str
+    name: str
 
 
 class CurrentAccessResponse(_StrictModel):
@@ -127,4 +181,5 @@ class CurrentAccessResponse(_StrictModel):
     user_code: str
     display_name: str
     is_active: bool
+    roles: list[RoleSummaryResponse]
     authorization: AuthorizationResponse

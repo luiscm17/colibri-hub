@@ -35,11 +35,17 @@ class AccessUserRepositoryAdapter:
         ).scalar_one_or_none()
         return self._to_domain(row) if row else None
 
-    def list_all(self) -> list[AccessUser]:
-        rows = self._session.execute(
-            select(AccessUserRecord).order_by(AccessUserRecord.created_at)
-        ).scalars().all()
+    def list_all(self, *, limit: int | None = None, offset: int = 0) -> list[AccessUser]:
+        stmt = select(AccessUserRecord).order_by(AccessUserRecord.created_at).offset(offset)
+        if limit is not None:
+            stmt = stmt.limit(limit)
+        rows = self._session.execute(stmt).scalars().all()
         return [self._to_domain(r) for r in rows]
+
+    def count(self) -> int:
+        return self._session.execute(
+            select(func.count()).select_from(AccessUserRecord)
+        ).scalar() or 0
 
     def save(self, user: AccessUser) -> None:
         existing = self._session.execute(
@@ -80,6 +86,27 @@ class AccessUserRepositoryAdapter:
         if admin_role is None:
             return 0
 
+        base_conditions = [
+            AccessUserRoleAssignmentRecord.role_id == admin_role,
+            AccessUserRoleAssignmentRecord.revoked_at.is_(None),
+            AccessUserRecord.is_active.is_(True),
+        ]
+        if exclude_user_id:
+            base_conditions.append(AccessUserRecord.user_id != UUID(exclude_user_id))
+
+        if for_update:
+            rows = self._session.execute(
+                select(AccessUserRoleAssignmentRecord.user_id)
+                .select_from(AccessUserRoleAssignmentRecord)
+                .join(
+                    AccessUserRecord,
+                    AccessUserRoleAssignmentRecord.user_id == AccessUserRecord.user_id,
+                )
+                .where(*base_conditions)
+                .with_for_update()
+            ).scalars().all()
+            return len(rows)
+
         stmt = (
             select(func.count())
             .select_from(AccessUserRoleAssignmentRecord)
@@ -87,19 +114,8 @@ class AccessUserRepositoryAdapter:
                 AccessUserRecord,
                 AccessUserRoleAssignmentRecord.user_id == AccessUserRecord.user_id,
             )
-            .where(
-                AccessUserRoleAssignmentRecord.role_id == admin_role,
-                AccessUserRoleAssignmentRecord.revoked_at.is_(None),
-                AccessUserRecord.is_active.is_(True),
-            )
+            .where(*base_conditions)
         )
-
-        if exclude_user_id:
-            stmt = stmt.where(AccessUserRecord.user_id != UUID(exclude_user_id))
-
-        if for_update:
-            stmt = stmt.with_for_update()
-
         return self._session.execute(stmt).scalar() or 0
 
     @staticmethod

@@ -1,7 +1,7 @@
 """Use case: list all recognized scope definitions with registration status."""
 
-from access.application.dto import ScopeDefinitionResult
-from access.ports.repositories import ScopeDefinitionRegistry, ScopeRepository
+from access.application.results import ScopeDefinitionResult
+from access.ports.scopes import ScopeDefinitionRegistry, ScopeRepository
 
 
 class ListScopeDefinitions:

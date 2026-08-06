@@ -1,26 +1,28 @@
-"""Use case: create a new configurable role."""
+"""Use case: update an existing role's configuration (full-replace permissions)."""
 
-from access.application.commands import CreateRoleCommand
+from access.application.commands import UpdateRoleCommand
 from access.application.results import PermissionResult, RoleResult
 from access.domain.actions import PRIVILEGED_ACTIONS, Action, Permission
 from access.domain.errors import (
+    AccessRoleNotFound,
     AccessScopeNotFound,
-    DuplicateRoleCode,
+    AccessVersionConflict,
     DuplicateRolePermission,
     InactiveAccessScope,
+    InvalidAccessAction,
     PrivilegedActionRequiresSystemAdministrator,
+    ReservedRoleMutationForbidden,
     UnsupportedActionForScope,
 )
-from access.ports.clock import ClockPort
-from access.ports.identity import IdentityPort
 from access.ports.audit import AccessAuditRepository
+from access.ports.clock import ClockPort
 from access.ports.roles import RoleRepository
 from access.ports.scopes import ScopeDefinitionRegistry, ScopeRepository
 from access.ports.transaction import TransactionPort
 
 
-class CreateRole:
-    """Create a new ordinary role with its permission set."""
+class UpdateRole:
+    """Replace a role's name, description, and permission set."""
 
     def __init__(
         self,
@@ -31,7 +33,6 @@ class CreateRole:
         audit_repository: AccessAuditRepository,
         transaction: TransactionPort,
         clock: ClockPort,
-        identity: IdentityPort,
     ) -> None:
         self._roles = role_repository
         self._scopes = scope_repository
@@ -39,45 +40,48 @@ class CreateRole:
         self._audits = audit_repository
         self._transaction = transaction
         self._clock = clock
-        self._identity = identity
 
-    def execute(self, command: CreateRoleCommand) -> RoleResult:
+    def execute(self, command: UpdateRoleCommand) -> RoleResult:
         with self._transaction.atomic():
-            # Uniqueness
-            if self._roles.find_by_code(command.role_code) is not None:
-                raise DuplicateRoleCode()
+            role = self._roles.find_by_id(command.role_id)
+            if role is None:
+                raise AccessRoleNotFound()
+            if role.is_system_administrator:
+                raise ReservedRoleMutationForbidden()
+            if role.version != command.expected_version:
+                raise AccessVersionConflict()
 
-            # Validate permissions
+            # Validate and build new permission set
             permissions = self._validate_permissions(command.permissions)
 
-            now = self._clock.now()
-            from access.domain.roles import Role
+            before = {
+                "role_name": role.role_name,
+                "description": role.description,
+                "permissions": [
+                    {"action": p.action, "scope_code": p.scope_code}
+                    for p in sorted(role.permissions, key=lambda x: (x.action, x.scope_code))
+                ],
+            }
 
-            role = Role(
-                role_id=self._identity.generate_id(),
-                role_code=command.role_code,
-                role_name=command.role_name,
-                description=command.description,
-                is_system_administrator=False,
-                is_active=True,
-                version=1,
-                permissions=permissions,
-                created_at=now,
-                updated_at=now,
-            )
+            now = self._clock.now()
+            role.role_name = command.role_name
+            role.description = command.description
+            role.set_permissions(permissions)
+            role.version += 1
+            role.updated_at = now
             self._roles.save(role, created_by_user_id=command.actor_user_id)
 
             self._audits.append(
                 operation_id=command.operation_id,
-                change_kind="role_created",
+                change_kind="role_updated",
                 subject_type="role",
                 subject_id=role.role_id,
                 performed_by_user_id=command.actor_user_id,
                 reason=command.reason,
-                before_values={},
+                before_values=before,
                 after_values={
-                    "role_code": role.role_code,
                     "role_name": role.role_name,
+                    "description": role.description,
                     "permissions": [
                         {"action": p.action, "scope_code": p.scope_code}
                         for p in sorted(permissions, key=lambda x: (x.action, x.scope_code))
@@ -90,9 +94,9 @@ class CreateRole:
             role_code=role.role_code,
             role_name=role.role_name,
             description=role.description,
-            is_system_administrator=False,
-            is_active=True,
-            version=1,
+            is_system_administrator=role.is_system_administrator,
+            is_active=role.is_active,
+            version=role.version,
             permissions=[
                 PermissionResult(action=p.action, scope_code=p.scope_code)
                 for p in sorted(permissions, key=lambda x: (x.action, x.scope_code))
@@ -105,30 +109,24 @@ class CreateRole:
         permissions: set[Permission] = set()
 
         for p in inputs:
-            # Valid action
             try:
                 action = Action(p.action)
             except ValueError:
-                from access.domain.errors import InvalidAccessAction
                 raise InvalidAccessAction()
 
-            # Privileged actions not allowed on ordinary roles
             if action in PRIVILEGED_ACTIONS:
                 raise PrivilegedActionRequiresSystemAdministrator()
 
-            # Scope exists and is active
             scope = self._scopes.find_by_id(p.scope_id)
             if scope is None:
                 raise AccessScopeNotFound()
             if not scope.is_active:
                 raise InactiveAccessScope()
 
-            # Scope definition supports this action
             definition = self._definitions.get(scope.definition_key)
             if definition is not None and action not in definition.supported_actions:
                 raise UnsupportedActionForScope()
 
-            # Duplicate check
             pair = (p.action, p.scope_id)
             if pair in seen:
                 raise DuplicateRolePermission()

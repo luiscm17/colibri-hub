@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from access.adapters.persistence.records import (
@@ -35,11 +35,17 @@ class ScopeRepositoryAdapter:
         ).scalar_one_or_none()
         return self._to_domain(row) if row else None
 
-    def list_all(self) -> list[Scope]:
-        rows = self._session.execute(
-            select(AccessScopeRecord).order_by(AccessScopeRecord.created_at)
-        ).scalars().all()
+    def list_all(self, *, limit: int | None = None, offset: int = 0) -> list[Scope]:
+        stmt = select(AccessScopeRecord).order_by(AccessScopeRecord.created_at).offset(offset)
+        if limit is not None:
+            stmt = stmt.limit(limit)
+        rows = self._session.execute(stmt).scalars().all()
         return [self._to_domain(r) for r in rows]
+
+    def count(self) -> int:
+        return self._session.execute(
+            select(func.count()).select_from(AccessScopeRecord)
+        ).scalar() or 0
 
     def save(self, scope: Scope) -> None:
         existing = self._session.execute(

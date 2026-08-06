@@ -4,11 +4,13 @@ Delegates to Access application use cases, sharing the Auth session
 for transactional coordination during unified provisioning.
 """
 
-from access.adapters.persistence.repositories import AccessUserRepositoryAdapter
+from access.adapters.persistence.user_repository import (
+    AccessUserRepositoryAdapter,
+)
 from access.application.activate_access_user import ActivateAccessUser
 from access.application.create_access_user import CreateAccessUser
 from access.application.deactivate_access_user import DeactivateAccessUser
-from access.application.dto import (
+from access.application.commands import (
     ActivateAccessUserCommand,
     CreateAccessUserCommand,
     DeactivateAccessUserCommand,
