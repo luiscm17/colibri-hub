@@ -75,6 +75,7 @@ class ProvisionAccount:
             self._access.provision_profile(
                 subject=provider_identity.subject,
                 profile_code=command.user_code,
+                display_name=command.display_name,
                 role_codes=command.role_codes,
                 actor_subject=command.actor_subject,
                 reason=command.reason,

@@ -52,6 +52,10 @@ def create_api_router(
             create_auth_user_router(identity_resolver, auth_use_case_provider)
         )
         router.include_router(
-            create_auth_admin_router(identity_resolver, auth_use_case_provider)
+            create_auth_admin_router(
+                identity_resolver,
+                auth_use_case_provider,
+                authorize_action_provider,
+            )
         )
     return router
