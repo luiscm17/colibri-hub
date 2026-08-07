@@ -28,8 +28,8 @@ administration.
 
 Authentication and Access Control remain separate providers:
 
-- `AuthProvider` answers whether a verified session exists and whether password replacement is required.
-- `AccessProvider` loads the access profile and effective permissions only after Authentication is active.
+- The authentication provider answers whether a verified session exists and whether password replacement is required.
+- The access provider loads the access profile and effective permissions only after Authentication is active.
 
 ```mermaid
 flowchart TD
@@ -151,28 +151,23 @@ or recovery redirect flow. Supabase persistence is the only browser token store.
 
 ### 6.1 State Machine
 
-```typescript
-export type AuthenticationState =
-  | { status: 'initializing' }
-  | { status: 'unauthenticated'; reason?: 'logged-out' | 'expired' | 'denied' }
-  | {
-      status: 'password-change-required'
-      account: AuthenticationAccountSummary
-    }
-  | {
-      status: 'authenticated'
-      account: AuthenticationAccountSummary
-    }
-  | { status: 'unavailable'; retryable: boolean }
+Authentication presentation state is exactly one of:
 
-export interface AuthenticationAccountSummary {
-  accountId: string
-  email: string
-  displayName: string
-  initials: string
-  version: number
-}
-```
+| Status | Carries | Meaning |
+| --- | --- | --- |
+| `initializing` | — | Provider restore or initial check in progress |
+| `unauthenticated` | reason: `logged-out` \| `expired` \| `denied` | No usable session |
+| `password-change-required` | account | Verified session; mandatory replacement pending |
+| `authenticated` | account | Verified session; Access bootstrap may start |
+| `unavailable` | retryable: boolean | Provider or backend outage |
+
+The account carried by the password-change and authenticated states contains
+`accountId`, `email`, and `displayName`.
+
+`initials` is not part of the backend `GET /api/v1/auth/me` contract; the UI
+derives them locally from `displayName` when needed. `version` is also absent
+from the session contract and belongs only to the administrative account
+detail, where it supports optimistic-concurrency mutations (§13.2, §14.2).
 
 Provider tokens, refresh tokens, session objects, role names, and permission
 sets are not fields of this presentation state. The provider adapter supplies
@@ -180,7 +175,8 @@ the access token to the HTTP client through a narrow asynchronous accessor.
 
 ### 6.2 Provider Event Handling
 
-`AuthProvider` subscribes once to provider authentication-state changes. It:
+The authentication provider subscribes once to provider authentication-state
+changes. It:
 
 - updates the token accessor after login, restoration, or refresh;
 - validates the local account through `GET /api/v1/auth/me` before rendering protected content;
@@ -204,38 +200,27 @@ evaluation logic.
 
 ## 7. Feature Architecture
 
-```text
-frontend/src/features/auth/
-  api/
-    authApi.ts
-    authApi.types.ts
-    authApi.mappers.ts
-    authApi.errors.ts
-  provider/
-    supabaseClient.ts
-    providerSession.ts
-  context/
-    AuthContext.ts
-    AuthProvider.tsx
-  components/
-    AuthenticationBoundary.tsx
-    SessionExpiredDialog.tsx
-    PasswordField.tsx
-  pages/
-    LoginPage.tsx
-    MandatoryPasswordChangePage.tsx
-    AccountListPage.tsx
-    AccountDetailPage.tsx
-    AccountCreatePage.tsx
-    AuthenticationAuditPage.tsx
-  hooks/
-    useAuth.ts
-    useAuthenticationAccount.ts
-  model/
-    authenticationState.ts
-    account.ts
-  routes.tsx
-```
+### 7.1 Layer Responsibilities
+
+The Authentication feature follows the project's frontend architecture and
+conventions. File organization, naming, and splitting decisions follow that
+documentation rather than this specification.
+
+**API layer** owns the typed backend contract: request bodies, response types,
+wire mapping to frontend camel-case models, and HTTP error classification for
+Authentication endpoints.
+
+**Provider adapter** owns Supabase browser-client initialization, session
+restoration, refresh observation, and clearing. It exposes the access token
+through a narrow asynchronous accessor and never leaks provider objects to
+pages.
+
+**Context and hooks** expose the session state and the account-administration
+hooks; pages depend on the Authentication context and API layer.
+
+**Presentation** owns the login, mandatory password replacement, and unified
+account-administration screens (list, detail, create, reset, disable, enable,
+audit), plus boundary components that gate rendering on Authentication state.
 
 Provider code does not leak into pages or Access Control. Pages depend on the
 Authentication context and API layer.
@@ -244,7 +229,7 @@ Authentication context and API layer.
 
 ### 8.1 Application Startup
 
-1. Initialize `AuthProvider` in `initializing`.
+1. Initialize the authentication provider in the `initializing` state.
 2. Ask the provider adapter for the persisted Supabase session.
 3. If no session exists, become `unauthenticated`.
 4. If a session exists, expose its access token only to the HTTP client.
@@ -490,10 +475,10 @@ remains awaiting mandatory replacement after success.
 
 | Boundary | Behavior |
 | --- | --- |
-| `AuthenticationBoundary` | Holds protected rendering until Authentication is resolved |
-| `UnauthenticatedOnly` | Shows login and redirects authenticated users appropriately |
-| `PasswordChangeOnly` | Allows only mandatory replacement for the required state |
-| `AuthenticatedOnly` | Requires active Authentication before mounting Access |
+| Authentication boundary | Holds protected rendering until Authentication is resolved |
+| Sign-in-only boundary | Shows login and redirects authenticated users appropriately |
+| Password-change-only boundary | Allows only mandatory replacement for the required state |
+| Authenticated-only boundary | Requires active Authentication before mounting Access |
 | Access route guard | Requires the exact effective `action + scope` after Access bootstrap |
 
 Role names are never used to build routes. After Authentication and Access

@@ -40,7 +40,7 @@ and unavailable states stop the flow before any protected content renders:
 
 ```mermaid
 flowchart TD
-    A[Authenticated session] --> B[AccessProvider bootstrap]
+    A[Authenticated session] --> B[Access bootstrap]
     B --> C[GET /api/v1/access/me]
     C --> D{Access state}
     D -->|ready| E[Access state ready]
@@ -171,74 +171,48 @@ does not change the state model or authorization rules defined here.
 
 ### 7.1 Supported actions
 
-```typescript
-export type AccessAction =
-  | 'read'
-  | 'write'
-  | 'edit'
-  | 'edit_outside_window'
-  | 'manage_access'
-```
+The supported actions are the contract values supplied by the backend:
+
+- `read`;
+- `write`;
+- `edit`;
+- `edit_outside_window`;
+- `manage_access`.
 
 The frontend uses these values exactly as supplied by the backend. It does not
 infer an action from an HTTP method, button caption, or route name.
 
 ### 7.2 Access state
 
-```typescript
-export interface Permission {
-  action: AccessAction
-  scope: string
-}
+The Access state exposes these data shapes:
 
-export interface AssignedRoleSummary {
-  roleId: string
-  code: string
-  name: string
-}
-
-export type AuthorizationGrant =
-  | {
-      global: false
-      permissions: Permission[]
-      version: number
-    }
-  | {
-      global: true
-      actions: AccessAction[]
-      permissions: []
-      version: number
-    }
-
-export interface CurrentAccess {
-  userId: string
-  userCode: string
-  displayName: string
-  isActive: true
-  roles: AssignedRoleSummary[]
-  authorization: AuthorizationGrant
-}
-```
+- **Permission**: an `action` and an exact `scope` code.
+- **Assigned role summary**: `roleId`, `code`, and `name`.
+- **Authorization grant** — exactly one of two variants:
+  - ordinary: `global: false` with a `permissions` list and a `version`;
+  - global: `global: true` with an `actions` list, an empty `permissions`
+    list, and a `version`.
+- **Current access**: `userId`, `userCode`, `displayName`, `isActive`,
+  `roles` (assigned role summaries), and the `authorization` grant.
 
 API snake-case payloads are mapped to frontend camel-case models at the feature
 API boundary. Protected components do not consume raw response objects.
 
+The wire payload for `GET /api/v1/access/me` exposes the System Administrator
+flag as `global` (backend spec §10.1), and the frontend model uses the same
+`global` name; no rename occurs in the mapper for this field. The mapper
+rejects an `authorization` section that omits `global` instead of assuming an
+ordinary grant.
+
 ### 7.3 Exact permission check
 
-```typescript
-export function can(
-  authorization: AuthorizationGrant,
-  action: AccessAction,
-  scope: string,
-): boolean {
-  if (authorization.global) return authorization.actions.includes(action)
+The exact permission check receives the current authorization grant, an action,
+and a scope, and answers whether the action is available in that scope:
 
-  return authorization.permissions.some(
-    (permission) =>
-      permission.action === action && permission.scope === scope,
-  )
-}
-```
+- when the grant is global, the action is available when it appears in the
+  grant's `actions`;
+- otherwise, the action is available when the grant's `permissions` contain an
+  entry with that exact action and that exact scope.
 
 For efficient repeated checks, the provider may build an internal `Set` keyed by
 an unambiguous tuple encoding. That representation remains private and must not
@@ -263,14 +237,15 @@ or cache the current list of scopes as the limit of global access.
 
 ### 8.1 Provider state machine
 
-```typescript
-export type AccessProviderState =
-  | { status: 'waiting-for-authentication' }
-  | { status: 'loading' }
-  | { status: 'ready'; access: CurrentAccess }
-  | { status: 'blocked'; reason: 'profile-not-found' | 'inactive' }
-  | { status: 'unavailable'; retryable: boolean }
-```
+Access state is exactly one of:
+
+| Status | Carries | Meaning |
+| --- | --- | --- |
+| `waiting-for-authentication` | — | Authentication has not resolved yet |
+| `loading` | — | Access profile request in progress |
+| `ready` | `access` | Effective authorization available |
+| `blocked` | reason: `profile-not-found` \| `inactive` | Authenticated but no usable Access profile |
+| `unavailable` | retryable: boolean | Backend or network failure |
 
 The provider does not collapse these states into `currentUser | null`. A null
 value cannot distinguish an unauthenticated session, an Access profile denial,
@@ -324,19 +299,12 @@ safe or idempotent.
 
 ### 9.1 Route requirements
 
-Protected route metadata declares one or more exact requirements:
+Protected route metadata declares one or more exact requirements. Each
+requirement pairs an `action` with an exact `scope`. Route metadata supports
+two combinators:
 
-```typescript
-export interface RouteRequirement {
-  action: AccessAction
-  scope: string
-}
-
-export interface ProtectedRouteMeta {
-  anyOf?: RouteRequirement[]
-  allOf?: RouteRequirement[]
-}
-```
+- `anyOf`: the route renders when at least one requirement is satisfied;
+- `allOf`: the route renders only when every requirement is satisfied.
 
 Most routes use one requirement. A context landing page may use `anyOf` to appear
 when at least one child capability is visible. `allOf` is used only when the page
@@ -367,17 +335,8 @@ The Access Denied page:
 
 ### 9.3 Navigation filtering
 
-Every navigation item declares route requirements. Parent items are visible when
+Every navigation item declares route requirements. A parent item is visible when
 at least one child is visible. Empty groups are omitted.
-
-```typescript
-interface NavigationItem {
-  label: string
-  path?: string
-  requirement?: ProtectedRouteMeta
-  children?: NavigationItem[]
-}
-```
 
 Navigation is recomputed from the current Access snapshot. It is not persisted as
 a separate permission cache.
@@ -474,16 +433,9 @@ the gate.
 
 ### 10.1 Action component
 
-A shared component supports consistent action rendering:
-
-```typescript
-interface AuthorizedProps {
-  action: AccessAction
-  scope: string
-  fallback?: React.ReactNode
-  children: React.ReactNode
-}
-```
+A shared protected-action component supports consistent action rendering. It
+receives an `action`, a `scope`, an optional fallback content, and children to
+render when the action is available.
 
 Use hiding when an unavailable action is irrelevant to the user's task. Use a
 disabled control with an explanation when preserving layout or discoverability is
@@ -516,53 +468,37 @@ If a protected request returns `403` after the UI displayed the action:
 
 ## 11. Access feature architecture
 
-```text
-frontend/src/features/access/
-  api/
-    accessApi.ts
-    accessApi.types.ts
-    accessApi.mappers.ts
-    accessApi.errors.ts
-  authorization/
-    accessActions.ts
-    accessScopes.ts
-    can.ts
-    routeRequirements.ts
-  context/
-    AccessProvider.tsx
-  components/
-    Authorized.tsx
-    PermissionMatrix.tsx
-    RoleSelector.tsx
-    ImpactPreview.tsx
-    AccessStatusBadge.tsx
-  hooks/
-    useAccess.ts
-    useAuthorization.ts
-    useAccessAdministration.ts
-  pages/
-    AccessRolesPage.tsx
-    AccessRoleEditorPage.tsx
-    AccessPresetsPage.tsx
-    AccessPresetEditorPage.tsx
-    AccessScopesPage.tsx
-    AccessAuditPage.tsx
-  types/
-    access.types.ts
-  index.ts
+### 11.1 Layer Responsibilities
 
-frontend/src/app/routes/
-    ProtectedRoute.tsx
-```
+The Access feature follows the project's frontend architecture and
+conventions. File organization, naming, and splitting decisions follow that
+documentation rather than this specification.
 
-The `authorization/` directory contains pure frontend policy consumption, not
-business authorization decisions. Feature pages import `useAuthorization` or
-`Authorized` through the Access feature public API.
+**API layer** owns the typed backend contract: request bodies, response types,
+wire mapping to frontend camel-case models, and HTTP error classification for
+Access Control endpoints.
 
-Authentication remains in its own feature and provider. `AccessProvider`
-depends on the authentication session interface and is mounted inside
-`AuthProvider`. Authentication does not depend on Access Control. Both features
-use the shared authenticated HTTP client and app router.
+**Policy consumption** owns pure frontend authorization consumption: action and
+scope constants, the exact permission check, and route requirements. It never
+makes business authorization decisions.
+
+**Context and hooks** own the Access provider bootstrap and blocked states and
+expose the current Access state, the exact permission check, and the
+administration hooks.
+
+**Presentation** owns the administration pages (roles, presets, scopes,
+access audit), the shared protected-action gate, the impact preview, and
+access-status indicators. The app-router route guard gates rendering on the
+exact effective action plus scope.
+
+The policy-consumption layer contains pure frontend policy consumption, not
+business authorization decisions. Feature pages consume it through the Access
+feature public API.
+
+Authentication remains in its own feature and provider. The Access provider
+depends on the authentication session interface and is mounted inside the
+Authentication provider. Authentication does not depend on Access Control. Both
+features use the shared authenticated HTTP client and app router.
 
 ## 12. API contract consumed
 
@@ -732,8 +668,8 @@ Spinning, or Lot Processing.
 
 ### 14.1 Shared impact preview
 
-`ImpactPreview` renders backend-calculated impact. The frontend may summarize but
-does not independently decide affected users or effective permission deltas.
+The impact preview renders backend-calculated impact. The frontend may summarize
+but does not independently decide affected users or effective permission deltas.
 
 For shared-role changes, the confirmation prominently states the number of users
 affected and lists them when returned by the API.
@@ -852,8 +788,8 @@ AA.
 
 - Sidebar omits unauthorized leaves and empty parent groups.
 - Direct route access renders Access Denied.
-- Authorized route renders normally.
-- `Authorized` hides or disables consistently.
+- An allowed route renders normally.
+- The protected-action component hides or disables consistently.
 - Permission matrix cannot create duplicate pairs.
 - Permission matrix disables action-and-scope pairs not supported by the catalog.
 - Scope registration cannot submit free-form or unknown definitions.
