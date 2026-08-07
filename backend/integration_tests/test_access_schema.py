@@ -91,13 +91,12 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
             conn.rollback()
 
     def test_single_system_administrator_role_constraint(self):
-        r1 = _uuid()
+        # The system_administrator role is seeded by migration
+        # 20260806120000_seed_system_administrator_role.sql.
+        # Inserting a second is_system_administrator=true role must fail the
+        # partial unique index uq_access_roles_single_sysadmin.
         r2 = _uuid()
         with self.engine.begin() as conn:
-            conn.execute(text(
-                "INSERT INTO access_roles (role_id, role_code, role_name, is_system_administrator) "
-                "VALUES (:id, 'sysadmin', 'System Administrator', true)"
-            ), {"id": r1})
             with self.assertRaises(Exception) as ctx:
                 conn.execute(text(
                     "INSERT INTO access_roles (role_id, role_code, role_name, is_system_administrator) "
