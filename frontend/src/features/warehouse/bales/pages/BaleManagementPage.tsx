@@ -6,7 +6,6 @@ import {
   IconTruckDelivery,
 } from '@tabler/icons-react'
 import { Link } from 'react-router'
-import classes from './BaleManagementPage.module.css'
 
 const workflowCards = [
   {
@@ -46,7 +45,18 @@ export default function BaleManagementPage() {
             withBorder
             padding="lg"
             radius="md"
-            className={classes.card}
+            styles={{
+              root: {
+                transition: 'box-shadow 150ms ease, transform 150ms ease',
+                '&:hover': {
+                  boxShadow: 'var(--mantine-shadow-md)',
+                  transform: 'translateY(-2px)',
+                },
+                '@media (prefers-reduced-motion: reduce)': {
+                  transition: 'none',
+                },
+              },
+            }}
           >
             <Group justify="space-between" align="flex-start" wrap="nowrap">
               <ThemeIcon variant="light" size="lg" radius="md">
