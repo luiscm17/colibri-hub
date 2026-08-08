@@ -3,7 +3,7 @@ import { Paper, TextInput, PasswordInput, Button, Text, Alert } from '@mantine/c
 import { IconAlertCircle } from '@tabler/icons-react'
 import { useAuth } from '../context/auth-context'
 import { ProductLogo } from '@/common/components/ProductLogo'
-import classes from '@/styles/components/LoginPage.module.css'
+import classes from './AuthPages.module.css'
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
 

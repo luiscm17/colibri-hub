@@ -1,7 +1,7 @@
 """Authentication request pipeline: account state + session age validation.
 
 After JWT validation produces an AuthenticatedIdentity, this pipeline:
-1. Resolves the local account from identity_subject.
+1. Resolves the application account from identity_subject.
 2. Rejects disabled accounts even when the JWT is cryptographically valid.
 3. Checks provider session age and rejects at the 8-hour boundary.
 4. Restricts awaiting_password_change accounts to permitted endpoints only.
@@ -60,7 +60,7 @@ class RequestPipeline:
 
         Returns the validated identity or raises an appropriate error.
         """
-        # Resolve local account
+        # Resolve application account
         account = self._accounts.find_by_subject(identity.subject)
         if account is None:
             raise AuthenticationFailed()

@@ -15,9 +15,9 @@ from auth.ports.identity_provider import IdentityProviderPort
 
 
 class DisableAccount:
-    """Establish local denial, deactivate Access profile, ban provider, revoke sessions.
+    """Establish account denial, deactivate Access profile, ban provider, revoke sessions.
 
-    Safe ordering: local + Access denial BEFORE provider ban and revocation.
+    Safe ordering: account + Access denial BEFORE provider ban and revocation.
     """
 
     def __init__(

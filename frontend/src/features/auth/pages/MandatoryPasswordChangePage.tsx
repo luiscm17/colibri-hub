@@ -5,7 +5,7 @@ import { useAuth } from '../context/auth-context'
 import { submitPasswordChange } from '../api/authApi'
 import { isApiError } from '@/api/httpError'
 import { ProductLogo } from '@/common/components/ProductLogo'
-import classes from '@/styles/components/LoginPage.module.css'
+import classes from './AuthPages.module.css'
 
 export default function MandatoryPasswordChangePage() {
   const { revalidate, logout } = useAuth()
@@ -23,7 +23,7 @@ export default function MandatoryPasswordChangePage() {
     setConfirmPassword('')
   }
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
     setFieldErrors({})

@@ -14,9 +14,9 @@ from auth.ports.identity_provider import IdentityProviderPort
 
 
 class EnableAccount:
-    """Set a new provisional password, validate Access, unban provider, enable locally.
+    """Set a new provisional password, validate Access, unban provider, enable the account.
 
-    Safe ordering: keep local denial until provider update and Access validation succeed.
+    Safe ordering: keep account denial until provider update and Access validation succeed.
     """
 
     def __init__(
@@ -47,7 +47,7 @@ class EnableAccount:
         now = self._clock.now()
         operation_id = self._identity.generate_operation_id()
 
-        # Update provider credential and unban BEFORE local state change
+        # Update provider credential and unban BEFORE account state change
         # (if provider fails, account stays disabled — safe)
         self._provider.update_password(
             subject=account.identity_subject,
@@ -63,7 +63,7 @@ class EnableAccount:
             operation_id=operation_id,
         )
 
-        # Local state change last (after provider and Access success)
+        # Account state change last (after provider and Access success)
         account.enable(now)
         self._accounts.save(account)
 

@@ -1,15 +1,20 @@
 ### Variables
 @host = http://127.0.0.1:8000
+
+# Access token — expires after ~1h. Get it from the Sign in request in
+# auth.http (or see CREDENTIALS.md) and paste it here.
 @token = <paste_access_token_here>
 
 ### ─────────────────────────────────────────────────────
-### GET /warehouse/bales — list bale stock
+### GET /warehouse/bales — list bale stock (public)
 ### ─────────────────────────────────────────────────────
 
 GET {{host}}/api/v1/warehouse/bales
 
 ### ─────────────────────────────────────────────────────
 ### POST /warehouse/bales — register a batch (requires auth + authorization)
+### ⚠ Decimal values must be JSON strings; dtex and container_weight_kg are
+###   required; shipment_number and bale_number max 10 chars.
 ### ─────────────────────────────────────────────────────
 
 POST {{host}}/api/v1/warehouse/bales
@@ -18,34 +23,39 @@ Content-Type: application/json
 
 {
   "provider_name": "Textil Norte",
-  "shipment_number": "ENV-2026-001",
+  "shipment_number": "ENV-2026-1",
   "received_at": "2026-08-03",
   "bales": [
     {
       "bale_number": "F-001",
-      "gross_weight_kg": 250.5,
-      "tare_weight_kg": 5.0,
       "material_type": "polyester",
-      "color": "white"
+      "dtex": "300",
+      "gross_weight_kg": "250.5",
+      "container_weight_kg": "5.0"
     }
   ]
 }
 
 ### ─────────────────────────────────────────────────────
-### GET /warehouse/bales/{shipment}/{bale} — bale detail
+### GET /warehouse/bales/{shipment}/{bale} — bale detail (public)
 ### ─────────────────────────────────────────────────────
 
-GET {{host}}/api/v1/warehouse/bales/ENV-2026-001/F-001
+GET {{host}}/api/v1/warehouse/bales/ENV-2026-1/F-001
 
 ### ─────────────────────────────────────────────────────
-### POST /warehouse/bales/deliver — deliver a bale
+### POST /warehouse/bales/deliver — deliver bales (public)
+### ⚠ bales is an array of shipment_number + bale_number identities.
 ### ─────────────────────────────────────────────────────
 
 POST {{host}}/api/v1/warehouse/bales/deliver
 Content-Type: application/json
 
 {
-  "shipment_number": "ENV-2026-001",
-  "bale_number": "F-001",
-  "delivery_date": "2026-08-04"
+  "delivery_date": "2026-08-04",
+  "bales": [
+    {
+      "shipment_number": "ENV-2026-1",
+      "bale_number": "F-001"
+    }
+  ]
 }
