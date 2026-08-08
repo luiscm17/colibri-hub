@@ -54,7 +54,7 @@ class ChangeRequiredPassword:
             new_password=command.new_password,
         )
 
-        # Activate locally only after provider success
+        # Activate the account only after provider success
         now = self._clock.now()
         account.activate(now)
         self._accounts.save(account)

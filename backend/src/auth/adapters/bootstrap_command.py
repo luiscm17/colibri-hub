@@ -83,7 +83,7 @@ class BootstrapInitialAdministrator:
             password=provisional_password,
         )
 
-        # Create local account
+        # Create application account
         try:
             now = self._clock.now()
             account = AuthenticationAccount.provision(

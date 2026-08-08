@@ -46,7 +46,7 @@ class ProvisionAccount:
         email = NormalizedEmail.from_raw(command.email)
         operation_id = self._identity.generate_operation_id()
 
-        # Validate local uniqueness
+        # Validate uniqueness in the application store
         existing = self._accounts.find_by_email(email)
         if existing is not None:
             raise DuplicateEmail()

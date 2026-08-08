@@ -17,7 +17,7 @@ from auth.ports.identity_provider import IdentityProviderPort
 class ResetPassword:
     """Set a new provisional password, revoke sessions, require replacement.
 
-    Safe ordering: establish local denial BEFORE provider credential
+    Safe ordering: establish account denial BEFORE provider credential
     replacement and revocation.
     """
 
@@ -50,12 +50,12 @@ class ResetPassword:
         if self._access.would_remove_last_administrator(account.identity_subject):
             raise LastSystemAdministratorRequired()
 
-        # Establish local denial first (safe ordering)
+        # Establish account denial first (safe ordering)
         now = self._clock.now()
         account.reset_to_awaiting(now)
         self._accounts.save(account)
 
-        # Provider operations after local denial is persisted
+        # Provider operations after account denial is persisted
         self._provider.update_password(
             subject=account.identity_subject,
             new_password=command.provisional_password,
