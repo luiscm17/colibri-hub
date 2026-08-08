@@ -13,6 +13,7 @@ from access.adapters.persistence.role_repository import (
     RoleRepositoryAdapter,
 )
 from access.adapters.persistence.preset_repository import RolePresetRepositoryAdapter
+from access.adapters.persistence.preview_query import RepositoryPreviewQuery
 from access.adapters.persistence.scope_repository import (
     ScopeDefinitionRegistryAdapter,
     ScopeRepositoryAdapter,
@@ -44,6 +45,8 @@ from access.application.list_role_presets import ListRolePresets
 from access.application.get_role_preset import GetRolePreset
 from access.application.change_role_preset_status import ChangeRolePresetStatus
 from access.application.create_role_from_preset import CreateRoleFromPreset
+from access.application.preview_role_change import PreviewRoleChange
+from access.application.preview_user_role_replacement import PreviewUserRoleReplacement
 from fastapi import Depends
 from infra.clock import SystemClock
 from infra.identity import SystemIdentity
@@ -71,6 +74,12 @@ def admin_use_case_dependency(
         definition_registry = ScopeDefinitionRegistryAdapter(session)
         audit_repo = AccessAuditRepositoryAdapter(session)
         transaction = TransactionAdapter(session)
+        preview_query = RepositoryPreviewQuery(
+            user_repository=user_repo,
+            role_repository=role_repo,
+            assignment_repository=assignment_repo,
+            scope_repository=scope_repo,
+        )
 
         return AdminUseCases(
             list_access_users=ListAccessUsers(user_repository=user_repo),
@@ -168,8 +177,11 @@ def admin_use_case_dependency(
             get_role_preset=GetRolePreset(preset_repository=preset_repo),
             change_role_preset_status=ChangeRolePresetStatus(preset_repository=preset_repo, audit_repository=audit_repo, transaction=transaction, clock=clock),
             create_role_from_preset=CreateRoleFromPreset(preset_repository=preset_repo, role_repository=role_repo, audit_repository=audit_repo, transaction=transaction, clock=clock, identity=identity),
+            preview_role_change=PreviewRoleChange(preview_query=preview_query),
+            preview_user_role_replacement=PreviewUserRoleReplacement(preview_query=preview_query),
             user_repository=user_repo,
             role_repository=role_repo,
+            scope_repository=scope_repo,
             identity=identity,
         )
 

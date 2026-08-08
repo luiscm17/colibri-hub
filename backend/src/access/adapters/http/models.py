@@ -61,6 +61,14 @@ class ReplaceUserRolesRequest(_StrictModel):
     reason: str
 
 
+class PreviewRoleChangeRequest(_StrictModel):
+    permissions: list[PermissionInput]
+
+
+class PreviewUserRoleReplacementRequest(_StrictModel):
+    role_ids: list[str]
+
+
 class RegisterScopeRequest(_StrictModel):
     definition_key: str
     reason: str
@@ -79,6 +87,28 @@ class CreateRoleFromPresetRequest(_StrictModel):
 class PermissionResponse(_StrictModel):
     action: str
     scope_code: str
+
+
+class PreviewUserResponse(_StrictModel):
+    user_id: str
+    user_code: str
+    display_name: str
+
+
+class PreviewRoleResponse(_StrictModel):
+    role_id: str
+    role_code: str
+    role_name: str
+
+
+class ImpactPreviewResponse(_StrictModel):
+    subject_version: int
+    affected_user_count: int
+    affected_users: list[PreviewUserResponse]
+    permissions_added: list[PermissionResponse]
+    permissions_removed: list[PermissionResponse]
+    roles_added: list[PreviewRoleResponse]
+    roles_removed: list[PreviewRoleResponse]
 
 
 class RoleResponse(_StrictModel):

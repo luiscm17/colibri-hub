@@ -13,6 +13,7 @@ from access.ports.clock import ClockPort as ClockPort
 from access.ports.identity import IdentityPort as IdentityPort
 from access.ports.roles import RoleRepository as RoleRepository
 from access.ports.presets import RolePresetRepository as RolePresetRepository
+from access.ports.previews import RolePreviewQuery as RolePreviewQuery
 from access.ports.scopes import ScopeDefinitionRegistry as ScopeDefinitionRegistry
 from access.ports.scopes import ScopeRepository as ScopeRepository
 from access.ports.transaction import TransactionPort as TransactionPort

@@ -24,7 +24,9 @@ from access.application.list_role_presets import ListRolePresets
 from access.application.get_role_preset import GetRolePreset
 from access.application.change_role_preset_status import ChangeRolePresetStatus
 from access.application.create_role_from_preset import CreateRoleFromPreset
-from access.ports import AccessUserRepository, IdentityPort, RoleRepository
+from access.application.preview_role_change import PreviewRoleChange
+from access.application.preview_user_role_replacement import PreviewUserRoleReplacement
+from access.ports import AccessUserRepository, IdentityPort, RoleRepository, ScopeRepository
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +59,9 @@ class AdminUseCases:
     get_role_preset: GetRolePreset
     change_role_preset_status: ChangeRolePresetStatus
     create_role_from_preset: CreateRoleFromPreset
+    preview_role_change: PreviewRoleChange
+    preview_user_role_replacement: PreviewUserRoleReplacement
     user_repository: AccessUserRepository
     role_repository: RoleRepository
+    scope_repository: ScopeRepository
     identity: IdentityPort
