@@ -179,7 +179,7 @@ The authentication provider subscribes once to provider authentication-state
 changes. It:
 
 - updates the token accessor after login, restoration, or refresh;
-- validates the local account through `GET /api/v1/auth/me` before rendering protected content;
+- validates the application account through `GET /api/v1/auth/me` before rendering protected content;
 - never trusts the locally restored provider user as sufficient application identity;
 - clears Authentication and Access state on sign-out or unrecoverable refresh failure;
 - avoids navigation inside low-level provider callbacks; and
@@ -246,8 +246,8 @@ time-box. Provider events update the central token accessor. The frontend does
 not calculate or extend a second application-session deadline.
 
 Refresh failure clears provider, Authentication, and Access state and presents
-an expired-session message. Backend rejection remains authoritative for local
-account disablement and Access Control denial.
+an expired-session message. Backend rejection remains authoritative for
+application-account disablement and Access Control denial.
 
 ### 8.3 Backend `401` Handling
 
@@ -312,7 +312,7 @@ storage.
 ### 10.3 Completion
 
 1. Submit `POST /api/v1/auth/password-change` with current and new passwords.
-2. The backend updates the provider credential and local account atomically as far as the provider boundary permits.
+2. The backend updates the provider credential and application account atomically as far as the provider boundary permits.
 3. Clear all password fields.
 4. Revalidate `GET /api/v1/auth/me` with the existing provider session.
 5. When active, begin Access bootstrap and navigate to an authorized destination without restarting the session's original eight-hour maximum.
