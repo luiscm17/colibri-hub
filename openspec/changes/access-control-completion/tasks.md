@@ -75,10 +75,10 @@ Chain strategy: feature-branch-chain
 
 ## Phase 7: Impact Previews (PR3)
 
-- [ ] 7.1 Create `backend/src/access/ports/previews.py` — `RolePreviewQuery` protocol with `preview_role_change` and `preview_user_role_replacement`
-- [ ] 7.2 Create `backend/src/access/application/preview_role_change.py` — read-only delta computation, no locks/audit/version increment
-- [ ] 7.3 Create `backend/src/access/application/preview_user_role_replacement.py` — replacement preview with last-admin guard
-- [ ] 7.4 Modify `backend/src/access/adapters/http/admin_router.py` + `models.py` — 2 preview endpoints
-- [ ] 7.5 Modify `backend/src/access/application/containers.py` + `backend/src/bootstrap/access_admin_dependency.py` — wire preview use cases
-- [ ] 7.6 Unit test: preview returns correct affected users + permission delta; multi-role overlap handled (spec: D2 scenarios)
-- [ ] 7.7 Unit test: preview does not mutate state; stale version on confirmation returns 409 (spec: read-only + stale scenarios)
+- [x] 7.1 Create `backend/src/access/ports/previews.py` — `RolePreviewQuery` protocol with `preview_role_change` and `preview_user_role_replacement`
+- [x] 7.2 Create `backend/src/access/application/preview_role_change.py` — read-only delta computation, no locks/audit/version increment
+- [x] 7.3 Create `backend/src/access/application/preview_user_role_replacement.py` — replacement preview with last-admin guard
+- [x] 7.4 Modify `backend/src/access/adapters/http/admin_router.py` + `models.py` — 2 preview endpoints
+- [x] 7.5 Modify `backend/src/access/application/containers.py` + `backend/src/bootstrap/access_admin_dependency.py` — wire preview use cases
+- [x] 7.6 Unit test: preview returns correct affected users + permission delta; multi-role overlap handled (spec: D2 scenarios)
+- [x] 7.7 Unit test: preview does not mutate state; stale version on confirmation returns 409 (spec: read-only + stale scenarios)
