@@ -1,4 +1,6 @@
 """Behavior tests for role presets and authorization-version fan-out."""
+import asyncio
+import json
 import unittest
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -11,6 +13,7 @@ from access.application.update_role import UpdateRole
 from access.application.activate_role import ActivateRole
 from access.application.deactivate_scope import DeactivateScope
 from access.application.commands import ActivateRoleCommand, DeactivateScopeCommand
+from access.adapters.http.error_handlers import access_error_handler
 from access.domain.actions import Action, Permission
 from access.domain.errors import DuplicatePresetCode, InactiveAccessPreset, PrivilegedActionRequiresSystemAdministrator
 from access.domain.presets import RolePreset
@@ -67,6 +70,15 @@ class RolePresetTest(unittest.TestCase):
     def test_inactive_preset_cannot_create_role(self):
         preset = self.create(); ChangeRolePresetStatus(preset_repository=self.presets, audit_repository=self.audit, transaction=Tx(), clock=Clock()).execute(ChangeRolePresetStatusCommand(preset.preset_id, False, 1, "test", "actor", "op"))
         with self.assertRaises(InactiveAccessPreset): CreateRoleFromPreset(preset_repository=self.presets, role_repository=self.roles, audit_repository=self.audit, transaction=Tx(), clock=Clock(), identity=self.identity).execute(CreateRoleFromPresetCommand(preset.preset_id, "role", "Role", None, "test", "actor", "op"))
+
+    def test_duplicate_preset_code_maps_to_conflict_error_envelope(self):
+        response = asyncio.run(access_error_handler(None, DuplicatePresetCode()))
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(
+            json.loads(response.body)["error"]["code"],
+            "duplicate_access_preset_code",
+        )
 
 class AuthorizationVersionFanoutTest(unittest.TestCase):
     def test_role_update_requests_fanout_for_assigned_role(self):
