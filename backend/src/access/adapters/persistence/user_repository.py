@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import distinct, func, select, update
 from sqlalchemy.orm import Session
 
 from access.adapters.persistence.records import (
@@ -117,6 +117,34 @@ class AccessUserRepositoryAdapter:
             .where(*base_conditions)
         )
         return self._session.execute(stmt).scalar() or 0
+
+    def bump_authorization_version_for_role(self, role_id: str) -> list[str]:
+        return self._bump_for_assignments(
+            AccessUserRoleAssignmentRecord.role_id == UUID(role_id)
+        )
+
+    def bump_authorization_version_for_scope(self, scope_id: str) -> list[str]:
+        from access.adapters.persistence.records import AccessRolePermissionRecord
+        role_ids = select(AccessRolePermissionRecord.role_id).where(
+            AccessRolePermissionRecord.scope_id == UUID(scope_id)
+        )
+        return self._bump_for_assignments(
+            AccessUserRoleAssignmentRecord.role_id.in_(role_ids)
+        )
+
+    def _bump_for_assignments(self, condition) -> list[str]:
+        user_ids = self._session.execute(
+            select(distinct(AccessUserRecord.user_id))
+            .join(AccessUserRoleAssignmentRecord, AccessUserRoleAssignmentRecord.user_id == AccessUserRecord.user_id)
+            .where(condition, AccessUserRoleAssignmentRecord.revoked_at.is_(None), AccessUserRecord.is_active.is_(True))
+        ).scalars().all()
+        if user_ids:
+            self._session.execute(
+                update(AccessUserRecord).where(AccessUserRecord.user_id.in_(user_ids)).values(
+                    authorization_version=AccessUserRecord.authorization_version + 1
+                )
+            )
+        return [str(user_id) for user_id in user_ids]
 
     @staticmethod
     def _to_domain(row: AccessUserRecord) -> AccessUser:

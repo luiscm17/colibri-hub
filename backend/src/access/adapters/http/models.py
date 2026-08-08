@@ -65,6 +65,13 @@ class RegisterScopeRequest(_StrictModel):
     definition_key: str
     reason: str
 
+class CreateRolePresetRequest(_StrictModel):
+    preset_code: str; preset_name: str; description: str | None = None; permissions: list[PermissionInput]; reason: str
+class UpdateRolePresetRequest(_StrictModel):
+    preset_name: str; description: str | None = None; permissions: list[PermissionInput]; expected_version: int; reason: str
+class CreateRoleFromPresetRequest(_StrictModel):
+    role_code: str; role_name: str; description: str | None = None; reason: str
+
 
 # --- Responses ---
 
@@ -83,6 +90,9 @@ class RoleResponse(_StrictModel):
     is_active: bool
     version: int
     permissions: list[PermissionResponse]
+
+class RolePresetResponse(_StrictModel):
+    preset_id: str; preset_code: str; preset_name: str; description: str | None; is_active: bool; version: int; permissions: list[PermissionResponse]
 
 
 class AccessUserResponse(_StrictModel):

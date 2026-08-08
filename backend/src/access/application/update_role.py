@@ -19,6 +19,7 @@ from access.ports.clock import ClockPort
 from access.ports.roles import RoleRepository
 from access.ports.scopes import ScopeDefinitionRegistry, ScopeRepository
 from access.ports.transaction import TransactionPort
+from access.ports.users import AccessUserRepository
 
 
 class UpdateRole:
@@ -31,6 +32,7 @@ class UpdateRole:
         scope_repository: ScopeRepository,
         scope_definition_registry: ScopeDefinitionRegistry,
         audit_repository: AccessAuditRepository,
+        user_repository: AccessUserRepository | None = None,
         transaction: TransactionPort,
         clock: ClockPort,
     ) -> None:
@@ -38,6 +40,7 @@ class UpdateRole:
         self._scopes = scope_repository
         self._definitions = scope_definition_registry
         self._audits = audit_repository
+        self._users = user_repository
         self._transaction = transaction
         self._clock = clock
 
@@ -70,6 +73,8 @@ class UpdateRole:
             role.version += 1
             role.updated_at = now
             self._roles.save(role, created_by_user_id=command.actor_user_id)
+            if self._users is not None:
+                self._users.bump_authorization_version_for_role(role.role_id)
 
             self._audits.append(
                 operation_id=command.operation_id,

@@ -12,6 +12,7 @@ from access.adapters.persistence.assignment_repository import (
 from access.adapters.persistence.role_repository import (
     RoleRepositoryAdapter,
 )
+from access.adapters.persistence.preset_repository import RolePresetRepositoryAdapter
 from access.adapters.persistence.scope_repository import (
     ScopeDefinitionRegistryAdapter,
     ScopeRepositoryAdapter,
@@ -37,6 +38,12 @@ from access.application.list_scopes import ListScopes
 from access.application.register_recognized_scope import RegisterRecognizedScope
 from access.application.replace_user_roles import ReplaceUserRoles
 from access.application.update_role import UpdateRole
+from access.application.create_role_preset import CreateRolePreset
+from access.application.update_role_preset import UpdateRolePreset
+from access.application.list_role_presets import ListRolePresets
+from access.application.get_role_preset import GetRolePreset
+from access.application.change_role_preset_status import ChangeRolePresetStatus
+from access.application.create_role_from_preset import CreateRoleFromPreset
 from fastapi import Depends
 from infra.clock import SystemClock
 from infra.identity import SystemIdentity
@@ -58,6 +65,7 @@ def admin_use_case_dependency(
     ) -> AdminUseCases:
         user_repo = AccessUserRepositoryAdapter(session)
         role_repo = RoleRepositoryAdapter(session)
+        preset_repo = RolePresetRepositoryAdapter(session)
         scope_repo = ScopeRepositoryAdapter(session)
         assignment_repo = AssignmentRepositoryAdapter(session)
         definition_registry = ScopeDefinitionRegistryAdapter(session)
@@ -89,30 +97,35 @@ def admin_use_case_dependency(
                 audit_repository=audit_repo,
                 transaction=transaction,
                 clock=clock,
+                user_repository=user_repo,
             ),
             activate_role=ActivateRole(
                 role_repository=role_repo,
                 audit_repository=audit_repo,
                 transaction=transaction,
                 clock=clock,
+                user_repository=user_repo,
             ),
             deactivate_role=DeactivateRole(
                 role_repository=role_repo,
                 audit_repository=audit_repo,
                 transaction=transaction,
                 clock=clock,
+                user_repository=user_repo,
             ),
             activate_scope=ActivateScope(
                 scope_repository=scope_repo,
                 audit_repository=audit_repo,
                 transaction=transaction,
                 clock=clock,
+                user_repository=user_repo,
             ),
             deactivate_scope=DeactivateScope(
                 scope_repository=scope_repo,
                 audit_repository=audit_repo,
                 transaction=transaction,
                 clock=clock,
+                user_repository=user_repo,
             ),
             get_access_user=GetAccessUser(
                 user_repository=user_repo,
@@ -149,6 +162,12 @@ def admin_use_case_dependency(
                 clock=clock,
                 identity=identity,
             ),
+            create_role_preset=CreateRolePreset(preset_repository=preset_repo, scope_repository=scope_repo, scope_definition_registry=definition_registry, audit_repository=audit_repo, transaction=transaction, clock=clock, identity=identity),
+            update_role_preset=UpdateRolePreset(preset_repository=preset_repo, scope_repository=scope_repo, scope_definition_registry=definition_registry, audit_repository=audit_repo, transaction=transaction, clock=clock),
+            list_role_presets=ListRolePresets(preset_repository=preset_repo),
+            get_role_preset=GetRolePreset(preset_repository=preset_repo),
+            change_role_preset_status=ChangeRolePresetStatus(preset_repository=preset_repo, audit_repository=audit_repo, transaction=transaction, clock=clock),
+            create_role_from_preset=CreateRoleFromPreset(preset_repository=preset_repo, role_repository=role_repo, audit_repository=audit_repo, transaction=transaction, clock=clock, identity=identity),
             user_repository=user_repo,
             role_repository=role_repo,
             identity=identity,

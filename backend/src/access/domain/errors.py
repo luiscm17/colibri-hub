@@ -71,6 +71,13 @@ class AccessScopeNotFound(AccessError):
         super().__init__("Access scope not found.")
 
 
+class AccessPresetNotFound(AccessError):
+    code = "access_preset_not_found"
+
+    def __init__(self) -> None:
+        super().__init__("Access role preset not found.")
+
+
 # --- 409 ---
 
 
@@ -99,6 +106,13 @@ class DuplicateRoleCode(AccessError):
 
     def __init__(self) -> None:
         super().__init__("A role with this role code already exists.")
+
+
+class DuplicatePresetCode(AccessError):
+    code = "duplicate_access_preset_code"
+
+    def __init__(self) -> None:
+        super().__init__("A role preset with this code already exists.")
 
 
 class DuplicateScopeCode(AccessError):
@@ -135,6 +149,13 @@ class InactiveAccessRole(AccessError):
 
     def __init__(self) -> None:
         super().__init__("The referenced role is inactive.")
+
+
+class InactiveAccessPreset(AccessError):
+    code = "inactive_access_preset"
+
+    def __init__(self) -> None:
+        super().__init__("The referenced role preset is inactive.")
 
 
 class InactiveAccessScope(AccessError):

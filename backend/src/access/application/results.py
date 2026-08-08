@@ -29,6 +29,11 @@ class RoleResult:
 
 
 @dataclass(frozen=True, slots=True)
+class RolePresetResult:
+    preset_id: str; preset_code: str; preset_name: str; description: str | None; is_active: bool; version: int; permissions: list[PermissionResult]
+
+
+@dataclass(frozen=True, slots=True)
 class PermissionResult:
     action: str
     scope_code: str

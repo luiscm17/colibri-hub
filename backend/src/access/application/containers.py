@@ -18,6 +18,12 @@ from access.application.list_scopes import ListScopes
 from access.application.register_recognized_scope import RegisterRecognizedScope
 from access.application.replace_user_roles import ReplaceUserRoles
 from access.application.update_role import UpdateRole
+from access.application.create_role_preset import CreateRolePreset
+from access.application.update_role_preset import UpdateRolePreset
+from access.application.list_role_presets import ListRolePresets
+from access.application.get_role_preset import GetRolePreset
+from access.application.change_role_preset_status import ChangeRolePresetStatus
+from access.application.create_role_from_preset import CreateRoleFromPreset
 from access.ports import AccessUserRepository, IdentityPort, RoleRepository
 
 
@@ -45,6 +51,12 @@ class AdminUseCases:
     deactivate_access_user: DeactivateAccessUser
     replace_user_roles: ReplaceUserRoles
     register_recognized_scope: RegisterRecognizedScope
+    create_role_preset: CreateRolePreset
+    update_role_preset: UpdateRolePreset
+    list_role_presets: ListRolePresets
+    get_role_preset: GetRolePreset
+    change_role_preset_status: ChangeRolePresetStatus
+    create_role_from_preset: CreateRoleFromPreset
     user_repository: AccessUserRepository
     role_repository: RoleRepository
     identity: IdentityPort

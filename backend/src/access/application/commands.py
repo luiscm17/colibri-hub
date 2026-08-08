@@ -117,3 +117,17 @@ class PermissionInput:
 
     action: str
     scope_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class CreateRolePresetCommand:
+    preset_code: str; preset_name: str; description: str | None; permissions: list[PermissionInput]; reason: str; actor_user_id: str; operation_id: str
+@dataclass(frozen=True, slots=True)
+class UpdateRolePresetCommand:
+    preset_id: str; preset_name: str; description: str | None; permissions: list[PermissionInput]; expected_version: int; reason: str; actor_user_id: str; operation_id: str
+@dataclass(frozen=True, slots=True)
+class ChangeRolePresetStatusCommand:
+    preset_id: str; is_active: bool; expected_version: int; reason: str; actor_user_id: str; operation_id: str
+@dataclass(frozen=True, slots=True)
+class CreateRoleFromPresetCommand:
+    preset_id: str; role_code: str; role_name: str; description: str | None; reason: str; actor_user_id: str; operation_id: str

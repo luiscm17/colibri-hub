@@ -49,29 +49,29 @@ Chain strategy: feature-branch-chain
 
 ## Phase 4: Presets — Infrastructure (PR2)
 
-- [ ] 4.1 Create `supabase/migrations/{ts}_create_role_presets.sql` — `access_role_presets` and `access_role_preset_permissions` tables with unique constraints
-- [ ] 4.2 Create `backend/src/access/domain/presets.py` — `RolePreset` aggregate entity with embedded `RolePresetPermission` value objects
-- [ ] 4.3 Create `backend/src/access/ports/presets.py` — `RolePresetRepository` protocol (find_by_id, find_by_code, list_all, count, save)
-- [ ] 4.4 Create `backend/src/access/adapters/persistence/preset_repository.py` + modify `records.py` — SQLAlchemy records and repository implementation
+- [x] 4.1 Create `supabase/migrations/{ts}_create_role_presets.sql` — `access_role_presets` and `access_role_preset_permissions` tables with unique constraints
+- [x] 4.2 Create `backend/src/access/domain/presets.py` — `RolePreset` aggregate entity with embedded `RolePresetPermission` value objects
+- [x] 4.3 Create `backend/src/access/ports/presets.py` — `RolePresetRepository` protocol (find_by_id, find_by_code, list_all, count, save)
+- [x] 4.4 Create `backend/src/access/adapters/persistence/preset_repository.py` + modify `records.py` — SQLAlchemy records and repository implementation
 
 ## Phase 5: Presets + Version Propagation — Core (PR2)
 
-- [ ] 5.1 Create `backend/src/access/application/create_role_preset.py` — validate no privileged actions, unique code, save
-- [ ] 5.2 Create `backend/src/access/application/update_role_preset.py` — full permission replace with optimistic concurrency
-- [ ] 5.3 Create `backend/src/access/application/list_role_presets.py` and `get_role_preset.py` — read use cases
-- [ ] 5.4 Create `backend/src/access/application/change_role_preset_status.py` — activate/deactivate
-- [ ] 5.5 Create `backend/src/access/application/create_role_from_preset.py` — copy-on-create snapshot semantics
-- [ ] 5.6 Modify `backend/src/access/ports/users.py` — add `bump_authorization_version_for_role` method (D3)
-- [ ] 5.7 Modify `backend/src/access/application/update_role.py` + role/scope/assignment use cases — add `_propagate_authorization_version` helper calls
+- [x] 5.1 Create `backend/src/access/application/create_role_preset.py` — validate no privileged actions, unique code, save
+- [x] 5.2 Create `backend/src/access/application/update_role_preset.py` — full permission replace with optimistic concurrency
+- [x] 5.3 Create `backend/src/access/application/list_role_presets.py` and `get_role_preset.py` — read use cases
+- [x] 5.4 Create `backend/src/access/application/change_role_preset_status.py` — activate/deactivate
+- [x] 5.5 Create `backend/src/access/application/create_role_from_preset.py` — copy-on-create snapshot semantics
+- [x] 5.6 Modify `backend/src/access/ports/users.py` — add `bump_authorization_version_for_role` method (D3)
+- [x] 5.7 Modify `backend/src/access/application/update_role.py` + role/scope/assignment use cases — add `_propagate_authorization_version` helper calls
 
 ## Phase 6: Presets — Wiring + Testing (PR2)
 
-- [ ] 6.1 Modify `backend/src/access/adapters/http/admin_router.py` + `models.py` — 6 preset endpoints (list, create, get, update, status, create-role-from-preset)
-- [ ] 6.2 Modify `backend/src/access/application/containers.py` + `backend/src/bootstrap/access_admin_dependency.py` — wire preset use cases
-- [ ] 6.3 Unit test: preset CRUD lifecycle, reject privileged actions, reject duplicate code (spec: preset lifecycle scenarios)
-- [ ] 6.4 Unit test: copy-on-create produces independent role; preset change does not propagate (spec: copy semantics scenarios)
-- [ ] 6.5 Integration test: preset unique constraints; inactive scope rejection (spec: persistence scenarios)
-- [ ] 6.6 Unit test: `_propagate_authorization_version` bumps all affected users on role/scope/assignment mutations (spec: D3 scenarios)
+- [x] 6.1 Modify `backend/src/access/adapters/http/admin_router.py` + `models.py` — 6 preset endpoints (list, create, get, update, status, create-role-from-preset)
+- [x] 6.2 Modify `backend/src/access/application/containers.py` + `backend/src/bootstrap/access_admin_dependency.py` — wire preset use cases
+- [x] 6.3 Unit test: preset CRUD lifecycle, reject privileged actions, reject duplicate code (spec: preset lifecycle scenarios)
+- [x] 6.4 Unit test: copy-on-create produces independent role; preset change does not propagate (spec: copy semantics scenarios)
+- [x] 6.5 Integration test: preset unique constraints; inactive scope rejection (spec: persistence scenarios)
+- [x] 6.6 Unit test: `_propagate_authorization_version` bumps all affected users on role/scope/assignment mutations (spec: D3 scenarios)
 
 ## Phase 7: Impact Previews (PR3)
 
