@@ -120,8 +120,8 @@ class FakeAccessProvisioning:
         self.deactivated: list[str] = []
         self._would_remove_last = would_remove_last
 
-    def provision_profile(self, *, subject, profile_code, role_codes, actor_subject, reason, operation_id):
-        self.provisioned.append({"subject": subject, "role_codes": role_codes})
+    def provision_profile(self, *, subject, profile_code, display_name="", role_codes, actor_subject, reason, operation_id):
+        self.provisioned.append({"subject": subject, "role_codes": role_codes, "display_name": display_name})
 
     def activate_profile(self, *, subject, actor_subject, reason, operation_id):
         self.activated.append(subject)

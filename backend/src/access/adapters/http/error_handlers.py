@@ -19,6 +19,7 @@ _ERROR_STATUS_MAP: dict[str, int] = {
     "duplicate_access_identity": status.HTTP_409_CONFLICT,
     "duplicate_access_user_code": status.HTTP_409_CONFLICT,
     "duplicate_access_role_code": status.HTTP_409_CONFLICT,
+    "duplicate_access_preset_code": status.HTTP_409_CONFLICT,
     "duplicate_access_scope_code": status.HTTP_409_CONFLICT,
     "access_version_conflict": status.HTTP_409_CONFLICT,
     "last_system_administrator_required": status.HTTP_409_CONFLICT,

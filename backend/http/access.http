@@ -6,9 +6,17 @@
 # Access token — expires after ~1h. Run the Sign in request below, copy the
 # access_token from the response, and paste it here. See CREDENTIALS.md.
 @token = <paste_access_token_here>
+@ordinary_token = <paste_operator_access_token_here>
 
 # IDs below are instance-specific: fill them from the corresponding list GET
 # before running requests that reference them.
+@scope_id = <paste_active_scope_id_here>
+@role_detail_id = <paste_role_id_here>
+@user_id = <paste_user_id_here>
+@role_id = <paste_role_id_here>
+@preset_id = <paste_preset_id_here>
+@preview_subject_version = <paste_subject_version_here>
+@preset_version = <paste_current_preset_version_here>
 
 ### ─────────────────────────────────────────────────────
 ### Sign in — get fresh access_token
@@ -150,8 +158,6 @@ Authorization: Bearer {{token}}
 ### @scope_id — paste a scope_id from GET /access/scopes
 ### ─────────────────────────────────────────────────────
 
-@scope_id = <paste_scope_id_here>
-
 POST {{host}}/api/v1/access/roles
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -171,8 +177,6 @@ Content-Type: application/json
 ### @role_detail_id — paste a role_id from GET /access/roles.
 ###   ⚠ expected_version must equal the role's current version.
 ### ─────────────────────────────────────────────────────
-
-@role_detail_id = <paste_role_id_here>
 
 GET {{host}}/api/v1/access/roles/{{role_detail_id}}
 Authorization: Bearer {{token}}
@@ -242,6 +246,150 @@ Content-Type: application/json
 }
 
 ### ═════════════════════════════════════════════════════
+###              ROLE IMPACT PREVIEW
+### ═════════════════════════════════════════════════════
+
+### POST /access/roles/{id}/preview — preview full permission replacement
+### Read-only: does not reserve state, increment versions, write audits, or lock rows.
+### Use an existing @role_detail_id and active @scope_id from the list requests.
+### The response subject_version is the expected_version for the later PUT.
+
+POST {{host}}/api/v1/access/roles/{{role_detail_id}}/preview
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "permissions": [
+    {"action": "read", "scope_id": "{{scope_id}}"},
+    {"action": "write", "scope_id": "{{scope_id}}"}
+  ]
+}
+
+### Confirm the preview with PUT /access/roles/{id}
+### Replace the placeholder with subject_version from the preview response.
+### If the role changed after preview, this returns 409 access_version_conflict;
+### run the preview again instead of retrying with a guessed version.
+
+PUT {{host}}/api/v1/access/roles/{{role_detail_id}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "role_name": "Warehouse Reader + Writer",
+  "description": "Full access to warehouse raw materials",
+  "permissions": [
+    {"action": "read", "scope_id": "{{scope_id}}"},
+    {"action": "write", "scope_id": "{{scope_id}}"}
+  ],
+  "expected_version": {{preview_subject_version}},
+  "reason": "Confirm reviewed role impact"
+}
+
+### Role preview with ordinary user (expect 403 access_denied)
+
+POST {{host}}/api/v1/access/roles/{{role_detail_id}}/preview
+Authorization: Bearer {{ordinary_token}}
+Content-Type: application/json
+
+{
+  "permissions": []
+}
+
+### ═════════════════════════════════════════════════════
+###                  ROLE PRESETS
+### ═════════════════════════════════════════════════════
+
+### GET /access/role-presets — list presets (1 of 6)
+
+GET {{host}}/api/v1/access/role-presets?page=1&page_size=50
+Authorization: Bearer {{token}}
+
+### POST /access/role-presets — create active preset, version 1 (2 of 6)
+### Use a unique preset_code when rerunning this state-changing request.
+
+POST {{host}}/api/v1/access/role-presets
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "preset_code": "warehouse-reader-template",
+  "preset_name": "Warehouse Reader Template",
+  "description": "Starting permissions for warehouse readers",
+  "permissions": [
+    {"action": "read", "scope_id": "{{scope_id}}"}
+  ],
+  "reason": "Create a reusable manual-test preset"
+}
+
+### GET /access/role-presets/{id} — get current version (3 of 6)
+### Set @preset_id from the create response or list response.
+
+GET {{host}}/api/v1/access/role-presets/{{preset_id}}
+Authorization: Bearer {{token}}
+
+### PUT /access/role-presets/{id} — full permission replacement (4 of 6)
+### Replace expected_version with the current version from GET preset detail.
+
+PUT {{host}}/api/v1/access/role-presets/{{preset_id}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "preset_name": "Warehouse Reader and Writer Template",
+  "description": "Starting permissions for warehouse readers and writers",
+  "permissions": [
+    {"action": "read", "scope_id": "{{scope_id}}"},
+    {"action": "write", "scope_id": "{{scope_id}}"}
+  ],
+  "expected_version": {{preset_version}},
+  "reason": "Expand the reusable preset"
+}
+
+### PATCH /access/role-presets/{id}/status — deactivate (5 of 6)
+### Re-read preset detail after every mutation and paste its current version.
+
+PATCH {{host}}/api/v1/access/role-presets/{{preset_id}}/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "is_active": false,
+  "expected_version": {{preset_version}},
+  "reason": "Verify preset deactivation"
+}
+
+### PATCH /access/role-presets/{id}/status — reactivate before role creation
+
+PATCH {{host}}/api/v1/access/role-presets/{{preset_id}}/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "is_active": true,
+  "expected_version": {{preset_version}},
+  "reason": "Restore preset for role creation"
+}
+
+### POST /access/role-presets/{id}/roles — copy preset into new role (6 of 6)
+### Use a unique role_code when rerunning. Later preset updates do not alter it.
+
+POST {{host}}/api/v1/access/role-presets/{{preset_id}}/roles
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "role_code": "warehouse-preset-copy",
+  "role_name": "Warehouse Preset Copy",
+  "description": "Independent role copied from a preset",
+  "reason": "Verify copy-on-create semantics"
+}
+
+### Preset list with ordinary user (expect 403 access_denied)
+
+GET {{host}}/api/v1/access/role-presets?page=1&page_size=50
+Authorization: Bearer {{ordinary_token}}
+
+### ═════════════════════════════════════════════════════
 ###                  USERS
 ### ═════════════════════════════════════════════════════
 
@@ -257,8 +405,6 @@ Authorization: Bearer {{token}}
 ### @user_id — paste a user_id from GET /access/users.
 ###   ⚠ expected_version must equal the user's current version.
 ### ─────────────────────────────────────────────────────
-
-@user_id = <paste_user_id_here>
 
 GET {{host}}/api/v1/access/users/{{user_id}}
 Authorization: Bearer {{token}}
@@ -296,8 +442,6 @@ Content-Type: application/json
 ### @role_id — paste a role_id from GET /access/roles
 ### ─────────────────────────────────────────────────────
 
-@role_id = <paste_role_id_here>
-
 PUT {{host}}/api/v1/access/users/{{user_id}}/roles
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -306,6 +450,43 @@ Content-Type: application/json
   "role_ids": ["{{role_id}}"],
   "expected_version": 3,
   "reason": "Assign warehouse reader role"
+}
+
+### POST /access/users/{id}/roles/preview — preview complete role replacement
+### Read-only: this does not change assignments, versions, audits, or locks.
+### Use an existing @user_id and one or more active @role_id values.
+### The response subject_version is the expected_version for the later PUT.
+
+POST {{host}}/api/v1/access/users/{{user_id}}/roles/preview
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "role_ids": ["{{role_id}}"]
+}
+
+### Confirm the preview with PUT /access/users/{id}/roles
+### Replace the placeholder with subject_version from the preview response.
+### A concurrent change makes this return 409 access_version_conflict; preview again.
+
+PUT {{host}}/api/v1/access/users/{{user_id}}/roles
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "role_ids": ["{{role_id}}"],
+  "expected_version": {{preview_subject_version}},
+  "reason": "Confirm reviewed role replacement impact"
+}
+
+### User-role preview with ordinary user (expect 403 access_denied)
+
+POST {{host}}/api/v1/access/users/{{user_id}}/roles/preview
+Authorization: Bearer {{ordinary_token}}
+Content-Type: application/json
+
+{
+  "role_ids": ["{{role_id}}"]
 }
 
 ### ═════════════════════════════════════════════════════
@@ -355,8 +536,6 @@ GET {{host}}/api/v1/access/roles
 ### @ordinary_token — access token for operator@colibri.test
 ###   (see CREDENTIALS.md for credentials and token retrieval)
 ### ─────────────────────────────────────────────────────
-
-@ordinary_token = <paste_operator_access_token_here>
 
 GET {{host}}/api/v1/access/roles
 Authorization: Bearer {{ordinary_token}}

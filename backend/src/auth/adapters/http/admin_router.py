@@ -10,10 +10,12 @@ Handles account management operations for system administrators:
 - GET /auth/audits — list recent audit entries
 """
 
+from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
+from access.application.authorize_action import AuthorizeAction
 from auth.application.auth_use_cases import AuthUseCases, AuthUseCaseProvider
 from auth.application.commands import (
     DisableAccountCommand,
@@ -35,13 +37,26 @@ from shared.identity import AuthenticatedIdentity, IdentityResolver
 def create_auth_admin_router(
     identity_resolver: IdentityResolver,
     use_case_factory: AuthUseCaseProvider,
+    authorize_action_provider: Callable[..., AuthorizeAction] | None = None,
 ) -> APIRouter:
     """Create the administrative authentication HTTP router."""
     router = APIRouter(prefix="/auth")
 
+    def _require_admin(
+        identity: Annotated[AuthenticatedIdentity, Depends(identity_resolver)],
+        authorize: Annotated[AuthorizeAction, Depends(authorize_action_provider)],
+    ) -> AuthenticatedIdentity:
+        """Dependency that enforces manage_access authorization."""
+        authorize.execute(subject=identity.subject, action="manage_access", scope_code="access_control")
+        return identity
+
+    # Use _require_admin when authorize_action_provider is available,
+    # otherwise fall back to plain identity resolution (backwards compat for tests).
+    admin_dependency = _require_admin if authorize_action_provider is not None else identity_resolver
+
     @router.get("/accounts")
     def list_accounts(
-        identity: Annotated[AuthenticatedIdentity, Depends(identity_resolver)],
+        identity: Annotated[AuthenticatedIdentity, Depends(admin_dependency)],
         use_cases: Annotated[AuthUseCases, Depends(use_case_factory)],
     ) -> list[AccountResponse]:
         return [
@@ -58,7 +73,7 @@ def create_auth_admin_router(
 
     @router.post("/accounts", status_code=201)
     def provision_account(
-        identity: Annotated[AuthenticatedIdentity, Depends(identity_resolver)],
+        identity: Annotated[AuthenticatedIdentity, Depends(admin_dependency)],
         use_cases: Annotated[AuthUseCases, Depends(use_case_factory)],
         body: ProvisionAccountRequest,
     ) -> AccountResponse:
@@ -85,7 +100,7 @@ def create_auth_admin_router(
     @router.get("/accounts/{account_id}")
     def get_account(
         account_id: str,
-        identity: Annotated[AuthenticatedIdentity, Depends(identity_resolver)],
+        identity: Annotated[AuthenticatedIdentity, Depends(admin_dependency)],
         use_cases: Annotated[AuthUseCases, Depends(use_case_factory)],
     ) -> AccountResponse:
         result = use_cases.get_account.execute(account_id)
@@ -101,7 +116,7 @@ def create_auth_admin_router(
     @router.post("/accounts/{account_id}/password-reset", status_code=204)
     def reset_password(
         account_id: str,
-        identity: Annotated[AuthenticatedIdentity, Depends(identity_resolver)],
+        identity: Annotated[AuthenticatedIdentity, Depends(admin_dependency)],
         use_cases: Annotated[AuthUseCases, Depends(use_case_factory)],
         body: ResetPasswordRequest,
     ) -> None:
@@ -118,7 +133,7 @@ def create_auth_admin_router(
     @router.post("/accounts/{account_id}/disable", status_code=204)
     def disable_account(
         account_id: str,
-        identity: Annotated[AuthenticatedIdentity, Depends(identity_resolver)],
+        identity: Annotated[AuthenticatedIdentity, Depends(admin_dependency)],
         use_cases: Annotated[AuthUseCases, Depends(use_case_factory)],
         body: DisableAccountRequest,
     ) -> None:
@@ -134,7 +149,7 @@ def create_auth_admin_router(
     @router.post("/accounts/{account_id}/enable", status_code=204)
     def enable_account(
         account_id: str,
-        identity: Annotated[AuthenticatedIdentity, Depends(identity_resolver)],
+        identity: Annotated[AuthenticatedIdentity, Depends(admin_dependency)],
         use_cases: Annotated[AuthUseCases, Depends(use_case_factory)],
         body: EnableAccountRequest,
     ) -> None:
@@ -150,7 +165,7 @@ def create_auth_admin_router(
 
     @router.get("/audits")
     def list_audits(
-        identity: Annotated[AuthenticatedIdentity, Depends(identity_resolver)],
+        identity: Annotated[AuthenticatedIdentity, Depends(admin_dependency)],
         use_cases: Annotated[AuthUseCases, Depends(use_case_factory)],
     ) -> list[AuditEntryResponse]:
         entries = use_cases.list_audits.execute()

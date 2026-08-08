@@ -15,16 +15,25 @@ from access.adapters.http.models import (
     AssignmentResponse,
     AuditEntryResponse,
     CreateRoleRequest,
+    CreateRoleFromPresetRequest,
+    CreateRolePresetRequest,
+    ImpactPreviewResponse,
     PaginatedResponse,
     PermissionResponse,
+    PreviewRoleChangeRequest,
+    PreviewRoleResponse,
+    PreviewUserResponse,
+    PreviewUserRoleReplacementRequest,
     RegisterScopeRequest,
     ReplaceUserRolesRequest,
     RoleResponse,
+    RolePresetResponse,
     RoleSummaryResponse,
     ScopeDefinitionResponse,
     ScopeResponse,
     StatusChangeRequest,
     UpdateRoleRequest,
+    UpdateRolePresetRequest,
 )
 from access.application.authorize_action import AuthorizeAction
 from access.application.commands import (
@@ -38,11 +47,17 @@ from access.application.commands import (
     RegisterRecognizedScopeCommand,
     ReplaceUserRolesCommand,
     UpdateRoleCommand,
+    CreateRolePresetCommand,
+    UpdateRolePresetCommand,
+    ChangeRolePresetStatusCommand,
+    CreateRoleFromPresetCommand,
 )
 from access.application.commands import (
     PermissionInput as DtoPermissionInput,
 )
 from access.application.containers import AdminUseCases
+from access.domain.actions import Action, Permission
+from access.domain.errors import AccessScopeNotFound, InvalidAccessAction
 
 # Type alias for dependency provider
 AdminUseCaseProvider = Callable[..., AdminUseCases]
@@ -104,6 +119,15 @@ def create_admin_router(
             actor_user_id=_resolve_user_id(use_cases, identity.subject),
             operation_id=use_cases.identity.generate_operation_id(),
         ))
+
+    @router.post("/users/{user_id}/roles/preview")
+    def preview_user_role_replacement(
+        user_id: str,
+        identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
+        body: PreviewUserRoleReplacementRequest,
+    ) -> ImpactPreviewResponse:
+        return _preview_response(use_cases.preview_user_role_replacement.execute(user_id=user_id, role_ids=body.role_ids))
 
     @router.get("/users/{user_id}")
     def get_user(
@@ -252,6 +276,25 @@ def create_admin_router(
             permissions=[PermissionResponse(action=p.action, scope_code=p.scope_code) for p in result.permissions],
         )
 
+    @router.post("/roles/{role_id}/preview")
+    def preview_role_change(
+        role_id: str,
+        identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)],
+        use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)],
+        body: PreviewRoleChangeRequest,
+    ) -> ImpactPreviewResponse:
+        permissions = set()
+        for item in body.permissions:
+            try:
+                action = Action(item.action)
+            except ValueError:
+                raise InvalidAccessAction()
+            scope = use_cases.scope_repository.find_by_id(item.scope_id)
+            if scope is None:
+                raise AccessScopeNotFound()
+            permissions.add(Permission(action=action, scope_code=scope.scope_code))
+        return _preview_response(use_cases.preview_role_change.execute(role_id=role_id, permissions=permissions))
+
     @router.patch("/roles/{role_id}/status")
     def change_role_status(
         role_id: str,
@@ -273,6 +316,37 @@ def create_admin_router(
             ))
 
     # --- Scopes ---
+
+    # --- Role presets ---
+
+    def preset_response(result) -> RolePresetResponse:
+        return RolePresetResponse(preset_id=result.preset_id, preset_code=result.preset_code, preset_name=result.preset_name, description=result.description, is_active=result.is_active, version=result.version, permissions=[PermissionResponse(action=p.action, scope_code=p.scope_code) for p in result.permissions])
+
+    @router.get("/role-presets")
+    def list_role_presets(identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)], use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)], page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=100)) -> PaginatedResponse[RolePresetResponse]:
+        result = use_cases.list_role_presets.execute(page=page, page_size=page_size)
+        return PaginatedResponse(items=[preset_response(p) for p in result.items], page=page, page_size=page_size, total=result.total)
+
+    @router.post("/role-presets", status_code=201)
+    def create_role_preset(identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)], use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)], body: CreateRolePresetRequest) -> RolePresetResponse:
+        return preset_response(use_cases.create_role_preset.execute(CreateRolePresetCommand(body.preset_code, body.preset_name, body.description, [DtoPermissionInput(p.action, p.scope_id) for p in body.permissions], body.reason, _resolve_user_id(use_cases, identity.subject), use_cases.identity.generate_operation_id())))
+
+    @router.get("/role-presets/{preset_id}")
+    def get_role_preset(preset_id: str, identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)], use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)]) -> RolePresetResponse:
+        return preset_response(use_cases.get_role_preset.execute(preset_id=preset_id))
+
+    @router.put("/role-presets/{preset_id}")
+    def update_role_preset(preset_id: str, identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)], use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)], body: UpdateRolePresetRequest) -> RolePresetResponse:
+        return preset_response(use_cases.update_role_preset.execute(UpdateRolePresetCommand(preset_id, body.preset_name, body.description, [DtoPermissionInput(p.action, p.scope_id) for p in body.permissions], body.expected_version, body.reason, _resolve_user_id(use_cases, identity.subject), use_cases.identity.generate_operation_id())))
+
+    @router.patch("/role-presets/{preset_id}/status")
+    def change_role_preset_status(preset_id: str, identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)], use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)], body: StatusChangeRequest) -> None:
+        use_cases.change_role_preset_status.execute(ChangeRolePresetStatusCommand(preset_id, body.is_active, body.expected_version, body.reason, _resolve_user_id(use_cases, identity.subject), use_cases.identity.generate_operation_id()))
+
+    @router.post("/role-presets/{preset_id}/roles", status_code=201)
+    def create_role_from_preset(preset_id: str, identity: Annotated[AuthenticatedIdentity, Depends(_require_admin)], use_cases: Annotated[AdminUseCases, Depends(admin_use_case_provider)], body: CreateRoleFromPresetRequest) -> RoleResponse:
+        result = use_cases.create_role_from_preset.execute(CreateRoleFromPresetCommand(preset_id, body.role_code, body.role_name, body.description, body.reason, _resolve_user_id(use_cases, identity.subject), use_cases.identity.generate_operation_id()))
+        return RoleResponse(role_id=result.role_id, role_code=result.role_code, role_name=result.role_name, description=result.description, is_system_administrator=result.is_system_administrator, is_active=result.is_active, version=result.version, permissions=[PermissionResponse(action=p.action, scope_code=p.scope_code) for p in result.permissions])
 
     @router.get("/scopes")
     def list_scopes(
@@ -394,3 +468,15 @@ def _resolve_user_id(use_cases: AdminUseCases, subject: str) -> str:
     if user:
         return user.user_id
     raise ValueError(f"Cannot resolve user_id for subject: {subject}")
+
+
+def _preview_response(result) -> ImpactPreviewResponse:
+    return ImpactPreviewResponse(
+        subject_version=result.subject_version,
+        affected_user_count=len(result.affected_users),
+        affected_users=[PreviewUserResponse(user_id=item.user_id, user_code=item.user_code, display_name=item.display_name) for item in result.affected_users],
+        permissions_added=[PermissionResponse(action=item.action, scope_code=item.scope_code) for item in sorted(result.permissions_added, key=lambda item: (item.action, item.scope_code))],
+        permissions_removed=[PermissionResponse(action=item.action, scope_code=item.scope_code) for item in sorted(result.permissions_removed, key=lambda item: (item.action, item.scope_code))],
+        roles_added=[PreviewRoleResponse(role_id=item.role_id, role_code=item.role_code, role_name=item.role_name) for item in result.roles_added],
+        roles_removed=[PreviewRoleResponse(role_id=item.role_id, role_code=item.role_code, role_name=item.role_name) for item in result.roles_removed],
+    )

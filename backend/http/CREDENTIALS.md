@@ -5,6 +5,20 @@ Stable credentials for the local development stack. Managed by
 until the database is reset; the access token does not and is therefore not
 documented in the `.http` files.
 
+`pnpm supabase db reset --local --no-seed` removes both Auth users. After every
+reset, start the backend and run the setup helper before attempting sign-in:
+
+```bash
+uv run --package backend fastapi dev
+# In another terminal:
+uv run --locked --package backend python scripts/setup_local_db.py
+```
+
+The repository migration seeds the `system_administrator` role, so the tracked
+bootstrap CLI can create an initial administrator. That CLI accepts a
+provisional password and does not create the operator; use the setup helper for
+the two stable accounts below.
+
 ## Users
 
 | User | Email | Password | Role | State |
@@ -37,7 +51,5 @@ pnpm supabase db reset --local --no-seed
 uv run --locked --package backend python scripts/setup_local_db.py
 ```
 
-After the reset, the first Sign in may require replacing the provisional
-password (`ProvisionalAdmin123!` / `ProvisionalOperator123!`) — the setup script
-already performs that replacement, so logins work immediately with the
-passwords above.
+The setup helper performs the required provisional-password replacements, so
+the documented passwords work immediately after it completes.

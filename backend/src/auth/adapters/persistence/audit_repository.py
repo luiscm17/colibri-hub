@@ -68,6 +68,37 @@ class AuthAuditRepositoryAdapter:
         records = self._session.scalars(stmt).all()
         return [self._to_entry(r) for r in records]
 
+    def record_login_outcome(
+        self,
+        *,
+        audit_id: str,
+        operation_id: str,
+        event_type: str,
+        outcome: str,
+        actor_identity_subject: str | None = None,
+        affected_account_id: str | None = None,
+        provider_session_id: str | None = None,
+        occurred_at: str,
+    ) -> None:
+        """Persist a login_succeeded or login_failed audit event.
+
+        This is the C5 skeleton write path. The caller hook (provider webhook
+        or login adapter) is not wired yet — production wiring deferred.
+        """
+        entry = AuthAuditEntry(
+            audit_id=audit_id,
+            operation_id=operation_id,
+            event_type=event_type,
+            outcome=outcome,
+            actor_identity_subject=actor_identity_subject,
+            affected_account_id=affected_account_id,
+            provider_session_id=provider_session_id,
+            reason=None,
+            details={},
+            occurred_at=occurred_at,
+        )
+        self.append(entry)
+
     @staticmethod
     def _to_entry(record: AuthenticationAuditRecord) -> AuthAuditEntry:
         return AuthAuditEntry(

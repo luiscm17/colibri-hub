@@ -8,13 +8,16 @@ Client extension and JetBrains HTTP Client.
 1. Copy `backend/.env.example` to `backend/.env` with real Supabase local values.
 2. Start Supabase: `pnpm supabase start`.
 3. Reset the database: `pnpm supabase db reset --local --no-seed`.
-4. Prepare test users: `uv run --locked --package backend python scripts/setup_local_db.py`.
-5. Start backend: `uv run fastapi dev` (from the repo root).
+4. Start backend: `uv run --package backend fastapi dev` (from the repo root).
+5. In another terminal, prepare test users: `uv run --locked --package backend python scripts/setup_local_db.py`.
 6. Run requests from these files.
 
 `scripts/setup_local_db.py` bootstraps the initial System Administrator,
 registers the operator role/scope, and provisions an active operator user.
-It is not tracked (see `.gitignore`).
+It is not tracked (see `.gitignore`) and requires the backend to be running.
+The tracked bootstrap CLI creates only the provisional administrator; it does
+not create the operator or replace either provisional password with the stable
+credentials in `CREDENTIALS.md`.
 
 ## Credentials and tokens
 
@@ -26,11 +29,17 @@ the response, and paste it into the `@token` variable at the top of the file.
 ## Version-aware `expected_version`
 
 Stateful endpoints (`password-reset`, `disable`, `enable`, `PATCH .../status`,
-`PUT .../roles`) require `expected_version` to equal the current resource
+role/preset updates, and `PUT .../roles`) require `expected_version` to equal the current resource
 version. Versions increment on every mutation. The files use sequential
 examples for a fresh state; if a request returns `..._version_conflict`, re-read
 the resource detail (`GET /auth/accounts/{id}`, `GET /access/roles/{id}`,
-`GET /access/users/{id}`) and use the reported `version`.
+`GET /access/role-presets/{id}`, `GET /access/users/{id}`) and use the reported
+`version`.
+
+Impact-preview responses expose that same value as `subject_version`. Preview
+requests are read-only and do not reserve it. Confirm with `expected_version`
+equal to `subject_version`; a `409 access_version_conflict` means the preview is
+stale and must be run again.
 
 ## File Index
 

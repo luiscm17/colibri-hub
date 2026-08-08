@@ -42,6 +42,7 @@ class AccessProvisioningAdapter:
         *,
         subject: str,
         profile_code: str,
+        display_name: str = "",
         role_codes: list[str],
         actor_subject: str,
         reason: str,
@@ -50,7 +51,7 @@ class AccessProvisioningAdapter:
         self._create.execute(CreateAccessUserCommand(
             identity_subject=subject,
             user_code=profile_code,
-            display_name=profile_code,  # Caller provides actual display_name via Auth
+            display_name=display_name or profile_code,
             role_codes=role_codes,
             actor_subject=actor_subject,
             reason=reason,
@@ -92,6 +93,6 @@ class AccessProvisioningAdapter:
         if user is None:
             return False
         count = self._users.count_active_administrators(
-            exclude_user_id=user.user_id, for_update=False
+            exclude_user_id=user.user_id, for_update=True
         )
         return count < 1

@@ -6,6 +6,7 @@ from access.ports.audit import AccessAuditRepository
 from access.ports.clock import ClockPort
 from access.ports.scopes import ScopeRepository
 from access.ports.transaction import TransactionPort
+from access.ports.users import AccessUserRepository
 
 
 class ActivateScope:
@@ -16,11 +17,13 @@ class ActivateScope:
         *,
         scope_repository: ScopeRepository,
         audit_repository: AccessAuditRepository,
+        user_repository: AccessUserRepository | None = None,
         transaction: TransactionPort,
         clock: ClockPort,
     ) -> None:
         self._scopes = scope_repository
         self._audits = audit_repository
+        self._users = user_repository
         self._transaction = transaction
         self._clock = clock
 
@@ -35,6 +38,8 @@ class ActivateScope:
             before_active = scope.is_active
             scope.activate(at=self._clock.now())
             self._scopes.save(scope)
+            if self._users is not None:
+                self._users.bump_authorization_version_for_scope(scope.scope_id)
 
             self._audits.append(
                 operation_id=command.operation_id,

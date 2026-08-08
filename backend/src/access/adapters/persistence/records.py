@@ -181,6 +181,33 @@ class AccessRolePermissionRecord(RecordRegistry):
     )
 
 
+class AccessRolePresetRecord(RecordRegistry):
+    __tablename__ = "access_role_presets"
+    __table_args__ = (UniqueConstraint("preset_code", name="uq_access_role_presets_preset_code"),)
+    preset_id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    preset_code: Mapped[str] = mapped_column(String(80), nullable=False)
+    preset_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    version: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default=text("1"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+
+class AccessRolePresetPermissionRecord(RecordRegistry):
+    __tablename__ = "access_role_preset_permissions"
+    __table_args__ = (
+        UniqueConstraint("preset_id", "scope_id", "action", name="uq_access_role_preset_permissions_triple"),
+        CheckConstraint("action IN ('read', 'write', 'edit', 'edit_outside_window', 'manage_access')", name="ck_access_role_preset_permissions_action"),
+    )
+    preset_permission_id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    preset_id: Mapped[UUID] = mapped_column(ForeignKey("access_role_presets.preset_id", ondelete="RESTRICT"), nullable=False)
+    scope_id: Mapped[UUID] = mapped_column(ForeignKey("access_scopes.scope_id", ondelete="RESTRICT"), nullable=False)
+    action: Mapped[str] = mapped_column(String(24), nullable=False)
+    created_by_user_id: Mapped[UUID] = mapped_column(ForeignKey("access_users.user_id", ondelete="RESTRICT"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+
+
 class AccessUserRoleAssignmentRecord(RecordRegistry):
     """Maps to public.access_user_role_assignments."""
 

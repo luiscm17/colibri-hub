@@ -6,6 +6,7 @@ from access.ports.audit import AccessAuditRepository
 from access.ports.clock import ClockPort
 from access.ports.roles import RoleRepository
 from access.ports.transaction import TransactionPort
+from access.ports.users import AccessUserRepository
 
 
 class ActivateRole:
@@ -16,11 +17,13 @@ class ActivateRole:
         *,
         role_repository: RoleRepository,
         audit_repository: AccessAuditRepository,
+        user_repository: AccessUserRepository | None = None,
         transaction: TransactionPort,
         clock: ClockPort,
     ) -> None:
         self._roles = role_repository
         self._audits = audit_repository
+        self._users = user_repository
         self._transaction = transaction
         self._clock = clock
 
@@ -35,6 +38,8 @@ class ActivateRole:
             before_active = role.is_active
             role.activate(at=self._clock.now())
             self._roles.save(role)
+            if self._users is not None:
+                self._users.bump_authorization_version_for_role(role.role_id)
 
             self._audits.append(
                 operation_id=command.operation_id,
