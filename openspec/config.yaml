@@ -1,0 +1,59 @@
+schema: spec-driven
+
+context: |
+  Tech stack: React 19, TypeScript, Vite, Mantine, FastAPI, SQLAlchemy, PostgreSQL/Supabase, Python 3.13.
+  Architecture: Frontend app shell and feature modules; backend Clean/Hexagonal Warehouse capability boundaries.
+  Testing: Python unittest unit and guarded PostgreSQL integration suites; the active frontend change has no configured test runner and uses Standard Mode.
+  Style: TypeScript strict build and ESLint; Python stdlib unittest with no configured lint, formatter, type checker, or coverage.
+  Delivery: Interactive execution, single-PR default, review budget 400 lines.
+
+strict_tdd: false
+
+testing:
+  unit:
+    available: true
+    command: uv run --locked python -m unittest discover -s backend/tests -v
+    framework: unittest
+  integration:
+    available: true
+    command: TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres uv run --locked python -m unittest discover -s backend/integration_tests -v
+    framework: unittest with local Supabase PostgreSQL
+  e2e:
+    available: false
+    tool: null
+  frontend_tests:
+    available: false
+    tool: null
+  coverage:
+    available: false
+    command: null
+  quality:
+    lint: pnpm lint (run from frontend/)
+    typecheck_and_build: pnpm build (run from frontend/)
+    python_lint: null
+    python_typecheck: null
+    formatter: null
+
+rules:
+  proposal:
+    - State bounded-context and API-contract impact.
+    - Include rollback planning for risky persistence or client changes.
+  specs:
+    - Use RFC 2119 keywords and Given/When/Then scenarios.
+  design:
+    - Respect frontend feature boundaries and backend ports-and-adapters boundaries.
+    - Document migration and Supabase RLS implications when persistence changes.
+  tasks:
+    - Group work into reviewable phases and target a maximum of 400 changed lines per PR.
+  apply:
+    guidelines:
+      - Follow existing project conventions and test affected backend behavior first.
+      - Do not treat frontend validation as authoritative business policy.
+    tdd: false
+    test_command: null
+  verify:
+    test_command: null
+    build_command: pnpm build (run from frontend/)
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas into main specifications.
