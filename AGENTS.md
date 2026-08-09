@@ -13,7 +13,7 @@
 - `backend/main.py` exposes the ASGI `app`; root `[tool.fastapi]` declares `backend.main:app`.
 - For local startup, create untracked `backend/.env` from `backend/.env.example`, then run `uv run --package backend fastapi dev` from the root. The entrypoint explicitly loads that sibling file; OS environment values take precedence.
 - `bootstrap.http_application.create_app` is the composition root. Inject a session factory in tests to avoid settings and database creation.
-- Package by capability and keep dependencies inward: domain, application, ports, then adapters. Current top-level packages are `warehouse`, `access`, `auth`, `infra`, and `bootstrap`; `infra` owns shared technical persistence/configuration and `bootstrap` may wire all layers.
+- Package by capability and keep dependencies inward: domain, application, ports, then adapters. Current top-level packages are `warehouse`, `access`, `auth`, `shared`, `infra`, and `bootstrap`; `shared` contains cross-context technical contracts, `infra` owns technical persistence/configuration, and `bootstrap` may wire all layers.
 
 ## Backend tests
 
@@ -38,11 +38,11 @@
 - Run frontend commands from `frontend/`: `pnpm install --frozen-lockfile`, `pnpm dev`, `pnpm build`, `pnpm lint`, and `pnpm preview`.
 - `pnpm build` is the typecheck plus production build (`tsc -b && vite build`); `pnpm lint` runs ESLint. No frontend test script or test framework is configured.
 - Preserve `frontend/pnpm-workspace.yaml` supply-chain policy: 24-hour minimum release age and no-downgrade trust, including its explicit exclusions.
-- `src/main.tsx` installs Mantine, notifications, and `AuthProvider`; `src/app/` owns shell/routing and `src/features/` owns feature code. Use the configured `@/*` alias for `src/*`.
+- `src/main.tsx` installs Mantine, notifications, and `AuthProvider`; `src/app/` owns shell/routing and `src/features/` owns feature code. Use the configured `@/*` alias for `src/*`; Vite proxies `/api` to `http://127.0.0.1:8000` in development.
 
 ## Repository rules
 
 - Follow `docs/dev-guide/naming-conventions.md`; notable rules are Python `snake_case`, React component `PascalCase.tsx`, plural `snake_case` DB tables, and singular `snake_case` DB columns.
-- Follow `docs/dev-guide/git-workflow.md`; branches use `front/`, `back/`, `devops/`, or `docs/`, commits use Conventional Commits, and PRs target `main` for squash merge.
+- Follow `docs/dev-guide/git-workflow.md`; branches use `<layer>/<context>-<topic>` with layers `front`, `back`, `devops`, or `docs` and context aliases `wh`, `yarn`, `lots`, `access`, `cat`, or `auth`. Commits use Conventional Commits; PRs target `main` for squash merge.
 - Treat `openspec/changes/<change-name>/` as planning artifacts, not proof of implementation or authorization.
 - No tracked CI, pre-commit configuration, task runner, Python quality configuration, code generator, or repo-local OpenCode configuration exists. `.agents/` directories contain agent skills, not project task commands.
