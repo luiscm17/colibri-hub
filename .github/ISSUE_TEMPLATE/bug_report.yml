@@ -1,0 +1,76 @@
+name: Bug report
+description: Report a defect with reproducible steps and evidence.
+title: "bug(<context>): "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Fill in the fields below. A good bug report
+        describes expected vs. actual behavior with reproducible steps.
+  - type: dropdown
+    id: context
+    attributes:
+      label: Bounded context
+      description: Which capability does this bug affect?
+      options:
+        - wh (Warehouse)
+        - yarn (Yarn Spinning)
+        - lots (Lot Processing)
+        - access (Access Control)
+        - cat (Shared Reference Data)
+        - auth (Authentication)
+        - ui (Frontend shell / cross-cutting)
+        - infra (Tooling / cross-cutting)
+    validations:
+      required: true
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Layer
+      description: Where does the defect manifest?
+      options:
+        - backend
+        - frontend
+        - database
+        - devops
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happens?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimum steps to reproduce, with any inputs or state required.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Logs, error messages, screenshots, or request/response pairs. Redact credentials.
+      render: shell
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: |
+        Note: SQLite-backed unit tests do not prove PostgreSQL behavior. If
+        the bug depends on the database, include how it was reproduced against
+        PostgreSQL.
