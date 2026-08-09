@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from auth.adapters.persistence.records import AuthenticationAuditRecord
@@ -39,11 +39,7 @@ class AuthAuditRepositoryAdapter:
             ),
             reason=entry.reason,
             details=entry.details,
-            occurred_at=(
-                datetime.fromisoformat(entry.occurred_at)
-                if entry.occurred_at
-                else None
-            ),
+            occurred_at=datetime.fromisoformat(entry.occurred_at),
         )
         self._session.add(record)
         self._session.flush()
@@ -68,6 +64,16 @@ class AuthAuditRepositoryAdapter:
         records = self._session.scalars(stmt).all()
         return [self._to_entry(r) for r in records]
 
+    def list_keyset(self, *, as_of: str, cursor: tuple[str, str] | None, limit: int) -> list[AuthAuditEntry]:
+        cutoff = datetime.fromisoformat(as_of)
+        stmt = select(AuthenticationAuditRecord).where(AuthenticationAuditRecord.occurred_at <= cutoff)
+        if cursor:
+            occurred_at, audit_id = cursor
+            timestamp = datetime.fromisoformat(occurred_at)
+            stmt = stmt.where(or_(AuthenticationAuditRecord.occurred_at < timestamp, and_(AuthenticationAuditRecord.occurred_at == timestamp, AuthenticationAuditRecord.authentication_audit_id > UUID(audit_id))))
+        records = self._session.scalars(stmt.order_by(AuthenticationAuditRecord.occurred_at.desc(), AuthenticationAuditRecord.authentication_audit_id.asc()).limit(limit)).all()
+        return [self._to_entry(record) for record in records]
+
     def record_login_outcome(
         self,
         *,
@@ -80,10 +86,11 @@ class AuthAuditRepositoryAdapter:
         provider_session_id: str | None = None,
         occurred_at: str,
     ) -> None:
-        """Persist a login_succeeded or login_failed audit event.
+        """Persist a legacy C5 login-outcome event when a caller observes one.
 
         This is the C5 skeleton write path. The caller hook (provider webhook
-        or login adapter) is not wired yet — production wiring deferred.
+        or login adapter) is not wired yet — production wiring deferred. Provider
+        snapshots are read-only evidence and are never written through this path.
         """
         entry = AuthAuditEntry(
             audit_id=audit_id,
@@ -123,7 +130,5 @@ class AuthAuditRepositoryAdapter:
             ),
             reason=record.reason,
             details=record.details or {},
-            occurred_at=(
-                record.occurred_at.isoformat() if record.occurred_at else None
-            ),
+            occurred_at=record.occurred_at.isoformat(),
         )

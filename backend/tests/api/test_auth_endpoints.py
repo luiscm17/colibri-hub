@@ -75,6 +75,9 @@ class InMemoryAuditRepository:
     def list_recent(self, limit=50):
         return self.entries[-limit:]
 
+    def list_keyset(self, *, as_of, cursor, limit):
+        return self.entries[:limit]
+
 
 class FakeIdentityProvider:
     def __init__(self):
@@ -89,6 +92,7 @@ class FakeIdentityProvider:
     def unban_user(self, **kwargs): pass
     def revoke_sessions(self, **kwargs): pass
     def get_session(self, **kwargs): return None
+    def list_successful_login_audit_evidence(self, *, timestamp_to): return []
     def delete_user(self, **kwargs): pass
 
 
@@ -190,7 +194,7 @@ def _build_test_app(
         ),
         get_account=GetAccount(repo),
         list_accounts=ListAccounts(repo),
-        list_audits=ListAudits(audits),
+        list_audits=ListAudits(audits, repo, provider, clock),
     )
 
     def identity_resolver() -> AuthenticatedIdentity:

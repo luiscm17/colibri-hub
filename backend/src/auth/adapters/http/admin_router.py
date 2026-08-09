@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends
 
 from access.application.authorize_action import AuthorizeAction
 from auth.application.auth_use_cases import AuthUseCases, AuthUseCaseProvider
+from auth.application.list_audits import InvalidAuditCursor
 from auth.application.commands import (
     DisableAccountCommand,
     EnableAccountCommand,
@@ -25,7 +26,7 @@ from auth.application.commands import (
 )
 from auth.adapters.http.models import (
     AccountResponse,
-    AuditEntryResponse,
+    AuditEntryResponse, AuditPageResponse,
     DisableAccountRequest,
     EnableAccountRequest,
     ProvisionAccountRequest,
@@ -167,9 +168,14 @@ def create_auth_admin_router(
     def list_audits(
         identity: Annotated[AuthenticatedIdentity, Depends(admin_dependency)],
         use_cases: Annotated[AuthUseCases, Depends(use_case_factory)],
-    ) -> list[AuditEntryResponse]:
-        entries = use_cases.list_audits.execute()
-        return [
+        cursor: str | None = None,
+    ) -> AuditPageResponse:
+        try:
+            page = use_cases.list_audits.execute(cursor=cursor)
+        except InvalidAuditCursor:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=422, detail="Invalid audit cursor") from None
+        return AuditPageResponse(entries=[
             AuditEntryResponse(
                 audit_id=e.audit_id,
                 operation_id=e.operation_id,
@@ -177,8 +183,9 @@ def create_auth_admin_router(
                 outcome=e.outcome,
                 affected_account_id=e.affected_account_id,
                 occurred_at=e.occurred_at,
+                source=e.source,
             )
-            for e in entries
-        ]
+            for e in page.entries
+        ], cursor=page.cursor)
 
     return router

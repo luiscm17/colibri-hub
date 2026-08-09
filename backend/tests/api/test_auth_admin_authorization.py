@@ -153,6 +153,9 @@ class _FakeAuditRepo:
     def list_recent(self, limit=50):
         return self.entries[-limit:]
 
+    def list_keyset(self, *, as_of, cursor, limit):
+        return []
+
 
 class _FakeIdentityProvider:
     def create_user(self, *, email, password):
@@ -163,6 +166,7 @@ class _FakeIdentityProvider:
     def unban_user(self, **kw): pass
     def revoke_sessions(self, **kw): pass
     def delete_user(self, **kw): pass
+    def list_successful_login_audit_evidence(self, *, timestamp_to): return []
 
 
 class _FakeAccessProvisioning:
@@ -243,7 +247,7 @@ def _build_app(subject: str) -> TestClient:
         ),
         get_account=GetAccount(account_repo),
         list_accounts=ListAccounts(account_repo),
-        list_audits=ListAudits(audit_repo),
+        list_audits=ListAudits(audit_repo, account_repo, provider, clock),
     )
 
     def identity_resolver() -> AuthenticatedIdentity:
