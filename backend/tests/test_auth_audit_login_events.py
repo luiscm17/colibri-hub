@@ -1,4 +1,4 @@
-"""Tests for C5: login audit events persisted with correct event_type.
+"""Tests for the legacy C5 write skeleton when a backend caller observes an event.
 
 Validates that record_login_outcome writes login_succeeded and login_failed
 events with the correct structure.
