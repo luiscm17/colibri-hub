@@ -76,6 +76,9 @@ class InMemoryAuditRepository:
     def list_recent(self, limit=50):
         return self.entries[-limit:]
 
+    def list_keyset(self, *, as_of, cursor, limit):
+        return self.entries[:limit]
+
 
 class FakeIdentityProvider:
     def __init__(self, *, ban_raises: bool = False):
@@ -102,6 +105,11 @@ class FakeIdentityProvider:
 
     def delete_user(self, **kwargs):
         pass
+
+    def list_successful_login_audit_evidence(self, *, timestamp_to):
+        if self._ban_raises:
+            raise ProviderUnavailable()
+        return []
 
 
 class FakeAccessProvisioning:
@@ -209,7 +217,7 @@ def _build_test_app(
         ),
         get_account=GetAccount(repo),
         list_accounts=ListAccounts(repo),
-        list_audits=ListAudits(audits),
+        list_audits=ListAudits(audits, repo, provider, clock),
     )
 
     def identity_resolver() -> AuthenticatedIdentity:
@@ -351,6 +359,22 @@ class TestResetPasswordEndpoint(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 204)
+
+
+class TestAuditEndpoint(unittest.TestCase):
+    def test_rejects_malformed_cursor(self):
+        client, _ = _build_test_app()
+        self.assertEqual(client.get("/api/v1/auth/audits?cursor=not-a-cursor").status_code, 422)
+
+    def test_returns_source_tagged_page(self):
+        client, _ = _build_test_app()
+        self.assertEqual(client.get("/api/v1/auth/audits").json(), {"entries": [], "cursor": None})
+
+    def test_returns_no_partial_page_when_provider_is_unavailable(self):
+        client, _ = _build_test_app(provider=FakeIdentityProvider(ban_raises=True))
+        response = client.get("/api/v1/auth/audits")
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["error"]["code"], "authentication_provider_unavailable")
 
 
 if __name__ == "__main__":

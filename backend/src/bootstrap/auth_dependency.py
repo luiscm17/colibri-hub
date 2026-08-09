@@ -186,7 +186,7 @@ def compose_auth(
             ),
             get_account=GetAccount(account_repo),
             list_accounts=ListAccounts(account_repo),
-            list_audits=ListAudits(audit_repo),
+            list_audits=ListAudits(audit_repo, account_repo, identity_provider, clock),
         )
 
     return identity_resolver, auth_use_case_factory

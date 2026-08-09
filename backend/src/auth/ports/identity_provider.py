@@ -6,7 +6,7 @@ Provider-specific request/response types do NOT cross this boundary.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +24,16 @@ class ProviderSession:
     session_id: str
     created_at: str  # ISO 8601
     is_active: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderLoginAuditEvidence:
+    """Safe, provider-neutral evidence of a successful password login."""
+
+    entry_id: str
+    occurred_at: str
+    subject: str | None
+    event_type: Literal["login_succeeded"]
 
 
 class IdentityProviderPort(Protocol):
@@ -54,6 +64,12 @@ class IdentityProviderPort(Protocol):
 
     def get_session(self, *, session_id: str) -> ProviderSession | None:
         """Resolve provider-owned session by ID for age validation."""
+        ...
+
+    def list_successful_login_audit_evidence(
+        self, *, timestamp_to: str
+    ) -> list[ProviderLoginAuditEvidence]:
+        """Read a bounded recent snapshot of supported provider login evidence."""
         ...
 
     def delete_user(self, *, subject: str) -> None:

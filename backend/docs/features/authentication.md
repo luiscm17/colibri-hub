@@ -587,17 +587,19 @@ exposed.
 
 Authentication evidence has two authoritative sources:
 
-- Supabase Auth audit evidence covers provider-observed login success, failed login, token refresh, provider logout, and provider credential operations.
+- Supabase Auth provides a bounded recent snapshot of available successful password-login evidence through its server-only Admin Audit API. This slice does not claim provider history, retention duration, snapshot completeness, or cross-request continuity.
 - `authentication_audits` covers application-owned provisioning, account-state transitions, mandatory password replacement, administrative reset, disablement, enablement, controlled initialization, and coordinated session termination.
 - `access_change_audits` remains authoritative for profile, role, assignment, permission, preset, and scope changes.
 
 `GET /api/v1/auth/audits` returns a paginated, redacted, provider-neutral view of
-the applicable Supabase and application-owned evidence. Every item identifies
-its source. Provider entries are not duplicated into `authentication_audits`;
-coordinated application-owned Authentication and Access Control entries are
-correlated by `operation_id`.
+application-owned evidence and the provider snapshot visible to that request.
+Every item identifies its source. Provider entries are not duplicated into
+`authentication_audits`; coordinated application-owned Authentication and Access
+Control entries are correlated by `operation_id`. It is not a complete forensic
+archive: failed password-login evidence remains unresolved and BR33 is only
+partially met.
 
-- Failed login evidence never reveals account existence to the caller.
+- Failed-login evidence remains a follow-up requirement and must never reveal account existence to the caller.
 - Authorization headers, credential bodies, token responses, and provider secrets are explicitly redacted.
 - Metrics contain no identity or credential values.
 - Administrative provider operations execute only on the backend.

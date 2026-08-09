@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Protocol
 
 
@@ -18,8 +18,13 @@ class AuthAuditEntry:
     affected_account_id: str | None
     provider_session_id: str | None
     reason: str | None
-    details: dict[str, object] = field(default_factory=dict)
-    occurred_at: str | None = None
+    details: dict[str, object]
+    occurred_at: str
+    source: str = "application"
+
+    def __post_init__(self) -> None:
+        if not self.occurred_at:
+            raise ValueError("Authentication audit entries require occurred_at")
 
 
 class AuthAuditRepository(Protocol):
@@ -35,4 +40,8 @@ class AuthAuditRepository(Protocol):
 
     def list_recent(self, limit: int = 50) -> list[AuthAuditEntry]:
         """Return the most recent audit entries."""
+        ...
+
+    def list_keyset(self, *, as_of: str, cursor: tuple[str, str] | None, limit: int) -> list[AuthAuditEntry]:
+        """Return application audits within a stable timestamp/id boundary."""
         ...

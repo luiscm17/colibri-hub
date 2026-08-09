@@ -15,6 +15,7 @@ from auth.application.commands import (
 from auth.application.enable_account import EnableAccount
 from auth.application.get_current_authentication import GetCurrentAuthentication
 from auth.application.list_accounts import ListAccounts
+from auth.application.list_audits import ListAudits
 from auth.application.provision_account import ProvisionAccount
 from auth.application.record_logout import RecordLogout
 from auth.application.reset_password import ResetPassword
@@ -30,7 +31,7 @@ from auth.domain.errors import (
     VersionConflict,
 )
 from auth.ports.audit_repository import AuthAuditEntry
-from auth.ports.identity_provider import ProviderIdentity
+from auth.ports.identity_provider import ProviderIdentity, ProviderLoginAuditEvidence
 
 
 # ─── Test Doubles ───────────────────────────────────────────────────────────────
@@ -78,6 +79,9 @@ class InMemoryAuditRepository:
     def list_recent(self, limit: int = 50):
         return self.entries[-limit:]
 
+    def list_keyset(self, *, as_of, cursor, limit):
+        return self.entries[:limit]
+
 
 class FakeIdentityProvider:
     def __init__(self):
@@ -111,6 +115,9 @@ class FakeIdentityProvider:
 
     def delete_user(self, *, subject: str):
         self.deleted.add(subject)
+
+    def list_successful_login_audit_evidence(self, *, timestamp_to: str):
+        return []
 
 
 class FakeAccessProvisioning:
@@ -559,6 +566,34 @@ class TestListAccounts(unittest.TestCase):
         use_case = ListAccounts(repo)
         result = use_case.execute()
         self.assertEqual(len(result), 3)
+
+
+class TestListAudits(unittest.TestCase):
+    def test_rejects_missing_audit_timestamp_at_the_dto_boundary(self):
+        with self.assertRaises(ValueError):
+            AuthAuditEntry(
+                "audit-1", "operation-1", "logout", "succeeded", None, None,
+                None, None, {}, None,
+            )
+
+    def test_merges_uuid_subjects_and_leaves_unsafe_subjects_uncorrelated(self):
+        accounts = InMemoryAccountRepository()
+        account = AuthenticationAccount.provision(
+            account_id="acc-1", identity_subject="123e4567-e89b-12d3-a456-426614174000",
+            email=NormalizedEmail.from_raw("a@example.com"), display_name="A", user_code="A",
+            now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        )
+        accounts.save(account)
+        audits = InMemoryAuditRepository()
+        provider = FakeIdentityProvider()
+        provider.list_successful_login_audit_evidence = lambda **_: [
+            ProviderLoginAuditEvidence("p-unsafe", "2026-08-03T12:00:00+00:00", "email@example.com", "login_succeeded"),
+            ProviderLoginAuditEvidence("p-safe", "2026-08-03T12:00:00+00:00", account.identity_subject, "login_succeeded"),
+        ]
+        page = ListAudits(audits, accounts, provider, FakeClock()).execute()
+        self.assertEqual([entry.audit_id for entry in page.entries], ["p-safe", "p-unsafe"])
+        self.assertEqual(page.entries[0].affected_account_id, "acc-1")
+        self.assertIsNone(page.entries[1].affected_account_id)
 
 
 if __name__ == "__main__":

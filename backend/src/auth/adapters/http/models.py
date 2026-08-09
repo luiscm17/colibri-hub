@@ -144,8 +144,14 @@ class AuditEntryResponse(_AuthModel):
     """
 
     audit_id: str
-    operation_id: str
+    operation_id: str | None
     event_type: str
     outcome: str
     affected_account_id: str | None
-    occurred_at: str | None
+    occurred_at: str
+    source: str
+
+
+class AuditPageResponse(_AuthModel):
+    entries: list[AuditEntryResponse]
+    cursor: str | None
