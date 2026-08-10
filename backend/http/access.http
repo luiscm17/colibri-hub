@@ -6,7 +6,7 @@
 # Access token — expires after ~1h. Run the Sign in request below, copy the
 # access_token from the response, and paste it here. See CREDENTIALS.md.
 @token = <paste_access_token_here>
-@ordinary_token = <paste_operator_access_token_here>
+@ordinary_token = <paste_supervisor_access_token_here>
 
 # IDs below are instance-specific: fill them from the corresponding list GET
 # before running requests that reference them.
@@ -533,7 +533,7 @@ GET {{host}}/api/v1/access/roles
 
 ### ─────────────────────────────────────────────────────
 ### Admin endpoint with ordinary user (expect 403)
-### @ordinary_token — access token for operator@colibri.test
+### @ordinary_token — access token for supervisor@colibri.test
 ###   (see CREDENTIALS.md for credentials and token retrieval)
 ### ─────────────────────────────────────────────────────
 
