@@ -5,10 +5,7 @@ administrative account management paths.
 """
 
 import unittest
-from datetime import datetime, timezone
-
-from fastapi import APIRouter, FastAPI
-from fastapi.testclient import TestClient
+from datetime import UTC, datetime
 
 from auth.adapters.http.admin_router import create_auth_admin_router
 from auth.application.auth_use_cases import AuthUseCases
@@ -28,8 +25,9 @@ from auth.domain.errors import ProviderUnavailable
 from auth.ports.audit_repository import AuthAuditEntry
 from auth.ports.identity_provider import ProviderIdentity
 from bootstrap.http_error_handlers import register_exception_handlers
+from fastapi import APIRouter, FastAPI
+from fastapi.testclient import TestClient
 from shared.identity import AuthenticatedIdentity
-
 
 # ─── Test Doubles ───────────────────────────────────────────────────────────────
 
@@ -131,7 +129,7 @@ class FakeAccessProvisioning:
 
 class FakeClock:
     def now(self):
-        return datetime(2026, 8, 3, 15, 0, 0, tzinfo=timezone.utc)
+        return datetime(2026, 8, 3, 15, 0, 0, tzinfo=UTC)
 
 
 class FakeIdentity:
@@ -245,16 +243,16 @@ def _make_active_account(account_id: str = "acc-1") -> AuthenticationAccount:
         email=NormalizedEmail.from_raw("target@example.com"),
         display_name="Target User",
         user_code="USR-TARGET",
-        now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        now=datetime(2026, 1, 1, tzinfo=UTC),
     )
-    account.activate(datetime(2026, 1, 2, tzinfo=timezone.utc))
+    account.activate(datetime(2026, 1, 2, tzinfo=UTC))
     return account
 
 
 def _make_disabled_account(account_id: str = "acc-1") -> AuthenticationAccount:
     """Create a disabled account for testing."""
     account = _make_active_account(account_id)
-    account.disable(datetime(2026, 1, 3, tzinfo=timezone.utc))
+    account.disable(datetime(2026, 1, 3, tzinfo=UTC))
     return account
 
 

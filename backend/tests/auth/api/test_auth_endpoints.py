@@ -1,12 +1,8 @@
 """TestClient tests for Authentication HTTP endpoints."""
 
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
-from auth.adapters.http.error_handlers import authentication_error_handler
 from auth.adapters.http.admin_router import create_auth_admin_router
 from auth.adapters.http.user_router import create_auth_user_router
 from auth.application.auth_use_cases import AuthUseCases
@@ -23,12 +19,12 @@ from auth.application.reset_password import ResetPassword
 from auth.domain.account import AuthenticationAccount
 from auth.domain.account_status import AuthenticationAccountStatus
 from auth.domain.email import NormalizedEmail
-from auth.domain.errors import AuthenticationError
 from auth.ports.audit_repository import AuthAuditEntry
 from auth.ports.identity_provider import ProviderIdentity
 from bootstrap.http_error_handlers import register_exception_handlers
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from shared.identity import AuthenticatedIdentity
-
 
 # ─── Test Doubles ───────────────────────────────────────────────────────────────
 
@@ -110,7 +106,7 @@ class FakeAccessProvisioning:
 
 class FakeClock:
     def now(self):
-        return datetime(2026, 8, 3, 15, 0, 0, tzinfo=timezone.utc)
+        return datetime(2026, 8, 3, 15, 0, 0, tzinfo=UTC)
 
 
 class FakeIdentity:
@@ -226,7 +222,7 @@ class TestAuthMeEndpoint(unittest.TestCase):
         account = AuthenticationAccount.provision(
             account_id="acc-1", identity_subject="test-subject",
             email=NormalizedEmail.from_raw("u@e.com"), display_name="User",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         client, _ = _build_test_app(accounts={"acc-1": account})
         response = client.get("/api/v1/auth/me")
@@ -239,9 +235,9 @@ class TestAuthMeEndpoint(unittest.TestCase):
         account = AuthenticationAccount.provision(
             account_id="acc-1", identity_subject="test-subject",
             email=NormalizedEmail.from_raw("u@e.com"), display_name="User",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
-        account.activate(datetime(2026, 1, 2, tzinfo=timezone.utc))
+        account.activate(datetime(2026, 1, 2, tzinfo=UTC))
         client, _ = _build_test_app(accounts={"acc-1": account})
         response = client.get("/api/v1/auth/me")
         self.assertEqual(response.status_code, 200)
@@ -258,7 +254,7 @@ class TestPasswordChangeEndpoint(unittest.TestCase):
         account = AuthenticationAccount.provision(
             account_id="acc-1", identity_subject="test-subject",
             email=NormalizedEmail.from_raw("u@e.com"), display_name="User",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         client, repo = _build_test_app(accounts={"acc-1": account})
         response = client.post(
@@ -267,13 +263,14 @@ class TestPasswordChangeEndpoint(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 204)
         saved = repo.find_by_id("acc-1")
+        assert saved is not None
         self.assertEqual(saved.status, AuthenticationAccountStatus.ACTIVE)
 
     def test_same_password_returns_422(self):
         account = AuthenticationAccount.provision(
             account_id="acc-1", identity_subject="test-subject",
             email=NormalizedEmail.from_raw("u@e.com"), display_name="User",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         client, _ = _build_test_app(accounts={"acc-1": account})
         response = client.post(
@@ -289,7 +286,7 @@ class TestLogoutEndpoint(unittest.TestCase):
         account = AuthenticationAccount.provision(
             account_id="acc-1", identity_subject="test-subject",
             email=NormalizedEmail.from_raw("u@e.com"), display_name="User",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         client, _ = _build_test_app(accounts={"acc-1": account})
         response = client.delete("/api/v1/auth/session")
@@ -302,9 +299,9 @@ class TestProvisionEndpoint(unittest.TestCase):
         admin = AuthenticationAccount.provision(
             account_id="acc-admin", identity_subject="test-subject",
             email=NormalizedEmail.from_raw("admin@e.com"), display_name="Admin",
-            user_code="USR-ADMIN", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-ADMIN", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
-        client, repo = _build_test_app(accounts={"acc-admin": admin})
+        client, _repo = _build_test_app(accounts={"acc-admin": admin})
         response = client.post(
             "/api/v1/auth/accounts",
             json={
@@ -325,7 +322,7 @@ class TestProvisionEndpoint(unittest.TestCase):
         admin = AuthenticationAccount.provision(
             account_id="acc-admin", identity_subject="test-subject",
             email=NormalizedEmail.from_raw("existing@e.com"), display_name="Admin",
-            user_code="USR-ADMIN", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-ADMIN", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         client, _ = _build_test_app(accounts={"acc-admin": admin})
         response = client.post(
@@ -346,7 +343,7 @@ class TestProvisionEndpoint(unittest.TestCase):
         admin = AuthenticationAccount.provision(
             account_id="acc-admin", identity_subject="test-subject",
             email=NormalizedEmail.from_raw("admin@e.com"), display_name="Admin",
-            user_code="USR-ADMIN", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-ADMIN", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         client, _ = _build_test_app(accounts={"acc-admin": admin})
         response = client.post(
@@ -369,7 +366,7 @@ class TestListAccountsEndpoint(unittest.TestCase):
         admin = AuthenticationAccount.provision(
             account_id="acc-1", identity_subject="test-subject",
             email=NormalizedEmail.from_raw("a@e.com"), display_name="A",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         client, _ = _build_test_app(accounts={"acc-1": admin})
         response = client.get("/api/v1/auth/accounts")

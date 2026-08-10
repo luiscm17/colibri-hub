@@ -1,7 +1,7 @@
 """Unit tests for Authentication request pipeline."""
 
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from auth.adapters.identity_provider.request_pipeline import RequestPipeline
 from auth.domain.account import AuthenticationAccount
@@ -12,9 +12,8 @@ from auth.domain.errors import (
     AuthenticationRequired,
     PasswordChangeRequired,
 )
-from auth.ports.identity_provider import ProviderSession
+from auth.ports.identity_provider import ProviderIdentity, ProviderSession
 from shared.identity import AuthenticatedIdentity
-
 
 # ─── Test Doubles ───────────────────────────────────────────────────────────────
 
@@ -40,12 +39,18 @@ class FakeIdentityProvider:
     def get_session(self, *, session_id: str):
         return self._sessions.get(session_id)
 
-    def create_user(self, **kwargs): pass
+    def create_user(self, *, email: str, password: str) -> ProviderIdentity:
+        del password
+        return ProviderIdentity(subject="unused", email=email)
     def update_password(self, **kwargs): pass
     def ban_user(self, **kwargs): pass
     def unban_user(self, **kwargs): pass
     def revoke_sessions(self, **kwargs): pass
     def delete_user(self, **kwargs): pass
+
+    def list_successful_login_audit_evidence(self, *, timestamp_to: str):
+        del timestamp_to
+        return []
 
 
 def _make_account(
@@ -60,8 +65,8 @@ def _make_account(
         display_name="Test",
         user_code="USR-1",
         version=1,
-        created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-        updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        updated_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
 
 
@@ -105,7 +110,7 @@ class TestPipelineSessionAge(unittest.TestCase):
     """Pipeline rejects sessions older than 8 hours."""
 
     def test_session_within_8h_passes(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         session = ProviderSession(
             session_id="ses-1",
             created_at=(now - timedelta(hours=7)).isoformat(),
@@ -121,7 +126,7 @@ class TestPipelineSessionAge(unittest.TestCase):
         self.assertEqual(result.subject, "sub-1")
 
     def test_session_at_8h_boundary_raises(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         session = ProviderSession(
             session_id="ses-1",
             created_at=(now - timedelta(hours=8, seconds=1)).isoformat(),
@@ -139,7 +144,7 @@ class TestPipelineSessionAge(unittest.TestCase):
     def test_ended_session_raises(self):
         session = ProviderSession(
             session_id="ses-1",
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
             is_active=False,
         )
         account = _make_account("sub-1")

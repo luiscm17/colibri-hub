@@ -5,7 +5,6 @@ events with the correct structure.
 """
 
 import unittest
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from auth.adapters.persistence.audit_repository import AuthAuditRepositoryAdapter

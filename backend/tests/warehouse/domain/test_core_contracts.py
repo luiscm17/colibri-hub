@@ -1,6 +1,6 @@
-from datetime import date, datetime
-from decimal import Decimal
 import unittest
+from datetime import UTC, date, datetime
+from decimal import Decimal
 
 from warehouse.bales.domain.bale import Bale
 from warehouse.bales.domain.bale_id import BaleId
@@ -8,12 +8,6 @@ from warehouse.bales.domain.bale_number import BaleNumber
 from warehouse.bales.domain.bale_status import BaleStatus
 from warehouse.bales.domain.bale_weight import BaleWeight
 from warehouse.bales.domain.delivery_date import DeliveryDate
-from warehouse.bales.domain.dtex import Dtex
-from warehouse.bales.domain.material_type import MaterialType
-from warehouse.bales.domain.raw_material_batch import RawMaterialBatch
-from warehouse.bales.domain.raw_material_batch_id import RawMaterialBatchId
-from warehouse.bales.domain.reception_date import ReceptionDate
-from warehouse.bales.domain.shipment_number import ShipmentNumber
 from warehouse.bales.domain.domain_errors import (
     DuplicateBaleIdError,
     EmptyRawMaterialBatchError,
@@ -23,6 +17,12 @@ from warehouse.bales.domain.domain_errors import (
     InvalidDtexError,
     InvalidReceptionDateError,
 )
+from warehouse.bales.domain.dtex import Dtex
+from warehouse.bales.domain.material_type import MaterialType
+from warehouse.bales.domain.raw_material_batch import RawMaterialBatch
+from warehouse.bales.domain.raw_material_batch_id import RawMaterialBatchId
+from warehouse.bales.domain.reception_date import ReceptionDate
+from warehouse.bales.domain.shipment_number import ShipmentNumber
 
 from backend.tests.support.values import (
     BALE_ID_1,
@@ -50,17 +50,17 @@ class CoreDomainContractsTest(unittest.TestCase):
         with self.assertRaises(InvalidBaleNumberError):
             BaleNumber(" ")
         with self.assertRaises(InvalidDtexError):
-            Dtex(Decimal("0"))
+            Dtex(Decimal(0))
 
     def test_weight_and_reception_boundaries(self) -> None:
         """BaleWeight computes net weight and rejects equal gross/container; ReceptionDate validates date-only input."""
         weight = BaleWeight(GROSS_WEIGHT_KG, CONTAINER_WEIGHT_KG)
         self.assertEqual(weight.net_kg, Decimal("25.0"))
         with self.assertRaises(InvalidBaleWeightError):
-            BaleWeight(Decimal("1"), Decimal("1"))
+            BaleWeight(Decimal(1), Decimal(1))
         self.assertEqual(ReceptionDate(RECEIVED_AT).value, RECEIVED_AT)
         with self.assertRaises(InvalidReceptionDateError):
-            ReceptionDate(datetime(2026, 7, 25, 10, 30))
+            ReceptionDate(datetime(2026, 7, 25, 10, 30, tzinfo=UTC))
 
     def test_bale_delivery_changes_availability_once(self) -> None:
         """Delivering a bale transitions its status and marks it unavailable; a second delivery is rejected."""

@@ -1,5 +1,5 @@
-import runpy
 import os
+import runpy
 import tempfile
 import unittest
 from collections.abc import Callable
@@ -7,15 +7,16 @@ from pathlib import Path
 from typing import cast
 from unittest.mock import Mock, patch
 
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session
-
 from bootstrap.http_application import create_app
 from infra.configuration import ApplicationSettings, DatabaseSettings
+from pydantic import SecretStr
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session
 
 
 def session_factory() -> Session:
     """Build a mock session factory for FastAPI dependency injection in tests."""
+    return cast(Session, Mock())
 
 
 class ApplicationCompositionTests(unittest.TestCase):
@@ -23,7 +24,7 @@ class ApplicationCompositionTests(unittest.TestCase):
 
     def test_default_settings_load_once_and_compose_router_and_handlers(self) -> None:
         """Settings are loaded once from the env file; the application wires router and exception handlers."""
-        database = DatabaseSettings(url="postgresql+psycopg://user:secret@host/database")
+        database = DatabaseSettings(url=SecretStr("postgresql+psycopg://user:secret@host/database"))
         default_settings = Mock(database=database, cors=None, auth_provider=None)
         engine = cast(Engine, Mock())
         with patch("bootstrap.http_application.ApplicationSettings", return_value=default_settings) as load:
@@ -40,7 +41,7 @@ class ApplicationCompositionTests(unittest.TestCase):
     def test_explicit_settings_and_engine_bypass_the_lower_unneeded_layer(self) -> None:
         """Explicit settings or engine objects skip settings loading and engine construction."""
         settings = ApplicationSettings(
-            database=DatabaseSettings(url="postgresql+psycopg://user:secret@host/database")
+            database=DatabaseSettings(url=SecretStr("postgresql+psycopg://user:secret@host/database"))
         )
         engine = cast(Engine, Mock())
         factory_builder: Callable[[Engine], Callable[[], Session]] = Mock(
@@ -70,7 +71,7 @@ class ApplicationCompositionTests(unittest.TestCase):
             os.chdir(directory)
             try:
                 with patch("bootstrap.http_application.create_app") as create_app_spy:
-                    runpy.run_path(main_path)
+                    runpy.run_path(str(main_path))
             finally:
                 os.chdir(original_directory)
         create_app_spy.assert_called_once_with(settings_env_file=main_path.with_name(".env"))

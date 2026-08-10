@@ -2,13 +2,13 @@ import unittest
 from typing import cast
 from unittest.mock import patch
 
-from sqlalchemy import event
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session
-
 from bootstrap.database_session_dependency import session_dependency
 from infra.configuration import DatabaseSettings
 from infra.persistence.database_engine import create_db_engine
+from pydantic import SecretStr
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session
 
 
 class RecordingSession:
@@ -55,7 +55,7 @@ class DatabaseResourceTests(unittest.TestCase):
             connections.append(connection_record)
 
         event.listen(Engine, "connect", record_connection)
-        engine = create_db_engine(DatabaseSettings(url="sqlite+pysqlite:///:memory:"))
+        engine = create_db_engine(DatabaseSettings(url=SecretStr("sqlite+pysqlite:///:memory:")))
         try:
             self.assertEqual(str(engine.url), "sqlite+pysqlite:///:memory:")
             self.assertEqual(connections, [])
@@ -65,7 +65,7 @@ class DatabaseResourceTests(unittest.TestCase):
 
     def test_engine_factory_receives_only_the_unwrapped_database_url(self) -> None:
         """The engine factory callable is invoked with the unwrapped secret value, not the SecretStr."""
-        settings = DatabaseSettings(url="postgresql+psycopg://user:secret@host/database")
+        settings = DatabaseSettings(url=SecretStr("postgresql+psycopg://user:secret@host/database"))
         with patch("infra.persistence.database_engine.create_engine") as create_engine:
             create_db_engine(settings)
         create_engine.assert_called_once_with(settings.url.get_secret_value())

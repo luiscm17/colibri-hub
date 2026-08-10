@@ -1,15 +1,10 @@
 import unittest
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
 from bootstrap.api_router import create_api_router
 from bootstrap.http_error_handlers import register_exception_handlers
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from warehouse.bales.adapters.http.router import BaleUseCases
-from warehouse.bales.application import (
-    RegisterRawMaterialBatchCommand,
-    RegisterRawMaterialBatchResult,
-)
 from warehouse.bales.ports.authorization import AuthenticatedIdentity
 
 

@@ -1,10 +1,10 @@
 """Unit tests for Authentication application use cases with test doubles."""
 
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import cast
 
 from auth.application.change_required_password import ChangeRequiredPassword
-from auth.application.disable_account import DisableAccount
 from auth.application.commands import (
     ChangePasswordCommand,
     DisableAccountCommand,
@@ -12,6 +12,7 @@ from auth.application.commands import (
     ProvisionAccountCommand,
     ResetPasswordCommand,
 )
+from auth.application.disable_account import DisableAccount
 from auth.application.enable_account import EnableAccount
 from auth.application.get_current_authentication import GetCurrentAuthentication
 from auth.application.list_accounts import ListAccounts
@@ -32,7 +33,6 @@ from auth.domain.errors import (
 )
 from auth.ports.audit_repository import AuthAuditEntry
 from auth.ports.identity_provider import ProviderIdentity, ProviderLoginAuditEvidence
-
 
 # ─── Test Doubles ───────────────────────────────────────────────────────────────
 
@@ -142,7 +142,7 @@ class FakeAccessProvisioning:
 
 class FakeClock:
     def __init__(self, fixed: datetime | None = None):
-        self._now = fixed or datetime(2026, 8, 3, 12, 0, 0, tzinfo=timezone.utc)
+        self._now = fixed or datetime(2026, 8, 3, 12, 0, 0, tzinfo=UTC)
 
     def now(self) -> datetime:
         return self._now
@@ -173,7 +173,7 @@ class TestGetCurrentAuthentication(unittest.TestCase):
         account = AuthenticationAccount.provision(
             account_id="acc-1", identity_subject="sub-1",
             email=NormalizedEmail.from_raw("u@e.com"), display_name="U",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         self.repo.save(account)
         result = self.use_case.execute("sub-1")
@@ -184,9 +184,9 @@ class TestGetCurrentAuthentication(unittest.TestCase):
         account = AuthenticationAccount.provision(
             account_id="acc-1", identity_subject="sub-1",
             email=NormalizedEmail.from_raw("u@e.com"), display_name="U",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
-        account.activate(datetime(2026, 1, 2, tzinfo=timezone.utc))
+        account.activate(datetime(2026, 1, 2, tzinfo=UTC))
         self.repo.save(account)
         result = self.use_case.execute("sub-1")
         self.assertEqual(result.next_step, "load_access")
@@ -213,7 +213,7 @@ class TestChangeRequiredPassword(unittest.TestCase):
         self.account = AuthenticationAccount.provision(
             account_id="acc-1", identity_subject="sub-1",
             email=NormalizedEmail.from_raw("u@e.com"), display_name="U",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         self.repo.save(self.account)
 
@@ -224,6 +224,7 @@ class TestChangeRequiredPassword(unittest.TestCase):
         )
         self.use_case.execute(cmd)
         saved = self.repo.find_by_subject("sub-1")
+        assert saved is not None
         self.assertEqual(saved.status, AuthenticationAccountStatus.ACTIVE)
 
     def test_rejects_same_password(self):
@@ -235,7 +236,7 @@ class TestChangeRequiredPassword(unittest.TestCase):
             self.use_case.execute(cmd)
 
     def test_rejects_non_awaiting_account(self):
-        self.account.activate(datetime(2026, 1, 2, tzinfo=timezone.utc))
+        self.account.activate(datetime(2026, 1, 2, tzinfo=UTC))
         self.repo.save(self.account)
         cmd = ChangePasswordCommand(
             current_password="old", new_password="new",
@@ -301,7 +302,7 @@ class TestProvisionAccount(unittest.TestCase):
             account_id="acc-existing", identity_subject="sub-existing",
             email=NormalizedEmail.from_raw("dup@example.com"),
             display_name="Existing", user_code="USR-001",
-            now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         self.repo.save(existing)
         cmd = ProvisionAccountCommand(
@@ -361,9 +362,9 @@ class TestResetPassword(unittest.TestCase):
         self.account = AuthenticationAccount.provision(
             account_id="acc-1", identity_subject="sub-1",
             email=NormalizedEmail.from_raw("u@e.com"), display_name="U",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
-        self.account.activate(datetime(2026, 1, 2, tzinfo=timezone.utc))
+        self.account.activate(datetime(2026, 1, 2, tzinfo=UTC))
         self.repo.save(self.account)
 
     def test_resets_to_awaiting(self):
@@ -373,6 +374,7 @@ class TestResetPassword(unittest.TestCase):
         )
         self.use_case.execute(cmd)
         saved = self.repo.find_by_id("acc-1")
+        assert saved is not None
         self.assertEqual(saved.status, AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE)
 
     def test_rejects_stale_version(self):
@@ -420,9 +422,9 @@ class TestDisableAccount(unittest.TestCase):
         self.account = AuthenticationAccount.provision(
             account_id="acc-1", identity_subject="sub-1",
             email=NormalizedEmail.from_raw("u@e.com"), display_name="U",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
-        self.account.activate(datetime(2026, 1, 2, tzinfo=timezone.utc))
+        self.account.activate(datetime(2026, 1, 2, tzinfo=UTC))
         self.repo.save(self.account)
 
     def test_disables_account(self):
@@ -432,6 +434,7 @@ class TestDisableAccount(unittest.TestCase):
         )
         self.use_case.execute(cmd)
         saved = self.repo.find_by_id("acc-1")
+        assert saved is not None
         self.assertEqual(saved.status, AuthenticationAccountStatus.DISABLED)
 
     def test_deactivates_access_profile(self):
@@ -480,10 +483,10 @@ class TestEnableAccount(unittest.TestCase):
         self.account = AuthenticationAccount.provision(
             account_id="acc-1", identity_subject="sub-1",
             email=NormalizedEmail.from_raw("u@e.com"), display_name="U",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
-        self.account.activate(datetime(2026, 1, 2, tzinfo=timezone.utc))
-        self.account.disable(datetime(2026, 1, 3, tzinfo=timezone.utc))
+        self.account.activate(datetime(2026, 1, 2, tzinfo=UTC))
+        self.account.disable(datetime(2026, 1, 3, tzinfo=UTC))
         self.repo.save(self.account)
 
     def test_enables_disabled_account(self):
@@ -493,6 +496,7 @@ class TestEnableAccount(unittest.TestCase):
         )
         self.use_case.execute(cmd)
         saved = self.repo.find_by_id("acc-1")
+        assert saved is not None
         self.assertEqual(saved.status, AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE)
 
     def test_activates_access_profile(self):
@@ -537,7 +541,7 @@ class TestRecordLogout(unittest.TestCase):
         self.account = AuthenticationAccount.provision(
             account_id="acc-1", identity_subject="sub-1",
             email=NormalizedEmail.from_raw("u@e.com"), display_name="U",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         self.repo.save(self.account)
 
@@ -560,7 +564,7 @@ class TestListAccounts(unittest.TestCase):
                 account_id=f"acc-{i}", identity_subject=f"sub-{i}",
                 email=NormalizedEmail.from_raw(f"u{i}@e.com"),
                 display_name=f"User {i}", user_code=f"USR-{i}",
-                now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+                now=datetime(2026, 1, 1, tzinfo=UTC),
             )
             repo.save(a)
         use_case = ListAccounts(repo)
@@ -573,7 +577,7 @@ class TestListAudits(unittest.TestCase):
         with self.assertRaises(ValueError):
             AuthAuditEntry(
                 "audit-1", "operation-1", "logout", "succeeded", None, None,
-                None, None, {}, None,
+                None, None, {}, cast(str, None),
             )
 
     def test_merges_uuid_subjects_and_leaves_unsafe_subjects_uncorrelated(self):
@@ -581,7 +585,7 @@ class TestListAudits(unittest.TestCase):
         account = AuthenticationAccount.provision(
             account_id="acc-1", identity_subject="123e4567-e89b-12d3-a456-426614174000",
             email=NormalizedEmail.from_raw("a@example.com"), display_name="A", user_code="A",
-            now=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         accounts.save(account)
         audits = InMemoryAuditRepository()

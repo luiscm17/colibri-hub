@@ -4,17 +4,15 @@ Validates correctness properties from design §Correctness Properties 1–4.
 """
 
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from access.domain.actions import Action, Permission, PRIVILEGED_ACTIONS
+from access.domain.actions import PRIVILEGED_ACTIONS, Action, Permission
 from access.domain.authorization import authorize, effective_permissions
-from access.domain.errors import AccessDenied, LastSystemAdministratorRequired
 from access.domain.roles import Assignment, Role
 from access.domain.scopes import Scope, ScopeCode, ScopeDefinition
 from access.domain.users import AccessUser
 
-
-NOW = datetime(2025, 1, 1, tzinfo=timezone.utc)
+NOW = datetime(2025, 1, 1, tzinfo=UTC)
 
 
 def _user(user_id="user-1", is_active=True) -> AccessUser:
@@ -194,7 +192,7 @@ class ScopeDefinitionTest(unittest.TestCase):
 class ScopeBehaviorTest(unittest.TestCase):
     def test_deactivate_sets_inactive_and_bumps_version(self):
         scope = _scope()
-        later = datetime(2025, 6, 1, tzinfo=timezone.utc)
+        later = datetime(2025, 6, 1, tzinfo=UTC)
         scope.deactivate(at=later)
         self.assertFalse(scope.is_active)
         self.assertEqual(scope.version, 2)
@@ -203,12 +201,12 @@ class ScopeBehaviorTest(unittest.TestCase):
     def test_deactivate_idempotent_when_already_inactive(self):
         scope = _scope(is_active=False)
         original_version = scope.version
-        scope.deactivate(at=datetime(2025, 6, 1, tzinfo=timezone.utc))
+        scope.deactivate(at=datetime(2025, 6, 1, tzinfo=UTC))
         self.assertEqual(scope.version, original_version)
 
     def test_activate_sets_active_and_bumps_version(self):
         scope = _scope(is_active=False)
-        later = datetime(2025, 6, 1, tzinfo=timezone.utc)
+        later = datetime(2025, 6, 1, tzinfo=UTC)
         scope.activate(at=later)
         self.assertTrue(scope.is_active)
         self.assertEqual(scope.version, 2)
@@ -217,7 +215,7 @@ class ScopeBehaviorTest(unittest.TestCase):
     def test_activate_idempotent_when_already_active(self):
         scope = _scope()
         original_version = scope.version
-        scope.activate(at=datetime(2025, 6, 1, tzinfo=timezone.utc))
+        scope.activate(at=datetime(2025, 6, 1, tzinfo=UTC))
         self.assertEqual(scope.version, original_version)
 
 
@@ -242,7 +240,7 @@ class AccessUserTest(unittest.TestCase):
 
     def test_deactivate_sets_inactive_and_bumps_version(self):
         user = _user()
-        later = datetime(2025, 6, 1, tzinfo=timezone.utc)
+        later = datetime(2025, 6, 1, tzinfo=UTC)
         user.deactivate(at=later)
         self.assertFalse(user.is_active)
         self.assertEqual(user.version, 2)
@@ -251,12 +249,12 @@ class AccessUserTest(unittest.TestCase):
     def test_deactivate_idempotent_when_already_inactive(self):
         user = _user(is_active=False)
         original_version = user.version
-        user.deactivate(at=datetime(2025, 6, 1, tzinfo=timezone.utc))
+        user.deactivate(at=datetime(2025, 6, 1, tzinfo=UTC))
         self.assertEqual(user.version, original_version)
 
     def test_activate_sets_active_and_bumps_version(self):
         user = _user(is_active=False)
-        later = datetime(2025, 6, 1, tzinfo=timezone.utc)
+        later = datetime(2025, 6, 1, tzinfo=UTC)
         user.activate(at=later)
         self.assertTrue(user.is_active)
         self.assertEqual(user.version, 2)
@@ -265,7 +263,7 @@ class AccessUserTest(unittest.TestCase):
     def test_activate_idempotent_when_already_active(self):
         user = _user()
         original_version = user.version
-        user.activate(at=datetime(2025, 6, 1, tzinfo=timezone.utc))
+        user.activate(at=datetime(2025, 6, 1, tzinfo=UTC))
         self.assertEqual(user.version, original_version)
 
 
@@ -373,7 +371,7 @@ class AssignmentTest(unittest.TestCase):
 
     def test_revoke_sets_fields_and_marks_not_current(self):
         a = _assignment()
-        later = datetime(2025, 6, 1, tzinfo=timezone.utc)
+        later = datetime(2025, 6, 1, tzinfo=UTC)
         a.revoke(by="admin-1", reason="No longer needed", at=later)
         self.assertFalse(a.is_current)
         self.assertEqual(a.revoked_by_user_id, "admin-1")

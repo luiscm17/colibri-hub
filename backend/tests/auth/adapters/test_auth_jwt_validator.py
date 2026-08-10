@@ -5,10 +5,8 @@ import unittest
 from unittest.mock import MagicMock
 
 import jwt as pyjwt
-
 from auth.adapters.identity_provider.jwt_validator import TokenValidatorAdapter
 from auth.domain.errors import AuthenticationRequired
-
 
 TEST_SECRET = "test-secret-with-at-least-32-characters-long"
 

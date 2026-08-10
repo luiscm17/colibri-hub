@@ -8,14 +8,13 @@ import json
 import unittest
 from unittest.mock import MagicMock, patch
 
-from httpx import QueryParams
-
 from auth.adapters.identity_provider.admin_client import (
     MAX_PROVIDER_AUDIT_RESPONSE_BYTES,
     IdentityProviderAdapter,
 )
 from auth.domain.errors import DuplicateEmail, ProviderUnavailable, WeakPassword
 from auth.ports.identity_provider import ProviderLoginAuditEvidence
+from httpx import QueryParams
 
 
 class TestBanUser(unittest.TestCase):

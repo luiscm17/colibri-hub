@@ -7,7 +7,8 @@ Validates:
 """
 
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any, cast
 
 from auth.adapters.bootstrap_command import BootstrapInitialAdministrator
 from auth.domain.account import AuthenticationAccount
@@ -15,8 +16,7 @@ from auth.domain.email import NormalizedEmail
 from auth.ports.audit_repository import AuthAuditEntry
 from auth.ports.identity_provider import ProviderIdentity
 
-
-NOW = datetime(2026, 8, 6, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 8, 6, 12, 0, 0, tzinfo=UTC)
 
 
 class _InMemoryAccountRepo:
@@ -105,9 +105,9 @@ class TestBootstrapInitialAdministrator(unittest.TestCase):
         identity = _FakeIdentity()
 
         command = BootstrapInitialAdministrator(
-            account_repository=accounts,
-            audit_repository=audits,
-            identity_provider=provider,
+            account_repository=cast(Any, accounts),
+            audit_repository=cast(Any, audits),
+            identity_provider=cast(Any, provider),
             access_provisioning=access,
             clock=clock,
             identity=identity,
@@ -126,7 +126,7 @@ class TestBootstrapInitialAdministrator(unittest.TestCase):
 
         self.assertIsNotNone(account_id)
         self.assertEqual(len(accounts.accounts), 1)
-        account = list(accounts.accounts.values())[0]
+        account = next(iter(accounts.accounts.values()))
         self.assertEqual(account.normalized_email.value, "admin@example.com")
         self.assertEqual(account.display_name, "System Admin")
         self.assertEqual(account.user_code, "USR-001")
@@ -145,7 +145,7 @@ class TestBootstrapInitialAdministrator(unittest.TestCase):
         self.assertEqual(audits.entries[0].event_type, "initial_bootstrap")
 
     def test_idempotent_rerun_returns_existing(self):
-        command, accounts, audits, provider, access = self._build()
+        command, accounts, audits, provider, _access = self._build()
 
         # First run
         account_id_1 = command.execute(

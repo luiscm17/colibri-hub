@@ -1,6 +1,5 @@
 from copy import deepcopy
 
-
 VALID_BALE_RECEPTION_PAYLOAD: dict[str, object] = {
     "shipment_number": "ship-01",
     "received_at": "2026-07-25",

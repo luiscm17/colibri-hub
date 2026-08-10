@@ -1,7 +1,8 @@
 import unittest
+from typing import cast
 
 from sqlalchemy.exc import IntegrityError
-
+from sqlalchemy.orm import Session
 from warehouse.bales.adapters.persistence.transaction import TransactionAdapter
 from warehouse.bales.ports.transaction_errors import (
     DuplicateBaleNumberConflict,
@@ -45,7 +46,7 @@ class TransactionAdapterTest(unittest.TestCase):
         """A successful commit delegates to the session and does not trigger a rollback."""
         session = SessionSpy()
 
-        with TransactionAdapter(session) as transaction:  # type: ignore[arg-type]
+        with TransactionAdapter(cast(Session, session)) as transaction:
             transaction.commit()
 
         self.assertEqual(session.commits, 1)
@@ -64,7 +65,7 @@ class TransactionAdapterTest(unittest.TestCase):
             with self.subTest(constraint_name=constraint_name):
                 session = SessionSpy(integrity_error(constraint_name))
                 with self.assertRaises(expected_error):
-                    TransactionAdapter(session).commit()  # type: ignore[arg-type]
+                    TransactionAdapter(cast(Session, session)).commit()
                 self.assertEqual(session.rollbacks, 1)
 
     def test_unknown_integrity_error_rolls_back_and_propagates_unchanged(self) -> None:
@@ -73,7 +74,7 @@ class TransactionAdapterTest(unittest.TestCase):
         session = SessionSpy(error)
 
         with self.assertRaises(IntegrityError) as caught:
-            TransactionAdapter(session).commit()  # type: ignore[arg-type]
+            TransactionAdapter(cast(Session, session)).commit()
 
         self.assertIs(caught.exception, error)
         self.assertEqual(session.rollbacks, 1)
@@ -82,8 +83,7 @@ class TransactionAdapterTest(unittest.TestCase):
         """An IntegrityError raised inside the context manager is mapped and triggers rollback on exit."""
         session = SessionSpy()
 
-        with self.assertRaises(DuplicateShipmentNumberConflict):
-            with TransactionAdapter(session):  # type: ignore[arg-type]
-                raise integrity_error("uq_raw_material_batches_shipment_number")
+        with self.assertRaises(DuplicateShipmentNumberConflict), TransactionAdapter(cast(Session, session)):
+            raise integrity_error("uq_raw_material_batches_shipment_number")
 
         self.assertEqual(session.rollbacks, 1)

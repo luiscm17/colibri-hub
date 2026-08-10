@@ -1,7 +1,8 @@
 """Behavior tests for read-only Access Control impact previews."""
 
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any, cast
 
 from access.adapters.persistence.preview_query import RepositoryPreviewQuery
 from access.application.preview_role_change import PreviewRoleChange
@@ -12,8 +13,7 @@ from access.domain.roles import Assignment, Role
 from access.domain.scopes import Scope
 from access.domain.users import AccessUser
 
-
-NOW = datetime(2025, 1, 1, tzinfo=timezone.utc)
+NOW = datetime(2025, 1, 1, tzinfo=UTC)
 
 
 class Users:
@@ -37,7 +37,7 @@ class Assignments:
 
 class Scopes:
     def __init__(self, scopes): self.items = scopes
-    def list_all(self): return self.items
+    def list_all(self, *, limit=None, offset=0): return self.items[offset:][:limit]
 
 
 def user(user_id="user-1", version=1):
@@ -59,8 +59,8 @@ def scope():
 class ImpactPreviewTest(unittest.TestCase):
     def query(self, users, roles, assignments):
         return RepositoryPreviewQuery(
-            user_repository=Users(users), role_repository=Roles(roles),
-            assignment_repository=Assignments(assignments), scope_repository=Scopes([scope()]),
+            user_repository=cast(Any, Users(users)), role_repository=cast(Any, Roles(roles)),
+            assignment_repository=cast(Any, Assignments(assignments)), scope_repository=cast(Any, Scopes([scope()])),
         )
 
     def test_role_preview_reports_assignees_but_excludes_overlapping_removal(self):
@@ -95,8 +95,8 @@ class ImpactPreviewTest(unittest.TestCase):
         roles = Roles([ordinary, administrator])
         assignments = Assignments([assignment("user-1", "administrator")])
         query = RepositoryPreviewQuery(
-            user_repository=users, role_repository=roles, assignment_repository=assignments,
-            scope_repository=Scopes([scope()]),
+            user_repository=cast(Any, users), role_repository=cast(Any, roles), assignment_repository=cast(Any, assignments),
+            scope_repository=cast(Any, Scopes([scope()])),
         )
 
         with self.assertRaises(LastSystemAdministratorRequired):
@@ -124,11 +124,11 @@ class ImpactPreviewTest(unittest.TestCase):
         target = role("role", version=5)
         with self.assertRaises(AccessVersionConflict):
             UpdateRole(
-                role_repository=Roles([target]), scope_repository=type("Scopes", (), {"find_by_id": lambda *_: scope()})(),
-                scope_definition_registry=type("Definitions", (), {"get": lambda *_: None})(),
-                audit_repository=type("Audit", (), {"append": lambda **_: None})(),
-                transaction=type("Transaction", (), {"atomic": lambda _: __import__("contextlib").nullcontext()})(),
-                clock=type("Clock", (), {"now": lambda _: NOW})(),
+                role_repository=cast(Any, Roles([target])), scope_repository=cast(Any, type("Scopes", (), {"find_by_id": lambda *_: scope()})()),
+                scope_definition_registry=cast(Any, type("Definitions", (), {"get": lambda *_: None})()),
+                audit_repository=cast(Any, type("Audit", (), {"append": lambda **_: None})()),
+                transaction=cast(Any, type("Transaction", (), {"atomic": lambda _: __import__("contextlib").nullcontext()})()),
+                clock=cast(Any, type("Clock", (), {"now": lambda _: NOW})()),
             ).execute(UpdateRoleCommand("role", "Role", None, [], 4, "test", "actor", "op"))
 
 

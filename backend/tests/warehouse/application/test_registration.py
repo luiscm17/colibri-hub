@@ -1,9 +1,15 @@
 import unittest
 
 from warehouse.bales.application import RegisterRawMaterialBatch
-from warehouse.bales.application.errors import DuplicateBaleNumberError, DuplicateShipmentNumberError
+from warehouse.bales.application.errors import (
+    DuplicateBaleNumberError,
+    DuplicateShipmentNumberError,
+)
 from warehouse.bales.domain.domain_errors import EmptyRawMaterialBatchError
-from warehouse.bales.ports import DuplicateBaleNumberConflict, DuplicateShipmentNumberConflict
+from warehouse.bales.ports import (
+    DuplicateBaleNumberConflict,
+    DuplicateShipmentNumberConflict,
+)
 
 from backend.tests.support.builders import received_bale, registration_command
 from backend.tests.support.doubles import (
@@ -29,6 +35,7 @@ class RegistrationContractsTest(unittest.TestCase):
         self.assertEqual(result.received_at, RECEIVED_AT)
         self.assertEqual(result.provider_name, "Fiber Supplier")
         self.assertEqual(result.bale_count, 2)
+        assert batches.batch is not None
         self.assertEqual(batches.batch.bale_ids, tuple(bale.id for bale in bales.bales))
 
     def test_registration_rejects_missing_or_canonical_duplicate_bales_before_persistence(self) -> None:

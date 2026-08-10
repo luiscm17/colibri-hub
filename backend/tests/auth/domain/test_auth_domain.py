@@ -1,7 +1,7 @@
 """Unit tests for Authentication domain: account transitions, email VO, and errors."""
 
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from auth.domain.account import AuthenticationAccount
 from auth.domain.account_status import AuthenticationAccountStatus
@@ -56,12 +56,12 @@ class TestAuthenticationAccount(unittest.TestCase):
             display_name="Test User",
             user_code="USR-001",
             version=1,
-            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-            updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2026, 1, 1, tzinfo=UTC),
         )
 
     def test_provision_creates_awaiting_account(self):
-        now = datetime(2026, 8, 1, tzinfo=timezone.utc)
+        now = datetime(2026, 8, 1, tzinfo=UTC)
         account = AuthenticationAccount.provision(
             account_id="acc-100",
             identity_subject="sub-100",
@@ -76,7 +76,7 @@ class TestAuthenticationAccount(unittest.TestCase):
 
     def test_activate_from_awaiting(self):
         account = self._make_account(AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE)
-        now = datetime(2026, 8, 2, tzinfo=timezone.utc)
+        now = datetime(2026, 8, 2, tzinfo=UTC)
         account.activate(now)
         self.assertEqual(account.status, AuthenticationAccountStatus.ACTIVE)
         self.assertEqual(account.version, 2)
@@ -85,62 +85,62 @@ class TestAuthenticationAccount(unittest.TestCase):
     def test_activate_from_active_raises(self):
         account = self._make_account(AuthenticationAccountStatus.ACTIVE)
         with self.assertRaises(AccountStateConflict) as ctx:
-            account.activate(datetime.now(timezone.utc))
+            account.activate(datetime.now(UTC))
         self.assertEqual(ctx.exception.current_status, "active")
         self.assertEqual(ctx.exception.attempted_action, "activate")
 
     def test_activate_from_disabled_raises(self):
         account = self._make_account(AuthenticationAccountStatus.DISABLED)
         with self.assertRaises(AccountStateConflict):
-            account.activate(datetime.now(timezone.utc))
+            account.activate(datetime.now(UTC))
 
     def test_disable_from_active(self):
         account = self._make_account(AuthenticationAccountStatus.ACTIVE)
-        account.disable(datetime(2026, 8, 3, tzinfo=timezone.utc))
+        account.disable(datetime(2026, 8, 3, tzinfo=UTC))
         self.assertEqual(account.status, AuthenticationAccountStatus.DISABLED)
         self.assertEqual(account.version, 2)
 
     def test_disable_from_awaiting(self):
         account = self._make_account(AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE)
-        account.disable(datetime(2026, 8, 3, tzinfo=timezone.utc))
+        account.disable(datetime(2026, 8, 3, tzinfo=UTC))
         self.assertEqual(account.status, AuthenticationAccountStatus.DISABLED)
 
     def test_disable_from_disabled_raises(self):
         account = self._make_account(AuthenticationAccountStatus.DISABLED)
         with self.assertRaises(AccountStateConflict):
-            account.disable(datetime.now(timezone.utc))
+            account.disable(datetime.now(UTC))
 
     def test_reset_to_awaiting_from_active(self):
         account = self._make_account(AuthenticationAccountStatus.ACTIVE)
-        account.reset_to_awaiting(datetime(2026, 8, 4, tzinfo=timezone.utc))
+        account.reset_to_awaiting(datetime(2026, 8, 4, tzinfo=UTC))
         self.assertEqual(account.status, AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE)
         self.assertEqual(account.version, 2)
 
     def test_reset_from_awaiting_raises(self):
         account = self._make_account(AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE)
         with self.assertRaises(AccountStateConflict):
-            account.reset_to_awaiting(datetime.now(timezone.utc))
+            account.reset_to_awaiting(datetime.now(UTC))
 
     def test_reset_from_disabled_raises(self):
         account = self._make_account(AuthenticationAccountStatus.DISABLED)
         with self.assertRaises(AccountStateConflict):
-            account.reset_to_awaiting(datetime.now(timezone.utc))
+            account.reset_to_awaiting(datetime.now(UTC))
 
     def test_enable_from_disabled(self):
         account = self._make_account(AuthenticationAccountStatus.DISABLED)
-        account.enable(datetime(2026, 8, 5, tzinfo=timezone.utc))
+        account.enable(datetime(2026, 8, 5, tzinfo=UTC))
         self.assertEqual(account.status, AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE)
         self.assertEqual(account.version, 2)
 
     def test_enable_from_active_raises(self):
         account = self._make_account(AuthenticationAccountStatus.ACTIVE)
         with self.assertRaises(AccountStateConflict):
-            account.enable(datetime.now(timezone.utc))
+            account.enable(datetime.now(UTC))
 
     def test_enable_from_awaiting_raises(self):
         account = self._make_account(AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE)
         with self.assertRaises(AccountStateConflict):
-            account.enable(datetime.now(timezone.utc))
+            account.enable(datetime.now(UTC))
 
     def test_is_enabled_property(self):
         active = self._make_account(AuthenticationAccountStatus.ACTIVE)

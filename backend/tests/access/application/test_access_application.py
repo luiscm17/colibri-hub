@@ -4,8 +4,8 @@ Tests tasks 3.8, 4.4, and 5.7 from the access-spec-alignment change.
 """
 
 import unittest
-from datetime import datetime, timezone
 from contextlib import contextmanager
+from datetime import UTC, datetime
 
 from access.application.activate_role import ActivateRole
 from access.application.activate_scope import ActivateScope
@@ -24,7 +24,6 @@ from access.application.list_access_users import ListAccessUsers
 from access.application.list_roles import ListRoles
 from access.application.update_role import UpdateRole
 from access.domain.actions import Action, Permission
-from access.domain.audit import AccessAuditEntry
 from access.domain.errors import (
     AccessRoleNotFound,
     AccessScopeNotFound,
@@ -37,7 +36,7 @@ from access.domain.roles import Assignment, Role
 from access.domain.scopes import Scope, ScopeDefinition
 from access.domain.users import AccessUser
 
-NOW = datetime(2025, 6, 1, tzinfo=timezone.utc)
+NOW = datetime(2025, 6, 1, tzinfo=UTC)
 
 
 # --- Fakes ---
@@ -84,11 +83,11 @@ class FakeRoleRepo:
     def __init__(self, roles: list[Role] | None = None):
         self.roles: dict[str, Role] = {r.role_id: r for r in (roles or [])}
 
-    def find_by_id(self, role_id):
+    def find_by_id(self, role_id: str):
         return self.roles.get(role_id)
 
-    def find_by_code(self, code):
-        return next((r for r in self.roles.values() if r.role_code == code), None)
+    def find_by_code(self, role_code: str):
+        return next((r for r in self.roles.values() if r.role_code == role_code), None)
 
     def find_system_administrator_role(self):
         return next((r for r in self.roles.values() if r.is_system_administrator), None)
@@ -112,11 +111,11 @@ class FakeScopeRepo:
     def __init__(self, scopes: list[Scope] | None = None):
         self.scopes: dict[str, Scope] = {s.scope_id: s for s in (scopes or [])}
 
-    def find_by_id(self, scope_id):
+    def find_by_id(self, scope_id: str):
         return self.scopes.get(scope_id)
 
-    def find_by_code(self, code):
-        return next((s for s in self.scopes.values() if s.scope_code == code), None)
+    def find_by_code(self, scope_code: str):
+        return next((s for s in self.scopes.values() if s.scope_code == scope_code), None)
 
     def list_all(self, *, limit=None, offset=0):
         items = list(self.scopes.values())
@@ -140,19 +139,19 @@ class FakeScopeDefinitionRegistry:
     def all(self):
         return list(self._defs.values())
 
-    def get(self, key):
-        return self._defs.get(key)
+    def get(self, definition_key: str):
+        return self._defs.get(definition_key)
 
 
 class FakeUserRepo:
     def __init__(self, users: list[AccessUser] | None = None):
         self.users: dict[str, AccessUser] = {u.user_id: u for u in (users or [])}
 
-    def find_by_id(self, user_id):
+    def find_by_id(self, user_id: str):
         return self.users.get(user_id)
 
-    def find_by_subject(self, subject):
-        return next((u for u in self.users.values() if u.identity_subject == subject), None)
+    def find_by_subject(self, identity_subject: str):
+        return next((u for u in self.users.values() if u.identity_subject == identity_subject), None)
 
     def list_all(self, *, limit=None, offset=0):
         items = list(self.users.values())
@@ -171,6 +170,12 @@ class FakeUserRepo:
     def count_active_administrators(self, **kwargs):
         return 1
 
+    def bump_authorization_version_for_role(self, role_id: str):
+        return []
+
+    def bump_authorization_version_for_scope(self, scope_id: str):
+        return []
+
 
 class FakeAssignmentRepo:
     def __init__(self, assignments: list[Assignment] | None = None):
@@ -178,6 +183,12 @@ class FakeAssignmentRepo:
 
     def find_for_user(self, user_id):
         return [a for a in self._assignments if a.user_id == user_id and a.is_current]
+
+    def find_for_role(self, role_id):
+        return [a for a in self._assignments if a.role_id == role_id and a.is_current]
+
+    def save(self, assignment):
+        self._assignments.append(assignment)
 
 
 # --- Helpers ---
@@ -431,7 +442,6 @@ class TestDeactivateScope(unittest.TestCase):
         self.assertEqual(audit_repo.entries[0]["change_kind"], "scope_deactivated")
 
     def test_version_conflict_raises(self):
-        scope = _scope()
         # Create scope with version=7 to trigger conflict with expected_version=1
         scope_v7 = Scope(
             scope_id="scope-1", definition_key="warehouse.raw_materials",

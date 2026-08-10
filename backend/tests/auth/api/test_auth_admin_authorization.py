@@ -5,10 +5,7 @@ and that admin users can access them normally.
 """
 
 import unittest
-from datetime import datetime, timezone
-
-from fastapi import APIRouter, FastAPI
-from fastapi.testclient import TestClient
+from datetime import UTC, datetime
 
 from access.application.authorize_action import AuthorizeAction
 from access.domain.actions import Action, Permission
@@ -27,15 +24,13 @@ from auth.application.list_audits import ListAudits
 from auth.application.provision_account import ProvisionAccount
 from auth.application.record_logout import RecordLogout
 from auth.application.reset_password import ResetPassword
-from auth.domain.account import AuthenticationAccount
-from auth.domain.email import NormalizedEmail
-from auth.ports.audit_repository import AuthAuditEntry
 from auth.ports.identity_provider import ProviderIdentity
 from bootstrap.http_error_handlers import register_exception_handlers
+from fastapi import APIRouter, FastAPI
+from fastapi.testclient import TestClient
 from shared.identity import AuthenticatedIdentity
 
-
-NOW = datetime(2026, 8, 6, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 8, 6, 12, 0, 0, tzinfo=UTC)
 
 ACCESS_CONTROL_SCOPE = Scope(
     scope_id="scope-ac",
@@ -64,13 +59,13 @@ ASSIGNMENTS = [
 
 
 class _FakeUserRepo:
-    def find_by_subject(self, subject):
+    def find_by_subject(self, identity_subject: str):
         users = [ADMIN_USER, ORDINARY_USER]
-        return next((u for u in users if u.identity_subject == subject), None)
+        return next((u for u in users if u.identity_subject == identity_subject), None)
 
-    def find_by_id(self, uid):
+    def find_by_id(self, user_id: str):
         users = [ADMIN_USER, ORDINARY_USER]
-        return next((u for u in users if u.user_id == uid), None)
+        return next((u for u in users if u.user_id == user_id), None)
 
     def list_all(self, **kw):
         return [ADMIN_USER, ORDINARY_USER]
@@ -78,21 +73,30 @@ class _FakeUserRepo:
     def count(self):
         return 2
 
-    def save(self, u):
+    def save(self, user):
         pass
 
     def count_active_administrators(self, **kw):
         return 1
 
+    def bump_authorization_version_for_role(self, role_id: str):
+        return []
+
+    def bump_authorization_version_for_scope(self, scope_id: str):
+        return []
+
 
 class _FakeRoleRepo:
-    def find_by_id(self, rid):
+    def find_by_id(self, role_id: str):
         roles = [ADMIN_ROLE, ORDINARY_ROLE]
-        return next((r for r in roles if r.role_id == rid), None)
+        return next((r for r in roles if r.role_id == role_id), None)
 
-    def find_by_code(self, code):
+    def find_by_code(self, role_code: str):
         roles = [ADMIN_ROLE, ORDINARY_ROLE]
-        return next((r for r in roles if r.role_code == code), None)
+        return next((r for r in roles if r.role_code == role_code), None)
+
+    def find_system_administrator_role(self):
+        return ADMIN_ROLE
 
     def list_all(self, **kw):
         return [ADMIN_ROLE, ORDINARY_ROLE]
@@ -100,7 +104,7 @@ class _FakeRoleRepo:
     def count(self):
         return 2
 
-    def save(self, r):
+    def save(self, role, *, created_by_user_id=None):
         pass
 
 
@@ -108,10 +112,19 @@ class _FakeAssignmentRepo:
     def find_for_user(self, user_id):
         return [a for a in ASSIGNMENTS if a.user_id == user_id and a.is_current]
 
+    def find_for_role(self, role_id):
+        return [a for a in ASSIGNMENTS if a.role_id == role_id and a.is_current]
+
+    def save(self, assignment):
+        pass
+
 
 class _FakeScopeRepo:
-    def find_by_code(self, code):
-        return ACCESS_CONTROL_SCOPE if code == "access_control" else None
+    def find_by_id(self, scope_id: str):
+        return ACCESS_CONTROL_SCOPE if scope_id == ACCESS_CONTROL_SCOPE.scope_id else None
+
+    def find_by_code(self, scope_code: str):
+        return ACCESS_CONTROL_SCOPE if scope_code == "access_control" else None
 
     def list_all(self, **kw):
         return [ACCESS_CONTROL_SCOPE]
@@ -119,7 +132,7 @@ class _FakeScopeRepo:
     def count(self):
         return 1
 
-    def save(self, s):
+    def save(self, scope):
         pass
 
 
@@ -132,6 +145,12 @@ class _FakeAccountRepo:
 
     def find_by_id(self, account_id):
         return self.accounts.get(account_id)
+
+    def find_by_subject(self, identity_subject):
+        return next((a for a in self.accounts.values() if a.identity_subject == identity_subject), None)
+
+    def list_enabled_administrators(self):
+        return []
 
     def list_all(self):
         return list(self.accounts.values())
@@ -167,6 +186,8 @@ class _FakeIdentityProvider:
     def revoke_sessions(self, **kw): pass
     def delete_user(self, **kw): pass
     def list_successful_login_audit_evidence(self, *, timestamp_to): return []
+
+    def get_session(self, *, session_id): return None
 
 
 class _FakeAccessProvisioning:

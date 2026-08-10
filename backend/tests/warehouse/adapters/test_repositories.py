@@ -1,6 +1,12 @@
 import unittest
+from typing import cast
 
+from sqlalchemy.orm import Session
+from warehouse.bales.adapters.persistence.bale_record import BaleRecord
 from warehouse.bales.adapters.persistence.bale_repository import BaleRepositoryAdapter
+from warehouse.bales.adapters.persistence.raw_material_batch_record import (
+    RawMaterialBatchRecord,
+)
 from warehouse.bales.adapters.persistence.raw_material_batch_repository import (
     RawMaterialBatchRepositoryAdapter,
 )
@@ -58,9 +64,10 @@ class PersistenceRepositoryTest(unittest.TestCase):
             bale_ids=(BaleId(BALE_ID_1),),
         )
 
-        RawMaterialBatchRepositoryAdapter(session).add(batch)  # type: ignore[arg-type]
+        RawMaterialBatchRepositoryAdapter(cast(Session, session)).add(batch)
 
-        self.assertEqual(session.added[0].id, BATCH_ID)
+        record = cast(RawMaterialBatchRecord, session.added[0])
+        self.assertEqual(record.id, BATCH_ID)
         self.assertEqual(session.flush_count, 1)
 
     def test_bale_repository_adds_mapped_bales_in_input_order(self) -> None:
@@ -68,10 +75,11 @@ class PersistenceRepositoryTest(unittest.TestCase):
         session = RecordingSession()
         bales = (self._bale(BALE_ID_1, "bale-01"), self._bale(BALE_ID_2, "bale-02"))
 
-        BaleRepositoryAdapter(session).add_all(bales)  # type: ignore[arg-type]
+        BaleRepositoryAdapter(cast(Session, session)).add_all(bales)
 
+        records = [cast(BaleRecord, record) for record in session.added_collections[0]]
         self.assertEqual(
-            [record.bale_number for record in session.added_collections[0]],
+            [record.bale_number for record in records],
             ["BALE-01", "BALE-02"],
         )
 

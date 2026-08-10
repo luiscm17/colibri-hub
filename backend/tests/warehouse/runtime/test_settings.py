@@ -4,10 +4,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from pydantic import ValidationError
-
 from infra.configuration import ApplicationSettings, DatabaseSettings
-
+from pydantic import SecretStr, ValidationError
 
 FILE_URL = "postgresql+psycopg://file-user:file-secret@file-host/test"
 OS_URL = "postgresql+psycopg://os-user:os-secret@os-host/test"
@@ -51,15 +49,15 @@ class ApplicationSettingsTests(unittest.TestCase):
     def test_database_url_validation_and_secret_redaction_are_observable(self) -> None:
         """DatabaseSettings validates the URL format, redacts secrets in repr, and includes the secret in the stored value."""
         secret_url = "postgresql+psycopg://user:private-password@host/database"
-        settings = DatabaseSettings(url=secret_url)
+        settings = DatabaseSettings(url=SecretStr(secret_url))
 
         self.assertIn("**********", repr(settings))
         self.assertNotIn("private-password", repr(settings))
         for invalid_url in ("", "   ", "not a url"):
             with self.subTest(invalid_url=invalid_url):
                 with self.assertRaises(ValidationError) as raised:
-                    DatabaseSettings(url=invalid_url)
+                    DatabaseSettings(url=SecretStr(invalid_url))
                 self.assertIn("Database URL must be a non-empty URL", str(raised.exception))
         with self.assertRaises(ValidationError) as raised:
-            DatabaseSettings(url="private-password is not a URL")
+            DatabaseSettings(url=SecretStr("private-password is not a URL"))
         self.assertNotIn("private-password", str(raised.exception))

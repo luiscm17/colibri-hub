@@ -1,6 +1,8 @@
-from decimal import Decimal
 
-from warehouse.bales.application import ReceivedBaleCommand, RegisterRawMaterialBatchCommand
+from warehouse.bales.application import (
+    ReceivedBaleCommand,
+    RegisterRawMaterialBatchCommand,
+)
 
 from backend.tests.support.values import (
     CONTAINER_WEIGHT_KG,

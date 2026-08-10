@@ -1,12 +1,16 @@
 import unittest
 from datetime import date
+from typing import cast
 
-from sqlalchemy import Date, Numeric, String, Text
-
+from sqlalchemy import Date, Numeric, String, Table, Text
 from warehouse.bales.adapters.persistence.bale_mapper import BaleMapper
 from warehouse.bales.adapters.persistence.bale_record import BaleRecord
-from warehouse.bales.adapters.persistence.raw_material_batch_mapper import RawMaterialBatchMapper
-from warehouse.bales.adapters.persistence.raw_material_batch_record import RawMaterialBatchRecord
+from warehouse.bales.adapters.persistence.raw_material_batch_mapper import (
+    RawMaterialBatchMapper,
+)
+from warehouse.bales.adapters.persistence.raw_material_batch_record import (
+    RawMaterialBatchRecord,
+)
 from warehouse.bales.domain.bale import Bale
 from warehouse.bales.domain.bale_id import BaleId
 from warehouse.bales.domain.bale_number import BaleNumber
@@ -35,21 +39,21 @@ class PersistenceMapperTest(unittest.TestCase):
 
     def test_records_expose_dialect_neutral_table_column_metadata(self) -> None:
         """Table and column metadata are dialect-neutral and match the expected schema."""
-        self.assertEqual(RawMaterialBatchRecord.__table__.name, "raw_material_batches")
-        self.assertEqual(BaleRecord.__table__.name, "raw_material_bales")
+        self.assertEqual(cast(Table, RawMaterialBatchRecord.__table__).name, "raw_material_batches")
+        self.assertEqual(cast(Table, BaleRecord.__table__).name, "raw_material_bales")
 
         batch_columns = RawMaterialBatchRecord.__table__.c
         self.assertIsInstance(batch_columns.received_at.type, Date)
         self.assertIsInstance(batch_columns.shipment_number.type, String)
-        self.assertEqual(batch_columns.shipment_number.type.length, 10)
+        self.assertEqual(cast(String, batch_columns.shipment_number.type).length, 10)
         self.assertIsInstance(batch_columns.provider_name.type, Text)
         self.assertFalse(batch_columns.provider_name.nullable)
 
         bale_columns = BaleRecord.__table__.c
         self.assertEqual(bale_columns.raw_material_batch_id.nullable, False)
-        self.assertEqual(bale_columns.bale_number.type.length, 10)
-        self.assertEqual(bale_columns.material_type.type.length, 20)
-        self.assertEqual(bale_columns.status.type.length, 40)
+        self.assertEqual(cast(String, bale_columns.bale_number.type).length, 10)
+        self.assertEqual(cast(String, bale_columns.material_type.type).length, 20)
+        self.assertEqual(cast(String, bale_columns.status.type).length, 40)
         for column in ("dtex", "gross_weight_kg", "container_weight_kg"):
             self.assertIsInstance(bale_columns[column].type, Numeric)
             self.assertFalse(bale_columns[column].nullable)

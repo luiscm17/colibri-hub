@@ -1,16 +1,9 @@
 import unittest
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
-from backend.tests.support.http_payloads import bale_reception_payload
-from backend.tests.support.values import (
-    BATCH_ID,
-    DTEX,
-    RECEIVED_AT,
-)
 from bootstrap.api_router import create_api_router
 from bootstrap.http_error_handlers import register_exception_handlers
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from warehouse.bales.adapters.http.router import BaleUseCases
 from warehouse.bales.application import (
     DuplicateBaleNumberError,
@@ -20,6 +13,13 @@ from warehouse.bales.application import (
 )
 from warehouse.bales.domain.domain_errors import InvalidDtexError
 from warehouse.bales.ports.authorization import AuthenticatedIdentity
+
+from backend.tests.support.http_payloads import bale_reception_payload
+from backend.tests.support.values import (
+    BATCH_ID,
+    DTEX,
+    RECEIVED_AT,
+)
 
 
 class RecordingUseCase:
