@@ -1,33 +1,128 @@
 # Local Test Credentials
 
-Stable credentials for the local development stack. Managed by
-`scripts/setup_local_db.py` (not tracked). Passwords persist across test runs
-until the database is reset; the access token does not and is therefore not
-documented in the `.http` files.
+Stable credentials and the manual provisioning flow for the local development
+stack. There is **no tracked setup script**: after a database reset you
+recreate the test users with the manual steps below. This document is a
+temporary aid until the frontend is implemented; it is not product
+documentation.
 
-`pnpm supabase db reset --local --no-seed` removes both Auth users. After every
-reset, start the backend and run the setup helper before attempting sign-in:
+## PRD alignment — why there is no `operator` role
 
-```bash
-uv run --package backend fastapi dev
-# In another terminal:
-uv run --locked --package backend python scripts/setup_local_db.py
-```
+The Access Control PRD (`docs/prd/access-control.md`) forbids using the generic
+name "Operator" for an RBAC preset or technical role: "Machine Operator" is a
+business actor who manipulates production equipment and is not a direct system
+user, so the name would make both concepts ambiguous.
 
-The repository migration seeds the `system_administrator` role, so the tracked
-bootstrap CLI can create an initial administrator. That CLI accepts a
-provisional password and does not create the operator; use the setup helper for
-the two stable accounts below.
+Test roles therefore use the organizational references the PRD explicitly
+allows: `section-responsible` (the minimum responsibility level expected to use
+the system directly) and `supervisor` (read-only operational consultation).
 
 ## Users
 
-| User | Email | Password | Role | State |
-| ---- | ----- | -------- | ---- | ----- |
+| User | Email | Password | Role(s) | State |
+| ---- | ----- | -------- | ------- | ----- |
 | Admin | `admin@colibri.test` | `AdminTest123!` | `system_administrator` | active |
-| Operator | `operator@colibri.test` | `OperatorTest123!` | `operator` | active |
+| Section Responsible | `section@colibri.test` | `SectionTest123!` | `section-responsible` | active |
+| Supervisor | `supervisor@colibri.test` | `SupervisorTest123!` | `supervisor` | active |
 
-The `operator` role grants `read`/`write` on scope
-`yarn_spinning.section.ring_spinning`.
+Test role permission sets (scopes as documented in the scope definitions seed):
+
+- `section-responsible` — `read`/`write`/`edit` on
+  `yarn_spinning.section.ring_spinning`.
+- `supervisor` — `read` on `yarn_spinning.section.ring_spinning`.
+
+## Manual setup after a database reset
+
+`pnpm supabase db reset --local --no-seed` removes both Auth users and the
+application account rows. Recreate them in this order (backend must be
+running):
+
+### 1. Bootstrap the initial System Administrator
+
+```bash
+BOOTSTRAP_EMAIL=admin@colibri.test \
+BOOTSTRAP_PASSWORD=AdminBootstrap123! \
+BOOTSTRAP_USER_CODE=USR-ADM-001 \
+BOOTSTRAP_DISPLAY_NAME="System Administrator" \
+uv run --locked --package backend python -m auth.adapters.bootstrap_command
+```
+
+The bootstrap CLI is the only tracked provisioning path and it is idempotent
+for the same identifiers. The account starts in `awaiting_password_change` with
+the provisional password above.
+
+### 2. Replace the provisional password with the stable one
+
+Sign in with `admin@colibri.test` / `AdminBootstrap123!` (see "Getting an
+access token"), then call the `password-change` request in `auth.http`
+(`current_password` = provisional, `new_password` = `AdminTest123!`).
+
+### 3. Register the yarn spinning scope (if not already registered)
+
+The `access_control` scope is registered by the seed migration; the yarn
+spinning scopes exist as definitions but need registration:
+
+```http
+POST /api/v1/access/scopes
+{ "definition_key": "yarn_spinning.section.ring_spinning", "reason": "Enable test role scope" }
+```
+
+If it returns `409`, the scope is already registered — continue. Get the
+`scope_id` from `GET /api/v1/access/scopes?page=1&page_size=50`.
+
+### 4. Create the test roles
+
+```http
+POST /api/v1/access/roles
+{
+  "role_code": "section-responsible",
+  "role_name": "Section Responsible",
+  "description": "Minimum responsibility level for direct system use",
+  "permissions": [
+    { "action": "read", "scope_id": "<ring_spinning_scope_id>" },
+    { "action": "write", "scope_id": "<ring_spinning_scope_id>" },
+    { "action": "edit", "scope_id": "<ring_spinning_scope_id>" }
+  ],
+  "reason": "Local test fixture"
+}
+```
+
+Repeat for `supervisor` with `read` only. Roles must exist before you provision
+the users that reference them.
+
+### 5. Provision the test users
+
+Use a **temporary provisional password**, different from the documented final
+one: the activation step requires `current != new` (see step 6).
+
+```http
+POST /api/v1/auth/accounts
+{
+  "email": "section@colibri.test",
+  "provisional_password": "TempSection123!",
+  "user_code": "USR-SEC-001",
+  "display_name": "Section Responsible",
+  "role_codes": ["section-responsible"],
+  "reason": "Local test fixture"
+}
+```
+
+Repeat for `supervisor@colibri.test` with `role_codes: ["supervisor"]` and a
+different temporary provisional (e.g. `TempSupervisor123!`).
+
+### 6. Activate the test users
+
+Provisioning leaves the account in `awaiting_password_change`. The mandatory
+password replacement rejects `current_password == new_password`
+(422 `replacement_password_must_differ`), so you cannot provision directly with
+the documented final password. For each user:
+
+1. Sign in with the temporary provisional (see "Getting an access token").
+2. Call the `password-change` request in `auth.http`: `current_password` =
+   the temporary provisional, `new_password` = the documented stable password.
+
+The account transitions `awaiting_password_change -> active`, and the final
+password matches the table at the top of this document.
 
 ## Getting an access token
 
@@ -41,15 +136,17 @@ curl -s -X POST http://127.0.0.1:54321/auth/v1/token?grant_type=password \
   -d '{"email":"admin@colibri.test","password":"AdminTest123!"}' | python3 -m json.tool
 ```
 
-The token request for the operator user is the same, with
-`operator@colibri.test` / `OperatorTest123!`.
+The token request for the other users is the same, with their email and
+password.
 
 ## Resetting to a known state
 
 ```bash
 pnpm supabase db reset --local --no-seed
-uv run --locked --package backend python scripts/setup_local_db.py
+# start the backend, then follow the manual setup steps above
 ```
 
-The setup helper performs the required provisional-password replacements, so
-the documented passwords work immediately after it completes.
+The setup is not a single command: there is intentionally no tracked script
+(the previous `scripts/setup_local_db.py` was never tracked and is not
+restored). The steps above are idempotent — after a reset they rebuild the same
+stable users.

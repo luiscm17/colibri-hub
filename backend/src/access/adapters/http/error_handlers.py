@@ -15,6 +15,7 @@ _ERROR_STATUS_MAP: dict[str, int] = {
     "access_user_not_found": status.HTTP_404_NOT_FOUND,
     "access_role_not_found": status.HTTP_404_NOT_FOUND,
     "access_scope_not_found": status.HTTP_404_NOT_FOUND,
+    "access_preset_not_found": status.HTTP_404_NOT_FOUND,
     # 409
     "duplicate_access_identity": status.HTTP_409_CONFLICT,
     "duplicate_access_user_code": status.HTTP_409_CONFLICT,

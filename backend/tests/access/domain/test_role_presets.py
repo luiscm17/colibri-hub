@@ -1,0 +1,134 @@
+"""Behavior tests for role presets and authorization-version fan-out."""
+import asyncio
+import json
+import unittest
+from contextlib import contextmanager
+from datetime import UTC, datetime
+from typing import Any, cast
+
+from access.adapters.http.error_handlers import access_error_handler
+from access.application.activate_role import ActivateRole
+from access.application.change_role_preset_status import ChangeRolePresetStatus
+from access.application.commands import (
+    ActivateRoleCommand,
+    ChangeRolePresetStatusCommand,
+    CreateRoleFromPresetCommand,
+    CreateRolePresetCommand,
+    DeactivateScopeCommand,
+    PermissionInput,
+    UpdateRolePresetCommand,
+)
+from access.application.create_role_from_preset import CreateRoleFromPreset
+from access.application.create_role_preset import CreateRolePreset
+from access.application.deactivate_scope import DeactivateScope
+from access.application.update_role import UpdateRole
+from access.application.update_role_preset import UpdateRolePreset
+from access.domain.actions import Action, Permission
+from access.domain.errors import (
+    AccessPresetNotFound,
+    DuplicatePresetCode,
+    InactiveAccessPreset,
+    PrivilegedActionRequiresSystemAdministrator,
+)
+from access.domain.roles import Role
+from access.domain.scopes import Scope, ScopeDefinition
+
+NOW = datetime(2025, 1, 1, tzinfo=UTC)
+class Clock:
+    def now(self): return NOW
+class Identity:
+    n = 0
+    def generate_id(self): self.n += 1; return f"id-{self.n}"
+class Tx:
+    @contextmanager
+    def atomic(self): yield
+class Audit:
+    def __init__(self): self.entries = []
+    def append(self, **entry): self.entries.append(entry)
+    def list_recent(self, *, limit=50, offset=0, **_): return self.entries[-limit:]
+    def count(self, **_): return len(self.entries)
+class Presets:
+    def __init__(self): self.items = {}
+    def find_by_id(self, id): return self.items.get(id)
+    def find_by_code(self, code): return next((p for p in self.items.values() if p.preset_code == code), None)
+    def save(self, preset, **_): self.items[preset.preset_id] = preset
+    def list_all(self, **_): return list(self.items.values())
+    def count(self): return len(self.items)
+class Roles:
+    def __init__(self): self.items = {}
+    def find_by_id(self, role_id: str): return self.items.get(role_id)
+    def find_by_code(self, role_code: str): return next((r for r in self.items.values() if r.role_code == role_code), None)
+    def find_system_administrator_role(self): return next((r for r in self.items.values() if r.is_system_administrator), None)
+    def save(self, role, **_): self.items[role.role_id] = role
+    def list_all(self, *, limit=None, offset=0): return list(self.items.values())[offset:][:limit]
+    def count(self): return len(self.items)
+class Scopes:
+    def __init__(self): self.scope = Scope("scope", "scope", "warehouse.raw_materials", "Scope", "Warehouse", "", True, 1, NOW, NOW)
+    def find_by_id(self, scope_id: str): return self.scope if scope_id == "scope" else None
+    def find_by_code(self, scope_code: str): return self.scope if scope_code == self.scope.scope_code else None
+    def list_all(self, *, limit=None, offset=0): return [self.scope][offset:][:limit]
+    def count(self): return 1
+    def save(self, scope): self.scope = scope
+class Definitions:
+    def get(self, definition_key: str): return ScopeDefinition("scope", "warehouse.raw_materials", "Scope", "Warehouse", "", frozenset({Action.READ, Action.WRITE}))
+    def all(self): return [self.get("warehouse.raw_materials")]
+class Users:
+    def __init__(self): self.roles = []; self.scopes = []
+    def bump_authorization_version_for_role(self, role_id: str): self.roles.append(role_id); return []
+    def bump_authorization_version_for_scope(self, scope_id: str): self.scopes.append(scope_id); return []
+    def find_by_subject(self, identity_subject: str): return None
+    def find_by_id(self, user_id: str): return None
+    def save(self, user): pass
+    def list_all(self, *, limit=None, offset=0): return []
+    def count(self): return 0
+    def count_active_administrators(self, *, exclude_user_id: str | None = None, for_update: bool = False) -> int:
+        del exclude_user_id, for_update
+        return 0
+
+class RolePresetTest(unittest.TestCase):
+    def setUp(self): self.presets, self.roles, self.audit, self.identity = Presets(), Roles(), Audit(), Identity()
+    def create(self, code="preset", permissions=None):
+        return CreateRolePreset(preset_repository=self.presets, scope_repository=Scopes(), scope_definition_registry=Definitions(), audit_repository=self.audit, transaction=Tx(), clock=Clock(), identity=self.identity).execute(CreateRolePresetCommand(code, "Preset", None, permissions or [PermissionInput("read", "scope")], "test", "actor", "op"))
+    def test_create_rejects_privileged_and_duplicate_codes(self):
+        with self.assertRaises(PrivilegedActionRequiresSystemAdministrator): self.create(permissions=[PermissionInput("manage_access", "scope")])
+        self.create()
+        with self.assertRaises(DuplicatePresetCode): self.create()
+    def test_update_replaces_permissions_and_snapshot_role_is_independent(self):
+        preset = self.create(); role = CreateRoleFromPreset(preset_repository=self.presets, role_repository=self.roles, audit_repository=self.audit, transaction=Tx(), clock=Clock(), identity=self.identity).execute(CreateRoleFromPresetCommand(preset.preset_id, "role", "Role", None, "test", "actor", "op"))
+        UpdateRolePreset(preset_repository=self.presets, scope_repository=Scopes(), scope_definition_registry=Definitions(), audit_repository=self.audit, transaction=Tx(), clock=Clock()).execute(UpdateRolePresetCommand(preset.preset_id, "Changed", None, [], 1, "test", "actor", "op"))
+        self.assertEqual(len(self.roles.items[role.role_id].permissions), 1); self.assertEqual(len(self.presets.items[preset.preset_id].permissions), 0)
+    def test_inactive_preset_cannot_create_role(self):
+        preset = self.create(); ChangeRolePresetStatus(preset_repository=self.presets, audit_repository=self.audit, transaction=Tx(), clock=Clock()).execute(ChangeRolePresetStatusCommand(preset.preset_id, False, 1, "test", "actor", "op"))
+        with self.assertRaises(InactiveAccessPreset): CreateRoleFromPreset(preset_repository=self.presets, role_repository=self.roles, audit_repository=self.audit, transaction=Tx(), clock=Clock(), identity=self.identity).execute(CreateRoleFromPresetCommand(preset.preset_id, "role", "Role", None, "test", "actor", "op"))
+
+    def test_duplicate_preset_code_maps_to_conflict_error_envelope(self):
+        response = asyncio.run(access_error_handler(cast(Any, None), DuplicatePresetCode()))
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(
+            json.loads(cast(bytes, response.body))["error"]["code"],
+            "duplicate_access_preset_code",
+        )
+
+    def test_preset_not_found_maps_to_not_found_error_envelope(self):
+        response = asyncio.run(access_error_handler(cast(Any, None), AccessPresetNotFound()))
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            json.loads(cast(bytes, response.body))["error"]["code"],
+            "access_preset_not_found",
+        )
+
+class AuthorizationVersionFanoutTest(unittest.TestCase):
+    def test_role_update_requests_fanout_for_assigned_role(self):
+        role = Role("role", "role", "Role", None, False, True, 1, {Permission(Action.READ, "warehouse.raw_materials")}, NOW, NOW); roles, users = Roles(), Users(); roles.save(role)
+        UpdateRole(role_repository=roles, scope_repository=Scopes(), scope_definition_registry=Definitions(), audit_repository=Audit(), transaction=Tx(), clock=Clock(), user_repository=users).execute(__import__("access.application.commands", fromlist=["UpdateRoleCommand"]).UpdateRoleCommand("role", "Role", None, [PermissionInput("read", "scope")], 1, "test", "actor", "op"))
+        self.assertEqual(users.roles, ["role"])
+    def test_role_status_and_scope_status_request_fanout(self):
+        role = Role("role", "role", "Role", None, False, False, 1, set(), NOW, NOW); roles, users, audit = Roles(), Users(), Audit(); roles.save(role)
+        ActivateRole(role_repository=roles, audit_repository=audit, transaction=Tx(), clock=Clock(), user_repository=users).execute(ActivateRoleCommand("role", 1, "test", "actor", "op"))
+        scope_repo = Scopes()
+        DeactivateScope(scope_repository=scope_repo, audit_repository=audit, transaction=Tx(), clock=Clock(), user_repository=users).execute(DeactivateScopeCommand("scope", 1, "test", "actor", "op"))
+        self.assertEqual(users.roles, ["role"]); self.assertEqual(users.scopes, ["scope"])
+
+if __name__ == "__main__": unittest.main()

@@ -9,15 +9,14 @@ Client extension and JetBrains HTTP Client.
 2. Start Supabase: `pnpm supabase start`.
 3. Reset the database: `pnpm supabase db reset --local --no-seed`.
 4. Start backend: `uv run --package backend fastapi dev` (from the repo root).
-5. In another terminal, prepare test users: `uv run --locked --package backend python scripts/setup_local_db.py`.
+5. Provision the test users following the manual steps in `CREDENTIALS.md`.
 6. Run requests from these files.
 
-`scripts/setup_local_db.py` bootstraps the initial System Administrator,
-registers the operator role/scope, and provisions an active operator user.
-It is not tracked (see `.gitignore`) and requires the backend to be running.
-The tracked bootstrap CLI creates only the provisional administrator; it does
-not create the operator or replace either provisional password with the stable
-credentials in `CREDENTIALS.md`.
+There is no tracked setup script. After a database reset, follow the manual
+provisioning flow in `CREDENTIALS.md`: bootstrap the initial System
+Administrator with the tracked CLI, replace the provisional password, register
+the needed scopes, create the test roles, and provision the test users through
+the admin API. This is temporary until the frontend is implemented.
 
 ## Credentials and tokens
 

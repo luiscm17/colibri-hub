@@ -8,7 +8,7 @@
 @token = <paste_access_token_here>
 
 # Credentials: see CREDENTIALS.md (admin@colibri.test / AdminTest123!,
-# operator@colibri.test / OperatorTest123!).
+# section@colibri.test / SectionTest123!, supervisor@colibri.test / SupervisorTest123!).
 
 ### ─────────────────────────────────────────────────────
 ### Sign in (Supabase Auth) — get access_token
@@ -61,8 +61,11 @@ Authorization: Bearer {{token}}
 
 ### ─────────────────────────────────────────────────────
 ### POST /auth/accounts — provision new account (admin)
-### ⚠ role_codes must exist in Access Control; `operator` is created
-###   by scripts/setup_local_db.py.
+### ⚠ role_codes must exist in Access Control; `section-responsible`
+###   and `supervisor` are created in the manual setup (CREDENTIALS.md).
+### ⚠ provisional_password must be a TEMPORARY value, different from the
+###   documented final password: activation requires current != new
+###   (see CREDENTIALS.md step 6).
 ### ─────────────────────────────────────────────────────
 
 POST {{host}}/api/v1/auth/accounts
@@ -70,12 +73,12 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "email": "operator@colibri.test",
-  "provisional_password": "TempPass123!",
-  "user_code": "USR-002",
-  "display_name": "Operator User",
-  "role_codes": ["operator"],
-  "reason": "New operator for spinning section"
+  "email": "section@colibri.test",
+  "provisional_password": "TempSection123!",
+  "user_code": "USR-SEC-001",
+  "display_name": "Section Responsible",
+  "role_codes": ["section-responsible"],
+  "reason": "Provision section responsible for spinning section"
 }
 
 ### ─────────────────────────────────────────────────────
@@ -93,7 +96,7 @@ Authorization: Bearer {{token}}
 ### ⚠ expected_version must equal the account's current version
 ###   (see GET /auth/accounts/{id}); reset only works on an ACTIVE
 ###   account, not one awaiting_password_change. Post-setup example:
-###   operator version is 2 → use 2, then 3 for disable, 4 for enable.
+###   section version is 2 → use 2, then 3 for disable, 4 for enable.
 ### ─────────────────────────────────────────────────────
 
 POST {{host}}/api/v1/auth/accounts/{{account_id}}/password-reset

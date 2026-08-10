@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from types import TracebackType
+from typing import Self
 from uuid import UUID
 
 from warehouse.bales.domain.bale import Bale
@@ -39,6 +40,14 @@ class RecordingBaleRepository:
         self.events.append("bales")
         self.bales = tuple(bales)
 
+    def find_for_delivery(self, shipment_number: str, bale_number: str) -> Bale | None:
+        del shipment_number, bale_number
+        return None
+
+    def update_delivery(self, bale: Bale) -> bool:
+        del bale
+        return True
+
 
 class RecordingTransaction:
     """Transaction double that records lifecycle events and can simulate a commit error."""
@@ -47,7 +56,7 @@ class RecordingTransaction:
         self.events = events
         self.commit_error = commit_error
 
-    def __enter__(self) -> "RecordingTransaction":
+    def __enter__(self) -> Self:
         self.events.append("enter")
         return self
 

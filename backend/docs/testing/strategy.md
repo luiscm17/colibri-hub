@@ -28,16 +28,19 @@ Location: `backend/tests/`
 Run all unit tests:
 
 ```bash
-uv run --locked python -m unittest discover -s backend/tests -v
+uv run --locked --package backend python -m unittest discover -s backend/tests -v
 ```
 
 Run a specific module:
 
 ```bash
-uv run --locked python -m unittest backend.tests.domain.test_core_contracts -v
+uv run --locked --package backend python -m unittest backend.tests.warehouse.domain.test_core_contracts -v
 ```
 
-Focus a class or method by appending its dotted name to the module command.
+Unit-test modules use the `test_{name}.py` suffix and live in context-first,
+layer-second packages under `backend/tests/`; every test package includes
+`__init__.py`. Focus a class or method by appending its dotted name to the
+module command.
 
 ### Integration Tests
 
@@ -94,7 +97,7 @@ This means unit tests:
 
 ```bash
 # Unit tests (no external dependencies)
-uv run --locked python -m unittest discover -s backend/tests -v
+uv run --locked --package backend python -m unittest discover -s backend/tests -v
 
 # Integration tests (requires local Supabase running)
 TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres \
