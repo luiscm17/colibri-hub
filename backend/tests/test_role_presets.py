@@ -15,7 +15,7 @@ from access.application.deactivate_scope import DeactivateScope
 from access.application.commands import ActivateRoleCommand, DeactivateScopeCommand
 from access.adapters.http.error_handlers import access_error_handler
 from access.domain.actions import Action, Permission
-from access.domain.errors import DuplicatePresetCode, InactiveAccessPreset, PrivilegedActionRequiresSystemAdministrator
+from access.domain.errors import DuplicatePresetCode, InactiveAccessPreset, PrivilegedActionRequiresSystemAdministrator, AccessPresetNotFound
 from access.domain.presets import RolePreset
 from access.domain.roles import Role
 from access.domain.scopes import Scope, ScopeDefinition
@@ -78,6 +78,15 @@ class RolePresetTest(unittest.TestCase):
         self.assertEqual(
             json.loads(response.body)["error"]["code"],
             "duplicate_access_preset_code",
+        )
+
+    def test_preset_not_found_maps_to_not_found_error_envelope(self):
+        response = asyncio.run(access_error_handler(None, AccessPresetNotFound()))
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            json.loads(response.body)["error"]["code"],
+            "access_preset_not_found",
         )
 
 class AuthorizationVersionFanoutTest(unittest.TestCase):
