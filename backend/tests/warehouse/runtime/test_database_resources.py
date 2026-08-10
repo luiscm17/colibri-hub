@@ -75,7 +75,6 @@ class DatabaseResourceTests(unittest.TestCase):
         factory = RecordingSessionFactory()
         provider = session_dependency(factory)
 
-        # Normal path: yield session, then commit + close
         normal = provider()
         session = next(normal)
         self.assertIs(session, factory.sessions[0])
@@ -85,7 +84,6 @@ class DatabaseResourceTests(unittest.TestCase):
         self.assertFalse(factory.sessions[0].rolled_back)
         self.assertTrue(factory.sessions[0].closed)
 
-        # Exception path: yield session, then rollback + close
         exceptional = provider()
         next(exceptional)
         with self.assertRaises(RuntimeError):

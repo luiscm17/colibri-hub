@@ -64,7 +64,7 @@ class ApplicationCompositionTests(unittest.TestCase):
 
     def test_entrypoint_passes_its_adjacent_env_path_without_reading_dotenv(self) -> None:
         """The entrypoint main.py passes its sibling .env path to create_app without loading dotenv."""
-        main_path = Path(__file__).parents[2] / "main.py"
+        main_path = Path(__file__).parents[3] / "main.py"
         with tempfile.TemporaryDirectory() as directory:
             original_directory = Path.cwd()
             os.chdir(directory)
