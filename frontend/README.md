@@ -48,6 +48,6 @@ See [frontend/docs/](docs/README.md) for detailed documentation:
 - [Architecture Overview](docs/architecture/overview.md)
 - [Design System / Visual Identity](docs/design-system/visual-identity.md)
 - [Feature Specs](docs/features/bale-management.md)
-- [Patterns](docs/patterns/data-grid.md)
+- [Editable batch grid pattern](docs/patterns/editable-batch-grid.md)
 
 For product requirements and system architecture, see [docs/](../docs/README.md).

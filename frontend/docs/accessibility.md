@@ -1,110 +1,97 @@
 ---
 document_type: technical-spec
 status: draft
-implementation: not-started
+implementation: not-applicable
 scope: frontend/accessibility
 authority: explanatory
 owner: frontend
-last_reviewed: 2026-07-27
+last_reviewed: 2026-08-11
 ---
 
 # Frontend Accessibility Guidelines
 
-Accessibility requirements and implementation guidelines for the Colibri Hub frontend application. Target conformance: **WCAG 2.1 Level AA**.
-
-> **Note:** Full WCAG validation requires manual testing with assistive technologies (screen readers, switch devices) and expert accessibility review. Automated checks catch approximately 30–50% of potential issues.
+This document defines transversal accessibility requirements for the Colibri Hub
+frontend. Target conformance is **WCAG 2.1 Level AA**. Feature specifications add
+only capability-specific semantics and outcomes.
 
 ---
 
-## 1. Keyboard Navigation
+## 1. Operability And Focus
 
 All interactive elements must be operable via keyboard alone.
 
-- Every focusable element must have a visible focus indicator
-- Tab order must follow a logical reading sequence (no positive `tabIndex` values)
-- Modal dialogs must trap focus while open and return focus on close
-- Custom components (dropdowns, date pickers) must support standard keyboard patterns:
-  - `Enter`/`Space` to activate
-  - `Escape` to dismiss
-  - Arrow keys for option navigation where applicable
-- Skip-to-content link must be present as the first focusable element
-
-### Data Grid Specifics
-
-The editable data grid (react-data-grid) requires additional keyboard support:
-
-- Arrow keys navigate between cells
-- `Enter` activates cell editing
-- `Escape` cancels in-progress edits
-- `Tab` moves to the next editable cell within a row
+- Every focusable element has a visible focus indicator.
+- Focus order follows the reading and task sequence without positive tab-order
+  overrides.
+- Composite widgets follow the established keyboard interaction for their
+  exposed semantics.
+- Overlays contain focus while active when required and restore it to a logical
+  origin or successor when closed.
+- Focus moves intentionally after navigation, validation failure, destructive
+  change, and asynchronous completion; it is not reset without user benefit.
+- Repeated navigation can be bypassed where it would otherwise obstruct access
+  to primary content.
 
 ---
 
-## 2. Color Contrast
+## 2. Perception And Visual Presentation
 
-Mantine's theme system provides baseline contrast compliance, but custom overrides must be verified.
+- Text meets a minimum contrast ratio of **4.5:1**, or **3:1** for large text.
+- Meaningful graphical objects, focus indicators, and interactive boundaries meet
+  **3:1** against adjacent colors where WCAG requires it.
+- Color is never the only means of communicating status, selection, validation,
+  or required action.
+- Content remains understandable under supported zoom, text resizing, reflow,
+  and color-scheme conditions.
+- Essential information is available without relying on animation, and reduced
+  motion preferences are respected.
 
-- Text on background must meet a minimum contrast ratio of **4.5:1** (normal text) or **3:1** (large text)
-- Interactive element boundaries must meet **3:1** against adjacent colors
-- Status indicators (success, error, warning) must not rely solely on color — use icons or text labels as secondary indicators
-- Custom theme tokens extending Mantine defaults must be checked against WCAG contrast requirements
-
----
-
-## 3. ARIA Labeling
-
-### General Requirements
-
-- Every form input must have an associated `<label>` element or `aria-label`/`aria-labelledby` attribute
-- Icon-only buttons must include `aria-label` describing the action
-- Loading states must use `aria-busy="true"` on the affected region
-- Dynamic content updates must use `aria-live` regions (polite for non-urgent, assertive for errors)
-
-### Data Grid ARIA
-
-The data grid component requires explicit ARIA attributes because its structure diverges from native HTML tables:
-
-- Grid container: `role="grid"` with `aria-label` describing the dataset
-- Row headers: `role="rowheader"` on identifying cells (e.g., bale number)
-- Column headers: `role="columnheader"` with sort state via `aria-sort`
-- Editable cells: `aria-readonly="false"` when in edit mode
-- Selection state: `aria-selected` on selected rows
-- Row count: `aria-rowcount` reflecting total rows (including off-screen for virtual scroll)
-
-### Notifications
-
-- Toast notifications (Mantine notifications) should use `role="status"` for info/success and `role="alert"` for errors
-- Notification content must be concise and actionable
+The [Visual Identity](design-system/visual-identity.md) owns semantic token
+definitions. Every applied combination still requires contrast and perception
+validation; a component library or token name does not guarantee compliance.
 
 ---
 
-## 4. Screen Reader Considerations
+## 3. Semantics, Names, And Feedback
 
-- Page titles must update on route changes (reflect current view)
-- Headings must follow a logical hierarchy (`h1` → `h2` → `h3`, no skipped levels)
-- Decorative images use `alt=""` (empty alt); informative images use descriptive alt text
-- Tables and grids must expose row/column context to assistive technology
-- Form validation errors must be programmatically associated with the invalid field via `aria-describedby`
-- Route transitions should announce the new page context (e.g., via a visually hidden live region)
-
----
-
-## 5. Implementation Priorities
-
-| Priority | Area | Rationale |
-| --- | --- | --- |
-| High | Keyboard navigation in data grid | Core workflow; power users rely on keyboard |
-| High | Form validation error association | Blocks task completion for screen reader users |
-| Medium | Color contrast verification | Mantine provides decent defaults; custom tokens need audit |
-| Medium | ARIA on notification toasts | Affects real-time feedback for non-sighted users |
-| Low | Skip-to-content link | Important for navigation-heavy pages; less critical for single-view app |
+- Prefer native semantics. Custom interactions expose an equivalent role, name,
+  value, state, and relationship when native elements cannot express the need.
+- Every control has an accessible name that describes its purpose; visible labels
+  and accessible names remain consistent.
+- Instructions, descriptions, and validation errors are programmatically
+  associated with the control or region they explain.
+- Headings, landmarks, lists, tables, and other structures preserve meaningful
+  reading and navigation relationships.
+- Loading, completion, validation, and error updates are announced with urgency
+  appropriate to their effect without producing repetitive noise.
+- Feedback is concise, actionable, and available through more than visual
+  placement alone.
 
 ---
 
-## 6. Testing Approach
+## 4. Content And Navigation
 
-- Automated: axe-core integration in component tests catches structural violations
-- Manual: periodic screen reader walkthroughs (VoiceOver on macOS, NVDA on Windows)
-- Review: accessibility audit before major feature releases
+- Page titles and the announced page context identify the active view after
+  navigation.
+- Heading levels and landmarks describe the content hierarchy consistently.
+- Informative non-text content has an equivalent text alternative; decorative
+  content is ignored by assistive technology.
+- Link and control purpose is understandable from its accessible name and
+  relevant context.
+- Language, terminology, instructions, and errors are clear and consistent.
 
-See [Testing Strategy](testing/strategy.md) for tooling details.
+---
+
+## 5. Validation Responsibilities
+
+Feature teams validate applicable requirements through a combination of:
+
+- automated checks for deterministic structural failures;
+- keyboard-only interaction and focus review;
+- screen-reader validation of names, states, relationships, and announcements;
+- visual review of contrast, zoom, reflow, color independence, and motion; and
+- scenario review for error recovery and task completion.
+
+The [Testing Strategy](testing/strategy.md) owns validation levels and automation
+boundaries. The [Editable Batch Grid](patterns/editable-batch-grid.md) owns the
+additional observable contract for that interaction pattern.

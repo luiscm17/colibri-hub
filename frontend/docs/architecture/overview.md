@@ -135,7 +135,8 @@ shared infrastructure:
 - **Styling:** presentation follows the frontend styling policy and design
   system; feature specifications do not duplicate framework tutorials.
 - **Testing:** feature specifications define observable scenarios; the frontend
-  testing strategy owns test layers, tooling, and conventions.
+  testing strategy owns test levels, responsibilities, and completion criteria;
+  manifests and configuration own available tools and executable commands.
 - **Security:** tokens, credentials, provider identities, and authorization data
   are exposed only to the narrow boundaries that require them.
 - **Errors:** presentation distinguishes validation, authorization, concurrency,
