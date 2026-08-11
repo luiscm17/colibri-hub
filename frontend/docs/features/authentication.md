@@ -8,581 +8,672 @@ owner: frontend
 
 # Technical Specification - Frontend Authentication
 
-> **Normative PRD:** [Authentication](../../../docs/prd/auth.md)
+> **Normative PRDs:** [Authentication](../../../docs/prd/auth.md) and
+> [Access Control](../../../docs/prd/access-control.md)
 >
-> This document defines frontend implementation. The PRD remains authoritative
-> for account, credential, session, and audit behavior.
+> The PRDs are authoritative for business behavior. This specification defines
+> the frontend consequences of those rules and the implemented contracts it
+> consumes.
 
-**Product:** Colibri Hub  
-**Capability:** Authentication  
-**Type:** Technical Specification - Frontend  
-**Complementary specifications:** [Backend Authentication](../../../backend/docs/features/authentication.md), [Frontend Access Control](access-control.md)
+## 1. Purpose and boundary
 
-## 1. Executive Summary
+The Authentication frontend establishes an observable application identity from
+a provider-owned browser session, validates the corresponding Colibri Hub
+account, enforces mandatory password replacement, ends local use of sessions,
+and presents account administration. A provider session alone never admits
+protected content: `GET /api/v1/auth/me` must first validate the application
+account and state the next step.
 
-The frontend uses `@supabase/supabase-js` for ordinary email/password login,
-provider-session persistence, token refresh, restoration, and local sign-out.
-FastAPI remains the trusted application boundary for account-state validation,
-mandatory password replacement, audit coordination, and all privileged account
-administration.
+Authentication owns entry, credentials, account state, and session UX. Access
+Control separately owns profiles, roles, permissions, business scopes,
+authorization bootstrap, and permitted destinations. Their unified System
+Administrator workspace consumes both contracts without merging ownership.
 
-Authentication and Access Control remain separate providers:
+Supabase browser Auth is the browser identity and session boundary because its
+persisted sessions, automatic refresh, session events, and sign-out behavior
+materially define browser continuity. The backend remains authoritative for
+application account state, mandatory replacement,
+administrative mutations, audit evidence, and every protected request. The
+frontend neither validates tokens nor treats visibility or navigation as a
+security boundary.
 
-- The authentication provider answers whether a verified session exists and whether password replacement is required.
-- The access provider loads the access profile and effective permissions only after Authentication is active.
+Implementation follows the [Frontend Architecture Overview](../architecture/overview.md).
+Technology families are owned by the
+[Technology Baseline](../../../docs/architecture/technology-baseline.md), exact
+dependencies by repository manifests, styling by
+[Frontend Styling](../../../docs/dev-guide/frontend-styling.md) and
+[Visual Identity](../design-system/visual-identity.md), accessibility by the
+[Accessibility Guidelines](../accessibility.md), and verification levels by the
+[Frontend Testing Strategy](../testing/strategy.md).
 
-```mermaid
-flowchart TD
-    A[Supabase session restore or login] --> B[Backend account check]
-    B -->|Change required| C[Mandatory password page]
-    B -->|Active| D[Load Access profile]
-    B -->|Denied| E[Login page]
-    C -->|Password replaced; same time-box| D
-    D --> F[Authorized application]
-```
+## 2. Authentication state contract
 
-The administrative account form is unified: it collects account information,
-a provisional password, and initial Access Control roles, then submits one
-backend request. Authentication screens own credentials and account lifecycle;
-Access Control screens own roles, scopes, presets, permissions, and
-authorization configuration.
+### 2.1 States
 
-## 2. Related Documents and Authority
+Authentication state is exactly one of:
 
-- [Authentication PRD](../../../docs/prd/auth.md) - normative business rules.
-- [Access Control PRD](../../../docs/prd/access-control.md) - normative authorization rules.
-- [Backend Authentication](../../../backend/docs/features/authentication.md) - API, provider, and error contract.
-- [Frontend Access Control](access-control.md) - authorization provider and administration contract.
-- [UI Requirements](../../../docs/prd/ui-requirements.md) - global navigation and interaction requirements.
-- [Frontend Architecture Overview](../architecture/overview.md) - frontend architectural baseline.
-- [Frontend Accessibility](../accessibility.md) - accessibility requirements.
-- [Frontend Testing Strategy](../testing/strategy.md) - test layers.
-- [Supabase JavaScript client initialization](https://supabase.com/docs/reference/javascript/initializing) - browser client configuration.
-- [Supabase password login](https://supabase.com/docs/reference/javascript/auth-signinwithpassword) - ordinary login.
-- [Supabase sign-out](https://supabase.com/docs/reference/javascript/auth-signout) - session termination.
-
-When documents conflict:
-
-1. The Authentication PRD prevails for account and session behavior.
-2. The Access Control PRD prevails for roles and permissions.
-3. The backend Authentication specification prevails for consumed API contracts.
-4. This specification prevails for frontend implementation details.
-
-## 3. Objectives
-
-### 3.1 Functional Objectives
-
-- Sign in with organizational email and password.
-- Restore a persisted provider session only after backend account validation.
-- Route provisional accounts exclusively to mandatory password replacement.
-- Prevent protected content from rendering while Authentication is unresolved.
-- End the session on logout and clear Authentication and Access state.
-- Respond consistently to provider expiration, refresh failure, disablement, and backend denial.
-- Provide unified provisioning with initial Access roles.
-- Provide account listing, detail, reset, disablement, enablement, and audit screens.
-- Present generic login denial without revealing account existence or state.
-- Direct active users to an actually authorized default area.
-
-### 3.2 Technical Objectives
-
-- Keep provider SDK calls behind one frontend Authentication adapter.
-- Let the Supabase SDK own session persistence and refresh.
-- Keep tokens out of React presentation models, route state, logs, and duplicate storage.
-- Attach the current access token centrally to backend requests.
-- Keep Authentication state separate from Access authorization state.
-- Make restoration, refresh, logout, expiration, and state clearing deterministic.
-- Use the established frontend architecture, components, router, error envelope, and testing conventions.
-
-## 4. Scope
-
-### 4.1 Included
-
-- Supabase browser-client initialization.
-- Email/password login through the provider SDK.
-- Provider session restoration, refresh observation, and clearing.
-- Backend account-state verification.
-- Mandatory provisional-password replacement through the backend.
-- Logout and expired-session handling.
-- Authentication route boundaries.
-- Bearer-token integration with the shared HTTP client.
-- Unified account provisioning.
-- Account list, detail, password reset, disablement, enablement, and audit UI.
-- Integration with Access bootstrap, role selection, and authorized navigation.
-- Loading, error, accessibility, and automated test requirements.
-
-### 4.2 Excluded
-
-- Public registration.
-- Email invitations, magic links, OTP, OAuth, SSO, passkeys, phone login, or MFA.
-- Forgotten-password and self-service recovery screens.
-- Voluntary password change for an Active account.
-- Session-duration settings.
-- Mailbox administration.
-- Account deletion.
-- Frontend ownership of JWT validation, revocation guarantees, password policy, roles, permissions, or authorization decisions.
-- Direct browser access to application database tables.
-- A second custom token or session store.
-
-## 5. Technology and Configuration
-
-Add `@supabase/supabase-js` as the browser Authentication dependency. The
-provider adapter receives only public browser configuration:
-
-- `VITE_SUPABASE_URL`;
-- `VITE_SUPABASE_PUBLISHABLE_KEY`.
-
-Administrative secrets and service-role credentials are prohibited from
-`VITE_*` variables and frontend bundles.
-
-```typescript
-createClient(supabaseUrl, publishableKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false,
-  },
-})
-```
-
-`detectSessionInUrl` is disabled because the capability has no link, OAuth, OTP,
-or recovery redirect flow. Supabase persistence is the only browser token store.
-
-## 6. Frontend Authentication Model
-
-### 6.1 State Machine
-
-Authentication presentation state is exactly one of:
-
-| Status | Carries | Meaning |
+| State | Carries | Meaning |
 | --- | --- | --- |
-| `initializing` | — | Provider restore or initial check in progress |
-| `unauthenticated` | reason: `logged-out` \| `expired` \| `denied` | No usable session |
-| `password-change-required` | account | Verified session; mandatory replacement pending |
-| `authenticated` | account | Verified session; Access bootstrap may start |
-| `unavailable` | retryable: boolean | Provider or backend outage |
+| `initializing` | none | Initial provider restoration and account validation are unresolved |
+| `unauthenticated` | reason: `logged-out`, `expired`, or `denied` | No usable application session exists |
+| `password-change-required` | account | The account is validated but only mandatory replacement, state inspection, and logout are available |
+| `authenticated` | account with `next_step=load_access` | Authentication is eligible to hand off to Access |
+| `unavailable` | retryable | Provider or backend availability prevents a trustworthy result |
 
-The account carried by the password-change and authenticated states contains
-`accountId`, `email`, and `displayName`.
+The account model contains only the normalized non-secret account identity needed
+for presentation: account identifier, organizational email, display name,
+account status, and next step. Transport fields are validated and normalized at
+the Authentication boundary. Provider users, sessions, tokens, token claims,
+password flags, private metadata, roles, and permissions are not presentation
+state.
 
-`initials` is not part of the backend `GET /api/v1/auth/me` contract; the UI
-derives them locally from `displayName` when needed. `version` is also absent
-from the session contract and belongs only to the administrative account
-detail, where it supports optimistic-concurrency mutations (§13.2, §14.2).
+Only `authenticated` may initiate Access bootstrap. `initializing`,
+`password-change-required`, and `unavailable` expose no protected content.
 
-Provider tokens, refresh tokens, session objects, role names, and permission
-sets are not fields of this presentation state. The provider adapter supplies
-the access token to the HTTP client through a narrow asynchronous accessor.
+### 2.2 Complete transitions
 
-### 6.2 Provider Event Handling
-
-The authentication provider subscribes once to provider authentication-state
-changes. It:
-
-- updates the token accessor after login, restoration, or refresh;
-- validates the application account through `GET /api/v1/auth/me` before rendering protected content;
-- never trusts the locally restored provider user as sufficient application identity;
-- clears Authentication and Access state on sign-out or unrecoverable refresh failure;
-- avoids navigation inside low-level provider callbacks; and
-- unsubscribes during provider disposal.
-
-### 6.3 Access Relationship
-
-| Authentication state | Access behavior |
+| Current condition and event | Required transition and observable result |
 | --- | --- |
-| `initializing` | Wait; do not request `/access/me` |
-| `unauthenticated` | Clear Access state |
-| `password-change-required` | Clear Access state; do not request `/access/me` |
-| `authenticated` | Load `/access/me` |
-| `unavailable` | Suspend Access state and expose no protected content |
+| Application starts | Enter `initializing`; expose neither prior account nor protected content |
+| Restore finds no provider session | Enter `unauthenticated/logged-out` |
+| Restore or login yields a provider session | Validate it through `/auth/me` before publishing an account |
+| `/auth/me` returns `next_step=change_password` | Enter `password-change-required`; clear Access and allow only the restricted Authentication experience |
+| `/auth/me` returns `next_step=load_access` | Enter `authenticated` and issue one semantic handoff to Access |
+| Login credentials or account validation are denied | Clear the provider-owned browser session and sensitive state; enter `unauthenticated/denied` |
+| Session expires, refresh becomes unrecoverable, or a protected request reports an ended session | Clear provider, Authentication, Access, and sensitive state; enter `unauthenticated/expired` and move to sign-in |
+| Current account becomes disabled or reset and the backend denies its session | Apply the same ended-session outcome without waiting for a provider event |
+| Provider or backend is unavailable during initial resolution | Enter `unavailable`; protected content remains absent |
+| Provider or backend is unavailable after a validated state | Do not publish a different account or an unvalidated state; present non-destructive retry only where the existing state remains trustworthy, otherwise enter `unavailable` |
+| Retry from `unavailable` with a current provider session | Revalidate `/auth/me`; publish only the latest matching result |
+| Retry from `unavailable` without a provider session | Enter `unauthenticated/logged-out` |
+| Password replacement returns `204` | Clear password fields and revalidate `/auth/me` using the existing session |
+| Revalidation after replacement returns `load_access` | Enter `authenticated`; preserve the original session time-box and hand off once to Access |
+| Provider invalidates the session during replacement | Clear all session-dependent state and enter `unauthenticated/expired` |
+| Logout is requested from any session-bearing state | Perform the termination sequence in Section 3.4, then enter `unauthenticated/logged-out` |
 
-No Authentication component imports role names, scope codes, or permission
-evaluation logic.
+### 2.3 Access handoff
 
-## 7. Feature Architecture
+Authentication supplies the exact semantic conditions consumed by the sibling
+[Access specification](access-control.md):
 
-### 7.1 Layer Responsibilities
+| Authentication condition | Access consequence |
+| --- | --- |
+| Unresolved | `waiting-for-authentication`; do not request Access |
+| Unauthenticated or ended | Clear prior Access, enter `waiting-for-authentication`, and do not request Access |
+| Password change required | Clear prior Access, enter `waiting-for-authentication`, and expose no protected capability |
+| Authenticated and eligible with `next_step=load_access` | Enter Access `loading` and bootstrap Access |
+| Authentication unavailable | Enter Access `unavailable`; do not request Access |
 
-The Authentication feature follows the project's frontend architecture and
-conventions. File organization, naming, and splitting decisions follow that
-documentation rather than this specification.
+Repeated provider events or equivalent account-validation results do not duplicate
+Access bootstrap, destination selection, or navigation for the same relevant
+session transition. Authentication communicates conditions and transitions, not
+Access implementation topology.
 
-**API layer** owns the typed backend contract: request bodies, response types,
-wire mapping to frontend camel-case models, and HTTP error classification for
-Authentication endpoints.
+## 3. Provider and session contract
 
-**Provider adapter** owns Supabase browser-client initialization, session
-restoration, refresh observation, and clearing. It exposes the access token
-through a narrow asynchronous accessor and never leaks provider objects to
-pages.
+### 3.1 Browser boundary
 
-**Context and hooks** expose the session state and the account-administration
-hooks; pages depend on the Authentication context and API layer.
+The browser receives only the public provider URL and public publishable key.
+Administrative credentials and service-role secrets are prohibited from public
+configuration and frontend artifacts. Unsupported link, recovery, registration,
+and identity-provider flows remain unavailable.
 
-**Presentation** owns the login, mandatory password replacement, and unified
-account-administration screens (list, detail, create, reset, disable, enable,
-audit), plus boundary components that gate rendering on Authentication state.
+The provider SDK exclusively owns browser session persistence, restoration,
+access-token refresh, and local sign-out. The application creates no parallel
+token store, session registry, session deadline, or persisted token copy. Backend
+requests obtain the current access token through one centralized asynchronous
+boundary; presentation never reads or receives it.
 
-Provider code does not leak into pages or Access Control. Pages depend on the
-Authentication context and API layer.
+### 3.2 Event normalization and races
 
-## 8. Session Bootstrap and Refresh
+Provider restoration, login, refresh, and sign-out events are normalized into the
+state transitions in Section 2. Exactly one authoritative `/auth/me` validation
+may publish an account for each relevant session transition.
 
-### 8.1 Application Startup
+- A newer provider event invalidates pending validation for the prior session.
+- A response may publish state only if it still belongs to the current provider
+  session and latest validation attempt.
+- Duplicate events for the same effective session state are deduplicated.
+- A stale success cannot restore a signed-out, expired, replaced, or disabled
+  account; a stale failure cannot overwrite a newer valid result.
+- Navigation is a consequence of the published semantic state, not of a
+  low-level provider callback.
 
-1. Initialize the authentication provider in the `initializing` state.
-2. Ask the provider adapter for the persisted Supabase session.
-3. If no session exists, become `unauthenticated`.
-4. If a session exists, expose its access token only to the HTTP client.
-5. Call `GET /api/v1/auth/me`.
-6. Map `next_step=change_password` to `password-change-required`.
-7. Map `next_step=load_access` to `authenticated`, then allow Access bootstrap.
-8. On invalid, expired, disabled, or unmapped identity, clear the provider session and become `unauthenticated`.
-9. On a retryable backend outage, become `unavailable` without rendering protected content.
+Initial resolution has no protected snapshot to retain. A non-destructive retry
+may retain clearly identified, still-trustworthy content while showing refresh
+progress, but it must not present stale identity as newly validated. Changing
+accounts clears or marks the previous account as non-current before any new
+result, so one person's details never flash as another person's.
 
-### 8.2 Token Refresh
+### 3.3 Time-box and backend denial
 
-The Supabase SDK refreshes tokens and applies its configured eight-hour session
-time-box. Provider events update the central token accessor. The frontend does
-not calculate or extend a second application-session deadline.
+The session has a fixed maximum of eight hours from the login that created it.
+Provider persistence and refresh own browser continuity; backend validation is
+authoritative for whether a protected request remains usable. The frontend does
+not calculate, restart, or extend the maximum. Mandatory password replacement
+continues the original session for only its remaining time.
 
-Refresh failure clears provider, Authentication, and Access state and presents
-an expired-session message. Backend rejection remains authoritative for
-application-account disablement and Access Control denial.
+An Authentication `401` or equivalent ended-session outcome clears session-bound
+state and returns to sign-in. A mutation is never automatically replayed after
+refresh or reauthentication. Access denial is handled by Access and does not by
+itself imply that Authentication ended.
 
-### 8.3 Backend `401` Handling
+### 3.4 Logout
 
-The HTTP client performs at most one controlled revalidation attempt when an
-expired token can be refreshed safely. If refresh or revalidation fails, it:
+Logout has this observable sequence:
 
-1. clears the provider session;
-2. clears Authentication and Access state;
-3. redirects to login; and
-4. presents a non-sensitive expiration message.
+1. While a token remains available, attempt `DELETE /api/v1/auth/session` so the
+   backend can record and request termination of the current session.
+2. Regardless of backend success, perform provider-owned local sign-out and clear
+   its browser session state.
+3. Clear token access, Authentication state, Access state, sensitive query data,
+   secret drafts, and authorization-dependent drafts.
+4. Navigate to the addressable sign-in destination as `logged-out`.
 
-Requests are not replayed automatically when they may mutate data unless the
-shared HTTP policy explicitly marks them safe and idempotent.
+The sequence accepts one pending logout and is locally idempotent. Failure of the
+backend request must not trap the user in the protected experience. The frontend
+guarantees observable browser termination and clearing. It does not represent
+`DELETE /api/v1/auth/session` as immediate access-token revocation: an already
+issued provider JWT may remain technically valid until its expiry even after its
+browser session is signed out. Provider sign-out scope beyond this browser is not
+implied unless a supported administrative flow explicitly requests it.
 
-## 9. Login Flow
+## 4. Entry experience
 
-### 9.1 Form
+### 4.1 Sign-in destination and return intent
 
-The login form contains:
+Sign-in is addressable and may carry a validated return intent to a protected
+destination. The intent contains no credentials or secret state. After successful
+Authentication, Access resolves authorization before navigation:
 
-- organizational email with `autocomplete="username"`;
-- password with `autocomplete="current-password"`;
-- submit action;
-- generic denial feedback; and
-- loading state that prevents duplicate submission.
+- use the intended destination only when it is valid and permitted;
+- otherwise use the first permitted destination;
+- when no active Access is available, use the Access-owned blocked outcome; and
+- never use return intent to bypass Access bootstrap or destination checks.
 
-### 9.2 Submission
+An already authenticated user entering sign-in follows the same Access-aware
+destination resolution. A password-change-required user is sent only to the
+mandatory replacement experience.
 
-1. Call `supabase.auth.signInWithPassword({ email, password })` through the provider adapter.
-2. On provider denial, clear the password and show the generic Authentication failure message.
-3. On success, treat the resulting provider session as the start of the fixed eight-hour maximum and make its access token available only to the HTTP client.
-4. Call `GET /api/v1/auth/me` to validate the Colibri Hub account state.
-5. For `next_step=change_password`, keep the same session restricted to Authentication state inspection, mandatory replacement, and logout.
-6. For `next_step=load_access`, begin Access bootstrap.
-7. After Access loads, navigate to the first authorized destination rather than a hard-coded workspace.
+### 4.2 Login form and submission
 
-The provider's error details are mapped to a stable generic UI result and do not
-reveal whether the email exists, the password failed, or the account is disabled.
+The form contains organizational email, password, and one primary submit action.
+Email identifies the username and exposes the corresponding autocomplete
+purpose; password exposes current-password autocomplete. Submission validates
+required input, shows progress, and blocks an identical duplicate request.
 
-## 10. Mandatory Password Replacement
+Provider credential denial and account denial produce the same generic message
+without identifying whether the email exists, the password is wrong, the account
+is disabled, or another entry condition failed. Provider technical details are
+never rendered.
 
-### 10.1 Route Boundary
+Only the latest submission may change state or present an error. Navigating away,
+starting a newer submission, expiration, or logout abandons the prior result; its
+late success or failure remains invisible.
 
-`password-change-required` may access only the password-replacement page,
-Authentication state inspection, and logout. Attempts to reach application or
-Access Control routes redirect to the replacement page.
+### 4.3 Login draft lifecycle and focus
 
-### 10.2 Form
+- Email may remain after a recoverable denial to support correction.
+- Password clears after denial, navigation away, expiration, logout, or success.
+- Neither value is persisted across reload, placed in a URL, or sent to logs or
+  telemetry.
+- Field validation is associated with its input; submission failure moves focus
+  to the first actionable field or a generic result summary.
+- The generic result is announced without including either submitted value.
 
-The form contains:
+## 5. Mandatory password replacement
 
-- current provisional password;
-- new password;
-- new-password confirmation;
-- provider-safe password-policy feedback; and
-- submit action.
+### 5.1 Restricted experience
 
-Passwords exist only in controlled form state, are cleared after completion or
-failure, and are never placed in URLs, route state, telemetry, or persisted
-storage.
+While `password-change-required`, the only available interactions are current
+Authentication state inspection, mandatory password replacement, and logout.
+Direct entry, history, or return intent cannot expose protected or Access
+administration content.
 
-### 10.3 Completion
+The form contains current provisional password, new password, new-password
+confirmation, safe password-policy feedback, and submit. It validates that the
+confirmation matches and that current and new values differ before submission;
+the backend remains authoritative for password policy and account transition.
+Password visibility controls identify their target and expose current visible or
+hidden state.
 
-1. Submit `POST /api/v1/auth/password-change` with current and new passwords.
-2. The backend updates the provider credential and application account atomically as far as the provider boundary permits.
-3. Clear all password fields.
-4. Revalidate `GET /api/v1/auth/me` with the existing provider session.
-5. When active, begin Access bootstrap and navigate to an authorized destination without restarting the session's original eight-hour maximum.
-6. If the provider invalidated the session during the credential update, clear local Authentication and Access state and return to login; do not create or imply a renewed session automatically.
+### 5.2 Completion and recovery
 
-Mandatory replacement does not create a new session or restart the existing
-session's eight-hour maximum. After `/auth/me` reports `next_step=load_access`,
-the existing provider session may continue for the remainder of its original
-maximum duration.
+The frontend submits current and new passwords to
+`POST /api/v1/auth/password-change`. A `204 No Content` success is consumed as
+completion without parsing a body. It then clears all password values and
+revalidates `/auth/me` with the existing provider session. Access starts only
+after that response reports `next_step=load_access`.
 
-## 11. Logout and Expiration
+The frontend never starts a replacement session or extends the original
+eight-hour maximum. If the provider session is no longer valid, the outcome is
+expiration and sign-in, not implicit relogin.
 
-Logout executes in this order:
+Only one identical replacement may be pending. Safe validation feedback points
+to the affected field; provider or backend unavailability offers retry without
+implying completion. Password values clear on success, navigation away, reload,
+expiration, logout, account-state conflict, or any failure where retaining them
+is unsafe. They are never persisted across navigation or reload.
 
-1. Call `DELETE /api/v1/auth/session` while the token is available so the backend can revoke and audit the current provider session.
-2. Call `supabase.auth.signOut({ scope: 'local' })` through the provider adapter even when the backend response is unavailable.
-3. Clear the token accessor, Authentication state, Access state, sensitive caches, and protected query data.
-4. Navigate to login.
+Leaving or closing a dirty replacement interaction requires confirmation because
+the user would lose entered secrets. Staying restores focus to the interaction;
+leaving clears every password value. Successful completion or logout clears the
+dirty and confirmation state.
 
-Logout is idempotent. Administrative reset and disablement are backend
-operations that revoke all applicable provider sessions. A subsequent API
-denial clears the affected browser state even when the SDK has not yet emitted a
-provider event.
+## 6. HTTP capabilities consumed
 
-## 12. Authenticated HTTP Client
+### 6.1 Session and account state
 
-The shared client:
+| Capability | Method | Path | Success |
+| --- | --- | --- | --- |
+| Inspect Authentication state | `GET` | `/api/v1/auth/me` | `200` account and `change_password` or `load_access` next step |
+| Replace provisional password | `POST` | `/api/v1/auth/password-change` | `204`, no body |
+| Record and request session termination | `DELETE` | `/api/v1/auth/session` | `204`, no body |
 
-- obtains the current provider access token asynchronously;
-- adds `Authorization: Bearer <token>` only to authenticated API calls;
-- never logs the header or token;
-- maps shared error envelopes to typed frontend errors;
-- centralizes Authentication-related `401` and `403` handling; and
-- supports unauthenticated administrative-free calls without a fabricated token.
+Ordinary login, browser persistence, refresh, and local sign-out use the provider
+browser boundary; there is no backend login endpoint.
 
-Authentication pages never read tokens directly. Account administration uses
-the same authenticated client as other protected capabilities.
+### 6.2 Administration
 
-## 13. Backend API Contract Consumed
+| Capability | Method | Path | Success |
+| --- | --- | --- | --- |
+| List accounts | `GET` | `/api/v1/auth/accounts` | `200` complete account-summary collection |
+| Provision account and Access | `POST` | `/api/v1/auth/accounts` | `201` non-secret account summary |
+| Get account | `GET` | `/api/v1/auth/accounts/{account_id}` | `200` account detail |
+| Reset password | `POST` | `/api/v1/auth/accounts/{account_id}/password-reset` | `204`, no body |
+| Disable account | `POST` | `/api/v1/auth/accounts/{account_id}/disable` | `204`, no body |
+| Enable account | `POST` | `/api/v1/auth/accounts/{account_id}/enable` | `204`, no body |
+| Query Authentication audits | `GET` | `/api/v1/auth/audits` | `200` cursor page |
 
-### 13.1 Authenticated User Endpoints
+Exact transport fields, validation, and error envelopes belong to the backend
+contract and OpenAPI. The frontend validates and normalizes complete responses,
+supports stale-response rejection, and exposes observable account, collection,
+audit, and mutation outcomes rather than raw transport objects.
 
-| Capability | Method | Path |
+## 7. Unified account administration
+
+### 7.1 Information architecture
+
+The System Administrator workspace requires the Access-owned `manage_access +
+access_control` authorization defined by the sibling specification. Backend
+authorization remains authoritative.
+
+| Destination | Primary purpose | Observable relationships and transitions |
 | --- | --- | --- |
-| Inspect Authentication state | `GET` | `/api/v1/auth/me` |
-| Replace provisional password | `POST` | `/api/v1/auth/password-change` |
-| Record and terminate logout | `DELETE` | `/api/v1/auth/session` |
+| Accounts | Consult Authentication account summaries and start provisioning | Collection to addressable account detail or create; restores collection context on return |
+| Account detail | Consult Authentication and related Access state and initiate lifecycle actions | Detail to reset, disable, or enable confirmation according to current state; Back returns to origin |
+| Provision account | Establish one account, profile, and initial role set | Addressable create interaction; cancel returns to the originating Accounts context |
+| Authentication History | Consult implemented Authentication evidence | Cursor collection; affected account may link to a permitted existing detail, but no audit detail is implied |
 
-There is no backend login endpoint. Ordinary login, provider-session persistence,
-and refresh use the Supabase browser SDK.
+Reset, disable, and enable are reversible review interactions associated with the
+current account; this contract does not prescribe whether they occupy a page or
+another presentation surface. Direct entry and refresh resolve the addressed
+account without depending on a mounted collection row.
 
-### 13.2 Administrative Endpoints
+Cancel or Back restores known Accounts collection context; otherwise it returns
+to the default Accounts destination. If the account is stale, missing, or no
+longer permitted, clear it as current and move to the nearest valid destination:
+Accounts first, another permitted administration destination second, then the
+general permitted application destination. History must not restore a denied or
+different account as current.
 
-| Capability | Method | Path |
-| --- | --- | --- |
-| List accounts | `GET` | `/api/v1/auth/accounts` |
-| Provision account and access | `POST` | `/api/v1/auth/accounts` |
-| Get account | `GET` | `/api/v1/auth/accounts/{account_id}` |
-| Reset password | `POST` | `/api/v1/auth/accounts/{account_id}/password-reset` |
-| Disable account | `POST` | `/api/v1/auth/accounts/{account_id}/disable` |
-| Enable account | `POST` | `/api/v1/auth/accounts/{account_id}/enable` |
-| Query Authentication audits | `GET` | `/api/v1/auth/audits` |
+### 7.2 Account collection
 
-Account detail and mutation responses include the current non-secret
-`version`. Versioned administrative requests use these bodies:
+The implemented account list returns the complete summary collection and accepts
+no search, status filter, sort, or pagination parameters. The frontend must not
+present server-wide criteria or pagination that the contract does not support.
+Any local search, filter, grouping, or ordering applies only to the loaded
+collection and is identified as local presentation behavior.
 
-```json
-{
-  "provisional_password": "temporary-secret",
-  "reason": "Administrative reset requested.",
-  "expected_version": 4
-}
-```
+The collection distinguishes initial loading, non-destructive refresh, no
+accounts, no local matches, retryable failure, and loaded results. Only the latest
+request may replace the collection. After a mutation, refresh affected account
+and collection snapshots; a late pre-mutation response cannot overwrite them.
 
-```json
-{
-  "reason": "The person no longer requires access.",
-  "expected_version": 4
-}
-```
+### 7.3 Authentication History
 
-```json
-{
-  "provisional_password": "temporary-secret",
-  "reason": "Access restored after organizational review.",
-  "expected_version": 5
-}
-```
+History accepts only the backend-issued `cursor`; it has no implemented event,
+outcome, account, source, text, or date filter. The cursor is opaque and is used
+only to request the next page. A changed initial query or refreshed history
+invalidates later-page continuity rather than combining different snapshots.
 
-The bodies apply respectively to password reset, disablement, and enablement.
-The role selector in provisioning consumes `GET /api/v1/access/roles`.
-Subsequent authorization state comes from `/api/v1/access/me`.
+Each entry presents only implemented metadata: audit identity, operation
+correlation when present, event type, outcome, affected account when present,
+occurrence time, and source. Source distinguishes `application` evidence from the
+current `provider` evidence exposed by the backend. The frontend does not infer an
+actor, reason, provider subject, completeness, retention period, or unavailable
+failed-login evidence.
 
-## 14. Unified Account Administration
+History distinguishes initial loading, no evidence, end of results, loading more,
+retryable page failure, and loaded pages. Repeated load-more actions do not issue
+duplicate requests. A stale cursor response cannot append to a refreshed chain,
+duplicate an entry, reorder already established continuity, or replace a newer
+result.
 
-### 14.1 Navigation Ownership
+### 7.4 Provisioning
 
-Authentication account administration appears under Access Control
-administration because it is one System Administrator workspace. The account
-pages remain owned by the Authentication feature; role, preset, scope, and
-permission pages remain owned by Access Control.
-
-All account-administration routes require the effective `Manage Access`
-permission. Route visibility does not replace backend authorization.
-
-### 14.2 Account List and Detail
-
-The list supports status and text filters and displays:
-
-- organizational email;
-- display name and user code;
-- Authentication status;
-- Access profile status;
-- assigned role summaries; and
-- available administrative actions.
-
-The detail view separates Authentication information from Access Control
-information visually and retains the loaded Authentication `version` for
-versioned mutations. It never displays provider subjects, tokens, password
-flags, private metadata, or credential history.
-
-### 14.3 Provisioning Form
-
-The form requires:
+Provisioning is one atomic backend request containing:
 
 - organizational email;
 - display name;
 - user code;
-- provisional password and confirmation;
-- one or more initial Access roles;
+- provisional password and frontend confirmation;
+- one or more active Access role codes; and
 - administrative reason.
 
-The password fields are write-only UI state. On success, the UI shows no
-credential value and reminds the System Administrator to communicate the
-provisional password outside Colibri Hub.
+The administrator explicitly acknowledges organizational control of the email
+and responsibility for communicating the provisional password outside Colibri
+Hub. The system neither verifies nor administers the mailbox and never emails,
+echoes, or displays the password after success.
 
-### 14.4 Password Reset
+Role selection consumes the implemented Access roles collection and follows the
+searchable multiple-selection semantics in
+[Frontend Access Control](access-control.md#63-users-and-role-assignment). Only
+active roles may be newly selected; role identity remains unambiguous and the
+complete non-empty set is submitted once. Authentication does not duplicate role
+or permission semantics.
 
-Reset requires a new provisional password, confirmation, reason, and the
-account's loaded `expected_version`. The confirmation dialog explains that
-active sessions will end and that mandatory replacement is required at the next
-login. The resulting account state is Awaiting Password Change. Reset of the
-last operational System Administrator is blocked with the same invariant
-message used for other changes that would leave the system without
-administrative coverage.
+Incomplete or failed provisioning never presents a usable account or successful
+Access. Recoverable errors preserve safe non-secret account and role input.
+Password and confirmation clear on success, navigation, reload, expiration,
+logout, duplicate-email resolution that changes identity context, and any failure
+where retention is unsafe. Success clears the draft and presents only non-secret
+account identity plus the external-communication reminder.
 
-### 14.5 Disablement and Enablement
+### 7.5 Account detail and lifecycle actions
 
-Disablement requires a reason, the loaded `expected_version`, and explicit
-confirmation. The UI explains that login, active sessions, and the Access
-profile are affected while history is preserved. The
-last-System-Administrator error is presented as a blocked action, not as a
-recoverable validation warning.
+Detail presents separate Authentication and Access sections. Authentication may
+show account identity, organizational email, display name, user code, lifecycle
+status, and version. Access supplies profile state and assigned-role summaries
+under its own contract. Provider subject, private metadata, credentials, password
+flags, tokens, and credential history are never exposed. No email, display-name,
+or user-code editing is offered because no implemented mutation supports it.
 
-Enablement requires review of the access profile and roles, a new provisional
-password, confirmation, reason, and the loaded `expected_version`. The account
-remains awaiting mandatory replacement after success.
+Every reset, disable, or enable uses `expected_version` from the latest account
+detail and an administrative reason. Confirmation identifies the account,
+requested transition, current state, consequences, and cancel/confirm actions.
+It remains reversible until submission, exposes progress, and accepts only one
+identical pending mutation.
 
-## 15. Route Boundaries and Navigation
-
-| Boundary | Behavior |
+| Action | Additional input and confirmation consequence |
 | --- | --- |
-| Authentication boundary | Holds protected rendering until Authentication is resolved |
-| Sign-in-only boundary | Shows login and redirects authenticated users appropriately |
-| Password-change-only boundary | Allows only mandatory replacement for the required state |
-| Authenticated-only boundary | Requires active Authentication before mounting Access |
-| Access route guard | Requires the exact effective `action + scope` after Access bootstrap |
+| Reset password | New provisional password and confirmation; active sessions are requested to end, the account becomes awaiting password change, and the credential must be communicated outside the system |
+| Disable | Explain that login is denied, sessions are requested to end, the Access profile is inactivated, and identity and history remain preserved |
+| Enable | Review current Access profile and roles, provide a new provisional password and confirmation, and explain that protected use remains blocked until mandatory replacement |
 
-Role names are never used to build routes. After Authentication and Access
-bootstrap, default navigation is the first authorized workspace or an explicit
-no-active-access page.
+Password replacement and administrative password update do not by themselves
+prove that every other provider session or already issued access token has been
+revoked. The frontend presents the backend-coordinated account transition and
+session-termination request, while applying the JWT-expiry limitation in Section
+3.4 to any claim about immediate token invalidation.
 
-## 16. Error Handling and Feedback
+The backend enforces account state and the last-operational-System-Administrator
+invariant. The frontend may explain known effects but never predicts success from
+client state. A `204` mutation success clears secrets and confirmation, then
+reloads detail and affected collections before presenting the resulting state.
 
-| HTTP/provider result | Stable UI behavior |
+On version conflict, preserve safe draft input separately, clear passwords,
+invalidate confirmation, load current detail for comparison, and require a new
+confirmation with the new version. Never insert a fresh version into an old
+pending action. State conflict follows the same reload and reassessment. Missing
+detail clears the stale subject and returns to Accounts. Failure returns focus to
+the result or first recovery action; cancel restores focus to the initiating
+action when it remains available.
+
+## 8. Draft and async contract
+
+### 8.1 Draft lifecycle
+
+| Event | Required result |
 | --- | --- |
-| Provider sign-in denial | Generic email-or-password message |
-| `401 authentication_required` | Clear state and return to login |
-| `403 password_change_required` | Route to mandatory replacement |
-| `403 access_denied` | Show authorization denial without clearing a valid session |
-| `409 duplicate_authentication_email` | Mark the email field |
-| `409 last_system_administrator_required` | Block action and explain the invariant |
-| `404 authentication_account_not_found` | Close or replace stale detail data and show that the account no longer exists |
-| `409 authentication_version_conflict` | Preserve non-secret input, reload account data, and require a new confirmation |
-| `409 authentication_account_state_conflict` | Preserve non-secret input, reload the current state, and reassess available actions |
-| `409 authentication_identity_conflict` | Stop the administrative flow and show a non-recoverable account-identity conflict |
-| `422 authentication_change_reason_required` | Mark the administrative reason field |
-| `422 replacement_password_must_differ` | Mark the new-password field |
-| `422 weak_password` | Show safe password-policy guidance |
-| `503 authentication_provider_unavailable` | Preserve non-secret form data where safe and offer retry |
+| Recoverable validation, network, or server failure | Preserve safe non-secret draft and reason; associate actionable feedback and offer retry where safe |
+| Authorization change | Preserve safe input only long enough to explain and reevaluate; clear it before leaving a permitted administration boundary |
+| Concurrency or account-state conflict | Keep safe proposal separate from newly loaded current state, clear secrets, invalidate confirmation, and require renewed review |
+| Cancel, Back, account switch, or leave while dirty | Require discard confirmation for non-secret administrative work; staying restores focus |
+| Successful mutation | Clear draft, secrets, confirmation, and pending state |
+| Logout or expiration | Clear all secret, sensitive, and authorization-dependent drafts immediately |
+| Reload | Do not restore drafts; load authoritative destination state |
 
-Password fields are cleared on navigation, reload, timeout, completion, and any
-state transition that leaves their form. Provider error bodies and technical
-details are not rendered.
+Passwords additionally clear whenever Section 4.3, Section 5.2, or the relevant
+administrative lifecycle requires it. No password draft survives navigation or
+reload. Non-secret drafts have no cross-reload persistence by default and never
+move from one account operation to another.
 
-Loading states cover Authentication initialization, provider login, backend
-account validation, password replacement, Access bootstrap, administrative
-mutation, and audit pagination. Destructive or session-ending actions use
-explicit confirmation and deterministic disabled states.
+### 8.2 Loading, races, and performance
 
-## 17. Accessibility
+- Only the latest relevant response for the current session, account, collection,
+  cursor chain, or mutation may update visible state.
+- An abandoned request produces no visible stale error or success.
+- Changing accounts clears or marks prior detail as non-current before loading;
+  previous-account data never flashes as current.
+- Initial loading and non-destructive refresh are observably distinct.
+- An identical pending login, replacement, logout, or administration mutation
+  cannot be submitted twice.
+- Successful mutations invalidate older snapshots before refresh results may
+  publish.
+- Account-administration code and content are not required on the initial path
+  for users without `manage_access + access_control`; entering a newly permitted
+  destination may have its own loading state.
 
-- Authentication forms have visible labels and field-specific errors.
-- Password visibility controls expose accessible names and pressed state.
-- Focus moves to the first invalid field or the result summary.
-- Authentication errors use live regions without disclosing secrets.
-- Expiration notices receive focus and explain the next action.
-- Dialogs trap focus and restore it to their triggering control.
-- Keyboard operation covers login, tables, dialogs, role selection, and all account actions.
-- Color is never the sole indication of Authentication or Access state.
+These are observable constraints, not prescriptions for request cancellation,
+caching, rendering, state management, or code splitting.
 
-## 18. Security Requirements
+### 8.3 Adopted technology consequences
 
-- Service-role and administrative credentials never enter the browser bundle.
-- Supabase is the only browser token store; no duplicate `localStorage`, cookie, context, or Redux token copy is created.
-- Tokens are not exposed through component props, presentation models, logs, analytics, or error reports.
-- Restored provider sessions are validated by the backend before protected rendering.
-- Backend authorization remains authoritative for every administrative action.
-- Password fields never persist across route or Authentication state changes.
-- Provider errors are normalized to prevent account enumeration.
-- Sensitive query caches are cleared on logout, disablement response, or unrecoverable expiration.
-- Frontend code never branches on business role names.
+React must receive provider events and asynchronous account validations as one
+coherent external-session snapshot. Subscription cleanup must prevent abandoned
+listeners from publishing, repeated equivalent events must not duplicate state
+transitions, and stale validations must not publish obsolete identity, navigation,
+or Access bootstrap. Account eligibility, next destination, and other values
+derived from the current Authentication and Access snapshots are not maintained
+as independent competing state. Deferred or transitional rendering may preserve
+responsiveness, but never changes which request result is current or correct.
 
-## 19. Testing Strategy
+Mantine's higher-level form controls are preferred for ordinary Authentication
+and account-administration inputs because they provide accessible labeling and
+description structure. This capability still owns explicit labels, associated
+errors, announcements, focus recovery, and password-control semantics; theme and
+component defaults do not prove accessibility. A lower-level input is justified
+only when the required interaction cannot be expressed by the higher-level
+control and receives the missing semantics explicitly.
 
-### 19.1 Unit and Provider Tests
+Privileged account administration is not required in the initial unauthenticated
+React path or in the initial path of users without the administration grant.
+Loading it later may introduce a distinct loading state, but must not alter route
+authorization, stale-result rejection, or direct-navigation correctness.
 
-- State-machine transitions for initialization, password replacement, active, expired, denied, and unavailable states.
-- Provider login maps success and failure without exposing provider messages.
-- Session restore is not trusted before `/auth/me` succeeds.
-- Refresh updates only the central token accessor.
-- Logout invokes provider sign-out with `scope: 'local'` and clears all Authentication and Access state.
-- Mandatory replacement preserves the original session time-box and handles provider invalidation by returning to login.
+## 9. Errors, security, and responsive behavior
 
-### 19.2 Component and Integration Tests
+### 9.1 Normalized outcomes
 
-- Login accessibility and generic denial.
-- Mandatory replacement route isolation and password clearing.
-- HTTP bearer attachment and centralized `401`/`403` behavior.
-- Provisioning, reset, disablement, and enablement forms never echo secrets.
-- Reset, disablement, and enablement submit the loaded `expected_version` and preserve non-secret drafts on conflict.
-- Password reset and disablement both render the last-System-Administrator invariant as a blocked action.
-- Every documented backend Authentication error maps to stable UI behavior.
-- Account administration requires effective `Manage Access`.
-- Active Authentication loads Access exactly once per resolved transition.
-- Default navigation uses effective permissions rather than role names.
+| Condition | Frontend outcome |
+| --- | --- |
+| Provider login denial or denied account validation | Generic entry denial; clear password |
+| `authentication_required` | Consume ended-session behavior and return to sign-in |
+| `password_change_required` | Clear Access and enter mandatory replacement |
+| `access_denied` | Defer to Access without treating a valid Authentication session as ended |
+| Duplicate Authentication email | Associate safe feedback with provisioning email |
+| Missing account | Clear stale detail and return to the nearest valid destination |
+| Authentication version or state conflict | Preserve safe input, clear secrets, reload current detail, and require new confirmation |
+| Last System Administrator invariant | Keep safe context and explain why the action was rejected |
+| Replacement password equals current or password is weak | Associate safe policy feedback without echoing either value |
+| Required administrative reason is absent | Associate feedback with reason |
+| Provider, network, or backend unavailable | Preserve safe non-secret state where valid and offer retry without implying success |
 
-### 19.3 End-to-End Scenarios
+Technical provider messages, account-enumeration details, stack traces, SQL, raw
+transport failures, and credential values are never presented.
 
-- Controlled initial administrator password replacement.
-- Unified provisioning rejects empty initial roles and proceeds through first access.
-- Provisional login starts a restricted session whose time-box is not restarted by mandatory replacement.
-- Established login, page refresh, and provider token refresh.
-- Eight-hour provider session expiration.
-- Logout and attempted session reuse.
-- Administrative reset of an active user.
-- Immediate denial after account disablement.
-- Re-enablement followed by mandatory replacement.
-- Authenticated identity with no active Access profile.
-- Provider outage without protected-content exposure or secret leakage.
+### 9.2 Security
 
-## 20. Completion Criteria
+- No password, access token, refresh token, authorization header, provider secret,
+  or credential response enters URLs, route state, general storage, logs,
+  telemetry, analytics, audit presentation, or non-secret drafts.
+- Provider persistence is the single browser token store; application state never
+  duplicates token material.
+- Backend account validation precedes protected rendering after restore and login.
+- Access remains the separate authority for profile state, permissions, routes,
+  and actions; Authentication never branches on role names.
+- Browser state, return intent, visible controls, and locally retained account
+  summaries establish neither identity nor authorization.
+- Session end clears Authentication, Access, secret drafts, sensitive query data,
+  and authorization-dependent state.
 
-1. Email/password login uses the Supabase browser SDK.
-2. Supabase owns browser session persistence, refresh, and expiration.
-3. Restored and newly created provider sessions are checked through `/auth/me` before protected rendering.
-4. The shared HTTP client attaches the current provider access token centrally.
-5. Mandatory password replacement blocks Access bootstrap until completion.
-6. Logout clears provider, Authentication, Access, and sensitive cache state.
-7. Unified account administration consumes the documented backend contracts.
-8. No service-role secret or duplicate token store exists in the frontend.
-9. Navigation and action visibility use effective permissions rather than role names.
-10. Unit, component, provider, HTTP integration, accessibility, and end-to-end tests pass.
+### 9.3 Responsive information priority
+
+Viewport constraints may change density, not capability:
+
+| Experience | Information that remains primary |
+| --- | --- |
+| Sign-in | Destination identity, email, password, generic result, and submit |
+| Mandatory replacement | Restricted-session context, all password fields, policy feedback, logout, and submit |
+| Accounts | Collection heading, account identity, account status, and available primary action |
+| Account detail | Account identity, Authentication status, Access relationship, versioned action, and return path |
+| Confirmation | Account, requested transition, consequences, reason, secret input when applicable, cancel, and confirm |
+| Authentication History | Event, outcome, occurrence time, source, affected account relationship, and continuation state |
+
+No critical Authentication or session-ending action is hidden solely because of
+viewport size. Secondary metadata may use progressive disclosure without hiding
+state, validation, consequences, or recovery needed for a safe decision.
+
+## 10. Feature-specific accessibility
+
+In addition to the transversal [Accessibility Guidelines](../accessibility.md):
+
+- password visibility controls name the affected field and expose visible or
+  hidden state;
+- generic entry denial and announcements contain no submitted email, password,
+  provider detail, or account-enumeration clue;
+- field errors are associated with their inputs, while submission outcomes move
+  focus to the first invalid field, result summary, or recovery action;
+- expiration moves focus to a non-sensitive notice that explains sign-in as the
+  next action;
+- account status and pending lifecycle effects are expressed in text rather than
+  color alone;
+- confirmations identify the account and consequences, retain a reversible path,
+  and restore focus to the initiating action when still valid;
+- History exposes semantic relationships among event, outcome, time, source,
+  affected account, and operation correlation without fabricating missing data;
+- role selection in provisioning follows the selector accessibility semantics in
+  the sibling Access specification; and
+- secret-safe status announcements never repeat credential values.
+
+## 11. Observable verification scenarios
+
+Verification follows the [Frontend Testing Strategy](../testing/strategy.md).
+The implementation must prove these observable contracts at justified levels.
+
+### Authentication entry and session
+
+- Initial restore distinguishes no session, password change required,
+  authenticated eligibility, denial, and unavailability without protected-content
+  flash.
+- Restored and newly created provider sessions publish no account before the
+  latest matching `/auth/me` succeeds.
+- The exact state machine handles login, restore, account validation, retry,
+  refresh failure, expiration, disablement, reset, provider outage, backend
+  outage, and logout.
+- Duplicate provider events and stale validations cannot republish prior state or
+  duplicate Access bootstrap and navigation.
+- Access receives exactly the semantic conditions in Section 2.3 and starts only
+  for `next_step=load_access`.
+- Login is addressable, validates return intent through Access, prevents duplicate
+  submission, preserves email where safe, clears password, and presents generic
+  denial with correct focus and announcement.
+- Mandatory replacement isolates all protected content, validates confirmation
+  and password difference, clears secrets safely, consumes `204` without a body,
+  revalidates `/auth/me`, and preserves the original session maximum.
+- Provider invalidation during replacement returns to sign-in rather than
+  implying a renewed session.
+- Dirty replacement departure is reversible and no password survives navigation,
+  reload, expiration, logout, success, or unsafe failure.
+- Logout attempts the backend request while authenticated, always signs out and
+  clears browser state locally, clears Authentication and Access, and reaches
+  sign-in even when the backend call fails.
+- Expiration and ended-session denial clear sensitive state, receive focus, and
+  never replay a mutation automatically.
+
+### Account administration
+
+- Accounts, addressable detail, provisioning, History, and lifecycle
+  confirmations expose the relationships, return behavior, and nearest-valid
+  recovery defined in Section 7.
+- Account collection uses the implemented complete-list contract without
+  promising server filters or pagination; local criteria are labeled, stale
+  results are rejected, and empty differs from no local matches.
+- History sends only opaque cursor continuation, exposes only implemented
+  metadata and source distinction, preserves cursor-chain continuity, and
+  distinguishes empty, loading-more, end, and retry states.
+- Provisioning requires all account fields, confirmation, at least one active
+  Access role, reason, and organizational-control acknowledgement; it submits one
+  atomic request and never echoes or retains the provisional password after
+  success.
+- Recoverable provisioning failure preserves only safe draft data and never
+  implies that partial account or Access configuration is usable.
+- Detail separates Authentication and Access information and exposes no provider
+  subject, private metadata, credential, token, password flag, or unsupported
+  account editing.
+- Reset, disable, and enable present their exact consequences, reason,
+  `expected_version`, progress, duplicate prevention, last-administrator outcome,
+  focus recovery, and post-success refresh.
+- Enable requires Access profile and role review plus a new confirmed provisional
+  password; reset and enable result in awaiting password change; disable preserves
+  identity and history while affecting login, sessions, and profile state.
+- Version and state conflicts keep safe proposals separate, clear secrets, load
+  current detail, and require a new confirmation; stale and missing accounts
+  never remain current.
+- Cross-cutting draft rules preserve safe work on recoverable errors, confirm
+  dirty departure, isolate accounts, clear on success or session end, and do not
+  promise reload persistence.
+
+### Async, responsive, accessibility, and security
+
+- Rapid session, account, cursor, and navigation changes allow only the latest
+  relevant result to publish; abandoned requests remain invisible and prior
+  account data never flashes as current.
+- Initial loading and refresh remain distinct, and every identical pending
+  mutation is accepted once.
+- Users without account-management authorization do not require administration
+  content on their initial application path.
+- Narrow viewport presentation retains the primary information and critical
+  actions in Section 9.3 without prescribing breakpoints.
+- Password controls, generic denial, expiration, forms, confirmations, account
+  status, History metadata, role selection, announcements, and focus satisfy
+  Section 10 and the transversal accessibility contract.
+- No secret or duplicate token state appears in URLs, storage, presentation,
+  logs, telemetry, or stale drafts; backend account validation and separate Access
+  authority remain mandatory.
+
+## 12. Completion criteria
+
+### Authentication entry and session
+
+1. The exact Authentication states and transitions govern restore, login,
+   validation, password replacement, retry, logout, expiration, and outage.
+2. Provider-owned persistence and refresh are the only browser session mechanism;
+   token access is centralized, asynchronous, and absent from presentation.
+3. `/auth/me` validates every restored or newly authenticated session before
+   protected content or Access bootstrap.
+4. Race and deduplication rules prevent stale publication, duplicate Access
+   bootstrap, and repeated navigation.
+5. Login and mandatory replacement satisfy their return-intent, draft, focus,
+   generic-denial, secret lifecycle, `204` revalidation, and fixed time-box
+   contracts.
+6. Logout always completes provider-local termination and frontend clearing while
+   making no unsupported backend token-revocation guarantee.
+
+### Account administration
+
+1. Unified administration consumes Authentication account capabilities and the
+   sibling Access role/profile contract without transferring ownership.
+2. Account collection and History expose only implemented list, cursor, metadata,
+   and source capabilities.
+3. Provisioning is one complete request with organizational acknowledgement,
+   write-only provisional credential, and one or more active Access roles.
+4. Detail, reset, disable, and enable satisfy version, confirmation, invariant,
+   lifecycle consequence, conflict recovery, focus, and secret-clearing contracts.
+5. Navigation, drafts, async behavior, responsive adaptation, accessibility, and
+   security satisfy Sections 7 through 10 without depending on a prescribed
+   provider topology, component, state-management, form, cache, or verification
+   implementation.
+6. All observable verification scenarios pass against the implemented provider,
+   backend, and Access contracts.
