@@ -19,7 +19,8 @@
 
 - Full unit suite: `uv run --locked --package backend python -m unittest discover -s backend/tests -v`.
 - Focused module: `uv run --locked --package backend python -m unittest backend.tests.domain.test_core_contracts -v`. Append a class or method dotted name for a narrower run.
-- Tests use stdlib `unittest`; no pytest, Python linter, formatter, type checker, or coverage tool is configured.
+- Tests use stdlib `unittest`; no pytest or coverage tool is configured.
+- Backend quality checks are `uv run --locked --package backend ruff check backend` and `uv run --locked --package backend pyright backend`. Ruff and Pyright use their defaults because no project-specific configuration is present.
 - SQLite-backed unit tests do not prove PostgreSQL constraint diagnostics, migration shape, timezone, or `Decimal` behavior.
 - Integration tests require explicit `TEST_DATABASE_URL`; the guard accepts only `postgresql+psycopg`, loopback, port `54322`, database `postgres`, and never falls back to `DATABASE_URL`.
 - Full integration suite after local migrations: `TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres uv run --locked --package backend python -m unittest discover -s backend/integration_tests -v`.
@@ -45,4 +46,4 @@
 - Follow `docs/dev-guide/naming-conventions.md`; notable rules are Python `snake_case`, React component `PascalCase.tsx`, plural `snake_case` DB tables, and singular `snake_case` DB columns.
 - Follow `docs/dev-guide/git-workflow.md`; branches use `<layer>/<context>-<topic>` with layers `front`, `back`, `devops`, or `docs` and context aliases `wh`, `yarn`, `lots`, `access`, `cat`, or `auth`. Commits use Conventional Commits; PRs target `main` for squash merge.
 - Treat `openspec/changes/<change-name>/` as planning artifacts, not proof of implementation or authorization.
-- No tracked CI, pre-commit configuration, task runner, Python quality configuration, code generator, or repo-local OpenCode configuration exists. `.agents/` directories contain agent skills, not project task commands.
+- No tracked CI, pre-commit configuration, task runner, code generator, or repo-local OpenCode configuration exists. `.agents/` directories contain agent skills, not project task commands.
