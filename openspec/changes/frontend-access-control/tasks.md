@@ -42,13 +42,13 @@ This is an OpenSpec-only portable handoff. All 30 tasks are pending and the prio
 
 ## Phase 4: PR4 — Addressable administration families (base: PR3)
 
-- [ ] 4.1 RED→GREEN: test and implement Users/profiles collection, detail, and addressable recovery in `frontend/src/features/access-control/administration/`; cover origin/page restoration, dirty Back/Cancel, stale/missing/denied fallback, pagination, latest-only subjects, empty-page reconciliation, loading/refresh retention, selection, and focus.
-- [ ] 4.2 RED→GREEN: test and implement Roles collection/detail addressability with the same pagination, stale-result, fallback, loading, no-match, selection, and focus contracts.
-- [ ] 4.3 RED→GREEN: test and implement Presets collection/detail addressability with the same recovery and semantic loading/no-match contracts.
-- [ ] 4.4 RED→GREEN: test and implement Scopes collection/detail addressability with the same recovery and semantic loading/no-match contracts.
-- [ ] 4.5 RED→GREEN: test and implement History collection/detail addressability with only `subject_type`, `change_kind`, `date_from`, and `date_to` filters.
-- [ ] 4.6 RED→GREEN: test and implement `frontend/src/app/routes/lazy-pages.tsx` administration entry points, responsive Mantine tables/cards, keyboard/focus and screen-reader semantics, including inactive profiles as read-only and no unauthorized disclosure.
-- [ ] 4.7 Verify `pnpm vitest run src/features/access-control/administration --reporter=verbose && pnpm build && pnpm lint`; STOP for user backend provisioning, then record all five families, pagination, direct recovery, responsive, keyboard, and screen-reader evidence in `evidence/pr4.md`. Rollback administration surfaces/routes only.
+- [x] 4.1 RED→GREEN: test and implement Users/profiles collection, detail, and addressable recovery in `frontend/src/features/access-control/administration/`; cover origin/page restoration, dirty Back/Cancel, stale/missing/denied fallback, pagination, latest-only subjects, empty-page reconciliation, loading/refresh retention, selection, and focus.
+- [x] 4.2 RED→GREEN: test and implement Roles collection/detail addressability with the same pagination, stale-result, fallback, loading, no-match, selection, and focus contracts.
+- [x] 4.3 RED→GREEN: test and implement Presets collection/detail addressability with the same recovery and semantic loading/no-match contracts.
+- [x] 4.4 RED→GREEN: test and implement Scopes paginated addressable collection with selected context derived from loaded rows/definitions; do not call or invent `/scopes/{id}`.
+- [x] 4.5 RED→GREEN: test and implement History filtered paginated collection only, using exactly `subject_type`, `change_kind`, `date_from`, and `date_to`; no detail route/endpoint is implied.
+- [x] 4.6 RED→GREEN: test and implement `frontend/src/app/routes/lazy-pages.tsx` administration entry points, responsive Mantine tables/cards, keyboard/focus and screen-reader semantics, including inactive profiles as read-only and no unauthorized disclosure.
+- [x] 4.7 Verify `pnpm vitest run src/features/access-control/administration --reporter=verbose && pnpm build && pnpm lint`; STOP for user backend provisioning, then record all five families, pagination, direct recovery, responsive, keyboard, and screen-reader evidence in `evidence/pr4.md`. Rollback administration surfaces/routes only.
 
 ## Phase 5: PR5 — Governance, forms, previews, and conflicts (base: PR4)
 

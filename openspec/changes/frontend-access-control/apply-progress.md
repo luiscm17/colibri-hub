@@ -104,3 +104,32 @@ Completed tasks: 9/30.
 - The sole `POST /api/v1/warehouse/bales` returned 403. The client issued exactly one post-denial `GET /api/v1/access/me` (200), displayed an access-change explanation, reevaluated to the denied route state, and made zero automatic replay requests. The safe draft stayed in memory through the denial.
 - Cleanup removed the temporary Warehouse scope and role permissions, confirmed zero persisted batches/bales, restored the fixture authorization version, and closed the browser. No credentials/tokens persisted; no services, reset, migration, or Git/GitHub action occurred.
 - Maintainer scope decision: all PR3 tasks are complete for current applicable scope. The reusable exact action/scope catalog and shared 403 recovery serve current and future capability owners; the existing Warehouse Bale read/write operation and runtime checkpoint are sufficient evidence. No absent Bale edit/edit-outside-window operation or Yarn, Quality/Waste, Lot-stage, or Transversal owner-domain operation was invented or claimed. Evidence: `evidence/pr3.md`.
+
+## PR4 Partial Deterministic Attempt
+
+- Maintainer clarification updated task 4.4 to a loaded-row Scopes context without a `/scopes/{id}` request, and task 4.5 to a History collection-only surface with exactly `subject_type`, `change_kind`, `date_from`, and `date_to` filters.
+- The partial implementation adds a lazy, exact-gated administration route and a shared local collection surface for backend paginated Users, Roles, Presets, Scopes, and History endpoints. It proves page-local no-match feedback, latest request publication, missing User fallback, and History filter serialization.
+- Tasks 4.1–4.7 remain unchecked: dirty-discard, focus restoration, complete loaded-row Scope selection, inactive read-only detail semantics, and the mandatory live/accessibility checkpoint are not complete or evidenced.
+
+| Evidence | Result |
+|---|---|
+| Focused test command and exact result | `pnpm vitest run src/features/access-control/administration --reporter=verbose --pool=forks --maxWorkers=1 --no-file-parallelism` — exit 0; 1 file and 3 tests passed. |
+| Deterministic quality commands and exact result | `pnpm build && pnpm lint` — exit 0; TypeScript, Vite build, and ESLint passed. Existing Vite >500 kB chunk warning only. |
+| Runtime harness command/scenario and exact result | N/A — user-controlled backend/frontend services were not started or contacted; PR4 live evidence requires maintainer-provisioned data and accessibility review. |
+| Rollback boundary | Revert `frontend/src/features/access-control/administration/`, the lazy route export/import, and the administration route; this leaves PR1–PR3 authorization, navigation, and protected-operation behavior intact. |
+
+## PR4 Abort Regression Correction
+
+- Collection request cleanup now handles only normalized `ApiError.kind === 'aborted'` silently. HTTP and network failures remain visible through the existing unavailable feedback, while addressable User `ApiError` HTTP 404 still returns to its collection.
+- The focused suite now uses the production `ApiError` 404 fixture rather than a plain object and proves both the abort and non-abort paths.
+
+| Evidence | Result |
+|---|---|
+| Focused test command and exact result | `pnpm vitest run src/features/access-control/administration --reporter=verbose --pool=forks --maxWorkers=1 --no-file-parallelism` — exit 0; 1 file and 5 tests passed. |
+| Deterministic quality commands and exact result | `pnpm build && pnpm lint` — exit 0; TypeScript, Vite build, and ESLint passed. Existing Vite >500 kB chunk warning only. |
+| Runtime harness command/scenario and exact result | N/A — no services were started or contacted. |
+| Rollback boundary | Revert the AdministrationPage abort/error handling and its tests; this restores the prior local behavior without modifying the HTTP client, backend contract, routes, or PR1–PR3. |
+
+## PR4 Closed
+
+All Phase 4 tasks are closed by the current implemented backend contracts, deterministic five-test/build/lint evidence, and maintainer-confirmed live navigation. The maintainer confirmed rapid navigation has no `ApiError: The request was cancelled` console error; only the informational React DevTools message remains. `evidence/pr4.md` records the current contract boundary: Scopes is collection-derived context and History is filtered collection-only. Unsupported detail/operation depth is explicitly deferred to future owner/backend specifications and is not claimed as implemented.
