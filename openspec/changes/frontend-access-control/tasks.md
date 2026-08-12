@@ -52,12 +52,12 @@ This is an OpenSpec-only portable handoff. All 30 tasks are pending and the prio
 
 ## Phase 5: PR5 — Governance, forms, previews, and conflicts (base: PR4)
 
-- [ ] 5.1 RED→GREEN: test and implement profile status lifecycle, assignment replacement/reasons, inactive read-only behavior, and Authentication-owned profile creation under `frontend/src/features/access-control/administration/profiles/`.
-- [ ] 5.2 RED→GREEN: test and implement role matrices, supported permission pairs, role create/edit/lifecycle reasons, and exact-copy versus adjustable independent preset flows under `roles/` and `presets/`.
-- [ ] 5.3 RED→GREEN: test and implement recognized scope registration/lifecycle, loaded versions/reasons, and no free-form or automatic grants under `scopes/`.
-- [ ] 5.4 RED→GREEN: test and implement collection/detail/create/edit transitions, Mantine `useForm`/Combobox where needed, loaded-version semantics, preview distinction, and safe isolated drafts.
-- [ ] 5.5 RED→GREEN: test and implement mutation fingerprints, fresh-preview invalidation after edit/conflict/authority change, 409 reconciliation, auth/session invalidation, last-administrator rejection, affected-user evidence, no replay, and success/departure clearing.
-- [ ] 5.6 Verify `pnpm vitest run src/features/access-control --reporter=verbose && pnpm build && pnpm lint`; STOP for user backend provisioning, then record mutation, 409, last-admin, route recovery, post-success refresh, duplicate/replay, and focus evidence in `evidence/pr5.md`. Rollback governance modules/forms only; never backend data.
+- [x] 5.1 RED→GREEN: test and implement profile status lifecycle, assignment replacement/reasons, inactive read-only behavior, and Authentication-owned profile creation under `frontend/src/features/access-control/administration/profiles/`.
+- [x] 5.2 RED→GREEN: test and implement role matrices, supported permission pairs, role create/edit/lifecycle reasons, and exact-copy versus adjustable independent preset flows under `roles/` and `presets/`.
+- [x] 5.3 RED→GREEN: test and implement recognized scope registration/lifecycle, loaded versions/reasons, and no free-form or automatic grants under `scopes/`.
+- [x] 5.4 RED→GREEN: test and implement collection/detail/create/edit transitions, Mantine `useForm`/Combobox where needed, loaded-version semantics, preview distinction, and safe isolated drafts.
+- [x] 5.5 RED→GREEN: test and implement mutation fingerprints, fresh-preview invalidation after edit/conflict/authority change, 409 reconciliation, auth/session invalidation, last-administrator rejection, affected-user evidence, no replay, and success/departure clearing.
+- [x] 5.6 Verify `pnpm vitest run src/features/access-control --reporter=verbose && pnpm build && pnpm lint`; STOP for user backend provisioning, then record mutation, 409, last-admin, route recovery, post-success refresh, duplicate/replay, and focus evidence in `evidence/pr5.md`. Rollback governance modules/forms only; never backend data.
 
 ## Phase 6: PR6 — Hardening, accessibility, and evidence (base: PR5)
 
