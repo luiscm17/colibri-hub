@@ -3,7 +3,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { useAccess } from './access-context'
 import { AccessProvider } from './AccessProvider'
 
-vi.mock('@/api/httpClient', () => ({ httpJson: vi.fn() }))
+vi.mock('@/api/httpClient', () => ({
+  clearAccessDeniedRecoveryHandler: vi.fn(),
+  httpJson: vi.fn(),
+  setAccessDeniedRecoveryHandler: vi.fn(),
+}))
 const accessHandoff = { condition: 'unresolved' } as const
 vi.mock('@/features/auth', () => ({
   useAuth: () => ({ accessHandoff }),

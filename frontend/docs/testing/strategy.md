@@ -76,3 +76,21 @@ Frontend work is test-complete when:
   structure; and
 - required manual checks are recorded and performed rather than silently
   replaced by automation.
+
+## 6. Access Control Evidence Boundary
+
+Access Control uses focused Vitest coverage for state adaptation, exact
+authorization decisions, stale-result rejection, route outcomes, and recoverable
+client feedback. The standard deterministic gate is `pnpm vitest run
+--reporter=verbose`, followed by `pnpm build` and `pnpm lint` from `frontend/`.
+
+Real-session and assistive-technology evidence remains a separate manual level:
+the maintainer must start the existing services and record Authentication handoff
+and session clearing, protected `403` recovery, pagination and mutation recovery,
+narrow-viewport critical actions, keyboard/focus behavior, and announcements.
+Automation does not replace that evidence or make the frontend authoritative for
+authorization. For the current Access Control slice, maintainer evidence recorded
+handoff/session clearing, latest-only navigation, responsive critical actions,
+keyboard/focus, announcements, and no replay as passed. The only frontend gap was
+an invalid inline reduced-motion media key; it was moved to the existing valid
+global CSS media query without changing authorization or Authentication behavior.

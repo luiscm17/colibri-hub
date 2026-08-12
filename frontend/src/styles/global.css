@@ -24,4 +24,8 @@ body {
     opacity: 1;
     transform: none;
   }
+
+  .bale-workflow-card {
+    transition: none !important;
+  }
 }
