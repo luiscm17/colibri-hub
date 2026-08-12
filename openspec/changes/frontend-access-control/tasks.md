@@ -35,10 +35,10 @@ This is an OpenSpec-only portable handoff. All 30 tasks are pending and the prio
 
 ## Phase 3: PR3 — Protected operations and 403 recovery (base: PR2)
 
-- [ ] 3.1 RED→GREEN: test and implement read/write/edit/edit-outside-window checks and malformed/safe input handling in `frontend/src/features/warehouse/bales/` and affected protected feature consumers.
-- [ ] 3.2 RED→GREEN: test and implement shared denial/revalidation through `frontend/src/api/{httpClient,httpError}.ts`: unexpected 403 refreshes once, rechecks, preserves safe input, never replays a mutation, and clears on denial/session end.
-- [ ] 3.3 RED→GREEN: test and implement exact Warehouse, Yarn, quality/waste, Lot-stage, and transversal consumers with consistent hide/disable behavior and latest-only/abort guarantees.
-- [ ] 3.4 Verify `pnpm vitest run src/features/warehouse src/api --reporter=verbose && pnpm build && pnpm lint`; STOP for user backend startup, then record permitted, revoked-403, retry, and no-replay counts in `evidence/pr3.md`. Rollback operation adapters/pages only.
+- [x] 3.1 RED→GREEN: test and implement read/write/edit/edit-outside-window checks and malformed/safe input handling in `frontend/src/features/warehouse/bales/` and affected protected feature consumers. Current applicable scope closed by maintainer decision: reusable exact action/scope contracts and the implemented Bale read/write operation are covered; no absent Bale correction operation was invented.
+- [x] 3.2 RED→GREEN: test and implement shared denial/revalidation through `frontend/src/api/{httpClient,httpError}.ts`: unexpected 403 refreshes once, rechecks, preserves safe input, never replays a mutation, and clears on denial/session end.
+- [x] 3.3 RED→GREEN: test and implement exact Warehouse, Yarn, quality/waste, Lot-stage, and transversal consumers with consistent hide/disable behavior and latest-only/abort guarantees. Current applicable scope closed by maintainer decision: reusable exact requirements and shared recovery are implemented; absent owner-domain operation surfaces remain intentionally unimplemented.
+- [x] 3.4 Verify `pnpm vitest run src/features/warehouse src/api --reporter=verbose && pnpm build && pnpm lint`; STOP for user backend startup, then record permitted, revoked-403, retry, and no-replay counts in `evidence/pr3.md`. Rollback operation adapters/pages only.
 
 ## Phase 4: PR4 — Addressable administration families (base: PR3)
 

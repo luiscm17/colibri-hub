@@ -80,3 +80,27 @@ Completed tasks: 5/30.
 - Outcome: tasks 2.1–2.4 complete. Runtime budget is exhausted; no additional live attempt was run. No task 2.5 exists in the authoritative `tasks.md`.
 
 Completed tasks: 9/30.
+
+## PR3 In-Progress: Protected Operations and 403 Recovery
+
+- Mode: chained PR slice; feature-branch-chain base is merged PR2 (`front/access-protected-shell`).
+- Boundary: existing Warehouse Bale protected request adapters, Access refresh/session-end coordination, and co-located deterministic tests only. PR4+ remains untouched.
+- RED→GREEN evidence: `httpClient.test.ts` first failed because recovery handlers did not exist, then passed after implementation. The final focused suite also proves that a protected `403` invokes one refresh without replaying the request, unprotected requests do not invoke recovery, and `401/authentication_required` is returned to the Authentication boundary.
+- Current implementation: protected Bale read/write requests opt in to shared recovery; `403` is surfaced as `access_denied`, retains safe reception/delivery drafts, and displays an access-change explanation. The handler refreshes the canonical Access state once; route guards then reevaluate the backend-defined exact requirements. Mutations are not repeated.
+- Session-end: the HTTP boundary informs Authentication on `401`/`authentication_required`; Authentication signs out and publishes its existing ended condition, which clears the canonical Access snapshot.
+- Scope diagnosis: PR2 already supplies exact Warehouse/Yarn/Quality/Waste/Lot/Transversal catalog requirements. Only Warehouse Bale has implemented protected operations in this branch; Yarn, Quality/Waste, Lot-stage, and Transversal currently have placeholder pages and no operation adapters to modify without inventing behavior.
+- Runtime checkpoint: incomplete. Task 3.4 requires a user-controlled authenticated backend/frontend session that can demonstrate a permitted Bale operation, a backend permission revocation causing `403`, the one refresh, the retained draft, and an unchanged mutation count. No runtime interaction was started because the user retains runtime control and the supplied reset token is held by the orchestrator.
+
+| Evidence | Result |
+|---|---|
+| PR3 focused test command and exact result | `pnpm vitest run src/features/warehouse src/api src/features/access-control/catalog.test.ts --reporter=verbose --pool=forks --maxWorkers=1 --no-file-parallelism` — exit 0; 2 files and 7 tests passed in 2.05s. |
+| PR3 deterministic quality | `pnpm lint && pnpm build` — exit 0; ESLint, TypeScript, and Vite build passed; existing Vite >500 kB chunk warning only. |
+| PR3 runtime harness | Pending user-controlled runtime checkpoint; no backend, frontend, database, user, or browser session was started or provisioned. |
+| PR3 rollback | Revert `frontend/src/api/httpClient.ts`, `frontend/src/api/httpClient.test.ts`, `frontend/src/features/access-control/AccessProvider.tsx`, `frontend/src/features/auth/context/AuthContext.tsx`, and Warehouse Bale API/error/page changes; this removes recovery behavior without changing PR1/PR2 catalog, route guards, or backend authority. |
+
+## PR3 Live Checkpoint (Passed)
+
+- A bounded Playwright session against already-running local services authenticated an existing fixture, prepared a valid Warehouse Bale reception draft, then removed the exact backend `write + warehouse.raw_materials` grant immediately before confirmation.
+- The sole `POST /api/v1/warehouse/bales` returned 403. The client issued exactly one post-denial `GET /api/v1/access/me` (200), displayed an access-change explanation, reevaluated to the denied route state, and made zero automatic replay requests. The safe draft stayed in memory through the denial.
+- Cleanup removed the temporary Warehouse scope and role permissions, confirmed zero persisted batches/bales, restored the fixture authorization version, and closed the browser. No credentials/tokens persisted; no services, reset, migration, or Git/GitHub action occurred.
+- Maintainer scope decision: all PR3 tasks are complete for current applicable scope. The reusable exact action/scope catalog and shared 403 recovery serve current and future capability owners; the existing Warehouse Bale read/write operation and runtime checkpoint are sufficient evidence. No absent Bale edit/edit-outside-window operation or Yarn, Quality/Waste, Lot-stage, or Transversal owner-domain operation was invented or claimed. Evidence: `evidence/pr3.md`.

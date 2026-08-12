@@ -4,7 +4,7 @@ import type {
   AuthenticationState,
   AuthenticationAccountSummary,
 } from '../model/authenticationState'
-import { setTokenAccessor, clearTokenAccessor } from '@/api/httpClient'
+import { clearAuthenticationRequiredHandler, setAuthenticationRequiredHandler, setTokenAccessor, clearTokenAccessor } from '@/api/httpClient'
 import * as providerSession from '../provider/providerSession'
 import { fetchCurrentAuthentication, mapToAccountSummary, terminateSession } from '../api/authApi'
 import { isApiError } from '@/api/httpError'
@@ -69,6 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mountedRef.current = true
 
     setTokenAccessor(providerSession.getAccessToken)
+    setAuthenticationRequiredHandler(async () => {
+      await providerSession.signOut()
+      if (mountedRef.current) dispatch({ type: 'UNAUTHENTICATED', reason: 'expired' })
+    })
 
     async function initialize() {
       const active = await providerSession.hasSession()
@@ -99,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       mountedRef.current = false
       subscription.unsubscribe()
+      clearAuthenticationRequiredHandler()
       clearTokenAccessor()
     }
   }, [validateAccount])

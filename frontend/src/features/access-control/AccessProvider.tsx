@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { httpJson } from '@/api/httpClient'
+import { clearAccessDeniedRecoveryHandler, httpJson, setAccessDeniedRecoveryHandler } from '@/api/httpClient'
 import { useAuth } from '@/features/auth'
 import { AccessController, type AccessState } from './access-controller'
 import { AccessContext, type AccessContextValue } from './access-context'
@@ -10,6 +10,10 @@ export function AccessProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AccessState>(() => controller.getState())
 
   useEffect(() => controller.subscribe(setState), [controller])
+  useEffect(() => {
+    setAccessDeniedRecoveryHandler(() => controller.refresh())
+    return clearAccessDeniedRecoveryHandler
+  }, [controller])
   useEffect(() => {
     void controller.acceptHandoff(accessHandoff)
   }, [accessHandoff, controller])
