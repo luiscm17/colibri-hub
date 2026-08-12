@@ -16,6 +16,11 @@ describe('Access catalog', () => {
     expect(CORRECTION_REQUIREMENTS.edit).not.toEqual(CORRECTION_REQUIREMENTS.editOutsideWindow)
   })
 
+  it('keeps the warehouse operation requirements exact', () => {
+    expect(ACCESS_CATALOG['/warehouse/bales/reception']).toEqual({ action: 'write', scope: 'warehouse.raw_materials' })
+    expect(ACCESS_CATALOG['/warehouse/bales/stock']).toEqual({ action: 'read', scope: 'warehouse.raw_materials' })
+  })
+
   it('does not derive requirements from paths, filters, shifts, or action labels', () => {
     expect(requirementForPath('/spinning/ring-spinning?shift=night')).toEqual({ action: 'read', scope: 'yarn_spinning.section.ring_spinning' })
     expect(requirementForPath('/spinning/ring-spinning/edit')).toBeNull()

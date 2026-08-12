@@ -3,8 +3,12 @@ import { ApiError, parseApiErrorPayload } from './httpError'
 const API_BASE_PATH = '/api/v1'
 
 type TokenAccessor = () => Promise<string | null>
+type AccessDeniedRecoveryHandler = () => Promise<void>
+type AuthenticationRequiredHandler = () => Promise<void>
 
 let tokenAccessor: TokenAccessor | null = null
+let accessDeniedRecoveryHandler: AccessDeniedRecoveryHandler | null = null
+let authenticationRequiredHandler: AuthenticationRequiredHandler | null = null
 
 export function setTokenAccessor(accessor: TokenAccessor): void {
   tokenAccessor = accessor
@@ -14,11 +18,28 @@ export function clearTokenAccessor(): void {
   tokenAccessor = null
 }
 
+export function setAccessDeniedRecoveryHandler(handler: AccessDeniedRecoveryHandler): void {
+  accessDeniedRecoveryHandler = handler
+}
+
+export function clearAccessDeniedRecoveryHandler(): void {
+  accessDeniedRecoveryHandler = null
+}
+
+export function setAuthenticationRequiredHandler(handler: AuthenticationRequiredHandler): void {
+  authenticationRequiredHandler = handler
+}
+
+export function clearAuthenticationRequiredHandler(): void {
+  authenticationRequiredHandler = null
+}
+
 export interface HttpJsonOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: unknown
   signal?: AbortSignal
   headers?: HeadersInit
+  recoverAccessDenied?: boolean
 }
 
 export async function httpJson<T>(path: string, options: HttpJsonOptions = {}): Promise<T> {
@@ -27,6 +48,12 @@ export async function httpJson<T>(path: string, options: HttpJsonOptions = {}): 
   if (!response.ok) {
     const payload = await readJson(response)
     const error = parseApiErrorPayload(payload)
+    if (response.status === 401 || error.code === 'authentication_required') {
+      await authenticationRequiredHandler?.()
+    }
+    if (response.status === 403 && options.recoverAccessDenied) {
+      await accessDeniedRecoveryHandler?.()
+    }
     throw new ApiError({ kind: 'http', status: response.status, ...error })
   }
 
