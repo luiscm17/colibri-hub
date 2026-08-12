@@ -20,11 +20,11 @@ This is an OpenSpec-only portable handoff. All 30 tasks are pending and the prio
 
 ## Phase 1: PR1 — Foundation and handoff (base: tracker)
 
-- [ ] 1.1 Add Vitest, `@testing-library/react`, `@testing-library/user-event`, and `jsdom` to `frontend/package.json`/lockfile; configure `frontend/vitest.config.ts` and test discovery under `frontend/src/**/*.test.{ts,tsx}`.
-- [ ] 1.2 RED→GREEN in the same unit: test and implement Authentication semantic eligibility/session-end input, five Access states, retry, clear, and no protected content for unresolved/password-change/ended/unavailable; STOP and notify user before any live-backend check.
-- [ ] 1.3 RED→GREEN: test and implement strict `/api/v1/access/me` ordinary/global mapping, exact action/scope, `anyOf`/`allOf`, malformed fail-closed behavior, and normalized `profile_not_found`, `profile_inactive`, 403, 401, network/service, and invalid responses.
-- [ ] 1.4 RED→GREEN: test and implement identity `(accountId,handoffId,load_access)`, duplicate suppression, generation/correlation, AbortController, stale-result silence, atomic replacement, and narrow snapshot/check/refresh/clear exports; modify Auth only at the semantic boundary and retire no seam.
-- [ ] 1.5 Verify from `frontend/`: `pnpm vitest run src/features/access-control --reporter=verbose && pnpm build && pnpm lint`; after user starts/provisions the backend, record handoff/session-end evidence in `evidence/pr1.md`. Rollback `frontend/src/features/access-control/` and the semantic handoff adapter only; leave Auth shell behavior intact.
+- [x] 1.1 Add Vitest, `@testing-library/react`, `@testing-library/user-event`, and `jsdom` to `frontend/package.json`/lockfile; configure `frontend/vitest.config.ts` and test discovery under `frontend/src/**/*.test.{ts,tsx}`.
+- [x] 1.2 RED→GREEN in the same unit: test and implement Authentication semantic eligibility/session-end input, five Access states, retry, clear, and no protected content for unresolved/password-change/ended/unavailable; STOP and notify user before any live-backend check.
+- [x] 1.3 RED→GREEN: test and implement strict `/api/v1/access/me` ordinary/global mapping, exact action/scope, `anyOf`/`allOf`, malformed fail-closed behavior, and normalized `profile_not_found`, `profile_inactive`, 403, 401, network/service, and invalid responses.
+- [x] 1.4 RED→GREEN: test and implement identity `(accountId,handoffId,load_access)`, duplicate suppression, generation/correlation, AbortController, stale-result silence, atomic replacement, and narrow snapshot/check/refresh/clear exports; modify Auth only at the semantic boundary and retire no seam.
+- [x] 1.5 Verify from `frontend/`: `pnpm vitest run src/features/access-control --reporter=verbose && pnpm build && pnpm lint`; after user starts/provisions the backend, record handoff/session-end evidence in `evidence/pr1.md`. Rollback `frontend/src/features/access-control/` and the semantic handoff adapter only; leave Auth shell behavior intact.
 
 ## Phase 2: PR2 — Protected catalog, shell, and routes (base: PR1)
 

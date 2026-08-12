@@ -38,6 +38,9 @@ export function isApiError(error: unknown): error is ApiError {
 }
 
 export function parseApiErrorPayload(payload: unknown): Pick<ApiError, 'code' | 'fields' | 'message'> {
+  if (isRecord(payload) && typeof payload.detail === 'string') {
+    return { code: payload.detail, message: payload.detail, fields: [] }
+  }
   if (!isRecord(payload) || !isRecord(payload.error)) {
     return { message: 'The request could not be completed.', fields: [] }
   }
