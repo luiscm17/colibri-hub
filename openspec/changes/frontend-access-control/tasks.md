@@ -28,10 +28,10 @@ This is an OpenSpec-only portable handoff. All 30 tasks are pending and the prio
 
 ## Phase 2: PR2 — Protected catalog, shell, and routes (base: PR1)
 
-- [ ] 2.1 RED→GREEN: test and implement exact catalog requirements for Warehouse, five Yarn sections, quality/waste, Lot dashboard/queue/detail plus five stages, and transversal dashboard; keep filters/shifts neutral and distinguish `edit` from `edit_outside_window`.
-- [ ] 2.2 RED→GREEN: test and implement default-deny navigation in `frontend/src/app/navigation-data.tsx` and `frontend/src/app/layout/{AppLayout,Sidebar}.tsx`, omitting denied leaves and empty groups without role/label/prefix inference.
-- [ ] 2.3 RED→GREEN: test and implement direct/history route denial, blocked/unavailable outcomes, lazy admin protection, and exact requirements in `frontend/src/app/routes/{index,lazy-pages}.tsx`; migrate all consumers and remove `isResourceAllowed` one-way.
-- [ ] 2.4 Verify `pnpm vitest run src/app --reporter=verbose && pnpm build && pnpm lint`; STOP until user starts backend, then record direct URL/history denial and permitted fallback in `evidence/pr2.md`. Rollback catalog, route, and layout changes while retaining PR1’s public contract.
+- [x] 2.1 RED→GREEN: test and implement exact catalog requirements for Warehouse, five Yarn sections, quality/waste, Lot dashboard/queue/detail plus five stages, and transversal dashboard; keep filters/shifts neutral and distinguish `edit` from `edit_outside_window`.
+- [x] 2.2 RED→GREEN: test and implement default-deny navigation in `frontend/src/app/navigation-data.tsx` and `frontend/src/app/layout/{AppLayout,Sidebar}.tsx`, omitting denied leaves and empty groups without role/label/prefix inference.
+- [x] 2.3 RED→GREEN: test and implement direct/history route denial, blocked/unavailable outcomes, lazy admin protection, and exact requirements in `frontend/src/app/routes/{index,lazy-pages}.tsx`; migrate all consumers and remove `isResourceAllowed` one-way.
+- [x] 2.4 Verify `pnpm vitest run src/app --reporter=verbose && pnpm build && pnpm lint`; STOP until user starts backend, then record direct URL/history denial and permitted fallback in `evidence/pr2.md`. Rollback catalog, route, and layout changes while retaining PR1’s public contract.
 
 ## Phase 3: PR3 — Protected operations and 403 recovery (base: PR2)
 

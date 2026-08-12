@@ -44,7 +44,7 @@ export function AppLayout() {
     const { setColorScheme } = useMantineColorScheme();
     const computedScheme = useComputedColorScheme("light");
     const isDark = computedScheme === "dark";
-    const { account, logout, isResourceAllowed } = useAuth();
+    const { account, logout } = useAuth();
 
     const handleNavClick = () => {
         closeMobileNav();
@@ -156,7 +156,7 @@ export function AppLayout() {
                         </ActionIcon>
                     </Group>
                 </Box>
-                <Sidebar isResourceAllowed={isResourceAllowed} onNavigate={handleNavClick} />
+                <Sidebar onNavigate={handleNavClick} />
             </Drawer>
 
             {/* Desktop: Sidebar + main content */}
@@ -167,7 +167,7 @@ export function AppLayout() {
                         className={`${classes.sidebar} ${sidebarCollapsed ? classes.sidebarCollapsed : ""}`}
                         bg={isDark ? "dark.7" : "gray.0"}
                     >
-                        <Sidebar isResourceAllowed={isResourceAllowed} onNavigate={handleNavClick} />
+                        <Sidebar onNavigate={handleNavClick} />
                     </Box>
                 )}
                 <Box component="main" className={classes.main} p="md">

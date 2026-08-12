@@ -9,7 +9,6 @@ export interface AuthContextValue {
   account: AuthenticationAccountSummary | null
   isAuthenticated: boolean
   accessHandoff: AuthenticationAccessHandoff
-  isResourceAllowed: (resourceType: string) => boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   revalidate: () => Promise<void>

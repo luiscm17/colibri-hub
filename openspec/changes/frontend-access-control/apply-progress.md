@@ -2,7 +2,7 @@
 
 ## Status
 
-PR1 deterministic foundation is complete. The final authorized remediation wraps the initial `AccessController.getState()` read so its receiver is preserved, with a co-located focused provider regression test. After stopping the repository's local backend and frontend development servers, the bounded deterministic suite, lint, and build passed. Maintainer-supplied live evidence satisfies the runtime checkpoint. Completed tasks: 5/30.
+PR1 deterministic foundation is complete. PR2 adds a canonical exact protected-capability catalog, derives default-deny navigation solely from the current Access snapshot, protects direct/history routes with the same state outcome, and removes the retired `isResourceAllowed` seam. Deterministic and maintainer-controlled runtime evidence passed. Completed tasks: 9/30.
 
 ## Portable Handoff
 
@@ -25,6 +25,10 @@ PR1 task 1.5 is complete. No live verification was repeated; the maintainer supp
 - [x] 1.3 Implement strict Access snapshot adaptation and decisions.
 - [x] 1.4 Implement correlated Access controller and public contract.
 - [x] 1.5 Run deterministic verification and record user-controlled live evidence.
+- [x] 2.1 Implement exact protected-capability catalog requirements.
+- [x] 2.2 Derive default-deny shell navigation from Access.
+- [x] 2.3 Protect direct/history routes and retire `isResourceAllowed`.
+- [x] 2.4 Record the required live direct-URL/history and permitted-fallback evidence.
 
 ## Work Unit Evidence
 
@@ -34,6 +38,10 @@ PR1 task 1.5 is complete. No live verification was repeated; the maintainer supp
 | Deterministic quality commands and exact result | `pnpm lint && pnpm build` — exit 0; ESLint, TypeScript, and Vite production build passed. Only the existing Vite >500 kB chunk warning was emitted. |
 | Runtime harness command/scenario and exact result | Maintainer-supplied, sanitized evidence: authenticated login succeeded; `GET /api/v1/access/me` returned HTTP 200 with `authorization.is_global: false` and exact `read`/`write`/`edit` permissions for `yarn_spinning.section.ring_spinning`; logout returned DELETE 204, returned to login, removed protected UI, and made no subsequent `/access/me` request. No credentials/tokens were exposed or persisted by this execution. |
 | Rollback boundary | Revert only `frontend/src/features/access-control/AccessProvider.tsx` and `frontend/src/features/access-control/AccessProvider.test.tsx`; this removes the safe receiver wrapper and its regression test without changing controller, Authentication, backend, shell, or later PR slices. |
+| PR2 focused test command and exact result | `timeout 60s pnpm vitest run src/app src/features/access-control/catalog.test.ts --reporter=verbose --pool=forks --maxWorkers=1 --no-file-parallelism` — exit 0; 3 files and 6 tests passed in 2.20s. RED first failed because `catalog` and `protected-route` modules did not exist; GREEN passed after implementation. |
+| PR2 deterministic quality commands and exact result | `pnpm lint && pnpm build` — exit 0; ESLint, TypeScript, and Vite production build passed. Existing Vite >500 kB chunk warning only. |
+| PR2 runtime harness command/scenario and exact result | One bounded Playwright run against already-running services: ordinary-user login, HTTP 200 `/access/me`, direct `/warehouse/bales` denial without protected content, Warehouse omitted, Yarn visible, Profile fallback, and browser Back preserved denial. Maintainer supplied the permitted complement: `/spinning/ring-spinning` rendered Hilatura without Access Denied while Warehouse remained absent. Sanitized details are recorded in `evidence/pr2.md`. |
+| PR2 rollback boundary | Revert `frontend/src/features/access-control/catalog.ts`, route-protection modules/tests, navigation/layout changes, and removal of `isResourceAllowed`; this restores the PR1 shell seam without changing Access foundation, Authentication eligibility, backend transport, or later slices. |
 
 ## Delivery
 
@@ -62,3 +70,13 @@ PR1 task 1.5 is complete. No live verification was repeated; the maintainer supp
 ```
 
 Completed tasks: 5/30.
+
+## PR2 Progress
+
+- Mode: chained PR slice; feature-branch-chain base is PR1 (`front/access-protected-shell`). No Git/GitHub operations were performed.
+- Boundary: canonical catalog, shell-derived navigation, route guard, and seam retirement only. Administration implementation, protected operations, 403 recovery, and all PR3+ work remain untouched.
+- Diagnosis: initial RED execution failed with two unresolved-module suites, proving the catalog and route-decision boundaries were absent. The implemented catalog uses explicit entries only; it never classifies paths, filters, shifts, labels, roles, or scope prefixes.
+- Process/cleanup: standard mode with applicable routing RED tests written before production changes; no development server, backend, Supabase instance, credentials, or temporary runtime artifact was created. The supplied runtime token was not acquired, settled, reset, or otherwise touched.
+- Outcome: tasks 2.1–2.4 complete. Runtime budget is exhausted; no additional live attempt was run. No task 2.5 exists in the authoritative `tasks.md`.
+
+Completed tasks: 9/30.
