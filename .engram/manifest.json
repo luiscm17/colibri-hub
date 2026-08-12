@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "chunks": [
+    {
+      "id": "ff3634be",
+      "created_by": "luis-cm",
+      "created_at": "2026-08-12T15:17:20Z",
+      "sessions": 46,
+      "memories": 414,
+      "prompts": 404
+    }
+  ]
+}
