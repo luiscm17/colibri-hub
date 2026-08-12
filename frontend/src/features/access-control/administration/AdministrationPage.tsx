@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { httpJson } from '@/api/httpClient'
 import { isApiError } from '@/api/httpError'
+import { GovernancePanel } from './GovernancePanel'
 
 type Family = 'users' | 'roles' | 'presets' | 'scopes' | 'history'
 type Page = { items: Record<string, unknown>[]; page: number; page_size: number; total: number }
@@ -65,7 +66,7 @@ export default function AdministrationPage() {
   if (currentFailure) return <Alert>{currentFailure}</Alert>
   if (!currentPage) return <Stack align="center" py="xl"><Loader aria-label="Loading administration" /></Stack>
   return <Stack gap="lg"><Group justify="space-between"><Title order={1}>{current.title}</Title></Group>
-    {subjectId ? <><Button variant="subtle" onClick={() => navigate(`/access/${family}?page=${page}`)}>Back to {current.title}</Button><Card withBorder><Text>{itemLabel(currentPage.items[0] ?? {}, family)}</Text></Card></> : <>
+    {subjectId ? <><Button variant="subtle" onClick={() => navigate(`/access/${family}?page=${page}`)}>Back to {current.title}</Button><Card withBorder><Text>{itemLabel(currentPage.items[0] ?? {}, family)}</Text>{family === 'users' || family === 'roles' || family === 'presets' ? <GovernancePanel family={family} item={currentPage.items[0] ?? {}} onReconcile={() => navigate(`/access/${family}/${subjectId}`, { replace: true })} /> : null}</Card></> : <>
       {family === 'history' ? <Group grow>{HISTORY_FILTERS.map((key) => <TextInput key={key} label={key.split('_').map((part) => part[0].toUpperCase() + part.slice(1)).join(' ')} value={params.get(key) ?? ''} onChange={(event) => update(key, event.currentTarget.value)} />)}</Group> : <TextInput label="Filter loaded page" value={query} onChange={(event) => setQuery(event.currentTarget.value)} description="Filters this loaded page only." />}
       {currentPage.items.length === 0 ? <Alert>No records found.</Alert> : shown.length === 0 ? <Alert>No matches on this loaded page.</Alert> : <Table style={{ minWidth: 500 }}><Table.Thead><Table.Tr><Table.Th>Identity</Table.Th><Table.Th>Status</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{shown.map((item) => { const id = current.id ? text(item[current.id]) : ''
         return <Table.Tr key={id || text(item.audit_id)}><Table.Td>{id ? <Text component={Link} to={`/access/${family}/${id}`}>{itemLabel(item, family)}</Text> : itemLabel(item, family)}</Table.Td><Table.Td>{typeof item.is_active === 'boolean' ? item.is_active ? 'Active' : 'Inactive' : text(item.occurred_at)}</Table.Td></Table.Tr> })}</Table.Tbody></Table>}

@@ -35,7 +35,7 @@ export function clearAuthenticationRequiredHandler(): void {
 }
 
 export interface HttpJsonOptions {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   signal?: AbortSignal
   headers?: HeadersInit

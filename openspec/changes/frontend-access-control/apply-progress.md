@@ -133,3 +133,25 @@ Completed tasks: 9/30.
 ## PR4 Closed
 
 All Phase 4 tasks are closed by the current implemented backend contracts, deterministic five-test/build/lint evidence, and maintainer-confirmed live navigation. The maintainer confirmed rapid navigation has no `ApiError: The request was cancelled` console error; only the informational React DevTools message remains. `evidence/pr4.md` records the current contract boundary: Scopes is collection-derived context and History is filtered collection-only. Unsupported detail/operation depth is explicitly deferred to future owner/backend specifications and is not claimed as implemented.
+
+## PR5 Closed: Governance, Forms, Previews, and Conflicts
+
+- Mode: chained PR slice (`feature-branch-chain`), base `05ead44`; no Git/GitHub action or runtime token operation occurred.
+- Added Mantine Form and an isolated mutation gate for duplicate fingerprints, preview invalidation, and backend `409` / last-administrator / authority-change recovery classifications. The currently addressable User, Role, and Preset detail surfaces now use reason-required loaded-version lifecycle/replacement form seams; profile creation remains explicitly Authentication-owned.
+- Existing deterministic and maintainer-confirmed live evidence closes tasks 5.1–5.6 within current backend contracts. `evidence/pr5.md` records the reversible role replacement and restoration, with no persistent RBAC change.
+- The current comma-separated UUID role input is accepted for PR5 only; UX improvement is deferred to GitHub issue #78. A MultiSelect/member directory requires an explicit future backend role-member contract; no N+1 query or impact-preview misuse was introduced. Unsupported future backend depth remains an extension seam and is not claimed.
+
+| Evidence | Result |
+|---|---|
+| Focused test command and exact result | `pnpm vitest run src/features/access-control/administration --reporter=verbose --pool=forks --maxWorkers=1 --no-file-parallelism` — exit 0; 2 files and 8 tests passed. The PR5 RED first failed because `governance.ts` did not exist. |
+| Deterministic quality commands and exact result | `pnpm build && pnpm lint` — exit 0; TypeScript, Vite build, and ESLint passed. Existing Vite >500 kB chunk warning only. |
+| Runtime harness command/scenario and exact result | Maintainer-confirmed, System Administrator: a real reversible User role replacement was performed, appeared in Access History, and was restored. No RBAC data remains changed. |
+| Rollback boundary | Revert `frontend/src/features/access-control/administration/{GovernancePanel,governance,governance.test}.ts*`, the AdministrationPage integration, HTTP PATCH support, and Mantine Form manifest/lockfile entry. `backend/http/CREDENTIALS.md` fixture-display-name documentation is independently reversible; never mutate backend RBAC data. |
+
+Completed tasks: 26/30.
+
+## PR5 Delivery Boundary
+
+- Include `frontend/src/features/access-control/administration/{AdministrationPage,GovernancePanel,governance,governance.test}.ts*`, `frontend/src/api/httpClient.ts`, `frontend/package.json`, `frontend/pnpm-lock.yaml`, `backend/http/CREDENTIALS.md`, and PR5 OpenSpec evidence/progress/task artifacts.
+- Exclude unrelated untracked `.agents/`, `.playwright-cli/`, `backend/http/TEST_REPORT.md`, and `skills-lock.json`.
+- No service, database, runtime token lifecycle, Git, or GitHub action occurred during this evidence closure.
