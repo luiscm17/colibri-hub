@@ -61,9 +61,9 @@ This is an OpenSpec-only portable handoff. All 30 tasks are pending and the prio
 
 ## Phase 6: PR6 — Hardening, accessibility, and evidence (base: PR5)
 
-- [ ] 6.1 RED→GREEN: run the complete spec matrix for handoff, latest-only/abort, disclosure, route recovery, session clearing, responsive critical actions, keyboard tab/focus, and screen-reader announcements; close only observed gaps without adding requirements.
-- [ ] 6.2 RED→GREEN: remove the retired authorization seam, complete remaining Access exports and fixtures, and preserve capability ownership/backend-authority boundaries.
-- [ ] 6.3 Update `frontend/docs/testing/strategy.md`, `frontend/docs/features/access-control.md`, and `evidence/index.md` with commands, screenshots/observations, pass/fail status, and the unresolved external Authentication dependency.
-- [ ] 6.4 Verify `pnpm vitest run --reporter=verbose`, `pnpm build`, `pnpm lint`, `git diff --stat`, and each child base; STOP, notify user, and await backend startup before recording handoff, 403, pagination, mutations/conflicts, recovery, responsive, and assistive real-backend evidence. Rollback docs, fixtures, and hardening only.
+- [x] 6.1 RED→GREEN: run the complete spec matrix for handoff, latest-only/abort, disclosure, route recovery, session clearing, responsive critical actions, keyboard tab/focus, and screen-reader announcements; close only observed gaps without adding requirements.
+- [x] 6.2 RED→GREEN: remove the retired authorization seam, complete remaining Access exports and fixtures, and preserve capability ownership/backend-authority boundaries.
+- [x] 6.3 Update `frontend/docs/testing/strategy.md`, `frontend/docs/features/access-control.md`, and `evidence/index.md` with commands, screenshots/observations, pass/fail status, and the unresolved external Authentication dependency.
+- [x] 6.4 Verify `pnpm vitest run --reporter=verbose`, `pnpm build`, `pnpm lint`, `git diff --stat`, and each child base; STOP, notify user, and await backend startup before recording handoff, 403, pagination, mutations/conflicts, recovery, responsive, and assistive real-backend evidence. Rollback docs, fixtures, and hardening only.
 
 After a fresh session completes mandatory preflight/init/status guards, `sdd-apply` is authorized for PR1 only under its selected finite review budget and the approved `size:exception`. These implementation tasks remain unchecked. OpenSpec is the only portable handoff authority; do not retrieve an old runtime ledger. The user alone starts or provisions the backend, and only after an explicit checkpoint request. Git and GitHub operations remain manual.

@@ -150,6 +150,38 @@ All Phase 4 tasks are closed by the current implemented backend contracts, deter
 
 Completed tasks: 26/30.
 
+## PR6 Partial: Hardening and Evidence
+
+- Mode: chained PR slice, feature-branch-chain. Base is merged PR5 commit `8afb280`; the current branch is a direct descendant and has no child-base pollution.
+- RED observation: the complete Vitest matrix initially failed because `AccessProvider.test.tsx` mocked only `httpJson` while `AccessProvider` now uses the established Access-denial recovery registration. The test mock was completed; no production authorization, routing, or Authentication behavior changed. GREEN focused provider test passed (1 file, 1 test).
+- The deterministic matrix passed after the correction: handoff/session clearing, bootstrap latest-only/abort, default-deny disclosure, route recovery, administration latest-only/abort, and current control semantics are covered by the existing focused suites. Responsive, keyboard/focus, and screen-reader observations still require a running real application and assistive technology; no inferred evidence was added.
+- The retired `isResourceAllowed` seam has no frontend consumer. The Access public contract remains narrow and capability-owned; existing exports and fixtures retain backend `authorization.is_global` authority and do not fabricate grants or Authentication behavior.
+- Documentation and `evidence/index.md` now identify deterministic commands/results, no-service observations, exact live checklist, and the unresolved external Authentication handoff/session-ended dependency. Issue #78 remains excluded.
+
+| Evidence | Result |
+|---|---|
+| Focused RED/GREEN test | RED: full Vitest failed with 1 failing provider test because the mock lacked `setAccessDeniedRecoveryHandler`. GREEN: `pnpm vitest run src/features/access-control/AccessProvider.test.tsx --reporter=verbose --pool=forks --maxWorkers=1 --no-file-parallelism` — exit 0; 1 file and 1 test passed. |
+| Full deterministic verification | `pnpm vitest run --reporter=verbose --pool=forks --maxWorkers=1 --no-file-parallelism && pnpm build && pnpm lint` — exit 0; 8 files and 24 tests passed; TypeScript, Vite build, and ESLint passed. Existing Vite >500 kB chunk warning only. |
+| Runtime harness | N/A pending user-controlled services and assistive-technology review. No backend, Supabase, frontend service, browser, or token lifecycle operation was started or contacted. |
+| Rollback boundary | Revert `frontend/src/features/access-control/AccessProvider.test.tsx`, the three PR6 documentation/evidence artifacts, and PR6 task/progress marks; no production behavior, backend contract, or prior PR slice is removed. |
+
+Completed tasks: 28/30. Pending: 6.1 complete observed interactive matrix and 6.4 record user-controlled real-backend evidence after startup.
+
+## PR6 Closed: Hardening, Accessibility, and Evidence
+
+- Maintainer live evidence passed for Authentication handoff/session clearing, latest-only navigation, responsive critical actions, keyboard/focus, screen-reader announcements, and no replay. No Access authorization rule, Authentication behavior, backend endpoint, or database state was changed.
+- The sole observed frontend gap was React's unsupported inline `@media (prefers-reduced-motion: reduce)` key in `BaleManagementPage`. The invalid key was removed; the existing valid global media query now disables the card transition through `.bale-workflow-card`. The React DevTools message is informational. A rejected-credential Supabase token `400` was non-blocking because subsequent login succeeded; no auth/backend action was required.
+- Final deterministic command: `pnpm vitest run --reporter=verbose --pool=forks --maxWorkers=1 --no-file-parallelism && pnpm build && pnpm lint` — exit 0; 8 files and 24 tests passed; TypeScript, Vite build, and ESLint passed. Existing Vite >500 kB chunk warning only.
+- Child-base validation: `8afb280` is an ancestor of HEAD and `git merge-base HEAD 8afb280` equals `8afb280`; no child-base pollution. `git diff --check` passed.
+
+| Evidence | Result |
+|---|---|
+| Focused regression | The invalid inline media key was removed from `BaleManagementPage`; valid scoped global CSS preserves reduced-motion transition suppression. No separate component test exists and the full build/lint validates the JSX/CSS boundary. |
+| Runtime harness | Maintainer-provided live evidence accepted: handoff/session clearing, latest-only navigation, responsive critical actions, keyboard/focus, announcements, and no replay passed. |
+| Rollback boundary | Revert the Bale workflow card class/CSS rule, PR6 provider-test fixture, PR6 docs/evidence, and task/progress marks. No prior authorization behavior, Authentication, backend, or RBAC data is affected. |
+
+Completed tasks: 30/30.
+
 ## PR5 Delivery Boundary
 
 - Include `frontend/src/features/access-control/administration/{AdministrationPage,GovernancePanel,governance,governance.test}.ts*`, `frontend/src/api/httpClient.ts`, `frontend/package.json`, `frontend/pnpm-lock.yaml`, `backend/http/CREDENTIALS.md`, and PR5 OpenSpec evidence/progress/task artifacts.

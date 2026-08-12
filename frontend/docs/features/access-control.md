@@ -736,7 +736,26 @@ The implementation must prove these observable contracts at justified levels:
 - Session end clears Access and authorization-dependent drafts; denied states and
   ordinary telemetry reveal no permission configuration or secret material.
 
-## 11. Completion criteria
+## 11. Evidence status and external dependency
+
+The deterministic Access suite runs with `pnpm vitest run --reporter=verbose`,
+then `pnpm build` and `pnpm lint` from `frontend/`. It covers the frontend
+contract boundary: semantic handoff processing, exact default-deny decisions,
+latest-only/abort behavior, protected disclosure, route fallback, safe session
+clearing, and current administration recovery.
+
+The remaining real-backend evidence requires maintainer-controlled running
+services and an assistive-technology review. Authentication must publish and
+prove opaque handoff identity plus session-ended clearing in that environment.
+Maintainer evidence has recorded handoff/session clearing, latest-only navigation,
+responsive critical actions, keyboard/focus, screen-reader announcements, and no
+replay as passed. The observed invalid inline reduced-motion media key was moved
+to valid global CSS; no authorization, Authentication, or backend behavior
+changed. This does not authorize client inference: Access continues to consume
+backend-resolved grants, and Authentication retains session ownership. The future
+role-assignment/member experience tracked in issue #78 is not part of this change.
+
+## 12. Completion criteria
 
 ### Authorization foundation
 
