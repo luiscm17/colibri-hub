@@ -9,7 +9,6 @@ import { ComingSoon } from '@/common/components/ComingSoon'
 import { ACCESS_CATALOG } from '@/features/access-control'
 import { ProtectedRoute } from './protected-route'
 import {
-  AdminPage,
   BaleManagementPage,
   LoginPage,
   MandatoryPasswordChangePage,
@@ -19,6 +18,7 @@ import {
   BaleReceptionPage,
   BaleStockPage,
   BaleDeliveryPage,
+  AccessAdministrationPage,
   SpinningPage,
 } from './lazy-pages'
 
@@ -87,7 +87,7 @@ const router = createBrowserRouter([
       { path: 'lots/quality', element: <ProtectedRoute requirement={ACCESS_CATALOG['/lots/quality']}><LotsPage /></ProtectedRoute> },
 
       // Admin
-      { path: 'access/:destination', element: <ProtectedRoute requirement={ACCESS_CATALOG['/access/users']}><AdminPage /></ProtectedRoute> },
+      { path: 'access/:family/:subjectId?', element: <ProtectedRoute requirement={ACCESS_CATALOG['/access/users']}><AccessAdministrationPage /></ProtectedRoute> },
       { path: 'profile', element: <ProfilePage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
