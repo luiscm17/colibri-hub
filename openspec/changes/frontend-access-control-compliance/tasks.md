@@ -68,8 +68,8 @@ Paths: current `AdministrationPage.tsx`, `GovernancePanel.tsx`, `governance.ts`,
 - [x] EVIDENCE: keyboard/narrow; `evidence/U8.md`.
 - [x] DELIVERY: dialog; `feat(access): make access confirmation safe`; STOP.
 ## Phase U9: #81 closure
-- [ ] RED: `evidence-completeness.test.ts` Evidence S1-S9 failing.
-- [ ] IMPLEMENT: only ledger, docs, fixtures; inspect receipts.
-- [ ] GREEN: focused/full tests, build, lint.
+- [x] RED: `evidence-completeness.test.ts` Evidence S1-S9 failing.
+- [x] IMPLEMENT: only ledger, docs, fixtures; inspect receipts.
+- [x] GREEN: focused/full tests, build, lint.
 - [ ] EVIDENCE: inspect U1-U8/ledger; `evidence/U9.md`; run all deferred manual/browser S1-S9 scenarios, including historical U1 S1 failure and S2 pass.
-- [ ] DELIVERY: ledger/docs/fixtures; `test(access): close compliance evidence`; STOP.
+- [x] DELIVERY: ledger/docs/fixtures; `test(access): close compliance evidence`; STOP.
