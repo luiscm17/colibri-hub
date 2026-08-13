@@ -9,6 +9,7 @@ import {
 
 type AdministrationShellProps = Readonly<{
   route: AdministrationRouteState
+  navigate(route: AdministrationRouteState): void
   children: (state: {
     route: AdministrationRouteState
     beginDraft(): void
@@ -17,8 +18,7 @@ type AdministrationShellProps = Readonly<{
   }) => ReactNode
 }>
 
-export function AdministrationShell({ route: initialRoute, children }: AdministrationShellProps) {
-  const [route, setRoute] = useState(initialRoute)
+export function AdministrationShell({ route, navigate, children }: AdministrationShellProps) {
   const [origin, setOrigin] = useState<AdministrationRouteState | null>(null)
 
   const beginDraft = () => setOrigin(captureAdministrationOrigin(route))
@@ -26,7 +26,7 @@ export function AdministrationShell({ route: initialRoute, children }: Administr
     if (!origin) return
     const result = resolveDiscard(origin, confirmed)
     if (result.action === 'restore') {
-      setRoute(result.route)
+      navigate(result.route)
       setOrigin(null)
     }
   }
@@ -35,6 +35,6 @@ export function AdministrationShell({ route: initialRoute, children }: Administr
     route,
     beginDraft,
     discardDraft,
-    recover: (reason) => setRoute((current) => recoverAdministrationRoute(current, reason)),
+    recover: (reason) => navigate(recoverAdministrationRoute(route, reason)),
   })
 }
