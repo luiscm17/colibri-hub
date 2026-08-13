@@ -50,11 +50,11 @@ Paths: current `AdministrationPage.tsx`, `GovernancePanel.tsx`, `governance.ts`,
 - [x] EVIDENCE: scope/History; `evidence/U5.md`.
 - [x] DELIVERY: scopes/history; `feat(access): constrain governance history`; STOP.
 ## Phase U6: #84 user gate
-- [ ] RED: `mutations/user-role-gate.test.ts` Fresh replacement.
-- [ ] IMPLEMENT: non-zero preview/version once.
-- [ ] GREEN: focused test.
-- [ ] EVIDENCE: preview/apply; `evidence/U6.md`.
-- [ ] DELIVERY: user gate; `feat(access): gate user role replacement`; STOP.
+- [x] RED: `mutations/user-role-gate.test.ts` Fresh replacement.
+- [x] IMPLEMENT: non-zero preview/version once.
+- [x] GREEN: focused test.
+- [x] EVIDENCE: preview/apply; `evidence/U6.md`.
+- [x] DELIVERY: user gate; `feat(access): gate user role replacement`; STOP.
 ## Phase U7: #84 shared-role gate
 - [ ] RED: `mutations/shared-role-gate.test.ts` fingerprint/version, non-zero, apply-once, optional reason, invalidation, no replay, impact.
 - [ ] IMPLEMENT: invalidate; separate impact.
