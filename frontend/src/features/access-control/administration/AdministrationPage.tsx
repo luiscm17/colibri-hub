@@ -5,6 +5,7 @@ import { httpJson } from '@/api/httpClient'
 import { isApiError } from '@/api/httpError'
 import { resolveAdministrationOperation } from './operations'
 import { AdministrationShell } from './AdministrationShell'
+import { PresetCopyPanel } from './presets/PresetCopyPanel'
 
 type Page = { items: Record<string, unknown>[]; page: number; page_size: number; total: number }
 const HISTORY_FILTERS = ['subject_type', 'change_kind', 'date_from', 'date_to'] as const
@@ -66,7 +67,7 @@ export default function AdministrationPage({ family: declaredFamily, mode }: { f
   return <AdministrationShell route={{ family: operation.family, criteria, page, subjectId }} navigate={projectRoute}>
     {() => currentFailure ? <Alert>{currentFailure}</Alert> : !currentPage ? <Stack align="center" py="xl"><Loader aria-label="Loading administration" /></Stack> :
       <Stack gap="lg"><Group justify="space-between"><Title order={1}>{operation.title}</Title></Group>
-        {subjectId ? <><Button variant="subtle" onClick={() => projectRoute({ family: operation.family, criteria, page })}>Back to {operation.title}</Button><Card withBorder><Text>{label(currentPage.items[0] ?? {})}</Text></Card></> : <>
+          {subjectId ? <><Button variant="subtle" onClick={() => projectRoute({ family: operation.family, criteria, page })}>Back to {operation.title}</Button><Card withBorder><Text>{label(currentPage.items[0] ?? {})}</Text></Card>{operation.family === 'presets' ? <PresetCopyPanel preset={{ presetId: subjectId, presetCode: text(currentPage.items[0]?.preset_code), presetName: text(currentPage.items[0]?.preset_name), description: text(currentPage.items[0]?.description) || null, permissions: [] }} /> : null}</> : <>
           {operation.family === 'history' ? <Group grow>{HISTORY_FILTERS.map((key) => <TextInput key={key} label={key.split('_').map((part) => part[0].toUpperCase() + part.slice(1)).join(' ')} value={params.get(key) ?? ''} onChange={(event) => update(key, event.currentTarget.value)} />)}</Group> : <TextInput label="Filter loaded page" value={query} onChange={(event) => setQuery(event.currentTarget.value)} description="Filters this loaded page only." />}
           {currentPage.items.length === 0 ? <Alert>No records found.</Alert> : shown.length === 0 ? <Alert>No matches on this loaded page.</Alert> : <Table style={{ minWidth: 500 }}><Table.Thead><Table.Tr><Table.Th>Identity</Table.Th><Table.Th>Status</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{shown.map((item) => { const id = operation.id ? text(item[operation.id]) : ''; return <Table.Tr key={id || text(item.audit_id)}><Table.Td>{id ? <Text component={Link} to={`/access/${operation.family}/${id}`}>{label(item)}</Text> : label(item)}</Table.Td><Table.Td>{typeof item.is_active === 'boolean' ? item.is_active ? 'Active' : 'Inactive' : text(item.occurred_at)}</Table.Td></Table.Tr> })}</Table.Tbody></Table>}
           {currentPage.total > 50 ? <Pagination value={page} onChange={(next) => update('page', String(next))} total={Math.ceil(currentPage.total / 50)} getControlProps={(control) => control === 'next' ? { 'aria-label': 'Next page' } : {}} /> : null}

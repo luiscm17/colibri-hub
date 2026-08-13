@@ -38,11 +38,11 @@ Paths: current `AdministrationPage.tsx`, `GovernancePanel.tsx`, `governance.ts`,
 - [x] EVIDENCE: Matrix; `evidence/U3.md`.
 - [x] DELIVERY: forms/matrix; `feat(access): constrain permission selection`; STOP.
 ## Phase U4: #83 presets
-- [ ] RED: `presets/presets.test.ts` Preset independence.
-- [ ] IMPLEMENT: `presets/`: copies never synchronize.
-- [ ] GREEN: focused test.
-- [ ] EVIDENCE: copies; `evidence/U4.md`.
-- [ ] DELIVERY: presets; `feat(access): separate preset flows`; STOP.
+- [x] RED: `presets/presets.test.ts` Preset independence.
+- [x] IMPLEMENT: `presets/`: copies never synchronize.
+- [x] GREEN: focused test.
+- [x] EVIDENCE: copies; `evidence/U4.md`.
+- [x] DELIVERY: presets; `feat(access): separate preset flows`; STOP.
 ## Phase U5: #83 scopes-history
 - [ ] RED: `scopes/history.test.ts` Matrix/Preset limits.
 - [ ] IMPLEMENT: `scopes/`/`history/`: recognized/four filters.
