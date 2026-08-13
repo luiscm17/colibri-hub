@@ -32,11 +32,11 @@ Paths: current `AdministrationPage.tsx`, `GovernancePanel.tsx`, `governance.ts`,
 - [x] EVIDENCE: discard/stale; `evidence/U2.md`.
 - [x] DELIVERY: shell/state; `feat(access): recover administration navigation`; STOP.
 ## Phase U3: #83 matrix
-- [ ] RED: `forms/matrix.test.ts`: additive active-role union; inactive excluded; exact action/scope denial; label independence; catalog growth; unsupported extensions.
-- [ ] IMPLEMENT: `forms/matrix.ts`: active IDs; inactive removable.
-- [ ] GREEN: focused test.
-- [ ] EVIDENCE: Matrix; `evidence/U3.md`.
-- [ ] DELIVERY: forms/matrix; `feat(access): constrain permission selection`; STOP.
+- [x] RED: `forms/matrix.test.ts`: additive active-role union; inactive excluded; exact action/scope denial; label independence; catalog growth; unsupported extensions.
+- [x] IMPLEMENT: `forms/matrix.ts`: active IDs; inactive removable.
+- [x] GREEN: focused test.
+- [x] EVIDENCE: Matrix; `evidence/U3.md`.
+- [x] DELIVERY: forms/matrix; `feat(access): constrain permission selection`; STOP.
 ## Phase U4: #83 presets
 - [ ] RED: `presets/presets.test.ts` Preset independence.
 - [ ] IMPLEMENT: `presets/`: copies never synchronize.
