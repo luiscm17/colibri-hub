@@ -62,11 +62,11 @@ Paths: current `AdministrationPage.tsx`, `GovernancePanel.tsx`, `governance.ts`,
 - [x] EVIDENCE: conflict/session; `evidence/U7.md`.
 - [x] DELIVERY: shared-role gate; `feat(access): gate shared role replacement`; STOP.
 ## Phase U8: #84 safe delivery
-- [ ] RED: `mutations/accessibility.test.tsx` Accessible safe delivery.
-- [ ] IMPLEMENT: confirmation impact/focus/announcements/clearing.
-- [ ] GREEN: focused test.
-- [ ] EVIDENCE: keyboard/narrow; `evidence/U8.md`.
-- [ ] DELIVERY: dialog; `feat(access): make access confirmation safe`; STOP.
+- [x] RED: `mutations/accessibility.test.tsx` Accessible safe delivery.
+- [x] IMPLEMENT: confirmation impact/focus/announcements/clearing.
+- [x] GREEN: focused test.
+- [x] EVIDENCE: keyboard/narrow; `evidence/U8.md`.
+- [x] DELIVERY: dialog; `feat(access): make access confirmation safe`; STOP.
 ## Phase U9: #81 closure
 - [ ] RED: `evidence-completeness.test.ts` Evidence S1-S9 failing.
 - [ ] IMPLEMENT: only ledger, docs, fixtures; inspect receipts.
