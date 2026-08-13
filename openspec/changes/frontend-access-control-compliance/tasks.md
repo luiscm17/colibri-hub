@@ -44,11 +44,11 @@ Paths: current `AdministrationPage.tsx`, `GovernancePanel.tsx`, `governance.ts`,
 - [x] EVIDENCE: copies; `evidence/U4.md`.
 - [x] DELIVERY: presets; `feat(access): separate preset flows`; STOP.
 ## Phase U5: #83 scopes-history
-- [ ] RED: `scopes/history.test.ts` Matrix/Preset limits.
-- [ ] IMPLEMENT: `scopes/`/`history/`: recognized/four filters.
-- [ ] GREEN: focused test.
-- [ ] EVIDENCE: scope/History; `evidence/U5.md`.
-- [ ] DELIVERY: scopes/history; `feat(access): constrain governance history`; STOP.
+- [x] RED: `scopes/history.test.ts` Matrix/Preset limits.
+- [x] IMPLEMENT: `scopes/`/`history/`: recognized/four filters.
+- [x] GREEN: focused test.
+- [x] EVIDENCE: scope/History; `evidence/U5.md`.
+- [x] DELIVERY: scopes/history; `feat(access): constrain governance history`; STOP.
 ## Phase U6: #84 user gate
 - [ ] RED: `mutations/user-role-gate.test.ts` Fresh replacement.
 - [ ] IMPLEMENT: non-zero preview/version once.
