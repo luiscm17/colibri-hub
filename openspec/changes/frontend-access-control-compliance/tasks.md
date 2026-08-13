@@ -26,11 +26,11 @@ Paths: current `AdministrationPage.tsx`, `GovernancePanel.tsx`, `governance.ts`,
 - [x] EVIDENCE: automated acceptance; manual/browser S1-S2 deferred as non-gating until PR9; `openspec/changes/frontend-access-control-compliance/evidence/U1.md`.
 - [x] DELIVERY: matrix/routes; `feat(access): constrain administration routes`; STOP.
 ## Phase U2: #82 recovery
-- [ ] RED: `route-state.test.ts` Origin and discard/Recovery; `pnpm --dir frontend exec vitest run src/features/access-control/administration/route-state.test.ts`.
-- [ ] IMPLEMENT: `route-state.ts`/`AdministrationShell.tsx`: restore/clear.
-- [ ] GREEN: focused test.
-- [ ] EVIDENCE: discard/stale; `evidence/U2.md`.
-- [ ] DELIVERY: shell/state; `feat(access): recover administration navigation`; STOP.
+- [x] RED: `route-state.test.ts` Origin and discard/Recovery; `pnpm --dir frontend exec vitest run src/features/access-control/administration/route-state.test.ts`.
+- [x] IMPLEMENT: `route-state.ts`/`AdministrationShell.tsx`: restore/clear.
+- [x] GREEN: focused test.
+- [x] EVIDENCE: discard/stale; `evidence/U2.md`.
+- [x] DELIVERY: shell/state; `feat(access): recover administration navigation`; STOP.
 ## Phase U3: #83 matrix
 - [ ] RED: `forms/matrix.test.ts`: additive active-role union; inactive excluded; exact action/scope denial; label independence; catalog growth; unsupported extensions.
 - [ ] IMPLEMENT: `forms/matrix.ts`: active IDs; inactive removable.
