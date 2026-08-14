@@ -9,6 +9,14 @@ export type AdministrationOperation = Readonly<{
   request: 'collection' | 'detail' | 'none'
 }>
 
+export const ADMINISTRATION_OPERATION_MATRIX = {
+  users: { collection: true, detail: true, create: false, edit: false },
+  roles: { collection: true, detail: true, create: false, edit: true },
+  presets: { collection: true, detail: true, create: false, edit: false },
+  scopes: { collection: true, detail: false, create: false, edit: false },
+  history: { collection: true, detail: false, create: false, edit: false },
+} as const
+
 const families = {
   users: { title: 'Users', endpoint: '/access/users', id: 'user_id', label: 'display_name' },
   roles: { title: 'Roles', endpoint: '/access/roles', id: 'role_id', label: 'role_name' },
@@ -31,8 +39,8 @@ export function resolveAdministrationOperation(
     return { family: key, title: config.title, request: 'none' }
   }
   if (mode === 'edit') {
-    if (!subjectId || (key !== 'roles' && key !== 'presets')) return null
-    return { family: key, title: config.title, request: 'none' }
+    if (!subjectId || key !== 'roles') return null
+    return { family: key, ...config, request: 'detail' }
   }
   if (subjectId && (key === 'scopes' || key === 'history')) return null
   return { family: key, ...config, request: subjectId ? 'detail' : 'collection' }

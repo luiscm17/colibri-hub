@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MantineProvider } from '@mantine/core'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/api/httpError'
 import AdministrationPage from './AdministrationPage'
@@ -10,9 +10,11 @@ const fetchMock = vi.fn()
 Object.defineProperty(window, 'matchMedia', { writable: true, value: () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }) })
 
 vi.mock('@/api/httpClient', () => ({ httpJson: (...args: unknown[]) => fetchMock(...args) }))
+vi.mock('@/features/access-control', () => ({ useAccess: () => ({ snapshot: { authorizationVersion: 1 } }) }))
 
 function renderPage(path = '/access/users') {
-  return render(<MantineProvider><MemoryRouter initialEntries={[path]}><Routes><Route path="/access/:family/:subjectId?" element={<AdministrationPage />} /></Routes></MemoryRouter></MantineProvider>)
+  const router = createMemoryRouter([{ path: '/access/:family/:subjectId?', element: <AdministrationPage /> }], { initialEntries: [path] })
+  return render(<MantineProvider><RouterProvider router={router} /></MantineProvider>)
 }
 
 describe('AdministrationPage', () => {
@@ -38,6 +40,51 @@ describe('AdministrationPage', () => {
     renderPage('/access/users/missing')
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/access/users/missing', expect.anything()))
     expect(await screen.findByRole('heading', { name: 'Users' })).toBeTruthy()
+  })
+
+  it('captures and restores collection search, page, family, and selected subject', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ items: [{ user_id: 'user-1', display_name: 'Ada', is_active: true }], page: 2, page_size: 50, total: 51 })
+      .mockResolvedValueOnce({ user_id: 'user-1', display_name: 'Ada', is_active: true })
+      .mockResolvedValueOnce({ items: [{ user_id: 'user-1', display_name: 'Ada', is_active: true }], page: 2, page_size: 50, total: 51 })
+    renderPage('/access/users?q=Ada&page=2')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Ada' }))
+    expect(await screen.findByRole('button', { name: 'Back to Users' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Users' }))
+
+    expect((await screen.findByLabelText('Filter loaded page') as HTMLInputElement).value).toBe('Ada')
+    expect(fetchMock).toHaveBeenLastCalledWith('/access/users?page=2&page_size=50', expect.anything())
+  })
+
+  it('propagates a dirty shared-role draft into the navigation confirmation', async () => {
+    fetchMock.mockResolvedValueOnce({
+      role_id: 'role-1',
+      role_name: 'Operators',
+      description: null,
+      version: 1,
+      permissions: [{ action: 'read', scope_id: 'scope-a' }],
+    })
+    const router = createMemoryRouter([
+      { path: '/access/roles/:subjectId/edit', element: <AdministrationPage family="roles" mode="edit" /> },
+      { path: '/elsewhere', element: <p>Elsewhere</p> },
+    ], { initialEntries: ['/access/roles/role-1/edit'] })
+    render(<MantineProvider><RouterProvider router={router} /></MantineProvider>)
+
+    fireEvent.change(await screen.findByLabelText('Permission pairs'), { target: { value: 'write:scope-a' } })
+    const preservedDeparture = router.navigate('/elsewhere')
+    expect(await screen.findByText(/unsaved changes in role Operators/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+    await preservedDeparture
+    expect(router.state.location.pathname).toBe('/access/roles/role-1/edit')
+    await waitFor(() => expect(screen.queryByText(/unsaved changes in role Operators/)).toBeNull())
+
+    const confirmedDeparture = router.navigate('/elsewhere')
+    expect(await screen.findByText(/unsaved changes in role Operators/)).toBeTruthy()
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
+    await confirmedDeparture
+    expect(await screen.findByText('Elsewhere')).toBeTruthy()
   })
 
   it('sends only supported history filters', async () => {

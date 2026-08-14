@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react'
+import { Button, Group, Modal, Stack, Text } from '@mantine/core'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useBlocker } from 'react-router'
 import {
-  captureAdministrationOrigin,
   recoverAdministrationRoute,
   resolveDiscard,
   type AdministrationRecoveryReason,
@@ -9,32 +10,59 @@ import {
 
 type AdministrationShellProps = Readonly<{
   route: AdministrationRouteState
+  origin: AdministrationRouteState | null
   navigate(route: AdministrationRouteState): void
   children: (state: {
     route: AdministrationRouteState
-    beginDraft(): void
-    discardDraft(confirmed: boolean): void
+    setDraftState(name: string, dirty: boolean): void
+    requestDeparture(route?: AdministrationRouteState): void
     recover(reason: AdministrationRecoveryReason): void
   }) => ReactNode
 }>
 
-export function AdministrationShell({ route, navigate, children }: AdministrationShellProps) {
-  const [origin, setOrigin] = useState<AdministrationRouteState | null>(null)
+export function AdministrationShell({ route, origin, navigate, children }: AdministrationShellProps) {
+  const [draft, setDraft] = useState<{ name: string; dirty: boolean }>({ name: '', dirty: false })
+  const [pendingRoute, setPendingRoute] = useState<AdministrationRouteState | null | undefined>(undefined)
+  const cancelButton = useRef<HTMLButtonElement>(null)
+  const blocker = useBlocker(draft.dirty)
 
-  const beginDraft = () => setOrigin(captureAdministrationOrigin(route))
+  const destination = (requested?: AdministrationRouteState) => requested ?? origin ?? recoverAdministrationRoute(route, 'invalid')
+  const requestDeparture = (requested?: AdministrationRouteState) => {
+    if (draft.dirty) setPendingRoute(destination(requested))
+    else navigate(destination(requested))
+  }
   const discardDraft = (confirmed: boolean) => {
-    if (!origin) return
-    const result = resolveDiscard(origin, confirmed)
-    if (result.action === 'restore') {
-      navigate(result.route)
-      setOrigin(null)
+    if (blocker.state === 'blocked') {
+      if (confirmed) { setDraft({ name: '', dirty: false }); blocker.proceed() }
+      else blocker.reset()
+      return
     }
+    const result = resolveDiscard(pendingRoute ?? destination(), confirmed)
+    if (result.action === 'preserve') { setPendingRoute(undefined); return }
+    setDraft({ name: '', dirty: false })
+    setPendingRoute(undefined)
+    navigate(result.route)
   }
 
-  return children({
+  useEffect(() => {
+    if (pendingRoute || blocker.state === 'blocked') cancelButton.current?.focus()
+  }, [blocker.state, pendingRoute])
+
+  return <>
+    {children({
     route,
-    beginDraft,
-    discardDraft,
+    setDraftState: (name, dirty) => setDraft({ name, dirty }),
+    requestDeparture,
     recover: (reason) => navigate(recoverAdministrationRoute(route, reason)),
-  })
+    })}
+    <Modal opened={Boolean(pendingRoute) || blocker.state === 'blocked'} onClose={() => discardDraft(false)} title="Discard unsaved changes?" closeOnClickOutside={false} returnFocus withCloseButton={false}>
+      <Stack>
+        <Text>You have unsaved changes in {draft.name || 'this draft'}. Discard them and leave this page?</Text>
+        <Group justify="flex-end">
+          <Button ref={cancelButton} variant="default" onClick={() => discardDraft(false)}>Keep editing</Button>
+          <Button color="red" onClick={() => discardDraft(true)}>Discard changes</Button>
+        </Group>
+      </Stack>
+    </Modal>
+  </>
 }

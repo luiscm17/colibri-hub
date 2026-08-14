@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { captureAdministrationOrigin, recoverAdministrationRoute, resolveDiscard } from './route-state'
+import { captureAdministrationOrigin, decodeAdministrationOrigin, encodeAdministrationOrigin, recoverAdministrationRoute, resolveDiscard } from './route-state'
 
 describe('administration route state', () => {
   it('restores the exact captured origin after a confirmed discard and preserves a dirty draft on decline', () => {
@@ -15,6 +15,18 @@ describe('administration route state', () => {
     })
     expect(recoverAdministrationRoute({ family: 'history', criteria: { change_kind: 'role_updated' }, page: 2 }, 'empty-page')).toEqual({
       family: 'history', criteria: { change_kind: 'role_updated' }, page: 1,
+    })
+  })
+
+  it('round-trips a complete origin and rejects invalid URL state', () => {
+    const origin = { family: 'roles' as const, criteria: { q: 'spinner', active: 'true' }, page: 4, subjectId: 'role-1' }
+    expect(decodeAdministrationOrigin(encodeAdministrationOrigin(origin))).toEqual(origin)
+    expect(decodeAdministrationOrigin('{"family":"roles"}')).toBeNull()
+  })
+
+  it.each(['missing', 'denied', 'stale', 'invalid', 'aborted'] as const)('recovers %s outcomes without retaining a protected subject', (reason) => {
+    expect(recoverAdministrationRoute({ family: 'roles', criteria: { q: 'ops' }, page: 2, subjectId: 'secret-role', mode: 'edit' }, reason)).toEqual({
+      family: 'roles', criteria: { q: 'ops' }, page: 2,
     })
   })
 })
