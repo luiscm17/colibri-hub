@@ -8,6 +8,7 @@ import AdministrationPage from './AdministrationPage'
 const fetchMock = vi.fn()
 
 Object.defineProperty(window, 'matchMedia', { writable: true, value: () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }) })
+Object.defineProperty(window, 'ResizeObserver', { writable: true, value: class { observe() {} unobserve() {} disconnect() {} } })
 
 vi.mock('@/api/httpClient', () => ({ httpJson: (...args: unknown[]) => fetchMock(...args) }))
 vi.mock('@/features/access-control', () => ({ useAccess: () => ({ snapshot: { authorizationVersion: 1 } }) }))
@@ -57,13 +58,28 @@ describe('AdministrationPage', () => {
     expect(fetchMock).toHaveBeenLastCalledWith('/access/users?page=2&page_size=50', expect.anything())
   })
 
-  it('propagates a dirty shared-role draft into the navigation confirmation', async () => {
-    fetchMock.mockResolvedValueOnce({
-      role_id: 'role-1',
-      role_name: 'Operators',
-      description: null,
-      version: 1,
-      permissions: [{ action: 'read', scope_id: 'scope-a' }],
+  it('does not render the role workflow for a preset create route before Slice 2', async () => {
+    renderPage('/access/presets/new')
+
+    expect(await screen.findByText('Role presets is not available yet.')).toBeTruthy()
+    expect(screen.queryByText('Create role')).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('preserves a mounted role draft after declined navigation and leaves after confirmed departure', async () => {
+    fetchMock.mockImplementation((path: string) => {
+      if (path === '/access/roles/role-1') return Promise.resolve({
+        role_id: 'role-1',
+        role_code: 'operators',
+        role_name: 'Operators',
+        description: null,
+        is_active: true,
+        version: 1,
+        permissions: [],
+      })
+      if (path === '/access/scopes?page=1&page_size=100') return Promise.resolve({ items: [], page: 1, page_size: 50, total: 0 })
+      if (path === '/access/scope-definitions') return Promise.resolve([])
+      return Promise.resolve({ items: [], page: 1, page_size: 50, total: 0 })
     })
     const router = createMemoryRouter([
       { path: '/access/roles/:subjectId/edit', element: <AdministrationPage family="roles" mode="edit" /> },
@@ -71,18 +87,19 @@ describe('AdministrationPage', () => {
     ], { initialEntries: ['/access/roles/role-1/edit'] })
     render(<MantineProvider><RouterProvider router={router} /></MantineProvider>)
 
-    fireEvent.change(await screen.findByLabelText('Permission pairs'), { target: { value: 'write:scope-a' } })
-    const preservedDeparture = router.navigate('/elsewhere')
+    fireEvent.change(await screen.findByLabelText('Description'), { target: { value: 'Draft change' } })
+    const declinedDeparture = router.navigate('/elsewhere')
     expect(await screen.findByText(/unsaved changes in role Operators/)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
-    await preservedDeparture
+    await declinedDeparture
     expect(router.state.location.pathname).toBe('/access/roles/role-1/edit')
+    expect((screen.getByLabelText('Description') as HTMLInputElement).value).toBe('Draft change')
     await waitFor(() => expect(screen.queryByText(/unsaved changes in role Operators/)).toBeNull())
 
     const confirmedDeparture = router.navigate('/elsewhere')
     expect(await screen.findByText(/unsaved changes in role Operators/)).toBeTruthy()
-    fireEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }))
     await confirmedDeparture
     expect(await screen.findByText('Elsewhere')).toBeTruthy()
   })
