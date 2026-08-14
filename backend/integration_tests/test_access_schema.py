@@ -10,6 +10,19 @@ with access_control_administration migrations applied.
 import unittest
 from uuid import uuid4
 
+from access.application.commands import (
+    ActivateRoleCommand,
+    ActivateScopeCommand,
+    ChangeRolePresetStatusCommand,
+    CreateRoleCommand,
+    CreateRolePresetCommand,
+    DeactivateRoleCommand,
+    DeactivateScopeCommand,
+    PermissionInput,
+    UpdateRoleCommand,
+    UpdateRolePresetCommand,
+)
+from bootstrap.access_admin_dependency import admin_use_case_dependency
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -223,9 +236,16 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
             conn.rollback()
 
     def test_preset_creation_rejects_inactive_scope(self):
-        from access.adapters.persistence.audit_repository import AccessAuditRepositoryAdapter
-        from access.adapters.persistence.preset_repository import RolePresetRepositoryAdapter
-        from access.adapters.persistence.scope_repository import ScopeDefinitionRegistryAdapter, ScopeRepositoryAdapter
+        from access.adapters.persistence.audit_repository import (
+            AccessAuditRepositoryAdapter,
+        )
+        from access.adapters.persistence.preset_repository import (
+            RolePresetRepositoryAdapter,
+        )
+        from access.adapters.persistence.scope_repository import (
+            ScopeDefinitionRegistryAdapter,
+            ScopeRepositoryAdapter,
+        )
         from access.adapters.persistence.transaction import TransactionAdapter
         from access.application.commands import CreateRolePresetCommand, PermissionInput
         from access.application.create_role_preset import CreateRolePreset
@@ -247,6 +267,212 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
             with self.engine.begin() as conn:
                 conn.execute(text("DELETE FROM access_scopes WHERE scope_id = :id"), {"id": scope_id})
                 conn.execute(text("DELETE FROM access_users WHERE user_id = :id"), {"id": actor_id})
+
+    def test_role_preset_and_scope_lifecycles_are_audited_and_rolled_back(self):
+        actor_id = _uuid()
+        evidence_tag = uuid4().hex
+        operation_ids = {
+            name: _uuid()
+            for name in (
+                "scope_deactivated",
+                "scope_activated",
+                "role_created",
+                "role_updated",
+                "role_deactivated",
+                "role_activated",
+                "role_preset_created",
+                "role_preset_updated",
+                "role_preset_deactivated",
+                "role_preset_activated",
+            )
+        }
+        connection = self.engine.connect()
+        outer_transaction = connection.begin()
+        session = Session(bind=connection)
+        try:
+            session.execute(
+                text(
+                    "INSERT INTO access_users "
+                    "(user_id, identity_subject, user_code, display_name) "
+                    "VALUES (:id, :subject, :code, 'Lifecycle evidence actor')"
+                ),
+                {
+                    "id": actor_id,
+                    "subject": f"lifecycle-evidence-{evidence_tag}",
+                    "code": f"EVID-{evidence_tag[:12]}",
+                },
+            )
+            scope_id, original_scope_version = session.execute(
+                text(
+                    "SELECT s.scope_id, s.version FROM access_scopes s "
+                    "JOIN access_scope_definitions d "
+                    "ON d.definition_key = s.definition_key "
+                    "WHERE s.is_active AND 'read' = ANY(d.supported_actions) "
+                    "ORDER BY s.scope_code LIMIT 1"
+                )
+            ).one()
+
+            def session_provider():
+                yield session
+
+            use_cases = admin_use_case_dependency(session_provider)(session)
+            scope = use_cases.scope_repository.find_by_id(str(scope_id))
+            assert scope is not None
+            use_cases.deactivate_scope.execute(
+                DeactivateScopeCommand(
+                    scope.scope_id,
+                    scope.version,
+                    "Issue 83 lifecycle evidence",
+                    actor_id,
+                    operation_ids["scope_deactivated"],
+                )
+            )
+            use_cases.activate_scope.execute(
+                ActivateScopeCommand(
+                    scope.scope_id,
+                    scope.version + 1,
+                    "Issue 83 lifecycle evidence",
+                    actor_id,
+                    operation_ids["scope_activated"],
+                )
+            )
+
+            role = use_cases.create_role.execute(
+                CreateRoleCommand(
+                    f"evidence-role-{evidence_tag}",
+                    "Lifecycle evidence role",
+                    None,
+                    [PermissionInput("read", scope.scope_id)],
+                    "Issue 83 lifecycle evidence",
+                    actor_id,
+                    operation_ids["role_created"],
+                )
+            )
+            role = use_cases.update_role.execute(
+                UpdateRoleCommand(
+                    role.role_id,
+                    "Updated lifecycle evidence role",
+                    None,
+                    [PermissionInput("read", scope.scope_id)],
+                    role.version,
+                    "Issue 83 lifecycle evidence",
+                    actor_id,
+                    operation_ids["role_updated"],
+                )
+            )
+            use_cases.deactivate_role.execute(
+                DeactivateRoleCommand(
+                    role.role_id,
+                    role.version,
+                    "Issue 83 lifecycle evidence",
+                    actor_id,
+                    operation_ids["role_deactivated"],
+                )
+            )
+            use_cases.activate_role.execute(
+                ActivateRoleCommand(
+                    role.role_id,
+                    role.version + 1,
+                    "Issue 83 lifecycle evidence",
+                    actor_id,
+                    operation_ids["role_activated"],
+                )
+            )
+
+            preset = use_cases.create_role_preset.execute(
+                CreateRolePresetCommand(
+                    f"evidence-preset-{evidence_tag}",
+                    "Lifecycle evidence preset",
+                    None,
+                    [PermissionInput("read", scope.scope_id)],
+                    "Issue 83 lifecycle evidence",
+                    actor_id,
+                    operation_ids["role_preset_created"],
+                )
+            )
+            preset = use_cases.update_role_preset.execute(
+                UpdateRolePresetCommand(
+                    preset.preset_id,
+                    "Updated lifecycle evidence preset",
+                    None,
+                    [PermissionInput("read", scope.scope_id)],
+                    preset.version,
+                    "Issue 83 lifecycle evidence",
+                    actor_id,
+                    operation_ids["role_preset_updated"],
+                )
+            )
+            use_cases.change_role_preset_status.execute(
+                ChangeRolePresetStatusCommand(
+                    preset.preset_id,
+                    False,
+                    preset.version,
+                    "Issue 83 lifecycle evidence",
+                    actor_id,
+                    operation_ids["role_preset_deactivated"],
+                )
+            )
+            use_cases.change_role_preset_status.execute(
+                ChangeRolePresetStatusCommand(
+                    preset.preset_id,
+                    True,
+                    preset.version + 1,
+                    "Issue 83 lifecycle evidence",
+                    actor_id,
+                    operation_ids["role_preset_activated"],
+                )
+            )
+
+            audit_rows = session.execute(
+                text(
+                    "SELECT change_kind, subject_type, before_values, after_values "
+                    "FROM access_change_audits "
+                    "WHERE operation_id = ANY(CAST(:operation_ids AS uuid[]))"
+                ),
+                {"operation_ids": list(operation_ids.values())},
+            ).mappings().all()
+            self.assertEqual(
+                {(row["change_kind"], row["subject_type"]) for row in audit_rows},
+                {
+                    (name, "role_preset" if name.startswith("role_preset_") else name.split("_", 1)[0])
+                    for name in operation_ids
+                },
+            )
+            self.assertTrue(
+                all(row["before_values"] is not None and row["after_values"] is not None for row in audit_rows)
+            )
+        finally:
+            if outer_transaction.is_active:
+                outer_transaction.rollback()
+            session.close()
+            connection.close()
+
+        with self.engine.connect() as verification_connection:
+            remaining = verification_connection.execute(
+                text(
+                    "SELECT "
+                    "(SELECT count(*) FROM access_change_audits "
+                    " WHERE operation_id = ANY(CAST(:operation_ids AS uuid[]))), "
+                    "(SELECT count(*) FROM access_users WHERE user_id = :actor_id), "
+                    "(SELECT count(*) FROM access_roles WHERE role_code = :role_code), "
+                    "(SELECT count(*) FROM access_role_presets WHERE preset_code = :preset_code)"
+                ),
+                {
+                    "operation_ids": list(operation_ids.values()),
+                    "actor_id": actor_id,
+                    "role_code": f"evidence-role-{evidence_tag}",
+                    "preset_code": f"evidence-preset-{evidence_tag}",
+                },
+            ).one()
+            self.assertEqual(tuple(remaining), (0, 0, 0, 0))
+            restored_scope = verification_connection.execute(
+                text(
+                    "SELECT is_active, version FROM access_scopes "
+                    "WHERE scope_id = :scope_id"
+                ),
+                {"scope_id": scope_id},
+            ).one()
+            self.assertEqual(tuple(restored_scope), (True, original_scope_version))
 
 
 class AccessSchemaRlsTest(unittest.TestCase):

@@ -2,10 +2,13 @@ import { Alert, Button, Group, NativeSelect, Stack, Text, TextInput } from '@man
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { httpJson } from '@/api/httpClient'
 import { isApiError } from '@/api/httpError'
+import { isSelectablePermission, permissionReferenceState, type PermissionScope } from '../forms/matrix'
 import { toPermissionInputs, type PermissionDraft, type RegisteredScope } from '../forms/permission-adapter'
 
 export type PresetWorkflowPreset = Readonly<{ presetId: string; presetCode: string; presetName: string; description: string | null; isActive: boolean; version: number; permissions: readonly PermissionDraft[] }>
-type Page = { items: { scope_id: string; scope_code: string; is_active: boolean }[] }
+type ScopeResponse = { scope_id: string; scope_code: string; is_active: boolean }
+type DefinitionResponse = { scope_code: string; supported_actions: string[] }
+type Page<T> = { items: T[] }
 const errorMessage = (error: unknown) => isApiError(error) || error instanceof Error ? error.message : 'The preset was not saved.'
 
 export function PresetWorkflow({ preset, onDirtyChange }: { preset?: PresetWorkflowPreset; onDirtyChange(dirty: boolean): void }) {
@@ -18,6 +21,7 @@ export function PresetWorkflow({ preset, onDirtyChange }: { preset?: PresetWorkf
   const [action, setAction] = useState('')
   const [scopeCode, setScopeCode] = useState('')
   const [scopes, setScopes] = useState<RegisteredScope[]>([])
+  const [permissionScopes, setPermissionScopes] = useState<PermissionScope[]>([])
   const [message, setMessage] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [blocked, setBlocked] = useState(false)
@@ -27,16 +31,25 @@ export function PresetWorkflow({ preset, onDirtyChange }: { preset?: PresetWorkf
 
   useEffect(() => {
     const controller = new AbortController()
-    void httpJson<Page>('/access/scopes?page=1&page_size=100', { signal: controller.signal, recoverAccessDenied: true }).then((page) => setScopes(page.items.map((scope) => ({ scopeId: scope.scope_id, scopeCode: scope.scope_code, isActive: scope.is_active })))).catch((error: unknown) => { if (!isApiError(error) || error.kind !== 'aborted') setMessage('Permission choices are unavailable.') })
+    void Promise.all([
+      httpJson<Page<ScopeResponse>>('/access/scopes?page=1&page_size=100', { signal: controller.signal, recoverAccessDenied: true }),
+      httpJson<DefinitionResponse[]>('/access/scope-definitions', { signal: controller.signal, recoverAccessDenied: true }),
+    ]).then(([registered, definitions]) => {
+      const definitionsByCode = new Map(definitions.map((definition) => [definition.scope_code, definition]))
+      const nextScopes = registered.items.map((scope) => ({ scopeId: scope.scope_id, scopeCode: scope.scope_code, isActive: scope.is_active }))
+      setScopes(nextScopes)
+      setPermissionScopes(nextScopes.map((scope) => ({ ...scope, supportedActions: definitionsByCode.get(scope.scopeCode)?.supported_actions ?? [] })))
+    }).catch((error: unknown) => { if (!isApiError(error) || error.kind !== 'aborted') setMessage('Permission choices are unavailable.') })
     return () => controller.abort()
   }, [])
-  const inactive = useMemo(() => drafts.filter((draft) => scopes.some((scope) => scope.scopeCode === draft.scopeCode && !scope.isActive)), [drafts, scopes])
+  const inactive = useMemo(() => drafts.filter((draft) => permissionReferenceState(draft, permissionScopes) === 'inactive'), [drafts, permissionScopes])
+  const unsupported = useMemo(() => drafts.filter((draft) => permissionReferenceState(draft, permissionScopes) === 'unsupported'), [drafts, permissionScopes])
   const dirty = presetCode !== (preset?.presetCode ?? '') || presetName !== (preset?.presetName ?? '') || description !== (preset?.description ?? '') || reason !== '' || JSON.stringify(drafts) !== JSON.stringify(preset?.permissions ?? [])
   useEffect(() => () => reportDirty(false), [])
   useEffect(() => { reportDirty(dirty) }, [dirty])
 
   const mutate = async (status?: boolean) => {
-    if (inFlight.current || !reason.trim() || (status === undefined && (!presetName.trim() || (blocked && inactive.length)))) return
+    if (inFlight.current || !reason.trim() || (status === undefined && (!presetName.trim() || unsupported.length > 0 || (blocked && inactive.length)))) return
     inFlight.current = true; setPending(true); setMessage(null)
     const path = status === undefined ? preset ? `/access/role-presets/${preset.presetId}` : '/access/role-presets' : `/access/role-presets/${preset!.presetId}/status`
     const body = status === undefined ? { ...(preset ? {} : { preset_code: presetCode.trim() }), preset_name: presetName.trim(), description: description.trim() || null, permissions: toPermissionInputs(drafts, scopes), ...(preset ? { expected_version: version } : {}), reason: reason.trim() } : { is_active: status, expected_version: version, reason: reason.trim() }
@@ -47,7 +60,13 @@ export function PresetWorkflow({ preset, onDirtyChange }: { preset?: PresetWorkf
     } catch (error) { setMessage(errorMessage(error)); if (status === undefined && inactive.length && isApiError(error) && error.code === 'inactive_access_scope') setBlocked(true) } finally { inFlight.current = false; setPending(false) }
   }
   const remove = (draft: PermissionDraft) => { setDrafts((current) => current.filter((item) => item.action !== draft.action || item.scopeCode !== draft.scopeCode)); setMessage(null) }
-  const add = () => { if (action.trim() && scopeCode && !drafts.some((draft) => draft.action === action.trim() && draft.scopeCode === scopeCode)) setDrafts((current) => [...current, { action: action.trim(), scopeCode }]) }
+  const add = () => {
+    const draft = { action: action.trim(), scopeCode }
+    if (!draft.action || !draft.scopeCode || !isSelectablePermission(draft, permissionScopes)) return
+    if (!drafts.some((candidate) => candidate.action === draft.action && candidate.scopeCode === draft.scopeCode)) setDrafts((current) => [...current, draft])
+  }
+  const scopeOptions = permissionScopes.filter((scope) => scope.isActive).map((scope) => scope.scopeCode)
+  const selectedScopeActions = permissionScopes.find((scope) => scope.scopeCode === scopeCode)?.supportedActions ?? []
 
   return <Stack mt="md">
     <Text fw={500}>{preset ? 'Edit preset' : 'Create preset'}</Text>
@@ -55,10 +74,10 @@ export function PresetWorkflow({ preset, onDirtyChange }: { preset?: PresetWorkf
     <TextInput label="Preset name" value={presetName} onChange={(event) => setPresetName(event.currentTarget.value)} />
     <TextInput label="Description" value={description} onChange={(event) => setDescription(event.currentTarget.value)} />
     <TextInput label="Reason" value={reason} required onChange={(event) => setReason(event.currentTarget.value)} />
-    <Group align="end"><TextInput label="Action" value={action} onChange={(event) => setAction(event.currentTarget.value)} /><NativeSelect label="Scope" data={[{ value: '', label: 'Choose a scope' }, ...scopes.filter((scope) => scope.isActive).map((scope) => scope.scopeCode)]} value={scopeCode} onChange={(event) => setScopeCode(event.currentTarget.value)} /><Button onClick={add}>Add permission</Button></Group>
-    {drafts.map((draft) => <Group key={`${draft.action}:${draft.scopeCode}`}><Text>{draft.action}:{draft.scopeCode}</Text><Text c={inactive.includes(draft) ? 'dimmed' : 'green'}>{inactive.includes(draft) ? 'Inactive historical reference' : 'Effective'}</Text><Button variant="subtle" color="red" aria-label={`Remove ${draft.action}:${draft.scopeCode}`} onClick={() => remove(draft)}>Remove</Button></Group>)}
+    <Group align="end"><TextInput label="Action" value={action} onChange={(event) => setAction(event.currentTarget.value)} description={selectedScopeActions.length ? `Supported for selected scope: ${selectedScopeActions.join(', ')}` : undefined} /><NativeSelect label="Scope" data={[{ value: '', label: 'Choose a scope' }, ...scopeOptions]} value={scopeCode} onChange={(event) => setScopeCode(event.currentTarget.value)} /><Button onClick={add}>Add permission</Button></Group>
+    {drafts.map((draft) => { const state = permissionReferenceState(draft, permissionScopes); return <Group key={`${draft.action}:${draft.scopeCode}`}><Text>{draft.action}:{draft.scopeCode}</Text>{state === 'inactive' ? <Text c="dimmed">Inactive historical reference</Text> : state === 'unsupported' ? <Text c="dimmed">Unsupported historical reference</Text> : <Text c="green">Effective</Text>}<Button variant="subtle" color="red" aria-label={`Remove ${draft.action}:${draft.scopeCode}`} onClick={() => remove(draft)}>Remove</Button></Group> })}
     {blocked && inactive.length ? <Alert color="red">Remove inactive references before retrying.</Alert> : null}
     {message ? <Alert role="status">{message}</Alert> : null}
-    <Group><Button disabled={pending || !presetName.trim() || !reason.trim() || (blocked && inactive.length > 0)} onClick={() => void mutate()}>{preset ? 'Save preset' : 'Create preset'}</Button>{preset ? <Button variant="default" disabled={pending || !reason.trim()} onClick={() => void mutate(!isActive)}>{isActive ? 'Deactivate preset' : 'Activate preset'}</Button> : null}</Group>
+    <Group><Button disabled={pending || !presetName.trim() || !reason.trim() || unsupported.length > 0 || (blocked && inactive.length > 0)} onClick={() => void mutate()}>{preset ? 'Save preset' : 'Create preset'}</Button>{preset ? <Button variant="default" disabled={pending || !reason.trim()} onClick={() => void mutate(!isActive)}>{isActive ? 'Deactivate preset' : 'Activate preset'}</Button> : null}</Group>
   </Stack>
 }

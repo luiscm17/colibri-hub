@@ -525,6 +525,8 @@ still requires a fresh preview where preview is supported.
 Role changes and user-role replacements require the backend-calculated preview.
 Preview is an explicit reversible review stage and performs no mutation. The
 frontend does not infer affected users or effective permission differences.
+Current role membership is the role's existing assignment state; backend preview
+`affected_users` reports impact for the proposed shared-role change, not inferred membership.
 
 Preview distinguishes loading, no impact, impact, large impact, and error states.
 Its summary identifies the subject and relates affected-user counts, affected
