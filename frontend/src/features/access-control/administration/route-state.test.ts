@@ -13,9 +13,6 @@ describe('administration route state', () => {
     expect(recoverAdministrationRoute({ family: 'users', criteria: { query: 'Ada' }, page: 3, subjectId: 'missing' }, 'stale')).toEqual({
       family: 'users', criteria: { query: 'Ada' }, page: 3,
     })
-    expect(recoverAdministrationRoute({ family: 'history', criteria: { change_kind: 'role_updated' }, page: 2 }, 'empty-page')).toEqual({
-      family: 'history', criteria: { change_kind: 'role_updated' }, page: 1,
-    })
   })
 
   it('round-trips a complete origin and rejects invalid URL state', () => {

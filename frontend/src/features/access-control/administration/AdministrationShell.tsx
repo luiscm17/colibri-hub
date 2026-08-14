@@ -24,24 +24,35 @@ export function AdministrationShell({ route, origin, navigate, children }: Admin
   const [draft, setDraft] = useState<{ name: string; dirty: boolean }>({ name: '', dirty: false })
   const [pendingRoute, setPendingRoute] = useState<AdministrationRouteState | null | undefined>(undefined)
   const cancelButton = useRef<HTMLButtonElement>(null)
+  const [departureFocus, setDepartureFocus] = useState<HTMLElement | null>(null)
   const blocker = useBlocker(draft.dirty)
 
   const destination = (requested?: AdministrationRouteState) => requested ?? origin ?? recoverAdministrationRoute(route, 'invalid')
   const requestDeparture = (requested?: AdministrationRouteState) => {
-    if (draft.dirty) setPendingRoute(destination(requested))
+    if (draft.dirty) {
+      setDepartureFocus(document.activeElement instanceof HTMLElement ? document.activeElement : null)
+      setPendingRoute(destination(requested))
+    }
     else navigate(destination(requested))
   }
   const discardDraft = (confirmed: boolean) => {
     if (blocker.state === 'blocked') {
       if (confirmed) { setDraft({ name: '', dirty: false }); blocker.proceed() }
-      else blocker.reset()
+      else {
+        blocker.reset()
+        requestAnimationFrame(() => departureFocus?.focus())
+      }
       return
     }
     const result = resolveDiscard(pendingRoute ?? destination(), confirmed)
-    if (result.action === 'preserve') { setPendingRoute(undefined); return }
+    if (result.action === 'preserve') {
+      setPendingRoute(undefined)
+      requestAnimationFrame(() => departureFocus?.focus())
+      return
+    }
     setDraft({ name: '', dirty: false })
     setPendingRoute(undefined)
-    navigate(result.route)
+    requestAnimationFrame(() => navigate(result.route))
   }
 
   useEffect(() => {
@@ -55,7 +66,7 @@ export function AdministrationShell({ route, origin, navigate, children }: Admin
     requestDeparture,
     recover: (reason) => navigate(recoverAdministrationRoute(route, reason)),
     })}
-    <Modal opened={Boolean(pendingRoute) || blocker.state === 'blocked'} onClose={() => discardDraft(false)} title="Discard unsaved changes?" closeOnClickOutside={false} returnFocus withCloseButton={false}>
+    <Modal opened={Boolean(pendingRoute) || blocker.state === 'blocked'} onClose={() => discardDraft(false)} title="Discard unsaved changes?" closeOnClickOutside={false} returnFocus={false} withCloseButton={false}>
       <Stack>
         <Text>You have unsaved changes in {draft.name || 'this draft'}. Discard them and leave this page?</Text>
         <Group justify="flex-end">

@@ -1,5 +1,5 @@
 import { MantineProvider } from '@mantine/core'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { AdministrationShell } from './AdministrationShell'
@@ -26,6 +26,6 @@ describe('AdministrationShell', () => {
 
     fireEvent.click(screen.getByText('Cancel edit'))
     fireEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
-    expect(navigate).toHaveBeenCalledWith(origin)
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(origin))
   })
 })

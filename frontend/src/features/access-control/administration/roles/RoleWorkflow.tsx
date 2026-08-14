@@ -21,13 +21,16 @@ type Page<T> = { items: T[] }
 
 const errorMessage = (error: unknown) => isApiError(error) ? error.message : error instanceof Error ? error.message : 'The role was not saved.'
 
-export function RoleWorkflow({ role, onDirtyChange }: { role?: RoleWorkflowRole; onDirtyChange(dirty: boolean): void }) {
+type RoleWorkflowDraft = Pick<RoleWorkflowRole, 'roleCode' | 'roleName' | 'description' | 'permissions'>
+
+export function RoleWorkflow({ role, initialDraft, onDirtyChange }: { role?: RoleWorkflowRole; initialDraft?: RoleWorkflowDraft; onDirtyChange(dirty: boolean): void }) {
   const reportDirty = useEffectEvent(onDirtyChange)
-  const [roleCode, setRoleCode] = useState(role?.roleCode ?? '')
-  const [roleName, setRoleName] = useState(role?.roleName ?? '')
-  const [description, setDescription] = useState(role?.description ?? '')
+  const baseline = role ?? initialDraft
+  const [roleCode, setRoleCode] = useState(baseline?.roleCode ?? '')
+  const [roleName, setRoleName] = useState(baseline?.roleName ?? '')
+  const [description, setDescription] = useState(baseline?.description ?? '')
   const [reason, setReason] = useState('')
-  const [drafts, setDrafts] = useState<PermissionDraft[]>([...(role?.permissions ?? [])])
+  const [drafts, setDrafts] = useState<PermissionDraft[]>([...(baseline?.permissions ?? [])])
   const [action, setAction] = useState('')
   const [scopeCode, setScopeCode] = useState<string | null>(null)
   const [scopes, setScopes] = useState<RegisteredScope[]>([])
@@ -54,7 +57,7 @@ export function RoleWorkflow({ role, onDirtyChange }: { role?: RoleWorkflowRole;
   }, [])
 
   const inactiveDrafts = useMemo(() => drafts.filter((draft) => permissionReferenceState(draft, permissionScopes) === 'inactive'), [drafts, permissionScopes])
-  const dirty = roleCode !== (role?.roleCode ?? '') || roleName !== (role?.roleName ?? '') || description !== (role?.description ?? '') || reason !== '' || JSON.stringify(drafts) !== JSON.stringify(role?.permissions ?? [])
+  const dirty = roleCode !== (baseline?.roleCode ?? '') || roleName !== (baseline?.roleName ?? '') || description !== (baseline?.description ?? '') || reason !== '' || JSON.stringify(drafts) !== JSON.stringify(baseline?.permissions ?? [])
   useEffect(() => () => reportDirty(false), [])
   useEffect(() => { reportDirty(dirty) }, [dirty])
 

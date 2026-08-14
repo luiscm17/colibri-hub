@@ -11,13 +11,11 @@ Object.defineProperty(window, 'ResizeObserver', { writable: true, value: class {
 afterEach(cleanup)
 
 describe('PresetDetailWorkflows', () => {
-  it('reports the OR of preset and copy draft dirtiness', async () => {
+  it('keeps detail read-only while reporting copy draft dirtiness', async () => {
     const onDirtyChange = vi.fn()
-    render(<MantineProvider><PresetDetailWorkflows preset={{ presetId: 'preset-1', presetCode: 'operator', presetName: 'Operator', description: null, isActive: true, version: 1, permissions: [] }} onDirtyChange={onDirtyChange} /></MantineProvider>)
-    const name = await screen.findByLabelText('Preset name')
+    render(<MantineProvider><PresetDetailWorkflows preset={{ presetId: 'preset-1', presetCode: 'operator', presetName: 'Operator', description: null, isActive: true, version: 1, permissions: [] }} onDirtyChange={onDirtyChange} onStartAdjustable={vi.fn()} /></MantineProvider>)
+    expect(screen.queryByLabelText('Preset name')).toBeNull()
     fireEvent.change(screen.getByLabelText('Role code'), { target: { value: 'changed-copy' } })
-    fireEvent.change(name, { target: { value: 'Changed preset' } })
-    fireEvent.change(name, { target: { value: 'Operator' } })
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true))
   })
 })

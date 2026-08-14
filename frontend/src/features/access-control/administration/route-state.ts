@@ -8,7 +8,7 @@ export type AdministrationRouteState = Readonly<{
   mode?: 'edit'
 }>
 
-export type AdministrationRecoveryReason = 'missing' | 'denied' | 'stale' | 'invalid' | 'aborted' | 'empty-page'
+export type AdministrationRecoveryReason = 'missing' | 'denied' | 'stale' | 'invalid' | 'aborted'
 
 const ORIGIN_PARAM = '_origin'
 
@@ -27,11 +27,8 @@ export function recoverAdministrationRoute(
   route: AdministrationRouteState,
   reason: AdministrationRecoveryReason,
 ): AdministrationRouteState {
-  if (reason === 'empty-page' && route.page > 1) return { ...route, page: route.page - 1 }
-  if (reason !== 'empty-page') {
-    return { family: route.family, criteria: { ...route.criteria }, page: route.page }
-  }
-  return route
+  void reason
+  return { family: route.family, criteria: { ...route.criteria }, page: route.page }
 }
 
 export function encodeAdministrationOrigin(origin: AdministrationRouteState): string {

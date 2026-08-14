@@ -348,7 +348,7 @@ navigation group:
 | Users | Consult profiles and govern profile state and assigned roles | Collection to addressable detail; detail to role edit, preview, confirmation, and back to the originating collection |
 | Roles | Consult, create, and change reusable authorization configurations | Collection to addressable detail, create, or edit; create may begin from a preset; edit proceeds through preview and confirmation |
 | Role Presets | Consult, create, change, and copy starting configurations | Collection to addressable detail, create, or edit; detail can start exact-copy or adjustable role creation |
-| Scopes | Consult registered scopes and recognized definitions | Collection to an addressable scope context; unregistered definitions can proceed to registration confirmation, while registered scopes can proceed to lifecycle confirmation |
+| Scopes | Consult registered scopes and recognized definitions | Collection-only context; unregistered definitions can be registered and loaded registered scopes can change lifecycle state without a scope detail route |
 | Access History | Consult immutable access-change metadata | Filtered collection only; subjects may link to an available permitted detail destination, but no audit detail is implied |
 
 Addressable detail, create, and edit destinations preserve enough identity and
