@@ -24,9 +24,6 @@ export function ProductLogo({
     const colorScheme = useComputedColorScheme("light");
     const isDark = colorScheme === "dark";
 
-    const markColor = isDark
-        ? "var(--mantine-color-brand-cyan-3)"
-        : "var(--mantine-color-brand-cyan-6)";
     const textColor = isDark
         ? "var(--mantine-color-gray-1)"
         : "var(--mantine-color-dark-7)";
@@ -40,32 +37,14 @@ export function ProductLogo({
             wrap="nowrap"
             aria-label="Colibri Hub"
         >
-            <svg
+            <img
+                src="/favicon.svg"
+                alt=""
                 aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 32 32"
                 width={height}
                 height={height}
-                fill="none"
-            >
-                {/* Hummingbird/C-shape geometric motif */}
-                {/* Body arc */}
-                <path
-                    d="M16 4C9.373 4 4 9.373 4 16c0 4.418 2.393 8.278 5.95 10.355a1.5 1.5 0 0 0 1.5-2.598A9 9 0 1 1 25 16a1.5 1.5 0 0 0 3 0C28 9.373 22.627 4 16 4Z"
-                    fill={markColor}
-                />
-                {/* Wing accent */}
-                <path
-                    d="M20 14a4 4 0 0 0-4-4 1.5 1.5 0 0 0 0 3 1 1 0 0 1 1 1 1.5 1.5 0 0 0 3 0Z"
-                    fill={markColor}
-                    opacity={0.7}
-                />
-                {/* Beak / forward point */}
-                <path
-                    d="M26 20l3-2-3-2v4Z"
-                    fill={markColor}
-                />
-            </svg>
+                style={{ display: 'block' }}
+            />
 
             {showText && (
                 <Text
