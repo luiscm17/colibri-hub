@@ -18,7 +18,7 @@
 ## Backend tests
 
 - Full unit suite: `uv run --locked --package backend python -m unittest discover -s backend/tests -v`.
-- Focused module: `uv run --locked --package backend python -m unittest backend.tests.domain.test_core_contracts -v`. Append a class or method dotted name for a narrower run.
+- Focused module: `uv run --locked --package backend python -m unittest backend.tests.warehouse.domain.test_core_contracts -v`. Append a class or method dotted name for a narrower run.
 - Tests use stdlib `unittest`; no pytest or coverage tool is configured.
 - Backend quality checks are `uv run --locked --package backend ruff check backend` and `uv run --locked --package backend pyright backend`. Ruff and Pyright use their defaults because no project-specific configuration is present.
 - SQLite-backed unit tests do not prove PostgreSQL constraint diagnostics, migration shape, timezone, or `Decimal` behavior.
@@ -37,7 +37,7 @@
 ## Frontend workspace
 
 - Run frontend commands from `frontend/`: `pnpm install --frozen-lockfile`, `pnpm dev`, `pnpm build`, `pnpm lint`, and `pnpm preview`.
-- `pnpm build` is the typecheck plus production build (`tsc -b && vite build`); `pnpm lint` runs ESLint. No frontend test script or test framework is configured.
+- `pnpm build` is the typecheck plus production build (`tsc -b && vite build`); `pnpm lint` runs ESLint. Vitest uses jsdom and discovers `src/**/*.test.{ts,tsx}`; no `test` package script exists, so run `pnpm vitest run` explicitly.
 - Preserve `frontend/pnpm-workspace.yaml` supply-chain policy: 24-hour minimum release age and no-downgrade trust, including its explicit exclusions.
 - `src/main.tsx` installs Mantine, notifications, and `AuthProvider`; `src/app/` owns shell/routing and `src/features/` owns feature code. Use the configured `@/*` alias for `src/*`; Vite proxies `/api` to `http://127.0.0.1:8000` in development.
 
