@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveAdministrationOperation } from './operations'
+import { ADMINISTRATION_OPERATION_MATRIX, collectionOnlyFamily, resolveAdministrationOperation } from './operations'
 
 describe('administration operation matrix', () => {
   it('reconstructs supported direct-entry operations', () => {
@@ -16,6 +16,10 @@ describe('administration operation matrix', () => {
   })
 
   it('default-denies prohibited administration states', () => {
+    expect(ADMINISTRATION_OPERATION_MATRIX.scopes).toEqual({ collection: true, detail: false, create: false, edit: false })
+    expect(collectionOnlyFamily('scopes')).toBe(true)
+    expect(collectionOnlyFamily('history')).toBe(true)
+    expect(collectionOnlyFamily('roles')).toBe(false)
     expect(resolveAdministrationOperation('scopes', 'scope-1')).toBeNull()
     expect(resolveAdministrationOperation('history', 'audit-1')).toBeNull()
     expect(resolveAdministrationOperation('users', 'new')).toBeNull()

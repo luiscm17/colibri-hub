@@ -18,6 +18,10 @@ export const ADMINISTRATION_OPERATION_MATRIX = {
   history: { collection: true, detail: false, create: false, edit: false },
 } as const
 
+export function collectionOnlyFamily(family: string): family is AdministrationFamily {
+  return family in ADMINISTRATION_OPERATION_MATRIX && !ADMINISTRATION_OPERATION_MATRIX[family as AdministrationFamily].detail
+}
+
 const families = {
   users: { title: 'Users', endpoint: '/access/users', id: 'user_id', label: 'display_name' },
   roles: { title: 'Roles', endpoint: '/access/roles', id: 'role_id', label: 'role_name' },

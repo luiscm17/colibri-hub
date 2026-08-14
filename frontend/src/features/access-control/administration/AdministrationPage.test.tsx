@@ -4,6 +4,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/api/httpError'
 import AdministrationPage from './AdministrationPage'
+import { AccessAdministrationCollectionRecovery } from '../administration-route'
 
 const fetchMock = vi.fn()
 
@@ -14,8 +15,12 @@ vi.mock('@/api/httpClient', () => ({ httpJson: (...args: unknown[]) => fetchMock
 vi.mock('@/features/access-control', () => ({ useAccess: () => ({ snapshot: { authorizationVersion: 1 } }) }))
 
 function renderPage(path = '/access/users') {
-  const router = createMemoryRouter([{ path: '/access/:family/:subjectId?', element: <AdministrationPage /> }], { initialEntries: [path] })
-  return render(<MantineProvider><RouterProvider router={router} /></MantineProvider>)
+  const router = createMemoryRouter([
+    { path: '/access/scopes/:subjectId', element: <AccessAdministrationCollectionRecovery family="scopes" /> },
+    { path: '/access/history/:subjectId', element: <AccessAdministrationCollectionRecovery family="history" /> },
+    { path: '/access/:family/:subjectId?', element: <AdministrationPage /> },
+  ], { initialEntries: [path] })
+  return { ...render(<MantineProvider><RouterProvider router={router} /></MantineProvider>), router }
 }
 
 describe('AdministrationPage', () => {
@@ -114,11 +119,55 @@ describe('AdministrationPage', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith('/access/audits?page=1&page_size=50&subject_type=user', expect.anything()))
   })
 
+  it.each(['/access/scopes/scope-1', '/access/history/audit-1'])('recovers unsupported detail %s to its collection without a detail request', async (path) => {
+    fetchMock.mockResolvedValue({ items: [], page: 1, page_size: 50, total: 0 })
+    const { container } = renderPage(path)
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(path.includes('/scopes/') ? 2 : 1))
+    expect(fetchMock.mock.calls.some(([requestPath]) => requestPath === path.replace('/access', ''))).toBe(false)
+    expect(fetchMock.mock.calls.some(([requestPath]) => String(requestPath).includes('preview') || String(requestPath).includes('before') || String(requestPath).includes('confirmation'))).toBe(false)
+    expect(container.querySelector('a[href*="scope-1"], a[href*="audit-1"]')).toBeNull()
+  })
+
   it('silently handles an aborted collection request during filter navigation', async () => {
     fetchMock.mockRejectedValueOnce(new ApiError({ kind: 'aborted', message: 'cancelled' }))
     renderPage('/access/history')
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
     expect(await screen.findByLabelText('Loading administration')).toBeTruthy()
+  })
+
+  it('ignores a stale denied response after a newer collection succeeds', async () => {
+    let rejectStale!: (error: unknown) => void
+    fetchMock
+      .mockReturnValueOnce(new Promise((_, reject) => { rejectStale = reject }))
+      .mockResolvedValueOnce({ items: [{ audit_id: 'audit-2', change_kind: 'newer' }], page: 1, page_size: 50, total: 1 })
+    const { router } = renderPage('/access/history')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    await router.navigate('/access/history?subject_type=user')
+    expect(await screen.findByText('newer')).toBeTruthy()
+    rejectStale(new ApiError({ kind: 'http', status: 403, message: 'Denied' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(router.state.location.search).toBe('?subject_type=user')
+    expect(screen.getByText('newer')).toBeTruthy()
+  })
+
+  it('ignores a stale missing detail response after its collection succeeds', async () => {
+    let rejectStale!: (error: unknown) => void
+    fetchMock
+      .mockReturnValueOnce(new Promise((_, reject) => { rejectStale = reject }))
+      .mockResolvedValueOnce({ items: [{ user_id: 'user-2', display_name: 'Newer user', is_active: true }], page: 1, page_size: 50, total: 1 })
+    const { router } = renderPage('/access/users/missing')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    await router.navigate('/access/users')
+    expect(await screen.findByText('Newer user')).toBeTruthy()
+    rejectStale(new ApiError({ kind: 'http', status: 404, message: 'Missing' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(router.state.location.pathname).toBe('/access/users')
+    expect(screen.getByText('Newer user')).toBeTruthy()
   })
 
   it('presents non-abort collection failures instead of treating them as cancellation', async () => {

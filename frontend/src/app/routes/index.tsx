@@ -8,7 +8,7 @@ import { RouteErrorBoundary } from './RouteErrorBoundary'
 import { ComingSoon } from '@/common/components/ComingSoon'
 import { ACCESS_CATALOG } from '@/features/access-control'
 import { ProtectedRoute } from './protected-route'
-import { AccessAdministrationEditPage, AccessAdministrationPage, BaleDeliveryPage, BaleManagementPage, BaleReceptionPage, BaleStockPage, LoginPage, LotsPage, MandatoryPasswordChangePage, NotFoundPage, ProfilePage, SpinningPage } from './lazy-pages'
+import { AccessAdministrationCollectionRecovery, AccessAdministrationEditPage, AccessAdministrationPage, BaleDeliveryPage, BaleManagementPage, BaleReceptionPage, BaleStockPage, LoginPage, LotsPage, MandatoryPasswordChangePage, NotFoundPage, ProfilePage, SpinningPage } from './lazy-pages'
 
 const protectAdministration = (path: keyof typeof ACCESS_CATALOG, page: React.ReactNode) => <ProtectedRoute requirement={ACCESS_CATALOG[path]}>{page}</ProtectedRoute>
 
@@ -48,7 +48,9 @@ const router = createBrowserRouter([
       { path: 'access/presets/:subjectId', element: protectAdministration('/access/presets', <AccessAdministrationPage family="presets" />) },
       { path: 'access/presets/:subjectId/edit', element: protectAdministration('/access/presets', <AccessAdministrationEditPage family="presets" />) },
       { path: 'access/scopes', element: protectAdministration('/access/scopes', <AccessAdministrationPage family="scopes" />) },
+      { path: 'access/scopes/*', element: protectAdministration('/access/scopes', <AccessAdministrationCollectionRecovery family="scopes" />) },
       { path: 'access/history', element: protectAdministration('/access/history', <AccessAdministrationPage family="history" />) },
+      { path: 'access/history/*', element: protectAdministration('/access/history', <AccessAdministrationCollectionRecovery family="history" />) },
       { path: 'profile', element: <ProfilePage /> },
       { path: '*', element: <NotFoundPage /> },
     ],

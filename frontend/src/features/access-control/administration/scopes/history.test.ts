@@ -9,8 +9,8 @@ describe('scope and history boundaries', () => {
     ]
 
     expect(unregisteredDefinitions(definitions)).toEqual([{ definitionKey: 'warehouse.raw', isRegistered: false }])
-    expect(scopeRegistrationRequest('warehouse.raw')).toEqual({ path: '/access/scopes', method: 'POST', body: { definition_key: 'warehouse.raw', reason: '' } })
-    expect(scopeStatusRequest({ scopeId: 'scope-1', version: 7 }, false)).toEqual({ path: '/access/scopes/scope-1/status', method: 'PATCH', body: { is_active: false, expected_version: 7, reason: '' } })
+    expect(scopeRegistrationRequest('warehouse.raw', 'Initial registration')).toEqual({ path: '/access/scopes', method: 'POST', body: { definition_key: 'warehouse.raw', reason: 'Initial registration' } })
+    expect(scopeStatusRequest({ scopeId: 'scope-1', version: 7 }, false, 'Scheduled review')).toEqual({ path: '/access/scopes/scope-1/status', method: 'PATCH', body: { is_active: false, expected_version: 7, reason: 'Scheduled review' } })
   })
 
   it('renders only the returned audit facts without inventing detail or before-after values', () => {
