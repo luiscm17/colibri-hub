@@ -6,6 +6,6 @@ const accessSource = Object.entries(import.meta.glob('../**/*.{ts,tsx}', {
 
 describe('Access compliance evidence ledger', () => {
   it('keeps the Access capability free of retired authorities', () => {
-    expect(accessSource).not.toMatch(/\bMutationGate\b|\bGovernancePanel\b|from ['"].*\/governance['"]/) 
+    expect(accessSource).not.toMatch(/\bMutationGate\b|\bGovernancePanel\b|from ['"].*\/governance['"]/);
   })
 })
