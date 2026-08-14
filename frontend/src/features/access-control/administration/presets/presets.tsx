@@ -25,3 +25,7 @@ export function createAdjustableRoleDraft(preset: PresetSnapshot, role: Omit<Rol
     permissions: preset.permissions.map((permission) => ({ ...permission })),
   }
 }
+
+export function createAdjustableRoleRequest(draft: ReturnType<typeof createAdjustableRoleDraft>, permissions: readonly { action: string; scope_id: string }[], reason: string) {
+  return { path: '/access/roles', method: 'POST' as const, body: { role_code: draft.roleCode, role_name: draft.roleName, description: draft.description, permissions, reason } }
+}

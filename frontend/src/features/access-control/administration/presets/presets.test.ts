@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createAdjustableRoleDraft, createExactPresetCopy } from './presets'
+import { createAdjustableRoleDraft, createAdjustableRoleRequest, createExactPresetCopy } from './presets'
 
 const preset = {
   presetId: 'preset-1',
@@ -43,5 +43,6 @@ describe('preset flows', () => {
       description: 'Initial template',
       permissions: [{ action: 'read', scopeCode: 'warehouse.raw_materials' }],
     })
+    expect(createAdjustableRoleRequest(draft, [{ action: 'read', scope_id: 'scope-1' }], 'Copy role')).toMatchObject({ path: '/access/roles', body: { permissions: [{ action: 'read', scope_id: 'scope-1' }] } })
   })
 })

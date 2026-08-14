@@ -58,12 +58,13 @@ describe('AdministrationPage', () => {
     expect(fetchMock).toHaveBeenLastCalledWith('/access/users?page=2&page_size=50', expect.anything())
   })
 
-  it('does not render the role workflow for a preset create route before Slice 2', async () => {
+  it('renders the preset workflow for a direct create route', async () => {
+    fetchMock.mockResolvedValueOnce({ items: [], page: 1, page_size: 50, total: 0 })
     renderPage('/access/presets/new')
 
-    expect(await screen.findByText('Role presets is not available yet.')).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Create preset' })).toBeTruthy()
     expect(screen.queryByText('Create role')).toBeNull()
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledWith('/access/scopes?page=1&page_size=100', expect.anything())
   })
 
   it('preserves a mounted role draft after declined navigation and leaves after confirmed departure', async () => {

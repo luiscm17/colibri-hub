@@ -7,13 +7,13 @@ export type AdministrationOperation = Readonly<{
   id?: string
   label?: string
   request: 'collection' | 'detail' | 'none'
-  renderer?: 'role-create' | 'role-edit'
+  renderer?: 'role-create' | 'role-edit' | 'preset-create' | 'preset-edit'
 }>
 
 export const ADMINISTRATION_OPERATION_MATRIX = {
   users: { collection: true, detail: true, create: false, edit: false },
   roles: { collection: true, detail: true, create: true, edit: true },
-  presets: { collection: true, detail: true, create: false, edit: false },
+  presets: { collection: true, detail: true, create: true, edit: true },
   scopes: { collection: true, detail: false, create: false, edit: false },
   history: { collection: true, detail: false, create: false, edit: false },
 } as const
@@ -39,11 +39,11 @@ export function resolveAdministrationOperation(
     if (!ADMINISTRATION_OPERATION_MATRIX[key].create) {
       return key === 'presets' ? { family: key, title: config.title, request: 'none' } : null
     }
-    return { family: key, title: config.title, request: 'none', renderer: 'role-create' }
+    return { family: key, title: config.title, request: 'none', renderer: key === 'presets' ? 'preset-create' : 'role-create' }
   }
   if (mode === 'edit') {
-    if (!subjectId || key !== 'roles') return null
-    return { family: key, ...config, request: 'detail', renderer: 'role-edit' }
+    if (!subjectId || (key !== 'roles' && key !== 'presets')) return null
+    return { family: key, ...config, request: 'detail', renderer: key === 'presets' ? 'preset-edit' : 'role-edit' }
   }
   if (subjectId && (key === 'scopes' || key === 'history')) return null
   return { family: key, ...config, request: subjectId ? 'detail' : 'collection' }
