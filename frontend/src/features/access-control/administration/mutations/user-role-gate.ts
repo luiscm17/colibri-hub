@@ -18,6 +18,7 @@ export class UserRoleReplacementGate {
   previewRequest(roleIds: readonly string[]): Request | null {
     const next = normalized(roleIds)
     if (JSON.stringify(next) === JSON.stringify(normalized(this.currentRoleIds))) return null
+    if (this.pending) return null
     this.ready = null
     this.pending = { key: keyFor(this.subject, next), generation: ++this.requestGeneration }
     return { path: `/access/users/${this.subject.subjectId}/roles/preview`, method: 'POST', body: { role_ids: next } }

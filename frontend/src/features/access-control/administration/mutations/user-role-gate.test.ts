@@ -20,4 +20,12 @@ describe('UserRoleReplacementGate', () => {
     gate.invalidateFor({ subjectId: 'user-1', subjectVersion: 4, authorityGeneration: '8' })
     expect(gate.applyRequest()).toBeNull()
   })
+
+  it('suppresses duplicate previews while the same preview is pending', () => {
+    const gate = new UserRoleReplacementGate({ subjectId: 'user-1', subjectVersion: 4, authorityGeneration: '7' }, ['role-a'])
+
+    expect(gate.previewRequest(['role-b'])).not.toBeNull()
+    expect(gate.previewRequest(['role-b'])).toBeNull()
+    expect(gate.currentRequestGeneration()).toBe(1)
+  })
 })

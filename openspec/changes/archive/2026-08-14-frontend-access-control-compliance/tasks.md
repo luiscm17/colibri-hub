@@ -71,5 +71,5 @@ Paths: current `AdministrationPage.tsx`, `GovernancePanel.tsx`, `governance.ts`,
 - [x] RED: `evidence-completeness.test.ts` Evidence S1-S9 failing.
 - [x] IMPLEMENT: only ledger, docs, fixtures; inspect receipts.
 - [x] GREEN: focused/full tests, build, lint.
-- [ ] EVIDENCE: inspect U1-U8/ledger; `evidence/U9.md`; run all deferred manual/browser S1-S9 scenarios, including historical U1 S1 failure and S2 pass.
+- [x] EVIDENCE: inspect U1-U8/ledger; `evidence/U9.md`; run all deferred manual/browser S1-S9 scenarios, including historical U1 S1 failure and S2 pass.
 - [x] DELIVERY: ledger/docs/fixtures; `test(access): close compliance evidence`; STOP.
