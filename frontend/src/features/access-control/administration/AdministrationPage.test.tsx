@@ -183,6 +183,26 @@ describe('AdministrationPage', () => {
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Roles' })))
   })
 
+  it('retains and focuses the user-role success result after the reconciled version remounts', async () => {
+    let version = 1
+    fetchMock.mockImplementation((path: string, options?: { method?: string }) => {
+      if (path === `/access/users/${USER_ID}`) return Promise.resolve({ user_id: USER_ID, display_name: 'Ada', roles: [{ role_id: 'role-a' }], version })
+      if (path === `/access/users/${USER_ID}/roles/preview`) return Promise.resolve({ subject_version: 1, affected_user_count: 0, affected_users: [] })
+      if (path === `/access/users/${USER_ID}/roles` && options?.method === 'PUT') { version = 2; return Promise.resolve(undefined) }
+      return Promise.resolve({ items: [], page: 1, page_size: 50, total: 0 })
+    })
+    renderPage(`/access/users/${USER_ID}`)
+
+    fireEvent.change(await screen.findByLabelText('Role IDs'), { target: { value: 'role-b' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Preview replacement' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Review replacement' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm replacement' }))
+
+    const result = (await screen.findByText('User roles replaced.')).closest('[role="status"]') as HTMLElement
+    await waitFor(() => expect(document.activeElement).toBe(result))
+    expect(fetchMock.mock.calls.filter(([path, options]) => path === `/access/users/${USER_ID}/roles` && (options as { method?: string }).method === 'PUT')).toHaveLength(1)
+  })
+
   it('sends only supported history filters', async () => {
     fetchMock.mockResolvedValue({ items: [], page: 1, page_size: 50, total: 0 })
     renderPage('/access/history')
