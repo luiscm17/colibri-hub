@@ -554,6 +554,31 @@ could reduce System Administrator coverage carries a strong warning;
 `last_system_administrator_required` keeps the safe draft available and explains
 the invariant without claiming that client checks can decide it.
 
+### 7.3 Sensitive role-update authority
+
+`RoleWorkflow` is the sole frontend owner of a shared-role update. It owns the
+draft, preview, explicit confirmation, one pending apply, authoritative detail
+reconciliation, and result focus. No parallel role-permission panel or direct
+shared-role PUT path is permitted.
+
+For an existing role, the lifecycle is `draft → previewing → ready → confirmed
+→ applying → reconcile`. A preview is correlated with the normalized permission
+set, trimmed name, normalized description, reason (`""` when omitted), loaded
+version, current authorization generation, and request generation. Any related
+edit—including a reason-only edit—clears preview and confirmation. A full
+semantic no-op (unchanged permissions, name, and description) cannot preview or
+apply; metadata-only changes remain reviewable and show a separately labeled
+local metadata diff beside the backend-derived affected-user impact.
+
+Impact always shows the affected-user total first. The complete affected-user
+list is available through an accessible disclosure, while the frontend never
+infers role membership or impact. Drafts, reasons, preview identities, and
+diagnostic payloads must not enter URLs, browser storage, logs, analytics, or
+post-session disclosures. `401`, `403`, conflicts, invariant rejection, failed
+apply, abort, and stale responses invalidate confirmation and never replay a
+PUT. The backend remains authoritative for authorization, preview calculation,
+versioning, invariants, and reason policy.
+
 ## 8. Async behavior, feedback, and security
 
 ### 8.1 Loading, races, and responsiveness
@@ -738,52 +763,9 @@ The implementation must prove these observable contracts at justified levels:
 - Session end clears Access and authorization-dependent drafts; denied states and
   ordinary telemetry reveal no permission configuration or secret material.
 
-## 11. Evidence status and external dependency
+## 11. Verification policy
 
-The deterministic Access suite runs with `pnpm vitest run --reporter=verbose`,
-then `pnpm build` and `pnpm lint` from `frontend/`. It covers the frontend
-contract boundary: semantic handoff processing, exact default-deny decisions,
-latest-only/abort behavior, protected disclosure, route fallback, safe session
-clearing, and current administration recovery.
-
-The remaining real-backend evidence requires maintainer-controlled running
-services and an assistive-technology review. Authentication must publish and
-prove opaque handoff identity plus session-ended clearing in that environment.
-Maintainer evidence has recorded handoff/session clearing, latest-only navigation,
-responsive critical actions, keyboard/focus, screen-reader announcements, and no
-replay as passed. The observed invalid inline reduced-motion media key was moved
-to valid global CSS; no authorization, Authentication, or backend behavior
-changed. This does not authorize client inference: Access continues to consume
-backend-resolved grants, and Authentication retains session ownership. The future
-role-assignment/member experience tracked in issue #78 is not part of this change.
-
-## 12. Completion criteria
-
-### Authorization foundation
-
-1. The exact state machine and Authentication semantic conditions govern Access
-   bootstrap and clearing.
-2. The API adapter normalizes backend authorization variants and scope
-   identifiers without exposing transport naming to presentation behavior.
-3. Navigation, routes, and actions use exact backend-defined action and scope
-   pairs, additive grants, global actions, and default deny.
-4. Direct navigation cannot expose a denied protected page, while the backend
-   remains authoritative for every operation.
-5. Business capability boundaries in Section 4 remain independently
-   authorizable, with no role-name, job-title, shift, filter, or inferred scope
-   authorization.
-
-### Administration
-
-1. Unified account interactions consume both capability contracts while
-   Authentication and Access Control retain their ownership.
-2. Role and assignment changes use backend previews and enforced concurrency
-   contracts without inferred impact.
-3. Roles, presets, scopes, profile lifecycle, and access history use only the
-   operations and information defined in Sections 5 through 7.
-4. Administration navigation, collections, selectors, matrices, drafts, previews,
-   responsive adaptation, and async recovery satisfy Sections 6 through 9 using
-   only the consumed capabilities in Section 5.
-5. The observable verification scenarios and applicable transversal completion
-   criteria pass without relying on a prescribed component or state-management
-   implementation.
+Verification obligations for this feature are defined by the
+[Frontend Testing Strategy](../testing/strategy.md). Per-change execution
+evidence belongs in OpenSpec and Engram, not in this core technical
+specification.
