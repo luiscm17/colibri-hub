@@ -16,9 +16,9 @@ build_output_hash: sha256:77266de62b2c6a9e3ee9cacb76b421d2733ce2745bf128e2a0e6e4
 
 ## Verification Report
 
-**Change**: access-sensitive-mutation-preview  
-**Version**: N/A (delta specification)  
-**Mode**: Standard  
+**Change**: access-sensitive-mutation-preview
+**Version**: N/A (delta specification)
+**Mode**: Standard
 **Artifact store mode**: both
 
 ### Completeness
