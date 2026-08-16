@@ -1,6 +1,6 @@
 ---
 document_type: technical-spec
-status: draft
+status: active
 scope: access-control
 authority: explanatory
 owner: backend
