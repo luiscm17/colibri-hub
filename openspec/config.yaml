@@ -5,7 +5,7 @@ context: |
   Architecture: Frontend app shell and feature modules; backend Clean/Hexagonal Warehouse capability boundaries.
   Testing: Python unittest unit and guarded PostgreSQL integration suites; the active frontend change has no configured test runner and uses Standard Mode.
   Style: TypeScript strict build and ESLint; Python stdlib unittest with no configured lint, formatter, type checker, or coverage.
-  Delivery: Interactive execution, single-PR default, review budget 400 lines.
+  Delivery: Interactive execution with reviewable work units; maintainer-approved size:exception is allowed for structurally justified generated lockfile or dependency diffs.
 
 strict_tdd: false
 
@@ -44,7 +44,8 @@ rules:
     - Respect frontend feature boundaries and backend ports-and-adapters boundaries.
     - Document migration and Supabase RLS implications when persistence changes.
   tasks:
-    - Group work into reviewable phases and target a maximum of 400 changed lines per PR.
+    - Group work into reviewable phases and keep PRs within the selected session review budget when practical.
+    - Allow an explicit maintainer-approved size:exception for structurally justified generated lockfile or dependency diffs; do not treat the normal reviewability guideline as a hard line limit.
   apply:
     guidelines:
       - Follow existing project conventions and test affected backend behavior first.

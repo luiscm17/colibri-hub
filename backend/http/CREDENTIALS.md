@@ -16,14 +16,16 @@ user, so the name would make both concepts ambiguous.
 Test roles therefore use the organizational references the PRD explicitly
 allows: `section-responsible` (the minimum responsibility level expected to use
 the system directly) and `supervisor` (read-only operational consultation).
+Display names identify synthetic people, while role names identify their system
+responsibilities.
 
 ## Users
 
 | User | Email | Password | Role(s) | State |
 | ---- | ----- | -------- | ------- | ----- |
-| Admin | `admin@colibri.test` | `AdminTest123!` | `system_administrator` | active |
-| Section Responsible | `section@colibri.test` | `SectionTest123!` | `section-responsible` | active |
-| Supervisor | `supervisor@colibri.test` | `SupervisorTest123!` | `supervisor` | active |
+| Alex Rivera | `admin@colibri.test` | `AdminTest123!` | `system_administrator` | active |
+| Sofía Torres | `section@colibri.test` | `SectionTest123!` | `section-responsible` | active |
+| Diego Morales | `supervisor@colibri.test` | `SupervisorTest123!` | `supervisor` | active |
 
 Test role permission sets (scopes as documented in the scope definitions seed):
 
@@ -43,7 +45,7 @@ running):
 BOOTSTRAP_EMAIL=admin@colibri.test \
 BOOTSTRAP_PASSWORD=AdminBootstrap123! \
 BOOTSTRAP_USER_CODE=USR-ADM-001 \
-BOOTSTRAP_DISPLAY_NAME="System Administrator" \
+BOOTSTRAP_DISPLAY_NAME="Alex Rivera" \
 uv run --locked --package backend python -m auth.adapters.bootstrap_command
 ```
 
@@ -101,14 +103,15 @@ POST /api/v1/auth/accounts
   "email": "section@colibri.test",
   "provisional_password": "TempSection123!",
   "user_code": "USR-SEC-001",
-  "display_name": "Section Responsible",
+  "display_name": "Sofía Torres",
   "role_codes": ["section-responsible"],
   "reason": "Local test fixture"
 }
 ```
 
-Repeat for `supervisor@colibri.test` with `role_codes: ["supervisor"]` and a
-different temporary provisional (e.g. `TempSupervisor123!`).
+Repeat for `supervisor@colibri.test` with `display_name: "Diego Morales"`,
+`role_codes: ["supervisor"]`, and a different temporary provisional (e.g.
+`TempSupervisor123!`).
 
 ### 6. Activate the test users
 

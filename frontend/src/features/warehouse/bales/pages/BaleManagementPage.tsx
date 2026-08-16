@@ -42,6 +42,7 @@ export default function BaleManagementPage() {
             key={path}
             component={Link}
             to={path}
+            className="bale-workflow-card"
             withBorder
             padding="lg"
             radius="md"
@@ -51,9 +52,6 @@ export default function BaleManagementPage() {
                 '&:hover': {
                   boxShadow: 'var(--mantine-shadow-md)',
                   transform: 'translateY(-2px)',
-                },
-                '@media (prefers-reduced-motion: reduce)': {
-                  transition: 'none',
                 },
               },
             }}

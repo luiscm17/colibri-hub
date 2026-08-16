@@ -1,6 +1,6 @@
 import { ApiError, isApiError, type ApiErrorKind, type ApiFieldError } from '@/api/httpError'
 
-export type BaleApiErrorKind = 'aborted' | 'conflict' | 'not_found' | 'validation' | 'unavailable' | 'unexpected'
+export type BaleApiErrorKind = 'aborted' | 'access_denied' | 'conflict' | 'not_found' | 'validation' | 'unavailable' | 'unexpected'
 
 export class BaleApiError extends Error {
   readonly kind: BaleApiErrorKind
@@ -25,6 +25,7 @@ export function toBaleApiError(error: unknown): BaleApiError {
 
 function errorKind(error: ApiError): BaleApiErrorKind {
   if (error.kind === 'aborted') return 'aborted'
+  if (error.status === 403) return 'access_denied'
   if (error.kind === 'network' || (error.status !== undefined && error.status >= 500)) return 'unavailable'
   if (error.status === 409) return 'conflict'
   if (error.status === 404) return 'not_found'

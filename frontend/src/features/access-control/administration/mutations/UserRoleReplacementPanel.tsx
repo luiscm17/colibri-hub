@@ -1,0 +1,48 @@
+import { Alert, Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core'
+import { useMemo, useRef, useState } from 'react'
+import { httpJson } from '@/api/httpClient'
+import { isApiError } from '@/api/httpError'
+import { useAccess } from '@/features/access-control'
+import { UserRoleReplacementGate } from './user-role-gate'
+import { ImpactPreview } from './ImpactPreview'
+import { announceAccessAdministrationRecovery } from './access-recovery-notification'
+import type { AffectedUser } from './ImpactPreview'
+
+export function UserRoleReplacementPanel({ userId, version, roleIds, onReconcile, onOutcome }: { userId: string; version: number; roleIds: string[]; onReconcile?(): void; onOutcome?(message: string): void }) {
+  const { snapshot } = useAccess()
+  const authorityGeneration = String(snapshot?.authorizationVersion ?? '')
+  return <UserRoleReplacementContent key={`${userId}:${version}:${authorityGeneration}`} userId={userId} version={version} roleIds={roleIds} authorityGeneration={authorityGeneration} onReconcile={onReconcile} onOutcome={onOutcome} />
+}
+
+function UserRoleReplacementContent({ userId, version, roleIds, authorityGeneration, onReconcile, onOutcome }: { userId: string; version: number; roleIds: string[]; authorityGeneration: string; onReconcile?(): void; onOutcome?(message: string): void }) {
+  const gate = useMemo(() => new UserRoleReplacementGate({ subjectId: userId, subjectVersion: version, authorityGeneration }, roleIds), [authorityGeneration, roleIds, userId, version])
+  const [draft, setDraft] = useState(roleIds.join(', '))
+  const [reason, setReason] = useState('')
+  const [preview, setPreview] = useState<{ subjectVersion: number; affectedUserCount: number; affectedUsers: AffectedUser[] } | null>(null)
+  const [confirming, setConfirming] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const resultRef = useRef<HTMLDivElement>(null)
+  async function previewChange() {
+    const request = gate.previewRequest(draft.split(','), reason)
+    const generation = gate.currentRequestGeneration()
+    if (!request) { setPreview(null); setMessage('Choose a different role set before previewing.'); return }
+    try {
+      const result = await httpJson<{ subject_version: number; affected_user_count: number; affected_users: AffectedUser[] }>(request.path, { method: request.method, body: request.body, signal: gate.previewSignal(), recoverAccessDenied: true })
+      if (gate.acceptPreview({ subjectVersion: result.subject_version, affectedUserCount: result.affected_user_count }, draft.split(','), generation, reason)) setPreview({ subjectVersion: result.subject_version, affectedUserCount: result.affected_user_count, affectedUsers: result.affected_users })
+    } catch { gate.invalidate(); setPreview(null); setMessage('Preview is no longer current. Review the roles and preview again.') }
+  }
+  async function applyChange() {
+    if (!gate.confirm()) return
+    const request = gate.applyRequest()
+    if (!request) return
+    try {
+      await httpJson(request.path, { method: request.method, body: request.body, recoverAccessDenied: true })
+      setConfirming(false); setPreview(null); onOutcome?.('User roles replaced.'); onReconcile?.()
+    } catch (error) {
+      gate.invalidate(); setConfirming(false); setPreview(null)
+      if (isApiError(error) && error.status === 403) announceAccessAdministrationRecovery()
+      else { setMessage('The replacement was not applied. Preview a fresh change before retrying.'); resultRef.current?.focus() }
+    }
+  }
+  return <Stack mt="md"><Text fw={500}>Replace user roles</Text><TextInput label="Role IDs" value={draft} onChange={(event) => { gate.invalidate(); setConfirming(false); setPreview(null); setDraft(event.currentTarget.value) }} description="Comma-separated role IDs. Changes require a fresh preview." /><TextInput label="Reason (optional)" value={reason} onChange={(event) => { gate.invalidate(); setConfirming(false); setPreview(null); setReason(event.currentTarget.value) }} description="Reason edits require a fresh preview." /><Group><Button onClick={() => void previewChange()}>Preview replacement</Button>{preview ? <Button color="red" onClick={() => setConfirming(true)}>Review replacement</Button> : null}</Group>{preview ? <Alert><ImpactPreview affectedUserCount={preview.affectedUserCount} affectedUsers={preview.affectedUsers} /></Alert> : null}{message ? <Alert ref={resultRef} tabIndex={-1} role="status" aria-live="polite">{message}</Alert> : null}<Modal opened={confirming} onClose={() => setConfirming(false)} title="Confirm replacement" closeOnClickOutside={false} returnFocus><Stack><Text>Replace user roles</Text><Text role="status" aria-live="polite">Users affected by this proposed change: {preview?.affectedUserCount ?? 0}.</Text><Text>Confirming applies this preview once. A new preview is required after any conflict or edit.</Text><Group justify="flex-end"><Button variant="default" onClick={() => setConfirming(false)}>Cancel</Button><Button color="red" onClick={() => void applyChange()}>Confirm replacement</Button></Group></Stack></Modal></Stack>
+}

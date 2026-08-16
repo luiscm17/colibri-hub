@@ -169,6 +169,7 @@ function duplicateBaleRows(snapshot: { readonly bales: readonly Pick<ReceptionGr
 }
 
 function remoteErrorMessage(error: BaleApiError, fallback: string) {
+  if (error.kind === 'access_denied') return 'Tu acceso cambió. Se conservaron los datos ingresados.'
   if (error.kind === 'conflict') return 'El número de remito ya está registrado.'
   if (error.kind === 'validation') return 'Corregí los campos indicados para guardar.'
   if (error.source === 'network') return 'No se pudo conectar con el servicio. Intentá nuevamente.'

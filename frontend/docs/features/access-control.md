@@ -8,343 +8,233 @@ owner: frontend
 
 # Technical Specification - Frontend Access Control
 
-> **Normative PRD:** [Access Control](../../../docs/prd/access-control.md)
+> **Normative PRDs:** [Access Control](../../../docs/prd/access-control.md) and
+> [Authentication](../../../docs/prd/auth.md)
 >
-> This document is a frontend technical specification. The linked PRD is
-> authoritative for business concepts, rules, and acceptance criteria.
+> The PRDs are authoritative for business behavior. This specification defines
+> the frontend consequences of those rules and the backend contracts it consumes.
 
-**Product:** Colibri Hub  
-**Context:** Access Control  
-**Type:** Technical Specification - Frontend  
-**Complementary specification:** [Backend Access Control](../../../backend/docs/features/access-control.md)  
+## 1. Purpose and boundary
 
----
+The Access Control frontend consumes backend-resolved effective authorization to
+shape navigation, protect client routes, control action availability, and present
+Access administration. These controls improve the experience; the backend still
+authorizes every protected request against the authenticated identity and actual
+business scope.
 
-## 1. Executive summary
+Access Control owns the presentation of effective authorization, access profiles,
+roles, presets, scopes, assignments, and access history. Authentication separately
+owns entry, credentials, account state, and sessions. The unified account
+experience consumes both capability contracts without transferring ownership
+between them.
 
-The frontend consumes the authenticated user's effective authorization from the
-backend and uses it to shape navigation, protect client routes, enable or hide
-actions, and provide Access Control administration screens.
+The authorization foundation is responsible for bootstrap, effective Access
+state, exact permission checks, navigation, routes, and protected actions. Access
+administration is responsible for profile lifecycle, assignments, roles, presets,
+scopes, previews, concurrency feedback, and access history. Neither responsibility
+changes the other's authority or creates a frontend authorization source of truth.
 
-The frontend does not decide whether an operation is authorized. It improves the
-user experience by avoiding unavailable paths, while the backend evaluates every
-protected request using the authenticated identity and the actual business scope.
+Implementation follows the [Frontend Architecture Overview](../architecture/overview.md).
+Technology families are owned by the
+[Technology Baseline](../../../docs/architecture/technology-baseline.md), exact
+dependencies by repository manifests, styling by
+[Frontend Styling](../../../docs/dev-guide/frontend-styling.md) and
+[Visual Identity](../design-system/visual-identity.md), accessibility by the
+[Accessibility Guidelines](../accessibility.md), and verification levels by the
+[Frontend Testing Strategy](../testing/strategy.md).
 
-Authentication is a separate capability. The frontend Access Control feature
-starts after the authentication layer has established a session. It does not
-implement login, logout, credentials, password recovery, MFA, token issuance, or
-session renewal.
+## 2. Authorization contract
 
-Only the `ready` Access state drives navigation and action availability. Blocked
-and unavailable states stop the flow before any protected content renders:
+### 2.1 Frontend model and contract adaptation
 
-```mermaid
-flowchart TD
-    A[Authenticated session] --> B[Access bootstrap]
-    B --> C[GET /api/v1/access/me]
-    C --> D{Access state}
-    D -->|ready| E[Access state ready]
-    D -->|blocked| G[Blocked profile surface]
-    D -->|unavailable| H[Retryable service surface]
-    E --> F[Navigation and route guards]
-    E --> I[Action availability]
-    F --> J[Protected page]
-    I --> J
-    J --> K[Backend authorizes every request]
-```
+The supported action values are exactly:
 
-Ordinary authorization is additive and uses exact `action + scope` pairs. The
-reserved System Administrator is represented by a global authorization flag.
-Frontend code never branches on role names such as Director, Operator, or
-Supervisor.
+- `read`
+- `write`
+- `edit`
+- `edit_outside_window`
+- `manage_access`
 
-## 2. Related documents and authority
+An action comes from the backend contract and business operation. It is not
+inferred from an HTTP method, control label, route name, or job title.
 
-- [Access Control PRD](../../../docs/prd/access-control.md) - normative business rules.
-- [Backend Access Control](../../../backend/docs/features/access-control.md) - API, errors, and authorization contract.
-- [UI Requirements](../../../docs/prd/ui-requirements.md) - global navigation and interaction rules.
-- [Frontend Architecture Overview](../architecture/overview.md) - feature and state boundaries.
-- [Frontend Accessibility Guidelines](../accessibility.md) - accessibility requirements.
-- [Frontend Testing Strategy](../testing/strategy.md) - test layers and tools.
+The stable frontend authorization model contains:
 
-When documents conflict:
+- permissions expressed as an action and an exact scope identifier;
+- assigned-role summaries containing identity, stable code, and display name;
+- either an ordinary grant containing permissions and an authorization version,
+  or a global grant containing supported actions and an authorization version;
+- current Access identity and profile state, assigned-role summaries, and the
+  authorization grant.
 
-1. The Access Control PRD prevails for business behavior.
-2. The backend specification prevails for the consumed API contract.
-3. This specification prevails for frontend implementation details.
+The Access API adapter consumes the backend authorization indicator and scope
+identifier, validates the complete ordinary or global variant, and normalizes it
+into this model. Exact transport fields and endpoint shapes are owned by the
+backend contract and OpenAPI; contract tests protect their adaptation. Raw
+transport objects and transport naming do not reach presentation behavior.
 
-## 3. Design boundary
+### 2.2 Authorization decision
 
-The Access frontend consumes backend-resolved profiles and effective
-permissions. It applies default-deny presentation rules through the application
-provider, navigation, route guards, and protected actions. It does not create a
-frontend-only authorization source of truth or a parallel account lifecycle.
+Every check receives an action and exact scope identifier:
 
-## 4. Objectives
+- for a global grant, the action is allowed in every scope only when it appears
+  in the backend-supplied supported-action list;
+- for an ordinary grant, the action is allowed only when `permissions` contains
+  the exact action and scope pair;
+- every other result is denied.
 
-### 4.1 Functional objectives
+No prefix, parent, child, punctuation-based hierarchy, wildcard, role code, or
+role label participates in the decision. `write` does not imply `read`, and no
+action implies another action.
 
-- Load the current Access profile after authentication succeeds.
-- Represent loading, active, blocked, and unavailable Access states explicitly.
-- Build navigation from effective permissions rather than role names.
-- Prevent direct client navigation to unauthorized routes.
-- Hide or disable protected actions consistently.
-- Support users with multiple simultaneous roles.
-- Treat permissions from multiple roles as one effective additive set.
-- Support global System Administrator authorization without enumerating scopes.
-- Provide access-profile consultation and lifecycle, plus administration of roles, presets, scopes, and assignments.
-- Preview shared-role and user-assignment impact before confirmation.
-- Display access-change audit history.
-- Refresh authorization after changes that may affect the current session.
-- Preserve form work across validation, concurrency, and network failures.
+Roles are additive. The backend supplies the distinct effective union from all
+assigned active roles; the frontend neither recomputes role grants nor applies
+denials or precedence. Role summaries are explanatory data only. A global grant
+does not fabricate wildcard permission rows or depend on a cached scope catalog.
 
-### 4.2 Technical objectives
+## 3. Access state machine
 
-- Keep authorization state at the application boundary.
-- Keep role and permission administration inside the Access feature.
-- Centralize exact permission checks in one pure authorization utility.
-- Declare route requirements as metadata near route definitions.
-- Keep protected feature modules independent of role codes and role labels.
-- Reuse the shared HTTP and error-handling boundary.
-- Avoid duplicating backend permission calculation or scope hierarchy logic.
-- Make authorization transitions deterministic and testable.
-
-## 5. Scope
-
-### 5.1 Included
-
-- Current Access bootstrap using `GET /api/v1/access/me`.
-- App-level Access provider and hooks.
-- Exact action-and-scope permission checks.
-- Global System Administrator handling.
-- Capability-driven sidebar and nested navigation.
-- Protected route boundaries and unauthorized-page behavior.
-- Protected action components and action-state conventions.
-- User administration and role assignment.
-- Role administration and permission selection.
-- Role preset administration and role creation from presets.
-- Scope registry administration.
-- Access-change audit query and detail views.
-- Impact preview and optimistic-concurrency workflows.
-- Authentication, authorization, API, and network error presentation.
-- Accessibility and automated test requirements.
-
-### 5.2 Excluded
-
-- Login, logout, credentials, password recovery, MFA, tokens, and session renewal.
-- Selection or configuration of the authentication provider.
-- Editing authentication-provider identities or credentials.
-- Direct permissions assigned to individual users.
-- Explicit deny rules.
-- Role or scope inheritance.
-- Wildcard permission interpretation.
-- Shift-based route or action authorization.
-- Job-title-based authorization.
-- Domain-specific correction forms and correction-window decisions.
-- Operational audit pages owned by business contexts.
-- Skein Availability as an independent page or capability.
-
-## 6. Technology and constraints
-
-The implementation uses the current frontend baseline:
-
-| Area | Technology |
-| --- | --- |
-| Framework | React 19 |
-| Language | TypeScript 6 |
-| Build | Vite 8 |
-| UI | Mantine 9 |
-| Navigation | React Router 7 |
-| Icons | Tabler Icons React |
-| Styling | CSS Modules and Mantine tokens |
-| Quality | TypeScript build and ESLint |
-
-No additional global state library is required. Access state is app-level session
-state and fits a React context plus focused hooks. Tests use Vitest, Testing
-Library, user-event, and automated
-accessibility checks.
-
-The Access API layer may use the globally approved server-cache library. This
-does not change the state model or authorization rules defined here.
-
-## 7. Frontend authorization model
-
-### 7.1 Supported actions
-
-The supported actions are the contract values supplied by the backend:
-
-- `read`;
-- `write`;
-- `edit`;
-- `edit_outside_window`;
-- `manage_access`.
-
-The frontend uses these values exactly as supplied by the backend. It does not
-infer an action from an HTTP method, button caption, or route name.
-
-### 7.2 Access state
-
-The Access state exposes these data shapes:
-
-- **Permission**: an `action` and an exact `scope` code.
-- **Assigned role summary**: `roleId`, `code`, and `name`.
-- **Authorization grant** — exactly one of two variants:
-  - ordinary: `global: false` with a `permissions` list and a `version`;
-  - global: `global: true` with an `actions` list, an empty `permissions`
-    list, and a `version`.
-- **Current access**: `userId`, `userCode`, `displayName`, `isActive`,
-  `roles` (assigned role summaries), and the `authorization` grant.
-
-API snake-case payloads are mapped to frontend camel-case models at the feature
-API boundary. Protected components do not consume raw response objects.
-
-The wire payload for `GET /api/v1/access/me` exposes the System Administrator
-flag as `global` (backend spec §10.1), and the frontend model uses the same
-`global` name; no rename occurs in the mapper for this field. The mapper
-rejects an `authorization` section that omits `global` instead of assuming an
-ordinary grant.
-
-### 7.3 Exact permission check
-
-The exact permission check receives the current authorization grant, an action,
-and a scope, and answers whether the action is available in that scope:
-
-- when the grant is global, the action is available when it appears in the
-  grant's `actions`;
-- otherwise, the action is available when the grant's `permissions` contain an
-  entry with that exact action and that exact scope.
-
-For efficient repeated checks, the provider may build an internal `Set` keyed by
-an unambiguous tuple encoding. That representation remains private and must not
-introduce prefix, parent, child, or wildcard matching.
-
-The role list is explanatory UI data only. Authorization checks never inspect a
-role code or display name.
-
-### 7.4 Additive roles
-
-The backend already returns the effective distinct permission union. The
-frontend does not merge role permission sets independently and does not resolve
-conflicts. There are no explicit denials or precedence rules.
-
-### 7.5 Global authorization
-
-When `authorization.global` is true, `can` accepts every supported action listed
-by the backend in every scope. The UI does not fabricate wildcard permission rows
-or cache the current list of scopes as the limit of global access.
-
-## 8. Application state and bootstrap
-
-### 8.1 Provider state machine
+### 3.1 States
 
 Access state is exactly one of:
 
-| Status | Carries | Meaning |
+| State | Carries | Meaning |
 | --- | --- | --- |
-| `waiting-for-authentication` | — | Authentication has not resolved yet |
-| `loading` | — | Access profile request in progress |
-| `ready` | `access` | Effective authorization available |
-| `blocked` | reason: `profile-not-found` \| `inactive` | Authenticated but no usable Access profile |
-| `unavailable` | retryable: boolean | Backend or network failure |
+| `waiting-for-authentication` | none | Authentication has not supplied an eligible condition |
+| `loading` | none | Current Access is being requested |
+| `ready` | `access` | Effective authorization is available |
+| `blocked` | `profile-not-found` or `inactive` | The authenticated identity has no usable Access profile |
+| `unavailable` | `retryable` | Access could not be resolved because of a service or network failure |
 
-The provider does not collapse these states into `currentUser | null`. A null
-value cannot distinguish an unauthenticated session, an Access profile denial,
-and a network failure.
+These states must not collapse into a nullable user. Only `ready` may drive
+protected navigation, routes, and actions.
 
-### 8.2 Bootstrap flow
+### 3.2 Authentication semantic contract
 
-1. Wait until authentication resolves.
-2. If no authenticated session exists, do not call Access Control.
-3. If a session exists, call `GET /api/v1/access/me` through the authenticated
-   HTTP client.
-4. Map and validate the response.
-5. Store the ready Access state and derived permission index.
-6. Render protected application routes only after the request resolves.
+Access consumes these Authentication conditions without depending on
+Authentication's internal representation:
 
-The loading surface uses the normal application shell loading pattern. It must
-not briefly render unauthorized content while Access state is unresolved.
-
-### 8.3 Blocked profiles
-
-| Backend result | Frontend state | Surface |
-| --- | --- | --- |
-| `403 access_profile_not_found` | `blocked/profile-not-found` | Account lacks an Access profile |
-| `403 access_user_inactive` | `blocked/inactive` | Access profile is inactive |
-| Other `403` from `/access/me` | `blocked/profile-not-found` | Generic unavailable-access message |
-
-Blocked surfaces provide a sign-out action owned by authentication and a contact
-administrator message. They do not expose role, permission, or backend policy
-details.
-
-### 8.4 Refresh policy
-
-The provider refreshes current Access:
-
-- after initial authentication;
-- after an administrative mutation affecting the current user;
-- when the application returns to the foreground after a configurable stale
-  interval;
-- once after an unexpected `403` from a protected request;
-- after explicit user retry.
-
-The frontend compares `authorization.version` to detect a changed grant, but the
-version never authorizes an operation. A refresh replaces the complete Access
-snapshot atomically.
-
-An unexpected `403` triggers at most one Access refresh and one UI reevaluation.
-The original mutating request is not automatically repeated because it may not be
-safe or idempotent.
-
-## 9. Navigation and route protection
-
-### 9.1 Route requirements
-
-Protected route metadata declares one or more exact requirements. Each
-requirement pairs an `action` with an exact `scope`. Route metadata supports
-two combinators:
-
-- `anyOf`: the route renders when at least one requirement is satisfied;
-- `allOf`: the route renders only when every requirement is satisfied.
-
-Most routes use one requirement. A context landing page may use `anyOf` to appear
-when at least one child capability is visible. `allOf` is used only when the page
-itself genuinely needs every listed capability.
-
-### 9.2 Route guard behavior
-
-The route guard evaluates only ready Access state:
-
-| State | Behavior |
+| Authentication condition | Access transition and behavior |
 | --- | --- |
-| Waiting/loading | Show protected-shell loading state |
-| Ready and allowed | Render route |
-| Ready and denied | Render Access Denied page |
-| Blocked | Render blocked-profile surface |
-| Unavailable | Render retryable service-unavailable surface |
+| Unresolved | Enter or remain `waiting-for-authentication`; do not request Access |
+| Unauthenticated or ended | Enter `waiting-for-authentication`, clear any prior Access snapshot, and do not request Access |
+| Password change required | Enter `waiting-for-authentication`, clear any prior Access snapshot, and do not expose protected capabilities |
+| Authenticated and eligible with `next_step=load_access` | Enter `loading` and bootstrap Access |
+| Authentication unavailable | Enter `unavailable`; do not request Access |
 
-Direct URL entry and browser history navigation use the same guard as sidebar
-navigation.
+A provider session alone is not eligibility to bootstrap Access. Login, logout,
+credential handling, password replacement, token issuance, and session renewal
+remain Authentication responsibilities.
 
-The Access Denied page:
+### 3.3 Access transitions
 
-- uses HTTP-independent user language;
-- provides a route to the nearest permitted context or home;
-- does not list missing roles;
-- may state the unavailable action and business area in display language;
-- never claims that frontend denial is the security boundary.
+```mermaid
+stateDiagram-v2
+    [*] --> waiting_for_authentication
+    waiting_for_authentication --> loading: authenticated and next_step=load_access
+    loading --> ready: valid active profile
+    loading --> blocked: profile missing or inactive
+    loading --> unavailable: service or network failure
+    ready --> loading: refresh
+    blocked --> loading: eligible retry
+    unavailable --> loading: eligible retry
+    ready --> waiting_for_authentication: unauthenticated, ended, or password change required
+    blocked --> waiting_for_authentication: unauthenticated, ended, or password change required
+    unavailable --> waiting_for_authentication: unauthenticated, ended, or password change required
+```
 
-### 9.3 Navigation filtering
+The Mermaid identifiers use underscores only for diagram syntax; the frontend
+state values remain the hyphenated values defined above.
 
-Every navigation item declares route requirements. A parent item is visible when
-at least one child is visible. Empty groups are omitted.
+### 3.4 Bootstrap and blocked results
 
-Navigation is recomputed from the current Access snapshot. It is not persisted as
-a separate permission cache.
+Bootstrap calls `GET /api/v1/access/me` through the authenticated HTTP boundary,
+maps and validates the complete response, then atomically publishes `ready`.
+Protected content must not render from a prior or unresolved snapshot.
 
-### 9.4 Business capability mapping
+| Backend result | Access outcome |
+| --- | --- |
+| `404` with `detail=profile_not_found` | `blocked/profile-not-found` |
+| `403` with `detail=profile_inactive` | `blocked/inactive` |
+| Equivalent stable domain code | The corresponding blocked result after transport normalization |
+| Other `403` | Denied or unavailable according to its normalized error; never infer profile absence from status alone |
+| Network or service failure | `unavailable` with retryability derived from the failure |
 
-The frontend uses the backend scope catalog. It does not derive scopes from URL
-segments, feature-directory names, navigation labels, or organizational roles.
+Blocked presentation states explain that no active access is available, provide
+the Authentication-owned sign-out interaction, and direct the user to an
+administrator without revealing role or permission configuration.
+
+### 3.5 Refresh
+
+Refresh current Access:
+
+- after initial eligible Authentication;
+- after an administrative mutation affecting the current user;
+- once after an unexpected `403` from a protected request; and
+- after explicit retry.
+
+A refresh replaces the complete snapshot atomically. `authorization.version` may
+identify a changed grant but never authorizes an operation. An unexpected `403`
+causes at most one Access refresh and reevaluation; the original mutation is not
+automatically repeated.
+
+## 4. Protected experience
+
+### 4.1 Navigation and routes
+
+Each protected destination declares one or more exact action and scope
+requirements. `anyOf` allows when at least one requirement is satisfied; `allOf`
+allows only when every requirement is satisfied. Use `allOf` only when the page
+itself genuinely requires every listed capability.
+
+| Access state | Observable route behavior |
+| --- | --- |
+| Waiting or loading | Show the protected-shell loading state without protected content |
+| Ready and allowed | Render the destination |
+| Ready and denied | Render Access Denied |
+| Blocked | Render the matching blocked-profile state |
+| Unavailable | Render a retryable unavailable state |
+
+Direct URL entry, browser history, and in-application navigation use the same
+requirements. Access Denied offers a permitted destination, does not identify a
+missing role, and does not imply that client denial is the security boundary.
+
+Navigation is derived from the current Access snapshot. Unauthorized leaves and
+empty groups are omitted; a parent is visible when at least one child is visible.
+The derived navigation is not persisted as a separate authorization cache.
+
+The Access Control navigation group and all its destinations require exactly:
+
+```text
+manage_access + access_control
+```
+
+The group presents unified Users, Roles, Role Presets, Scopes, and Access Audit.
+Its gate never depends on a role name.
+
+### 4.2 Protected actions and backend denial
+
+An unavailable action is hidden when irrelevant to the task, or shown disabled
+with an explanation when discoverability or layout matters. The same action uses
+a consistent presentation within a page.
+
+When a visible protected request returns `403`:
+
+1. Preserve safe unsaved input.
+2. Refresh Access once.
+3. Reevaluate the route and action.
+4. Explain that access changed or is unavailable.
+5. Do not automatically repeat a mutation.
+
+For corrections, the owning business context supplies editability or otherwise
+determines the correction window. Within-window correction requires `edit`;
+outside-window correction requires `edit_outside_window`. Browser time is not an
+authoritative correction-window decision.
+
+### 4.3 Business capability mapping
+
+Scope codes are backend catalog identifiers, not values derived from URLs,
+presentation labels, organizational roles, or source organization.
 
 #### Warehouse
 
@@ -357,7 +247,7 @@ segments, feature-directory names, navigation labels, or organizational roles.
 | Production Supplies dashboard, stock, and history | `read` | `warehouse.production_supplies` |
 | Production-supply reception, exit, and return records | `write` | `warehouse.production_supplies` |
 
-Bale Management routes use exact `read` or `write` requirements in
+Bale Management uses exact `read` or `write` requirements in
 `warehouse.raw_materials`; no shared resource-category check is authoritative.
 
 #### Yarn Spinning
@@ -377,10 +267,9 @@ Bale Management routes use exact `read` or `write` requirements in
 | Process Quality query or record | `read` or `write` | `yarn_spinning.process_quality` |
 | Waste query or record | `read` or `write` | `yarn_spinning.waste` |
 
-Process Quality and Waste remain independent navigation items because they are
-cross-section responsibilities that may belong to different roles. There is no
-independent Skein Availability route or scope; availability needed during lot
-assembly is presented within that authorized workflow.
+Process Quality and Waste remain independently authorizable. Skein Availability
+has no independent route or scope; workflows that need it present it within their
+own authorization boundary.
 
 #### Lot Processing
 
@@ -394,9 +283,8 @@ assembly is presented within that authorized workflow.
 | Bagging technical information or intervention | `read` or `write` | `lot_processing.stage.bagging` |
 | Quality technical information, release for reception, or handoff response | `read` or `write` | `lot_processing.stage.quality` |
 
-The detail page may render the transversal lot fields with `read +
-lot_processing` while omitting technical stage fields for which the user lacks
-the corresponding stage `read` permission.
+The detail experience may present transversal lot fields with `read +
+lot_processing` while omitting stage details for which stage `read` is absent.
 
 #### Transversal consultation
 
@@ -404,482 +292,480 @@ the corresponding stage `read` permission.
 | --- | --- | --- |
 | Consolidated dashboard | `read` | `transversal.consolidated_dashboard` |
 
-The consolidated dashboard is not nested under Yarn Spinning authorization.
-Section permissions do not imply it, and it grants no operational permission in
-the contexts represented by the view. Shift, business date, section, yarn
-count, and period selectors are filters only and never determine visibility.
+This scope is independent of Yarn Spinning sections and grants no operation in
+the contexts represented. Date, shift, section, yarn count, and period selectors
+filter results but never change authorization.
 
-### 9.5 Access Control navigation
+## 5. HTTP contracts consumed
 
-The Access Control group is visible only when the user can perform:
+### 5.1 Authorization foundation
 
-```text
-manage_access + access_control
-```
+| Method | Path | Success | Frontend consequence |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/access/me` | `200` | Load, normalize, and replace the complete current Access snapshot |
 
-It contains:
+### 5.2 Administration
 
-- Users, routed to the unified Authentication account pages;
-- Roles;
-- Role Presets;
-- Scopes;
-- Access Audit.
+| Capability | Method | Path | Success |
+| --- | --- | --- | --- |
+| List users | `GET` | `/api/v1/access/users` | `200` paginated profiles |
+| Get user | `GET` | `/api/v1/access/users/{user_id}` | `200` profile detail |
+| Change profile status | `PATCH` | `/api/v1/access/users/{user_id}/status` | `200` |
+| Preview role replacement | `POST` | `/api/v1/access/users/{user_id}/roles/preview` | `200` impact preview |
+| Replace user roles | `PUT` | `/api/v1/access/users/{user_id}/roles` | `200` |
+| List roles | `GET` | `/api/v1/access/roles` | `200` paginated roles |
+| Create role | `POST` | `/api/v1/access/roles` | `201` role |
+| Get role | `GET` | `/api/v1/access/roles/{role_id}` | `200` role |
+| Preview role update | `POST` | `/api/v1/access/roles/{role_id}/preview` | `200` impact preview |
+| Replace role | `PUT` | `/api/v1/access/roles/{role_id}` | `200` role |
+| Change role status | `PATCH` | `/api/v1/access/roles/{role_id}/status` | `200` |
+| List presets | `GET` | `/api/v1/access/role-presets` | `200` paginated presets |
+| Create preset | `POST` | `/api/v1/access/role-presets` | `201` preset |
+| Get preset | `GET` | `/api/v1/access/role-presets/{preset_id}` | `200` preset |
+| Replace preset | `PUT` | `/api/v1/access/role-presets/{preset_id}` | `200` preset |
+| Change preset status | `PATCH` | `/api/v1/access/role-presets/{preset_id}/status` | `200` |
+| Create exact preset copy | `POST` | `/api/v1/access/role-presets/{preset_id}/roles` | `201` role |
+| List scopes | `GET` | `/api/v1/access/scopes` | `200` paginated scopes |
+| List recognized scope definitions | `GET` | `/api/v1/access/scope-definitions` | `200` definitions |
+| Register recognized scope | `POST` | `/api/v1/access/scopes` | `201` scope |
+| Change scope status | `PATCH` | `/api/v1/access/scopes/{scope_id}/status` | `200` |
+| Query access audit | `GET` | `/api/v1/access/audits` | `200` paginated metadata |
 
-All child routes use the same requirement. The UI may label the group "Access
-Control" or the approved localized equivalent, but it must not use a role name as
-the gate.
+The backend technical contract and OpenAPI own request fields, response fields,
+strict validation, pagination envelopes, and error envelopes. The Access API
+adapter validates required variants, supports cancellation and stale-response
+rejection, and normalizes known outcomes for presentation.
 
-## 10. Protected actions
+## 6. Administration experience
 
-### 10.1 Action component
+### 6.1 Information architecture and transitions
 
-A shared protected-action component supports consistent action rendering. It
-receives an `action`, a `scope`, an optional fallback content, and children to
-render when the action is available.
+Access administration exposes five related destinations under one permitted
+navigation group:
 
-Use hiding when an unavailable action is irrelevant to the user's task. Use a
-disabled control with an explanation when preserving layout or discoverability is
-important. The choice must remain consistent for the same action across a page.
+| Destination | Primary purpose | Observable relationships and transitions |
+| --- | --- | --- |
+| Users | Consult profiles and govern profile state and assigned roles | Collection to addressable detail; detail to role edit, preview, confirmation, and back to the originating collection |
+| Roles | Consult, create, and change reusable authorization configurations | Collection to addressable detail, create, or edit; create may begin from a preset; edit proceeds through preview and confirmation |
+| Role Presets | Consult, create, change, and copy starting configurations | Collection to addressable detail, create, or edit; detail can start exact-copy or adjustable role creation |
+| Scopes | Consult registered scopes and recognized definitions | Collection-only context; unregistered definitions can be registered and loaded registered scopes can change lifecycle state without a scope detail route |
+| Access History | Consult immutable access-change metadata | Filtered collection only; subjects may link to an available permitted detail destination, but no audit detail is implied |
 
-### 10.2 Correction actions
+Addressable detail, create, and edit destinations preserve enough identity and
+interaction context for refresh and direct navigation where the operation can be
+resumed safely. They do not rely on a collection row remaining mounted.
 
-The business context determines whether a record is within its ordinary
-correction window. The frontend selects the required permission from
-backend-provided editability metadata or the context's documented policy:
+Cancel or Back returns to the originating collection when that origin is known,
+restoring its criteria and valid page. Otherwise it returns to the related
+collection's default state. A dirty interaction first follows the discard rules
+in Section 7. Browser history must not restore an unauthorized or stale subject
+as current.
 
-| Record condition | Required action |
+If entry is denied, or refreshed Access no longer permits the current destination,
+the experience clears authorization-dependent state and moves to the nearest
+permitted destination: first a permitted parent collection, then another
+permitted administration destination, then the general permitted application
+destination. It never loops back to the denied destination or reveals the
+missing grant.
+
+### 6.2 Collection behavior
+
+All five collections use backend pagination. Users, Roles, Role Presets, and
+Scopes have no implemented server search or filter contract; any search,
+filtering, or grouping for them is explicitly local to the currently loaded page
+and is labeled so it cannot be mistaken for a whole-collection result. Access
+History sends only the implemented `subject_type`, `change_kind`, `date_from`,
+and `date_to` criteria. No collection promises an initial order that the backend
+does not guarantee.
+
+Collection criteria and page are restorable across collection-detail navigation
+and meaningful refresh or direct navigation. Changing criteria resets to the
+first page or reconciles to a valid page before displaying results. Only the
+latest response for the current criteria and page may replace visible content;
+an earlier response cannot overwrite a later selection.
+
+Every collection distinguishes:
+
+- initial loading from a non-destructive refresh that keeps current content
+  identifiable as such;
+- a collection with no records from a loaded page with no local matches or no
+  History results for the selected criteria;
+- a valid loaded page from a page made invalid by changed criteria or total; and
+- retryable failure from a successful empty result.
+
+After a mutation, refresh the affected collection and detail snapshots. If the
+current page becomes empty while earlier pages exist, move to the nearest valid
+page; if no records remain, present the collection-empty state. Pagination never
+strands the administrator on an out-of-range page.
+
+### 6.3 Users and role assignment
+
+The unified account collection, provisioning flow, and account detail consume
+Authentication and Access Control without merging ownership. Access Control
+contributes profile state, assigned roles, effective permissions, authorization
+version, and permitted profile interactions. It neither provides independent
+profile creation nor treats role assignment as shift assignment. Profile status
+changes require a reason and affect only the Access profile; coordinated account
+lifecycle remains Authentication-owned.
+
+Role replacement is a searchable multiple selection of active roles. Each option
+combines its display name with stable distinguishing data so similarly named roles
+remain unambiguous. Existing inactive assignments remain visible and read-only
+outside the selectable desired set; they cannot be newly selected, and the
+preview makes their resulting removal explicit. Removal of a selectable role
+remains keyboard operable and is announced with the role identity and resulting
+selection state.
+
+The selector distinguishes loading, available results, search with no local
+matches, and selected values. Search-result count and selection or removal changes
+are available to assistive technology without moving focus unexpectedly. Before
+preview, the complete desired role set, including unchanged active assignments,
+is communicated as the replacement intent; duplicate role identity is impossible.
+
+### 6.4 Roles, presets, and permission matrix
+
+Role detail presents name, stable code, responsibility, lifecycle state,
+reserved state, permissions, and version. The permission matrix locates scopes
+through backend metadata such as owning capability, display name, stable code,
+supported actions, and active state. Search, filter, and presentational grouping
+do not imply scope ancestry, inheritance, or wildcard behavior.
+
+Action and scope headers remain perceivable while navigating the matrix. Every
+pair exposes selected, unselected, unsupported, and reserved or read-only states
+without relying on color alone. Only active, backend-supported pairs available to
+the edited ordinary configuration are selectable; the resulting set cannot
+contain duplicates. Pending additions and removals remain visibly distinct from
+the loaded configuration until preview or discard.
+
+The matrix is fully keyboard operable. On narrow viewports it remains consultable
+and editable through controlled horizontal overflow or reflow while retaining
+action, scope, and state context. The transversal editable-batch-grid pattern does
+not govern this permission matrix because this interaction edits one exact set of
+action-and-scope pairs rather than independent business records.
+
+`manage_access` and `edit_outside_window` remain unavailable to ordinary roles and
+presets. The reserved System Administrator is presented as global, and its
+protected semantics are read-only. Backend validation remains authoritative.
+
+Preset detail and editing use the same ordinary permission semantics. Adjustable
+role creation first loads the selected preset, then initializes an isolated role
+draft whose name, stable code, description, and permissions may change before an
+atomic role creation through `POST /api/v1/access/roles`. Exact-copy creation uses
+`POST /api/v1/access/role-presets/{preset_id}/roles` only when the administrator
+confirms the preset permissions unchanged. Both flows produce independent roles;
+later preset changes do not alter them.
+
+### 6.5 Scopes
+
+Scope consultation combines registered scopes and recognized definitions to
+present stable code, display name, owning capability, supported actions,
+description, registration state, and lifecycle state. Dot-separated grouping is
+presentation only and never establishes hierarchy.
+
+Registration selects an unregistered backend-recognized definition and collects
+a reason; it does not accept free-form scope semantics. New scopes grant no
+ordinary role access automatically, while global authorization needs no generated
+permission rows. Scope lifecycle changes use the loaded version and reason. No
+assignment-impact preview is presented because none is supplied for this change.
+
+### 6.6 Access History
+
+Access History is a read-only, paginated metadata collection. It supports only
+`subject_type`, `change_kind`, `date_from`, and `date_to`; invalid date ranges are
+resolved before querying. It presents the actor user identifier when supplied,
+occurrence time, affected subject type and identifier, change category, reason,
+and operation correlation identifier. It neither invents an actor name nor
+offers configuration snapshots or audit detail. Access configuration history
+remains separate from operational history owned by business contexts.
+
+### 6.7 Responsive information priority
+
+Viewport constraints may change presentation density, not capability:
+
+| Experience | Information that remains primary |
 | --- | --- |
-| Within ordinary correction window | `edit` |
-| Outside ordinary correction window | `edit_outside_window` |
+| Collections | Destination heading, active criteria, subject identity, lifecycle state, and available primary action |
+| Detail | Destination and subject context, stable identity, current state, permissions or assignments, and available transition |
+| Forms | Subject or creation context, required values, validation, pending changes, reason, and continue/cancel actions |
+| Permission matrix | Scope identity, action identity, pair state, pending difference, and edit controls |
+| Preview | Subject, requested change, impact summary, detailed differences, reason, and return/confirm actions |
 
-The frontend does not calculate an authoritative correction window from the
-browser clock. Even when an edit control is visible, the backend may reject the
-request if persisted state changed.
+No critical action is hidden solely because of viewport size. Dense collections
+and matrices remain consultable and editable through reflow or controlled
+overflow. Secondary details may use progressive disclosure without hiding state,
+validation, impact, or recovery information needed for a safe decision.
 
-### 10.3 Backend denial after visible action
+## 7. Draft, preview, and confirmation
 
-If a protected request returns `403` after the UI displayed the action:
+### 7.1 Draft lifecycle
 
-1. Preserve all unsaved user input.
-2. Refresh current Access once.
-3. Reevaluate the route and action.
-4. Explain that access changed or is unavailable.
-5. Do not automatically repeat a mutation.
+A draft is isolated to its subject and operation. It contains only safe,
+non-secret administrative input and is not an authorization source.
 
-## 11. Access feature architecture
+| Event | Required result |
+| --- | --- |
+| Recoverable validation failure | Preserve draft and reason; associate actionable feedback with the affected input |
+| Authorization failure or access change | Preserve only safe draft and reason long enough to explain and reevaluate; clear them before moving outside a still-permitted administration boundary |
+| Concurrency conflict | Preserve the draft separately, invalidate preview, load current server state for comparison, and require a new preview |
+| Network or server failure | Preserve safe draft and reason; present retry without implying success |
+| Preview generation | Preserve the draft unchanged |
+| Edit after preview | Invalidate preview and confirmation whenever a relevant value changes |
+| Cancel, Back, entity switch, or leave while dirty | Require explicit discard confirmation; staying returns focus to the dirty interaction |
+| Successful mutation | Clear the draft, preview, stale confirmation, and pending submission state |
+| Logout, expiration, or other Authentication end | Clear sensitive and authorization-dependent drafts immediately |
+| Full page reload | Do not preserve drafts across reload; reload authoritative destination state |
 
-### 11.1 Layer Responsibilities
+Switching entities never applies or displays one subject's draft as another
+subject's state. A conflict comparison keeps the proposed draft visually separate
+from newly loaded server state; accepting server state or editing the proposal
+still requires a fresh preview where preview is supported.
 
-The Access feature follows the project's frontend architecture and
-conventions. File organization, naming, and splitting decisions follow that
-documentation rather than this specification.
+### 7.2 Preview and confirmation
 
-**API layer** owns the typed backend contract: request bodies, response types,
-wire mapping to frontend camel-case models, and HTTP error classification for
-Access Control endpoints.
+Role changes and user-role replacements require the backend-calculated preview.
+Preview is an explicit reversible review stage and performs no mutation. The
+frontend does not infer affected users or effective permission differences.
+Current role membership is the role's existing assignment state; backend preview
+`affected_users` reports impact for the proposed shared-role change, not inferred membership.
 
-**Policy consumption** owns pure frontend authorization consumption: action and
-scope constants, the exact permission check, and route requirements. It never
-makes business authorization decisions.
+Preview distinguishes loading, no impact, impact, large impact, and error states.
+Its summary identifies the subject and relates affected-user counts, affected
+users, role changes, and permission additions or removals to their detailed
+content. Long results remain reviewable without losing the summary, current
+position, or confirmation context.
 
-**Context and hooks** own the Access provider bootstrap and blocked states and
-expose the current Access state, the exact permission check, and the
-administration hooks.
+Entering preview moves focus to its heading or impact summary. Returning to edit
+restores the draft and focus to the initiating context. Changing relevant content
+invalidates the preview before confirmation. Confirmation exposes progress,
+accepts only one identical pending submission, and returns focus after an outcome
+to the result or to the first recovery action. These semantics do not prescribe
+whether preview is presented inline or in a separate surface.
 
-**Presentation** owns the administration pages (roles, presets, scopes,
-access audit), the shared protected-action gate, the impact preview, and
-access-status indicators. The app-router route guard gates rendering on the
-exact effective action plus scope.
+For previewed mutations, the version returned by preview becomes the mutation's
+expected version. Role, preset, and scope updates and lifecycle changes use the
+loaded version. Profile status keeps submitted intent and reason on failure but
+does not present version-conflict recovery because that operation does not
+enforce the version contract.
 
-The policy-consumption layer contains pure frontend policy consumption, not
-business authorization decisions. Feature pages consume it through the Access
-feature public API.
+On `409 access_version_conflict`, keep the draft and reason, invalidate preview,
+load current state for comparison, and require a new preview before submission.
+Never silently place a new server version into an old confirmation. A change that
+could reduce System Administrator coverage carries a strong warning;
+`last_system_administrator_required` keeps the safe draft available and explains
+the invariant without claiming that client checks can decide it.
 
-Authentication remains in its own feature and provider. The Access provider
-depends on the authentication session interface and is mounted inside the
-Authentication provider. Authentication does not depend on Access Control. Both
-features use the shared authenticated HTTP client and app router.
+### 7.3 Sensitive role-update authority
 
-## 12. API contract consumed
+`RoleWorkflow` is the sole frontend owner of a shared-role update. It owns the
+draft, preview, explicit confirmation, one pending apply, authoritative detail
+reconciliation, and result focus. No parallel role-permission panel or direct
+shared-role PUT path is permitted.
 
-### 12.1 Current user
+For an existing role, the lifecycle is `draft → previewing → ready → confirmed
+→ applying → reconcile`. A preview is correlated with the normalized permission
+set, trimmed name, normalized description, reason (`""` when omitted), loaded
+version, current authorization generation, and request generation. Any related
+edit—including a reason-only edit—clears preview and confirmation. A full
+semantic no-op (unchanged permissions, name, and description) cannot preview or
+apply; metadata-only changes remain reviewable and show a separately labeled
+local metadata diff beside the backend-derived affected-user impact.
 
-| Method | Path | Purpose |
+Impact always shows the affected-user total first. The complete affected-user
+list is available through an accessible disclosure, while the frontend never
+infers role membership or impact. Drafts, reasons, preview identities, and
+diagnostic payloads must not enter URLs, browser storage, logs, analytics, or
+post-session disclosures. `401`, `403`, conflicts, invariant rejection, failed
+apply, abort, and stale responses invalidate confirmation and never replay a
+PUT. The backend remains authoritative for authorization, preview calculation,
+versioning, invariants, and reason policy.
+
+## 8. Async behavior, feedback, and security
+
+### 8.1 Loading, races, and responsiveness
+
+- Only the latest relevant query for the current criteria, page, or entity may
+  update the view.
+- An abandoned request produces no visible error and cannot overwrite current
+  content.
+- Changing subjects clears or marks the prior subject as non-current before the
+  next result; prior details never flash as the new subject.
+- Initial load replaces no prior content; non-destructive refresh retains current
+  content with an explicit refreshing state.
+- An identical pending mutation cannot be submitted twice.
+- Access administration code and content are not required during the initial
+  application path for a user who lacks its permission; entering a newly
+  permitted administration destination may therefore have its own loading state.
+- Collections and matrices remain responsive at backend-supported page sizes.
+  This contract does not require speculative volume thresholds or a particular
+  request, caching, rendering, or cancellation technique.
+
+### 8.2 Errors and security
+
+| HTTP or condition | Stable code or meaning | Frontend outcome |
 | --- | --- | --- |
-| `GET` | `/api/v1/access/me` | Load current Access profile and effective authorization |
-
-### 12.2 Administration
-
-| Capability | Method | Path |
-| --- | --- | --- |
-| List users | `GET` | `/api/v1/access/users` |
-| Get user | `GET` | `/api/v1/access/users/{user_id}` |
-| Change user status | `PATCH` | `/api/v1/access/users/{user_id}/status` |
-| Preview role replacement | `POST` | `/api/v1/access/users/{user_id}/roles/preview` |
-| Replace user roles | `PUT` | `/api/v1/access/users/{user_id}/roles` |
-| List roles | `GET` | `/api/v1/access/roles` |
-| Create role | `POST` | `/api/v1/access/roles` |
-| Get role | `GET` | `/api/v1/access/roles/{role_id}` |
-| Preview role update | `POST` | `/api/v1/access/roles/{role_id}/preview` |
-| Replace role | `PUT` | `/api/v1/access/roles/{role_id}` |
-| Change role status | `PATCH` | `/api/v1/access/roles/{role_id}/status` |
-| List presets | `GET` | `/api/v1/access/role-presets` |
-| Create preset | `POST` | `/api/v1/access/role-presets` |
-| Get preset | `GET` | `/api/v1/access/role-presets/{preset_id}` |
-| Replace preset | `PUT` | `/api/v1/access/role-presets/{preset_id}` |
-| Change preset status | `PATCH` | `/api/v1/access/role-presets/{preset_id}/status` |
-| Create role from preset | `POST` | `/api/v1/access/role-presets/{preset_id}/roles` |
-| List scopes | `GET` | `/api/v1/access/scopes` |
-| List recognized scope definitions | `GET` | `/api/v1/access/scope-definitions` |
-| Register recognized scope | `POST` | `/api/v1/access/scopes` |
-| Change scope status | `PATCH` | `/api/v1/access/scopes/{scope_id}/status` |
-| Query access audit | `GET` | `/api/v1/access/audits` |
-
-Request and response fields follow the backend specification. The frontend API
-layer owns transport mapping, abort signals, and typed error translation.
-
-## 13. Administration pages
-
-### 13.1 Users
-
-Authentication owns the unified account list, creation flow, and account-detail
-routes. Access Control supplies typed data and components for their access
-portion; it does not expose a separate access-profile creation form or a public
-`POST /api/v1/access/users` request.
-
-The access portion of the unified detail shows:
-
-- user code and display name;
-- active state;
-- assigned roles;
-- effective permissions;
-- authorization version;
-- role replacement and activation controls;
-- related Access audit entries.
-
-`PATCH /api/v1/access/users/{user_id}/status` changes only the Access profile.
-It never enables, disables, resets, or otherwise mutates the Authentication
-account. Unified account disablement and enablement are submitted to the
-Authentication API, which coordinates profile state internally.
-
-The UI never presents role assignment as shift assignment. Three users may share
-the same role while operational records and audits distinguish their individual
-identities.
-
-### 13.2 Role assignment
-
-Role replacement uses a multi-select containing active roles. Before saving, the
-frontend calls the preview endpoint with the complete desired role set.
-
-The confirmation displays:
-
-- roles added and removed;
-- effective permissions added and removed;
-- whether the user would retain any permissions;
-- the required change reason;
-- current expected version.
-
-Confirmation sends the complete role set and the same expected version. A failed
-request preserves the selection and reason.
-
-### 13.3 Roles
-
-The role list displays name, code, lifecycle state, assigned-user count, and
-whether the role is reserved.
-
-The role editor contains:
-
-- role name;
-- stable code on creation;
-- responsibility description;
-- permission matrix grouped by owning context and scope;
-- active-state control;
-- affected-user preview;
-- required change reason;
-- expected version for updates.
-
-The permission matrix uses scopes as rows and supported ordinary actions as
-columns. Cells not supported by the backend scope definition are not selectable,
-and duplicate pairs are impossible in UI state.
-
-`manage_access` and `edit_outside_window` are not selectable for ordinary roles.
-The reserved System Administrator role is displayed as global and its protected
-semantics are read-only. The UI must still handle backend rejection because
-client restrictions are not authoritative.
-
-### 13.4 Role update workflow
-
-1. Load role, current permission set, assigned-user count, and version.
-2. Edit a local draft without mutating cached server data.
-3. Validate required fields and duplicate-free pairs.
-4. Request role-change preview using the complete desired configuration.
-5. Show affected users and permission differences.
-6. Require confirmation and reason.
-7. Submit the complete configuration with `expected_version`.
-8. On success, replace cached role data and invalidate affected user views.
-9. On conflict, preserve the draft and offer reload plus comparison.
-
-### 13.5 Role presets
-
-Preset pages use the same permission matrix as ordinary roles. They explain that:
-
-- a preset is a reusable starting configuration;
-- creating a role copies the preset;
-- later preset changes do not alter existing roles.
-
-Creating a role from a preset opens a role draft populated with copied
-permissions. The administrator supplies the role name, code, description, and
-reason before confirmation.
-
-### 13.6 Scopes
-
-The scope page lists stable code, display name, owning capability, supported
-actions, description, and active state. Scope codes are treated as exact
-identifiers; visual grouping by dot-separated segments is presentational only
-and never implies inheritance.
-
-Registration starts from the backend-provided recognized-definition list. The
-administrator selects a definition and supplies a reason; the UI provides no
-free-form code, owning-context, description, or supported-action fields.
-Lifecycle changes use backend validation and show impact before deactivation
-when the backend provides affected assignments. A newly registered scope is not
-added to ordinary roles automatically. The System Administrator's global
-authorization does not require a permission-row update.
-
-### 13.7 Access audit
-
-The audit page is read-only and supports backend-defined pagination and filters,
-including actor, subject type, subject identifier, change kind, and date range.
-
-Each detail view shows:
-
-- individual actor;
-- occurrence timestamp;
-- affected subject;
-- change category;
-- stated reason;
-- previous and resulting non-secret values.
-
-The page labels these records as Access configuration history. It does not mix
-them with operational creation or correction history from Warehouse, Yarn
-Spinning, or Lot Processing.
-
-## 14. Preview, confirmation, and concurrency
-
-### 14.1 Shared impact preview
-
-The impact preview renders backend-calculated impact. The frontend may summarize
-but does not independently decide affected users or effective permission deltas.
-
-For shared-role changes, the confirmation prominently states the number of users
-affected and lists them when returned by the API.
-
-### 14.2 Optimistic concurrency
-
-All versioned updates preserve the loaded version in the edit draft and submit it
-as `expected_version`.
-
-On `409 access_version_conflict`:
-
-1. Keep the user's draft and reason.
-2. Explain that another administrator changed the record.
-3. Offer to load the current server version.
-4. Present a comparison when practical.
-5. Require a new preview before resubmission.
-
-The frontend never silently overwrites the server version or substitutes the new
-version into the old draft.
-
-### 14.3 Last System Administrator protection
-
-Before a change that could affect System Administrator coverage, the UI displays
-a strong warning. If the backend returns `last_system_administrator_required`,
-the modal remains open and explains that at least one active assigned System
-Administrator must remain.
-
-The frontend may preempt obvious invalid changes from the currently loaded data,
-but the backend transaction remains authoritative for concurrent changes.
-
-## 15. Error handling
-
-### 15.1 Error mapping
-
-| HTTP or condition | Code | Frontend behavior |
-| --- | --- | --- |
-| `401` | `authentication_required` | Delegate to authentication session-expired flow |
-| `403` | `access_denied` | Preserve work, refresh Access once, show denied state |
-| `403` | `access_user_inactive` | Show blocked inactive-profile surface |
-| `403` | `access_profile_not_found` | Show blocked missing-profile surface |
-| `404` | Access subject not found | Keep current page and show not-found feedback |
-| `409` | Duplicate user code from coordinated provisioning | Surface the mapped field error in the unified Authentication account form |
+| `401` | `authentication_required` | Consume the Authentication session-ended outcome |
+| Unexpected protected `403` | `access_denied` | Preserve safe work, refresh Access once, and reevaluate |
+| `/access/me` blocked result | `profile_inactive` or `profile_not_found` | Present the exact blocked state |
+| Missing Access subject | `404` | Keep context and present not-found feedback |
+| Coordinated provisioning conflict | duplicate user code | Present the mapped field error in the unified account flow |
 | `409` | `access_version_conflict` | Preserve draft and require reload plus new preview |
-| `409` | `last_system_administrator_required` | Keep confirmation open and explain invariant |
-| `422` | Access validation error | Map field errors; preserve draft |
-| Network or timeout | none | Show retryable error; preserve state |
-| `500` | none | Show generic failure; preserve state and correlation ID if supplied |
+| `409` | `last_system_administrator_required` | Keep confirmation open and explain the invariant |
+| `422` | validation failure | Associate field feedback and preserve safe draft data |
+| Network or timeout | unavailable | Present retry where safe and preserve safe state |
+| Server failure | unavailable | Present generic failure and a supplied correlation ID |
 
-### 15.2 Security-sensitive messaging
+Access administration may present explicit configuration errors to an authorized
+administrator. Ordinary denied states do not reveal missing roles or permission
+configuration. Tokens, credentials, raw identity claims, stack traces, SQL
+details, secret audit values, and authentication subjects in general analytics
+or logs are prohibited.
 
-Ordinary protected pages do not reveal which role or permission is missing. Access
-administration pages may show explicit configuration errors because the actor is
-already authorized to manage Access Control.
+Client state, local persistence, URLs, and editable form data are never sources
+of identity or authorization. A denied mutation is never automatically retried.
+When Authentication ends, prior Access authorization is cleared immediately.
 
-Raw identity claims, tokens, stack traces, SQL details, and secret audit values
-are never rendered or logged by frontend code.
+All interactions distinguish initial loading, non-destructive refresh, empty,
+validation, confirmation progress, success, retryable failure, and authorization
+transition outcomes as applicable. Duplicate submission prevention is
+presentation behavior, not concurrency control.
 
-## 16. Loading, empty, and feedback states
+### 8.3 Adopted technology consequences
 
-Every Access page defines:
+React publishes Authentication eligibility, Access identity, profile state,
+assigned-role summaries, and effective authorization as one coherent snapshot.
+Navigation, route allowance, and action availability are derived from that current
+snapshot rather than duplicated as competing authorization state. Subscription
+cleanup and request identity prevent abandoned or stale bootstrap, refresh,
+filter, page, preview, or detail results from publishing. Deferring non-urgent
+search, filter, or dense-result rendering may preserve responsiveness, but it
+never changes request ordering, mutation correctness, or the authoritative
+selection and preview state.
 
-- initial loading skeleton;
-- refresh state that preserves prior data;
-- empty state with an appropriate authorized action;
-- inline validation state;
-- confirmation progress state;
-- success acknowledgement;
-- retryable failure state;
-- unauthorized transition state.
+Mantine's higher-level searchable multiple-selection capability is sufficient for
+ordinary role selection, including clear search and custom option presentation.
+A lower-level custom selection interaction is justified only when required role
+semantics cannot be met otherwise, and then the application must supply all
+missing labels, states, announcements, focus behavior, and keyboard interaction.
 
-Buttons that submit mutations are disabled while the same request is in flight.
-The UI prevents accidental double submission but does not assume that client-side
-disabling provides concurrency control.
+Mantine can support dense tabular presentation with controlled overflow, but the
+permission matrix remains an application-owned exact-set interaction. It must
+provide accessible row and column headers, cell labels and states, focus behavior,
+and reduced-motion behavior; neither the theme nor table primitives guarantee
+these outcomes. An editable batch-data grid is not introduced for this matrix
+because it does not edit independent business records.
 
-## 17. Accessibility
+Privileged Access administration is not required in the initial application path
+or content load for users without `manage_access + access_control`. Loading it
+after permission is established may introduce a distinct loading state, but must
+not weaken direct-route checks, snapshot coherence, or stale-result rejection.
 
-- Route changes update the document title and announce page context.
-- Permission matrix rows and columns have accessible headers.
-- Checkbox labels include both action and scope names.
-- Global or reserved role state is conveyed with text, not color alone.
-- Disabled protected actions explain why through associated text when shown.
-- Confirmation modals trap focus and return it to the triggering control.
-- Impact counts and server errors use appropriate live regions.
-- Before/after audit values use semantic tables or definition lists.
-- Status badges meet contrast requirements and include text labels.
-- All administration workflows are keyboard operable.
-- Focus moves to the first invalid field after failed local validation.
+## 9. Feature-specific accessibility
 
-Target conformance follows the frontend accessibility guideline: WCAG 2.1 Level
-AA.
+In addition to the transversal [Accessibility Guidelines](../accessibility.md):
 
-## 18. Testing strategy
+- permission matrices expose row and column headers, and every selectable cell is
+  named by both action and scope, including selection, support, and read-only state;
+- global and reserved semantics use explicit text rather than color alone;
+- a displayed disabled protected action has programmatically associated
+  explanatory text;
+- role options expose display and stable distinguishing identity, active or
+  inactive state, selection state, and keyboard-operable selection or removal;
+- role search announces loading, result count, no results, selection, and removal
+  without replacing the current destination heading or context;
+- preview headings and summaries identify their subject and programmatically
+  relate impact totals to affected users, roles, and permission differences;
+- impact changes and authorization or concurrency failures are announced without
+  losing safe draft context;
+- access-history metadata uses semantic tabular relationships; and
+- each addressable destination provides a heading and subject or collection
+  context, while preview, discard, denial, and conflict focus movements preserve
+  a reversible path to the initiating interaction when still permitted.
 
-### 18.1 Unit tests
+## 10. Observable verification scenarios
 
-- Exact action-and-scope match allows.
-- Similar scope prefixes do not match.
-- `write` does not imply `read`.
-- Multiple returned permissions are consumed without role-name checks.
-- Global authorization allows supported actions in a newly seen scope.
-- Route `anyOf` and `allOf` evaluation is deterministic.
-- API mappers validate ordinary and global response variants.
-- Error mapping produces the correct provider state.
+Verification follows the [Frontend Testing Strategy](../testing/strategy.md).
+The implementation must prove these observable contracts at justified levels:
 
-### 18.2 Provider and hook tests
+### Authorization foundation
 
-- No Access request occurs before authentication resolves.
-- Authenticated session loads `/access/me` once.
-- Loading does not expose protected content.
-- Blocked and unavailable states remain distinct.
-- Refresh atomically replaces permissions and navigation.
-- Unexpected `403` refreshes once and does not repeat a mutation.
-- Sign-out clears Access state.
+- Access is not requested for unresolved, unauthenticated/ended,
+  password-change-required, or unavailable Authentication conditions.
+- Only authenticated eligibility with `next_step=load_access` starts bootstrap.
+- Waiting, loading, ready, blocked, and unavailable remain distinct, and
+  unresolved Access never exposes protected content.
+- Ordinary and global `/access/me` variants normalize the backend authorization
+  indicator and scope identifier; missing required discriminators fail mapping.
+- Exact pairs allow; similar prefixes, different actions, role names, and absent
+  grants deny by default.
+- Multiple roles yield the backend-returned additive union, while global actions
+  apply to newly encountered scopes.
+- Refresh atomically replaces authorization; an unexpected `403` refreshes once
+  and never repeats a mutation.
 
-### 18.3 Component tests
+### Protected experience
 
-- Sidebar omits unauthorized leaves and empty parent groups.
-- Direct route access renders Access Denied.
-- An allowed route renders normally.
-- The protected-action component hides or disables consistently.
-- Permission matrix cannot create duplicate pairs.
-- Permission matrix disables action-and-scope pairs not supported by the catalog.
-- Scope registration cannot submit free-form or unknown definitions.
-- Reserved role controls are read-only.
-- Role assignment preview shows added and removed access.
-- Preview is required again after a version conflict.
-- Drafts survive validation, `403`, `409`, network, and server errors.
-- Audit page remains read-only.
+- Navigation omits denied leaves and empty groups and updates from the current
+  snapshot without a separate persisted permission cache.
+- Direct entry and browser history cannot render a denied protected destination.
+- `anyOf` and `allOf` produce their declared outcomes.
+- Protected actions hide or disable consistently and preserve safe input when a
+  backend denial follows prior visibility.
+- Process Quality, Waste, Yarn Spinning sections, Lot Processing stages,
+  Warehouse areas, and the consolidated dashboard remain independently
+  authorizable; shift and filters never change authorization.
 
-Each component test includes relevant accessibility assertions and uses semantic
-queries rather than internal component structure.
+### Administration
 
-### 18.4 Integration contract tests
+- Each administration destination exposes its specified collection and
+  addressable transitions; Back restores valid originating criteria and denial
+  moves to the nearest permitted destination.
+- Every collection paginates through the backend, distinguishes initial empty
+  from no-match results, rejects stale criteria responses, and reconciles an
+  empty page after mutation. Users, Roles, Presets, and Scopes make page-local
+  search or filtering explicit; History sends only its four implemented filters.
+- Direct entry and refresh load the addressed subject without requiring a mounted
+  collection and never restore a denied or different subject as current.
+- Role selection exposes unambiguous active options, preserves existing inactive
+  assignments as read-only, communicates the complete replacement set, prevents
+  duplicates, and announces search, selection, no-results, and removal states.
+- Permission editing locates scopes without hierarchy, exposes every matrix state
+  without color alone, permits only supported pairs, displays pending differences,
+  remains keyboard operable, and remains usable at narrow widths.
+- Role and assignment preview is reversible and covers loading, no-impact,
+  large-impact, error, long-result review, return-to-edit, focus, duplicate-submit,
+  and content-invalidation behavior.
+- Draft lifecycle preserves safe work for recoverable failures, confirms dirty
+  departure, isolates entity changes, clears after success or Authentication end,
+  does not promise reload persistence, and compares conflict state before a new
+  preview.
+- Adjustable preset-derived roles are created atomically from an editable loaded
+  preset; exact-copy creation preserves unchanged permissions and neither flow
+  creates a live dependency.
+- Scope registration accepts only recognized definitions, grants no ordinary
+  access automatically, and does not claim unsupported impact preview.
+- Access History is limited to filtered paginated metadata and does not fabricate
+  actor names, snapshots, or detail views.
+- Profile status does not present version-conflict handling.
+- Responsive lists, details, forms, matrices, and previews retain their primary
+  information and critical actions without prescribing a viewport breakpoint.
 
-- `/access/me` ordinary and global payloads map correctly.
-- Scope definitions and registered scopes map as separate contracts.
-- Every administrative route and request matches the backend specification.
-- Snake-case transport fields map to camel-case UI models.
-- Known error codes map to stable UI behavior.
-- Authorization version changes trigger a complete Access refresh.
+### Async, accessibility, and security
 
-### 18.5 End-to-end scenarios
+- Rapid criteria, page, and subject changes allow only the latest relevant result
+  to update the view; abandoned requests produce no visible failure or stale
+  overwrite, and prior subject data never flashes as current.
+- Initial loading and non-destructive refresh are observably distinct, identical
+  pending mutations submit once, and supported page sizes remain interactive.
+- Users without administration permission do not require administration code or
+  content on the initial application path.
+- Matrix, selector, preview, destination-context, announcement, and reversible
+  focus semantics satisfy Section 9 and the transversal accessibility contract.
+- Session end clears Access and authorization-dependent drafts; denied states and
+  ordinary telemetry reveal no permission configuration or secret material.
 
-When the repository adopts an E2E framework, cover at minimum:
+## 11. Verification policy
 
-- ordinary user sees only authorized contexts and actions;
-- multi-role user sees the additive union;
-- Process Quality and Waste remain independent;
-- section operator sees the correct section dashboard and entry actions;
-- System Administrator manages roles and sees impact confirmation;
-- role change affects all assigned users after refresh;
-- removed access prevents direct navigation and backend mutation;
-- inactive user is blocked despite an authenticated session;
-- expired authentication follows the authentication flow rather than Access
-  Denied.
-
-## 19. Security requirements
-
-- Treat client authorization only as a presentation concern.
-- Send authentication through the shared trusted HTTP client only.
-- Never accept identity, roles, or effective permissions from local storage as
-  authoritative.
-- Never construct Access state from URL parameters or editable form data.
-- Never authorize by role display name or role code.
-- Never infer scope hierarchy from punctuation.
-- Never retry a denied mutation automatically.
-- Clear Access state immediately when authentication ends.
-- Avoid persisting complete Access responses unless the authentication security
-  design explicitly approves it.
-- Do not include authentication subjects in analytics or general client logs.
-
-## 20. Dependencies
-
-### 20.1 Internal dependencies
-
-- Authentication provider exposing resolved session state.
-- Shared authenticated HTTP client and error envelope mapping.
-- App router and navigation configuration.
-- Backend Access Control endpoints.
-- Protected features declaring exact action and scope requirements.
-- Frontend accessibility and testing conventions.
-
-### 20.2 External dependencies
-
-- React, React Router, Mantine, and the shared frontend build stack.
-- A separately implemented authentication capability.
-
-Access Control does not add an authentication-provider SDK.
-
-## 21. Completion criteria
-
-The frontend capability is complete when:
-
-1. Access state loads only after authentication establishes a session.
-2. Loading, ready, blocked, and unavailable states are visually distinct.
-3. Sidebar items, routes, and actions use exact backend-defined authorization.
-4. No frontend authorization branch depends on a role name or job title.
-5. Direct route access cannot render an unauthorized protected page.
-6. The backend remains authoritative for every protected operation.
-7. Access profiles can be consulted and their status, roles, presets, scopes,
-   assignments, and Access audit can be managed through the documented API;
-   account provisioning remains in the Authentication API.
-8. Role and assignment changes require backend impact preview and expected
-   version confirmation.
-9. Draft work survives authorization, validation, concurrency, and network
-   failures.
-10. Warehouse areas, Process Quality, Waste, Yarn Spinning sections, Lot
-    Processing stages, and the transversal consolidated dashboard remain
-    independently authorizable.
-11. Shift and business date never affect route or action authorization.
-12. Skein Availability is absent as an independent capability.
-13. Unit, component, accessibility, and API contract tests pass.
-14. The document and Mermaid blocks render without non-ASCII encoding artifacts.
+Verification obligations for this feature are defined by the
+[Frontend Testing Strategy](../testing/strategy.md). Per-change execution
+evidence belongs in OpenSpec and Engram, not in this core technical
+specification.

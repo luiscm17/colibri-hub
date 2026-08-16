@@ -62,6 +62,7 @@ export default function BaleDeliveryPage() {
 }
 
 function deliveryErrorMessage(error: unknown) {
+  if (error instanceof BaleApiError && error.kind === 'access_denied') return 'Tu acceso cambió. Se conservaron los datos ingresados.'
   if (error instanceof BaleApiError && error.kind === 'validation') return 'Corregí los datos indicados y volvé a intentar.'
   if (error instanceof BaleApiError && error.kind === 'conflict') return 'La entrega cambió mientras se procesaba. Revisá los resultados e intentá nuevamente.'
   if (error instanceof BaleApiError && error.kind === 'unavailable') return 'No se pudo conectar con el servicio. Intentá nuevamente.'

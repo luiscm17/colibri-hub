@@ -1,16 +1,16 @@
 import { useReducer, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react'
-import { AuthContext } from './auth-context'
+import { AuthContext, type AuthenticationAccessHandoff } from './auth-context'
 import type {
   AuthenticationState,
   AuthenticationAccountSummary,
 } from '../model/authenticationState'
-import { setTokenAccessor, clearTokenAccessor } from '@/api/httpClient'
+import { clearAuthenticationRequiredHandler, setAuthenticationRequiredHandler, setTokenAccessor, clearTokenAccessor } from '@/api/httpClient'
 import * as providerSession from '../provider/providerSession'
 import { fetchCurrentAuthentication, mapToAccountSummary, terminateSession } from '../api/authApi'
 import { isApiError } from '@/api/httpError'
 
 type Action =
-  | { type: 'SESSION_RESTORED'; account: AuthenticationAccountSummary }
+  | { type: 'SESSION_RESTORED'; account: AuthenticationAccountSummary; handoffId: string }
   | { type: 'PASSWORD_CHANGE_REQUIRED'; account: AuthenticationAccountSummary }
   | { type: 'UNAUTHENTICATED'; reason?: 'logged-out' | 'expired' | 'denied' }
   | { type: 'UNAVAILABLE'; retryable: boolean }
@@ -18,7 +18,7 @@ type Action =
 function reducer(_state: AuthenticationState, action: Action): AuthenticationState {
   switch (action.type) {
     case 'SESSION_RESTORED':
-      return { status: 'authenticated', account: action.account }
+      return { status: 'authenticated', account: action.account, handoffId: action.handoffId }
     case 'PASSWORD_CHANGE_REQUIRED':
       return { status: 'password-change-required', account: action.account }
     case 'UNAUTHENTICATED':
@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.next_step === 'change_password') {
         dispatch({ type: 'PASSWORD_CHANGE_REQUIRED', account })
       } else {
-        dispatch({ type: 'SESSION_RESTORED', account })
+        dispatch({ type: 'SESSION_RESTORED', account, handoffId: crypto.randomUUID() })
       }
     } catch (error) {
       if (!mountedRef.current) return
@@ -69,6 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mountedRef.current = true
 
     setTokenAccessor(providerSession.getAccessToken)
+    setAuthenticationRequiredHandler(async () => {
+      await providerSession.signOut()
+      if (mountedRef.current) dispatch({ type: 'UNAUTHENTICATED', reason: 'expired' })
+    })
 
     async function initialize() {
       const active = await providerSession.hasSession()
@@ -99,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       mountedRef.current = false
       subscription.unsubscribe()
+      clearAuthenticationRequiredHandler()
       clearTokenAccessor()
     }
   }, [validateAccount])
@@ -133,23 +138,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = authState.status === 'authenticated'
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const isResourceAllowed = useCallback((_resourceType: string): boolean => {
-    // Stub: returns true until Access Control is implemented
-    return true
-  }, [])
+  const accessHandoff: AuthenticationAccessHandoff = (() => {
+    if (authState.status === 'authenticated') {
+      return { condition: 'eligible', accountId: authState.account.accountId, handoffId: authState.handoffId }
+    }
+    if (authState.status === 'unavailable') return { condition: 'unavailable', retryable: authState.retryable }
+    if (authState.status === 'password-change-required') return { condition: 'password-change-required' }
+    if (authState.status === 'initializing') return { condition: 'unresolved' }
+    return { condition: 'ended' }
+  })()
 
   const value = useMemo(
     () => ({
       authState,
       account,
       isAuthenticated,
-      isResourceAllowed,
+      accessHandoff,
       login,
       logout,
       revalidate,
     }),
-    [authState, account, isAuthenticated, isResourceAllowed, login, logout, revalidate],
+    [authState, account, isAuthenticated, accessHandoff, login, logout, revalidate],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

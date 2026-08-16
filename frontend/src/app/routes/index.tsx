@@ -6,90 +6,53 @@ import { PasswordChangeOnly } from '@/features/auth/components/PasswordChangeOnl
 import { AuthenticatedOnly } from '@/features/auth/components/AuthenticatedOnly'
 import { RouteErrorBoundary } from './RouteErrorBoundary'
 import { ComingSoon } from '@/common/components/ComingSoon'
-import {
-  AdminPage,
-  BaleManagementPage,
-  LoginPage,
-  MandatoryPasswordChangePage,
-  LotsPage,
-  NotFoundPage,
-  ProfilePage,
-  BaleReceptionPage,
-  BaleStockPage,
-  BaleDeliveryPage,
-  ReportsPage,
-  SpinningPage,
-} from './lazy-pages'
+import { ACCESS_CATALOG } from '@/features/access-control'
+import { ProtectedRoute } from './protected-route'
+import { AccessAdministrationCollectionRecovery, AccessAdministrationEditPage, AccessAdministrationPage, BaleDeliveryPage, BaleManagementPage, BaleReceptionPage, BaleStockPage, LoginPage, LotsPage, MandatoryPasswordChangePage, NotFoundPage, ProfilePage, SpinningPage } from './lazy-pages'
+
+const protectAdministration = (path: keyof typeof ACCESS_CATALOG, page: React.ReactNode) => <ProtectedRoute requirement={ACCESS_CATALOG[path]}>{page}</ProtectedRoute>
 
 const router = createBrowserRouter([
-  {
-    path: '/login',
-    element: (
-      <UnauthenticatedOnly>
-        <LoginPage />
-      </UnauthenticatedOnly>
-    ),
-    errorElement: <RouteErrorBoundary />,
-  },
-  {
-    path: '/password-change',
-    element: (
-      <PasswordChangeOnly>
-        <MandatoryPasswordChangePage />
-      </PasswordChangeOnly>
-    ),
-    errorElement: <RouteErrorBoundary />,
-  },
+  { path: '/login', element: <UnauthenticatedOnly><LoginPage /></UnauthenticatedOnly>, errorElement: <RouteErrorBoundary /> },
+  { path: '/password-change', element: <PasswordChangeOnly><MandatoryPasswordChangePage /></PasswordChangeOnly>, errorElement: <RouteErrorBoundary /> },
   {
     path: '/',
-    element: (
-      <AuthenticationBoundary>
-        <AuthenticatedOnly>
-          <AppLayout />
-        </AuthenticatedOnly>
-      </AuthenticationBoundary>
-    ),
+    element: <AuthenticationBoundary><AuthenticatedOnly><AppLayout /></AuthenticatedOnly></AuthenticationBoundary>,
     errorElement: <RouteErrorBoundary />,
     children: [
-      { index: true, element: <Navigate to="/warehouse/bales" replace /> },
-
-      // Warehouse — Bale Management (implemented)
-      { path: 'warehouse/bales', element: <BaleManagementPage /> },
-      { path: 'warehouse/bales/reception', element: <BaleReceptionPage /> },
-      { path: 'warehouse/bales/stock', element: <BaleStockPage /> },
-      { path: 'warehouse/bales/delivery', element: <BaleDeliveryPage /> },
-
-      // Warehouse — Other capabilities (not yet implemented)
-      { path: 'warehouse/identity', element: <ComingSoon feature="Identidad de producción" /> },
-      { path: 'warehouse/finished-product', element: <ComingSoon feature="Producto terminado" /> },
-      { path: 'warehouse/supplies', element: <ComingSoon feature="Insumos" /> },
-
-      // Spinning (not yet implemented)
-      { path: 'spinning/dashboard', element: <SpinningPage /> },
-      { path: 'spinning/unloads', element: <SpinningPage /> },
-      { path: 'spinning/progress', element: <SpinningPage /> },
-      { path: 'spinning/quality', element: <SpinningPage /> },
-      { path: 'spinning/waste', element: <SpinningPage /> },
-      { path: 'spinning/skeins', element: <SpinningPage /> },
-      { path: 'spinning/consolidated', element: <SpinningPage /> },
-
-      // Lots (not yet implemented)
-      { path: 'lots/queue', element: <LotsPage /> },
-      { path: 'lots/detail', element: <LotsPage /> },
-
-      // Reports (not yet implemented)
-      { path: 'reports/daily', element: <ReportsPage /> },
-      { path: 'reports/production', element: <ReportsPage /> },
-      { path: 'reports/traceability', element: <ReportsPage /> },
-
-      // Admin
-      { path: 'admin/master-data', element: <AdminPage /> },
+      { index: true, element: <Navigate to="/profile" replace /> },
+      { path: 'warehouse/bales', element: <ProtectedRoute requirement={ACCESS_CATALOG['/warehouse/bales']}><BaleManagementPage /></ProtectedRoute> },
+      { path: 'warehouse/bales/reception', element: <ProtectedRoute requirement={ACCESS_CATALOG['/warehouse/bales/reception']}><BaleReceptionPage /></ProtectedRoute> },
+      { path: 'warehouse/bales/stock', element: <ProtectedRoute requirement={ACCESS_CATALOG['/warehouse/bales/stock']}><BaleStockPage /></ProtectedRoute> },
+      { path: 'warehouse/bales/delivery', element: <ProtectedRoute requirement={ACCESS_CATALOG['/warehouse/bales/delivery']}><BaleDeliveryPage /></ProtectedRoute> },
+      { path: 'warehouse/identity', element: <ProtectedRoute requirement={ACCESS_CATALOG['/warehouse/identity']}><ComingSoon feature="Identidad de producción" /></ProtectedRoute> },
+      { path: 'warehouse/finished-product', element: <ProtectedRoute requirement={ACCESS_CATALOG['/warehouse/finished-product']}><ComingSoon feature="Producto terminado" /></ProtectedRoute> },
+      { path: 'warehouse/supplies', element: <ProtectedRoute requirement={ACCESS_CATALOG['/warehouse/supplies']}><ComingSoon feature="Insumos" /></ProtectedRoute> },
+      { path: 'spinning/preparation', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/preparation']}><SpinningPage /></ProtectedRoute> },
+      { path: 'spinning/ring-spinning', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/ring-spinning']}><SpinningPage /></ProtectedRoute> },
+      { path: 'spinning/bobbin-winding', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/bobbin-winding']}><SpinningPage /></ProtectedRoute> },
+      { path: 'spinning/twisting', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/twisting']}><SpinningPage /></ProtectedRoute> },
+      { path: 'spinning/skeining', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/skeining']}><SpinningPage /></ProtectedRoute> },
+      { path: 'spinning/quality', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/quality']}><SpinningPage /></ProtectedRoute> },
+      { path: 'spinning/waste', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/waste']}><SpinningPage /></ProtectedRoute> },
+      { path: 'spinning/consolidated', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/consolidated']}><SpinningPage /></ProtectedRoute> },
+      ...['lots', 'lots/queue', 'lots/detail', 'lots/inventory', 'lots/dyeing', 'lots/drying', 'lots/winding', 'lots/bagging', 'lots/quality'].map((path) => ({ path, element: <ProtectedRoute requirement={ACCESS_CATALOG[`/${path}`]}><LotsPage /></ProtectedRoute> })),
+      { path: 'access/users', element: protectAdministration('/access/users', <AccessAdministrationPage family="users" />) },
+      { path: 'access/users/:subjectId', element: protectAdministration('/access/users', <AccessAdministrationPage family="users" />) },
+      { path: 'access/roles', element: protectAdministration('/access/roles', <AccessAdministrationPage family="roles" />) },
+      { path: 'access/roles/:subjectId', element: protectAdministration('/access/roles', <AccessAdministrationPage family="roles" />) },
+      { path: 'access/roles/:subjectId/edit', element: protectAdministration('/access/roles', <AccessAdministrationEditPage family="roles" />) },
+      { path: 'access/presets', element: protectAdministration('/access/presets', <AccessAdministrationPage family="presets" />) },
+      { path: 'access/presets/:subjectId', element: protectAdministration('/access/presets', <AccessAdministrationPage family="presets" />) },
+      { path: 'access/presets/:subjectId/edit', element: protectAdministration('/access/presets', <AccessAdministrationEditPage family="presets" />) },
+      { path: 'access/scopes', element: protectAdministration('/access/scopes', <AccessAdministrationPage family="scopes" />) },
+      { path: 'access/scopes/*', element: protectAdministration('/access/scopes', <AccessAdministrationCollectionRecovery family="scopes" />) },
+      { path: 'access/history', element: protectAdministration('/access/history', <AccessAdministrationPage family="history" />) },
+      { path: 'access/history/*', element: protectAdministration('/access/history', <AccessAdministrationCollectionRecovery family="history" />) },
       { path: 'profile', element: <ProfilePage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
 ])
 
-export function AppRouter() {
-  return <RouterProvider router={router} />
-}
+export function AppRouter() { return <RouterProvider router={router} /> }
