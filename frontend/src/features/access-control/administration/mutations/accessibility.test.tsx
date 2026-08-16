@@ -2,7 +2,6 @@ import { MantineProvider } from '@mantine/core'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UserRoleReplacementPanel } from './UserRoleReplacementPanel'
-import { SharedRolePermissionPanel } from './SharedRolePermissionPanel'
 
 Object.defineProperty(window, 'matchMedia', { writable: true, value: () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }) })
 
@@ -32,7 +31,7 @@ describe('ReplacementConfirmationDialog', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Confirm replacement' })).toBeNull())
   })
 
-  it('renders six user-role preview users and expands the remaining impact accessibly', async () => {
+  it('renders count-first complete user evidence through an accessible disclosure without color-only indicators', async () => {
     fetchMock.mockResolvedValueOnce({ subject_version: 1, affected_user_count: 7, affected_users: affectedUsers })
     render(<MantineProvider><UserRoleReplacementPanel userId="user-1" version={1} roleIds={['role-a']} /></MantineProvider>)
 
@@ -43,24 +42,11 @@ describe('ReplacementConfirmationDialog', () => {
     expect(screen.queryByText('User 7 (USR-7)')).toBeNull()
     const expansion = screen.getByRole('button', { name: 'Show 1 additional affected user' })
     expect(expansion.getAttribute('aria-expanded')).toBe('false')
+    expect(expansion.getAttribute('aria-controls')).toBeTruthy()
     fireEvent.click(expansion)
     expect(screen.getByText('User 7 (USR-7)')).toBeTruthy()
     expect(expansion.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByText('Users affected by this proposed change: 7.')).toBeTruthy()
   })
 
-  it('renders six shared-role preview users and expands the remaining impact accessibly', async () => {
-    fetchMock.mockResolvedValueOnce({ subject_version: 1, affected_user_count: 7, affected_users: affectedUsers })
-    render(<MantineProvider><SharedRolePermissionPanel roleId="role-1" version={1} roleName="Role" description={null} permissions={[{ action: 'read', scopeId: 'scope-a' }]} /></MantineProvider>)
-
-    fireEvent.change(screen.getByLabelText('Permission pairs'), { target: { value: 'write:scope-a' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Preview replacement' }))
-
-    expect(await screen.findByText('User 6 (USR-6)')).toBeTruthy()
-    expect(screen.queryByText('User 7 (USR-7)')).toBeNull()
-    const expansion = screen.getByRole('button', { name: 'Show 1 additional affected user' })
-    expect(expansion.getAttribute('aria-expanded')).toBe('false')
-    fireEvent.click(expansion)
-    expect(screen.getByText('User 7 (USR-7)')).toBeTruthy()
-    expect(expansion.getAttribute('aria-expanded')).toBe('true')
-  })
 })

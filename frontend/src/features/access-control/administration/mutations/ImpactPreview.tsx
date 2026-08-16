@@ -3,7 +3,7 @@ import { useId, useState } from 'react'
 
 export type AffectedUser = { user_id: string; user_code: string; display_name: string }
 
-export function ImpactPreview({ affectedUserCount, affectedUsers }: { affectedUserCount: number; affectedUsers: AffectedUser[] }) {
+export function ImpactPreview({ affectedUserCount, affectedUsers, metadataChanges = [] }: { affectedUserCount: number; affectedUsers: AffectedUser[]; metadataChanges?: readonly string[] }) {
   const [expanded, setExpanded] = useState(false)
   const listId = useId()
   const initialUsers = affectedUsers.slice(0, 6)
@@ -16,5 +16,6 @@ export function ImpactPreview({ affectedUserCount, affectedUsers }: { affectedUs
       {visibleUsers.map((user) => <List.Item key={user.user_id}>{user.display_name} ({user.user_code})</List.Item>)}
     </List>
     {additionalUsers.length > 0 ? <Button variant="subtle" size="compact-sm" aria-expanded={expanded} aria-controls={listId} onClick={() => setExpanded((value) => !value)}>{expanded ? 'Show fewer affected users' : `Show ${additionalUsers.length} additional affected user${additionalUsers.length === 1 ? '' : 's'}`}</Button> : null}
+    {metadataChanges.length > 0 ? <><Text fw={500} mt="sm">Local role metadata changes</Text><List size="sm" withPadding>{metadataChanges.map((change) => <List.Item key={change}>{change}</List.Item>)}</List></> : null}
   </>
 }

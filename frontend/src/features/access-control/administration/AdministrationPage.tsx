@@ -28,8 +28,10 @@ export default function AdministrationPage({ family: declaredFamily, mode }: { f
   const [data, setData] = useState<{ key: string; page: Page } | null>(null)
   const [failure, setFailure] = useState<{ key: string; message: string } | null>(null)
   const [reload, setReload] = useState(0)
+  const [userRoleOutcome, setUserRoleOutcome] = useState<{ subjectId: string; message: string } | null>(null)
   const generation = useRef(0)
   const heading = useRef<HTMLHeadingElement>(null)
+  const userRoleOutcomeRef = useRef<HTMLDivElement>(null)
   const page = Math.max(1, Number(params.get('page')) || 1)
   const routeCriteria = Object.fromEntries([...params].filter(([key]) => key !== 'page'))
   const criteria = Object.fromEntries([...params].filter(([key]) => key !== 'page' && key !== ORIGIN_PARAM))
@@ -43,6 +45,7 @@ export default function AdministrationPage({ family: declaredFamily, mode }: { f
   const malformedSubjectId = Boolean(subjectId && subjectId !== 'new' && !UUID_PATTERN.test(subjectId))
   const malformedSourcePresetId = Boolean(sourcePresetId && !UUID_PATTERN.test(sourcePresetId))
   const requestKey = `${family}:${subjectId ?? ''}:${sourcePresetId ?? ''}:${page}:${filterKey}`
+  const currentUserRoleOutcome = userRoleOutcome?.subjectId === subjectId ? userRoleOutcome : null
 
   const projectRoute = (route: AdministrationRouteState) => {
     const search = new URLSearchParams(route.criteria)
@@ -97,6 +100,10 @@ export default function AdministrationPage({ family: declaredFamily, mode }: { f
     if (data?.key === requestKey) heading.current?.focus()
   }, [data?.key, requestKey])
 
+  useEffect(() => {
+    if (currentUserRoleOutcome && data?.key === requestKey) userRoleOutcomeRef.current?.focus()
+  }, [currentUserRoleOutcome, data?.key, requestKey])
+
   if (!operation || !family) return <Navigate to={family && ['users', 'roles', 'presets', 'scopes', 'history'].includes(family) ? `/access/${family}` : '/access/users'} replace />
   if (malformedSubjectId || malformedSourcePresetId) return <Navigate to={`/access/${operation.family}`} replace />
   if (operation.renderer === 'role-create' && (!sourcePresetId || data?.key === requestKey)) return <AdministrationShell route={currentRoute} origin={origin} navigate={projectRoute}>
@@ -121,8 +128,8 @@ export default function AdministrationPage({ family: declaredFamily, mode }: { f
     {({ requestDeparture, setDraftState }) => currentFailure ? <Alert role="status">{currentFailure}</Alert> : !currentPage ? <Stack align="center" py="xl"><Loader aria-label="Loading administration" /></Stack> :
       <Stack gap="lg"><Group justify="space-between"><Title ref={heading} tabIndex={-1} order={1}>{operation.title}</Title>{!subjectId && (operation.family === 'roles' || operation.family === 'presets') ? <Button onClick={() => projectRoute(transitionRoute({ family: operation.family, criteria: {}, page: 1, subjectId: 'new' }, collectionRoute))}>Create {operation.family === 'roles' ? 'role' : 'preset'}</Button> : null}</Group>
           {subjectId ? <><Group><Button variant="subtle" onClick={(event) => { event.currentTarget.focus(); requestDeparture() }}>Back to {operation.title}</Button>{(operation.family === 'roles' || operation.family === 'presets') && !operation.renderer ? <Button onClick={(event) => { event.currentTarget.focus(); requestDeparture(transitionRoute({ family: operation.family, criteria: {}, page: 1, subjectId, mode: 'edit' }, currentRoute)) }}>Edit {operation.family === 'roles' ? 'role' : 'preset'}</Button> : null}</Group><Card withBorder><Text>{label(item)}</Text></Card>
-            {operation.family === 'users' && typeof item.version === 'number' ? <UserRoleReplacementPanel key={`${subjectId}:${item.version}`} userId={subjectId} version={item.version} roleIds={Array.isArray(item.roles) ? item.roles.flatMap((assignedRole) => typeof assignedRole === 'object' && assignedRole && typeof (assignedRole as Record<string, unknown>).role_id === 'string' ? [(assignedRole as Record<string, string>).role_id] : []) : []} /> : null}
-            {operation.renderer === 'role-edit' ? <RoleWorkflow role={role} onDirtyChange={(dirty) => setDraftState(`role ${role.roleName || subjectId}`, dirty)} /> : null}
+            {operation.family === 'users' && typeof item.version === 'number' ? <>{currentUserRoleOutcome ? <Alert ref={userRoleOutcomeRef} tabIndex={-1} role="status" aria-live="polite">{currentUserRoleOutcome.message}</Alert> : null}<UserRoleReplacementPanel key={`${subjectId}:${item.version}`} userId={subjectId} version={item.version} roleIds={Array.isArray(item.roles) ? item.roles.flatMap((assignedRole) => typeof assignedRole === 'object' && assignedRole && typeof (assignedRole as Record<string, unknown>).role_id === 'string' ? [(assignedRole as Record<string, string>).role_id] : []) : []} onOutcome={(message) => setUserRoleOutcome({ subjectId: subjectId ?? '', message })} onReconcile={() => setReload((current) => current + 1)} /></> : null}
+            {operation.renderer === 'role-edit' ? <RoleWorkflow role={role} onDirtyChange={(dirty) => setDraftState(`role ${role.roleName || subjectId}`, dirty)} onReconcile={() => setReload((current) => current + 1)} /> : null}
             {operation.family === 'presets' ? operation.renderer === 'preset-edit' ? <PresetWorkflow preset={preset} onDirtyChange={(dirty) => setDraftState(`preset ${preset.presetName || subjectId}`, dirty)} /> : <PresetDetailWorkflows preset={preset} onDirtyChange={(dirty) => setDraftState(`preset copy ${preset.presetName || subjectId}`, dirty)} onStartAdjustable={() => requestDeparture(transitionRoute({ family: 'roles', criteria: { preset: subjectId }, page: 1, subjectId: 'new' }, currentRoute))} /> : null}</> : <>
           {operation.family === 'history' ? <Group grow>{HISTORY_FILTERS.map((key) => <TextInput key={key} label={key.split('_').map((part) => part[0].toUpperCase() + part.slice(1)).join(' ')} value={params.get(key) ?? ''} onChange={(event) => update(key, event.currentTarget.value)} />)}</Group> : <TextInput label="Filter loaded page" value={query} onChange={(event) => update('q', event.currentTarget.value)} description="Filters this loaded page only." />}
           {operation.family === 'scopes' ? <ScopeRegistrationPanel refreshScopes={refreshScopes} /> : null}

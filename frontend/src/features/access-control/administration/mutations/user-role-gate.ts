@@ -1,48 +1,36 @@
+import { SensitiveMutationGate, normalizedRoleIds } from './sensitive-mutation-gate'
+
 export type Subject = { subjectId: string; subjectVersion: number; authorityGeneration: string }
 type Request = { path: string; method: 'POST' | 'PUT'; body: Record<string, unknown> }
 type Preview = { subjectVersion: number; affectedUserCount: number }
 
-const normalized = (roleIds: readonly string[]) => [...new Set(roleIds.map((roleId) => roleId.trim()).filter(Boolean))].sort()
-const keyFor = (subject: Subject, roleIds: readonly string[]) => JSON.stringify([subject.subjectId, subject.subjectVersion, subject.authorityGeneration, normalized(roleIds)])
-
 export class UserRoleReplacementGate {
-  private pending: { key: string; generation: number } | null = null
-  private requestGeneration = 0
-  private ready: { key: string; roleIds: string[]; version: number } | null = null
-  private applied = false
-  private subject: Subject
-  private currentRoleIds: readonly string[]
+  private readonly gate: SensitiveMutationGate<string[]>
+  private readonly subject: Subject
 
-  constructor(subject: Subject, currentRoleIds: readonly string[]) { this.subject = subject; this.currentRoleIds = currentRoleIds }
+  constructor(subject: Subject, currentRoleIds: readonly string[]) { this.subject = subject; this.gate = new SensitiveMutationGate('user-role-replacement', subject, [...currentRoleIds], normalizedRoleIds) }
 
-  previewRequest(roleIds: readonly string[]): Request | null {
-    const next = normalized(roleIds)
-    if (JSON.stringify(next) === JSON.stringify(normalized(this.currentRoleIds))) return null
-    if (this.pending) return null
-    this.ready = null
-    this.pending = { key: keyFor(this.subject, next), generation: ++this.requestGeneration }
-    return { path: `/access/users/${this.subject.subjectId}/roles/preview`, method: 'POST', body: { role_ids: next } }
+  previewRequest(roleIds: readonly string[], reason = ''): Request | null {
+    const pending = this.gate.beginPreview([...roleIds], reason)
+    return pending ? { path: `/access/users/${this.subject.subjectId}/roles/preview`, method: 'POST', body: { role_ids: normalizedRoleIds(roleIds) } } : null
   }
 
-  acceptPreview(preview: Preview, roleIds: readonly string[], generation: number): boolean {
-    const key = keyFor(this.subject, roleIds)
-    if (this.pending?.key !== key || this.pending.generation !== generation || preview.subjectVersion !== this.subject.subjectVersion) return false
-    this.pending = null
-    this.ready = { key, roleIds: normalized(roleIds), version: preview.subjectVersion }
-    return true
+  acceptPreview(preview: Preview, roleIds: readonly string[], generation: number, reason = ''): boolean {
+    return this.gate.acceptPreview(preview, [...roleIds], reason, generation)
   }
 
-  applyRequest(reason = ''): Request | null {
-    if (!this.ready || this.applied) return null
-    this.applied = true
-    return { path: `/access/users/${this.subject.subjectId}/roles`, method: 'PUT', body: { role_ids: this.ready.roleIds, expected_version: this.ready.version, reason } }
+  applyRequest(): Request | null {
+    const accepted = this.gate.beginApply()
+    return accepted ? { path: `/access/users/${this.subject.subjectId}/roles`, method: 'PUT', body: { role_ids: accepted.draft, expected_version: accepted.version, reason: accepted.reason } } : null
   }
 
   invalidateFor(subject: Subject): void {
-    if (keyFor(this.subject, []) !== keyFor(subject, [])) this.invalidate()
+    this.gate.invalidateFor(subject)
   }
 
-  invalidate(): void { this.pending = null; this.ready = null; this.applied = false }
+  invalidate(): void { this.gate.invalidate() }
 
-  currentRequestGeneration(): number { return this.pending?.generation ?? 0 }
+  currentRequestGeneration(): number { return this.gate.currentRequestGeneration() }
+  previewSignal(): AbortSignal | undefined { return this.gate.previewSignal() }
+  confirm(): boolean { return this.gate.confirm() }
 }
