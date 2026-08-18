@@ -87,7 +87,7 @@ class Assignment:
         """An assignment is current when it has not been revoked."""
         return self.revoked_at is None
 
-    def revoke(self, *, by: str, reason: str, at: datetime) -> None:
+    def revoke(self, *, by: str, reason: str | None, at: datetime) -> None:
         """Revoke this assignment. Raises if already revoked."""
         if not self.is_current:
             raise AssignmentAlreadyRevoked()

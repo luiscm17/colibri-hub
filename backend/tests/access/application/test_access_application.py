@@ -14,6 +14,7 @@ from access.application.commands import (
     ActivateScopeCommand,
     DeactivateRoleCommand,
     DeactivateScopeCommand,
+    ReplaceUserRolesCommand,
     UpdateRoleCommand,
 )
 from access.application.deactivate_role import DeactivateRole
@@ -22,6 +23,7 @@ from access.application.get_access_user import GetAccessUser
 from access.application.list_access_audits import ListAccessAudits
 from access.application.list_access_users import ListAccessUsers
 from access.application.list_roles import ListRoles
+from access.application.replace_user_roles import ReplaceUserRoles
 from access.application.update_role import UpdateRole
 from access.domain.actions import Action, Permission
 from access.domain.errors import (
@@ -115,7 +117,9 @@ class FakeScopeRepo:
         return self.scopes.get(scope_id)
 
     def find_by_code(self, scope_code: str):
-        return next((s for s in self.scopes.values() if s.scope_code == scope_code), None)
+        return next(
+            (s for s in self.scopes.values() if s.scope_code == scope_code), None
+        )
 
     def list_all(self, *, limit=None, offset=0):
         items = list(self.scopes.values())
@@ -151,7 +155,10 @@ class FakeUserRepo:
         return self.users.get(user_id)
 
     def find_by_subject(self, identity_subject: str):
-        return next((u for u in self.users.values() if u.identity_subject == identity_subject), None)
+        return next(
+            (u for u in self.users.values() if u.identity_subject == identity_subject),
+            None,
+        )
 
     def list_all(self, *, limit=None, offset=0):
         items = list(self.users.values())
@@ -196,40 +203,69 @@ class FakeAssignmentRepo:
 
 def _scope(scope_id="scope-1", code="warehouse.raw_materials", is_active=True):
     return Scope(
-        scope_id=scope_id, definition_key=code, scope_code=code,
-        scope_name="Test Scope", owning_context="Test", description="desc",
-        is_active=is_active, version=1, created_at=NOW, updated_at=NOW,
+        scope_id=scope_id,
+        definition_key=code,
+        scope_code=code,
+        scope_name="Test Scope",
+        owning_context="Test",
+        description="desc",
+        is_active=is_active,
+        version=1,
+        created_at=NOW,
+        updated_at=NOW,
     )
 
 
-def _role(role_id="role-1", code="reader", is_sysadmin=False, is_active=True, permissions=None, version=1):
+def _role(
+    role_id="role-1",
+    code="reader",
+    is_sysadmin=False,
+    is_active=True,
+    permissions=None,
+    version=1,
+):
     return Role(
-        role_id=role_id, role_code=code, role_name="Test Role",
-        description=None, is_system_administrator=is_sysadmin,
-        is_active=is_active, version=version, permissions=permissions or set(),
-        created_at=NOW, updated_at=NOW,
+        role_id=role_id,
+        role_code=code,
+        role_name="Test Role",
+        description=None,
+        is_system_administrator=is_sysadmin,
+        is_active=is_active,
+        version=version,
+        permissions=permissions or set(),
+        created_at=NOW,
+        updated_at=NOW,
     )
 
 
 def _user(user_id="user-1", is_active=True):
     return AccessUser(
-        user_id=user_id, identity_subject=f"sub-{user_id}",
-        user_code=f"USR-{user_id}", display_name="Test User",
-        is_active=is_active, authorization_version=1, version=1,
-        created_at=NOW, updated_at=NOW,
+        user_id=user_id,
+        identity_subject=f"sub-{user_id}",
+        user_code=f"USR-{user_id}",
+        display_name="Test User",
+        is_active=is_active,
+        authorization_version=1,
+        version=1,
+        created_at=NOW,
+        updated_at=NOW,
     )
 
 
 def _definition(key="warehouse.raw_materials", actions=None):
     return ScopeDefinition(
-        definition_key=key, scope_code=key, scope_name="Test",
-        owning_context="Test", description="desc",
+        definition_key=key,
+        scope_code=key,
+        scope_name="Test",
+        owning_context="Test",
+        description="desc",
         supported_actions=frozenset(actions or [Action.READ, Action.WRITE]),
     )
 
 
 def _permission_input(action="read", scope_id="scope-1"):
     from access.application.commands import PermissionInput
+
     return PermissionInput(action=action, scope_id=scope_id)
 
 
@@ -255,15 +291,26 @@ class TestUpdateRole(unittest.TestCase):
 
     def test_happy_path_updates_role(self):
         scope = _scope()
-        role = _role(permissions={Permission(action=Action.READ, scope_code="warehouse.raw_materials")})
+        role = _role(
+            permissions={
+                Permission(action=Action.READ, scope_code="warehouse.raw_materials")
+            }
+        )
         defn = _definition()
         uc = self._make_use_case([role], [scope], [defn])
 
-        result = uc.execute(UpdateRoleCommand(
-            role_id="role-1", role_name="Updated", description="New desc",
-            permissions=[_permission_input("write", "scope-1")],
-            expected_version=1, reason="test", actor_user_id="admin-1", operation_id="op-1",
-        ))
+        result = uc.execute(
+            UpdateRoleCommand(
+                role_id="role-1",
+                role_name="Updated",
+                description="New desc",
+                permissions=[_permission_input("write", "scope-1")],
+                expected_version=1,
+                reason="test",
+                actor_user_id="admin-1",
+                operation_id="op-1",
+            )
+        )
 
         self.assertEqual(result.role_name, "Updated")
         self.assertEqual(result.version, 2)
@@ -277,32 +324,53 @@ class TestUpdateRole(unittest.TestCase):
         uc = self._make_use_case([role], [_scope()], [_definition()])
 
         with self.assertRaises(AccessVersionConflict):
-            uc.execute(UpdateRoleCommand(
-                role_id="role-1", role_name="X", description=None,
-                permissions=[], expected_version=1, reason="test",
-                actor_user_id="admin-1", operation_id="op-1",
-            ))
+            uc.execute(
+                UpdateRoleCommand(
+                    role_id="role-1",
+                    role_name="X",
+                    description=None,
+                    permissions=[],
+                    expected_version=1,
+                    reason="test",
+                    actor_user_id="admin-1",
+                    operation_id="op-1",
+                )
+            )
 
     def test_not_found_raises(self):
         uc = self._make_use_case([], [_scope()], [_definition()])
 
         with self.assertRaises(AccessRoleNotFound):
-            uc.execute(UpdateRoleCommand(
-                role_id="missing", role_name="X", description=None,
-                permissions=[], expected_version=1, reason="test",
-                actor_user_id="admin-1", operation_id="op-1",
-            ))
+            uc.execute(
+                UpdateRoleCommand(
+                    role_id="missing",
+                    role_name="X",
+                    description=None,
+                    permissions=[],
+                    expected_version=1,
+                    reason="test",
+                    actor_user_id="admin-1",
+                    operation_id="op-1",
+                )
+            )
 
     def test_reserved_role_rejects_update(self):
         role = _role(is_sysadmin=True)
         uc = self._make_use_case([role], [_scope()], [_definition()])
 
         with self.assertRaises(ReservedRoleMutationForbidden):
-            uc.execute(UpdateRoleCommand(
-                role_id="role-1", role_name="Hacked", description=None,
-                permissions=[], expected_version=1, reason="test",
-                actor_user_id="admin-1", operation_id="op-1",
-            ))
+            uc.execute(
+                UpdateRoleCommand(
+                    role_id="role-1",
+                    role_name="Hacked",
+                    description=None,
+                    permissions=[],
+                    expected_version=1,
+                    reason="test",
+                    actor_user_id="admin-1",
+                    operation_id="op-1",
+                )
+            )
 
     def test_privileged_action_rejects(self):
         scope = _scope()
@@ -311,12 +379,18 @@ class TestUpdateRole(unittest.TestCase):
         uc = self._make_use_case([role], [scope], [defn])
 
         with self.assertRaises(PrivilegedActionRequiresSystemAdministrator):
-            uc.execute(UpdateRoleCommand(
-                role_id="role-1", role_name="X", description=None,
-                permissions=[_permission_input("manage_access", "scope-1")],
-                expected_version=1, reason="test",
-                actor_user_id="admin-1", operation_id="op-1",
-            ))
+            uc.execute(
+                UpdateRoleCommand(
+                    role_id="role-1",
+                    role_name="X",
+                    description=None,
+                    permissions=[_permission_input("manage_access", "scope-1")],
+                    expected_version=1,
+                    reason="test",
+                    actor_user_id="admin-1",
+                    operation_id="op-1",
+                )
+            )
 
 
 class TestActivateRole(unittest.TestCase):
@@ -325,14 +399,21 @@ class TestActivateRole(unittest.TestCase):
         role_repo = FakeRoleRepo([role])
         audit_repo = FakeAuditRepo()
         uc = ActivateRole(
-            role_repository=role_repo, audit_repository=audit_repo,
-            transaction=FakeTransaction(), clock=FakeClock(),
+            role_repository=role_repo,
+            audit_repository=audit_repo,
+            transaction=FakeTransaction(),
+            clock=FakeClock(),
         )
 
-        uc.execute(ActivateRoleCommand(
-            role_id="role-1", expected_version=1, reason="test",
-            actor_user_id="admin-1", operation_id="op-1",
-        ))
+        uc.execute(
+            ActivateRoleCommand(
+                role_id="role-1",
+                expected_version=1,
+                reason="test",
+                actor_user_id="admin-1",
+                operation_id="op-1",
+            )
+        )
 
         self.assertTrue(role_repo.roles["role-1"].is_active)
         self.assertEqual(len(audit_repo.entries), 1)
@@ -340,26 +421,40 @@ class TestActivateRole(unittest.TestCase):
 
     def test_not_found_raises(self):
         uc = ActivateRole(
-            role_repository=FakeRoleRepo(), audit_repository=FakeAuditRepo(),
-            transaction=FakeTransaction(), clock=FakeClock(),
+            role_repository=FakeRoleRepo(),
+            audit_repository=FakeAuditRepo(),
+            transaction=FakeTransaction(),
+            clock=FakeClock(),
         )
         with self.assertRaises(AccessRoleNotFound):
-            uc.execute(ActivateRoleCommand(
-                role_id="missing", expected_version=1, reason="test",
-                actor_user_id="admin-1", operation_id="op-1",
-            ))
+            uc.execute(
+                ActivateRoleCommand(
+                    role_id="missing",
+                    expected_version=1,
+                    reason="test",
+                    actor_user_id="admin-1",
+                    operation_id="op-1",
+                )
+            )
 
     def test_version_conflict_raises(self):
         role = _role(version=5)
         uc = ActivateRole(
-            role_repository=FakeRoleRepo([role]), audit_repository=FakeAuditRepo(),
-            transaction=FakeTransaction(), clock=FakeClock(),
+            role_repository=FakeRoleRepo([role]),
+            audit_repository=FakeAuditRepo(),
+            transaction=FakeTransaction(),
+            clock=FakeClock(),
         )
         with self.assertRaises(AccessVersionConflict):
-            uc.execute(ActivateRoleCommand(
-                role_id="role-1", expected_version=1, reason="test",
-                actor_user_id="admin-1", operation_id="op-1",
-            ))
+            uc.execute(
+                ActivateRoleCommand(
+                    role_id="role-1",
+                    expected_version=1,
+                    reason="test",
+                    actor_user_id="admin-1",
+                    operation_id="op-1",
+                )
+            )
 
 
 class TestDeactivateRole(unittest.TestCase):
@@ -368,14 +463,21 @@ class TestDeactivateRole(unittest.TestCase):
         role_repo = FakeRoleRepo([role])
         audit_repo = FakeAuditRepo()
         uc = DeactivateRole(
-            role_repository=role_repo, audit_repository=audit_repo,
-            transaction=FakeTransaction(), clock=FakeClock(),
+            role_repository=role_repo,
+            audit_repository=audit_repo,
+            transaction=FakeTransaction(),
+            clock=FakeClock(),
         )
 
-        uc.execute(DeactivateRoleCommand(
-            role_id="role-1", expected_version=1, reason="test",
-            actor_user_id="admin-1", operation_id="op-1",
-        ))
+        uc.execute(
+            DeactivateRoleCommand(
+                role_id="role-1",
+                expected_version=1,
+                reason="test",
+                actor_user_id="admin-1",
+                operation_id="op-1",
+            )
+        )
 
         self.assertFalse(role_repo.roles["role-1"].is_active)
         self.assertEqual(audit_repo.entries[0]["change_kind"], "role_deactivated")
@@ -383,14 +485,21 @@ class TestDeactivateRole(unittest.TestCase):
     def test_reserved_role_rejects(self):
         role = _role(is_sysadmin=True)
         uc = DeactivateRole(
-            role_repository=FakeRoleRepo([role]), audit_repository=FakeAuditRepo(),
-            transaction=FakeTransaction(), clock=FakeClock(),
+            role_repository=FakeRoleRepo([role]),
+            audit_repository=FakeAuditRepo(),
+            transaction=FakeTransaction(),
+            clock=FakeClock(),
         )
         with self.assertRaises(ReservedRoleMutationForbidden):
-            uc.execute(DeactivateRoleCommand(
-                role_id="role-1", expected_version=1, reason="test",
-                actor_user_id="admin-1", operation_id="op-1",
-            ))
+            uc.execute(
+                DeactivateRoleCommand(
+                    role_id="role-1",
+                    expected_version=1,
+                    reason="test",
+                    actor_user_id="admin-1",
+                    operation_id="op-1",
+                )
+            )
 
 
 class TestActivateScope(unittest.TestCase):
@@ -399,28 +508,42 @@ class TestActivateScope(unittest.TestCase):
         scope_repo = FakeScopeRepo([scope])
         audit_repo = FakeAuditRepo()
         uc = ActivateScope(
-            scope_repository=scope_repo, audit_repository=audit_repo,
-            transaction=FakeTransaction(), clock=FakeClock(),
+            scope_repository=scope_repo,
+            audit_repository=audit_repo,
+            transaction=FakeTransaction(),
+            clock=FakeClock(),
         )
 
-        uc.execute(ActivateScopeCommand(
-            scope_id="scope-1", expected_version=1, reason="test",
-            actor_user_id="admin-1", operation_id="op-1",
-        ))
+        uc.execute(
+            ActivateScopeCommand(
+                scope_id="scope-1",
+                expected_version=1,
+                reason="test",
+                actor_user_id="admin-1",
+                operation_id="op-1",
+            )
+        )
 
         self.assertTrue(scope_repo.scopes["scope-1"].is_active)
         self.assertEqual(audit_repo.entries[0]["change_kind"], "scope_activated")
 
     def test_not_found_raises(self):
         uc = ActivateScope(
-            scope_repository=FakeScopeRepo(), audit_repository=FakeAuditRepo(),
-            transaction=FakeTransaction(), clock=FakeClock(),
+            scope_repository=FakeScopeRepo(),
+            audit_repository=FakeAuditRepo(),
+            transaction=FakeTransaction(),
+            clock=FakeClock(),
         )
         with self.assertRaises(AccessScopeNotFound):
-            uc.execute(ActivateScopeCommand(
-                scope_id="missing", expected_version=1, reason="test",
-                actor_user_id="admin-1", operation_id="op-1",
-            ))
+            uc.execute(
+                ActivateScopeCommand(
+                    scope_id="missing",
+                    expected_version=1,
+                    reason="test",
+                    actor_user_id="admin-1",
+                    operation_id="op-1",
+                )
+            )
 
 
 class TestDeactivateScope(unittest.TestCase):
@@ -429,14 +552,21 @@ class TestDeactivateScope(unittest.TestCase):
         scope_repo = FakeScopeRepo([scope])
         audit_repo = FakeAuditRepo()
         uc = DeactivateScope(
-            scope_repository=scope_repo, audit_repository=audit_repo,
-            transaction=FakeTransaction(), clock=FakeClock(),
+            scope_repository=scope_repo,
+            audit_repository=audit_repo,
+            transaction=FakeTransaction(),
+            clock=FakeClock(),
         )
 
-        uc.execute(DeactivateScopeCommand(
-            scope_id="scope-1", expected_version=1, reason="test",
-            actor_user_id="admin-1", operation_id="op-1",
-        ))
+        uc.execute(
+            DeactivateScopeCommand(
+                scope_id="scope-1",
+                expected_version=1,
+                reason="test",
+                actor_user_id="admin-1",
+                operation_id="op-1",
+            )
+        )
 
         self.assertFalse(scope_repo.scopes["scope-1"].is_active)
         self.assertEqual(audit_repo.entries[0]["change_kind"], "scope_deactivated")
@@ -444,20 +574,94 @@ class TestDeactivateScope(unittest.TestCase):
     def test_version_conflict_raises(self):
         # Create scope with version=7 to trigger conflict with expected_version=1
         scope_v7 = Scope(
-            scope_id="scope-1", definition_key="warehouse.raw_materials",
-            scope_code="warehouse.raw_materials", scope_name="Test Scope",
-            owning_context="Test", description="desc",
-            is_active=True, version=7, created_at=NOW, updated_at=NOW,
+            scope_id="scope-1",
+            definition_key="warehouse.raw_materials",
+            scope_code="warehouse.raw_materials",
+            scope_name="Test Scope",
+            owning_context="Test",
+            description="desc",
+            is_active=True,
+            version=7,
+            created_at=NOW,
+            updated_at=NOW,
         )
         uc = DeactivateScope(
-            scope_repository=FakeScopeRepo([scope_v7]), audit_repository=FakeAuditRepo(),
-            transaction=FakeTransaction(), clock=FakeClock(),
+            scope_repository=FakeScopeRepo([scope_v7]),
+            audit_repository=FakeAuditRepo(),
+            transaction=FakeTransaction(),
+            clock=FakeClock(),
         )
         with self.assertRaises(AccessVersionConflict):
-            uc.execute(DeactivateScopeCommand(
-                scope_id="scope-1", expected_version=1, reason="test",
-                actor_user_id="admin-1", operation_id="op-1",
-            ))
+            uc.execute(
+                DeactivateScopeCommand(
+                    scope_id="scope-1",
+                    expected_version=1,
+                    reason="test",
+                    actor_user_id="admin-1",
+                    operation_id="op-1",
+                )
+            )
+
+
+class TestReplaceUserRoles(unittest.TestCase):
+    def setUp(self) -> None:
+        self.user = _user("user-1")
+        self.old_role = _role(role_id="role-old", code="old_role")
+        self.new_role = _role(role_id="role_new", code="new_role")
+
+        self.old_assignment = Assignment(
+            assignment_id="assignment-old",
+            user_id=self.user.user_id,
+            role_id=self.old_role.role_id,
+            assigned_by_user_id="admin-before",
+            assigned_at=NOW,
+        )
+
+        self.user_repository = FakeUserRepo([self.user])
+        self.role_repository = FakeRoleRepo([self.old_role, self.new_role])
+        self.assignment_repository = FakeAssignmentRepo([self.old_assignment])
+        self.audit_repository = FakeAuditRepo()
+
+        self.use_case = ReplaceUserRoles(
+            user_repository=self.user_repository,
+            role_repository=self.role_repository,
+            assignment_repository=self.assignment_repository,
+            audit_repository=self.audit_repository,
+            transaction=FakeTransaction(),
+            clock=FakeClock(),
+            identity=FakeIdentity(),
+        )
+
+    def test_replaces_roles_and_audits_absent_reason(self) -> None:
+        self.use_case.execute(
+            ReplaceUserRolesCommand(
+                user_id=self.user.user_id,
+                role_ids=[self.new_role.role_id],
+                expected_version=self.user.version,
+                reason=None,
+                actor_user_id="admin-2",
+                operation_id="operation-1",
+            )
+        )
+
+        self.assertFalse(self.old_assignment.is_current)
+        self.assertIsNone(self.old_assignment.revoke_reason)
+
+        current_assignments = self.assignment_repository.find_for_user(
+            self.user.user_id
+        )
+        self.assertEqual(
+            [assignment.role_id for assignment in current_assignments],
+            [self.new_role.role_id],
+        )
+
+        audit = self.audit_repository.entries[0]
+        self.assertEqual(audit["reason"], None)
+        self.assertEqual(audit["performed_by_user_id"], "admin-2")
+        self.assertEqual(audit["subject_type"], "user")
+        self.assertEqual(audit["subject_id"], self.user.user_id)
+        self.assertEqual(audit["before_values"], {"role_codes": ["old_role"]})
+        self.assertEqual(audit["after_values"], {"role_codes": ["new_role"]})
 
 
 # ============================================================
@@ -468,11 +672,18 @@ class TestDeactivateScope(unittest.TestCase):
 class TestGetAccessUser(unittest.TestCase):
     def test_happy_path_returns_detail(self):
         user = _user()
-        role = _role(permissions={Permission(action=Action.READ, scope_code="warehouse.raw_materials")})
+        role = _role(
+            permissions={
+                Permission(action=Action.READ, scope_code="warehouse.raw_materials")
+            }
+        )
         scope = _scope()
         assignment = Assignment(
-            assignment_id="asgn-1", user_id="user-1", role_id="role-1",
-            assigned_by_user_id="admin-1", assigned_at=NOW,
+            assignment_id="asgn-1",
+            user_id="user-1",
+            role_id="role-1",
+            assigned_by_user_id="admin-1",
+            assigned_at=NOW,
         )
 
         uc = GetAccessUser(
@@ -505,8 +716,11 @@ class TestGetAccessUser(unittest.TestCase):
         role = _role(is_sysadmin=True)
         scope = _scope()
         assignment = Assignment(
-            assignment_id="asgn-1", user_id="user-1", role_id="role-1",
-            assigned_by_user_id="admin-1", assigned_at=NOW,
+            assignment_id="asgn-1",
+            user_id="user-1",
+            role_id="role-1",
+            assigned_by_user_id="admin-1",
+            assigned_at=NOW,
         )
 
         uc = GetAccessUser(

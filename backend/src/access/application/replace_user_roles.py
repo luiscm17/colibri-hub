@@ -68,7 +68,11 @@ class ReplaceUserRoles:
 
             # Last-admin check: if removing sysadmin role from this user
             sysadmin_role = self._roles.find_system_administrator_role()
-            if sysadmin_role and sysadmin_role.role_id in current_role_ids and sysadmin_role.role_id not in desired_role_ids:
+            if (
+                sysadmin_role
+                and sysadmin_role.role_id in current_role_ids
+                and sysadmin_role.role_id not in desired_role_ids
+            ):
                 remaining = self._users.count_active_administrators(
                     exclude_user_id=user.user_id, for_update=True
                 )
@@ -76,6 +80,16 @@ class ReplaceUserRoles:
                     raise LastSystemAdministratorRequired()
 
             now = self._clock.now()
+
+            # Snapshot audit values before mutation
+            previous_codes = sorted(
+                r.role_code
+                for a in current_assignments
+                if a.is_current
+                for r in [self._roles.find_by_id(a.role_id)]
+                if r
+            )
+            resulting_codes = sorted(r.role_code for r in new_roles)
 
             # Revoke removed assignments
             for assignment in current_assignments:
@@ -89,6 +103,7 @@ class ReplaceUserRoles:
 
             # Create new assignments
             from access.domain.roles import Assignment
+
             for role_id in desired_role_ids - current_role_ids:
                 assignment = Assignment(
                     assignment_id=self._identity.generate_id(),
@@ -104,13 +119,6 @@ class ReplaceUserRoles:
             user.version += 1
             user.updated_at = now
             self._users.save(user)
-
-            # Audit
-            previous_codes = sorted(
-                r.role_code for a in current_assignments if a.is_current
-                for r in [self._roles.find_by_id(a.role_id)] if r
-            )
-            resulting_codes = sorted(r.role_code for r in new_roles)
 
             self._audits.append(
                 operation_id=command.operation_id,

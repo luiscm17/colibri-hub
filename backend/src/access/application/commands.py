@@ -22,7 +22,7 @@ class CreateAccessUserCommand:
 class ActivateAccessUserCommand:
     subject: str
     actor_subject: str
-    reason: str
+    reason: str | None
     operation_id: str
 
 
@@ -30,7 +30,7 @@ class ActivateAccessUserCommand:
 class DeactivateAccessUserCommand:
     subject: str
     actor_subject: str
-    reason: str
+    reason: str | None
     operation_id: str
 
 
@@ -40,7 +40,7 @@ class CreateRoleCommand:
     role_name: str
     description: str | None
     permissions: list[PermissionInput]
-    reason: str
+    reason: str | None
     actor_user_id: str
     operation_id: str
 
@@ -52,7 +52,7 @@ class UpdateRoleCommand:
     description: str | None
     permissions: list[PermissionInput]
     expected_version: int
-    reason: str
+    reason: str | None
     actor_user_id: str
     operation_id: str
 
@@ -61,7 +61,7 @@ class UpdateRoleCommand:
 class ActivateRoleCommand:
     role_id: str
     expected_version: int
-    reason: str
+    reason: str | None
     actor_user_id: str
     operation_id: str
 
@@ -70,7 +70,7 @@ class ActivateRoleCommand:
 class DeactivateRoleCommand:
     role_id: str
     expected_version: int
-    reason: str
+    reason: str | None
     actor_user_id: str
     operation_id: str
 
@@ -80,7 +80,7 @@ class ReplaceUserRolesCommand:
     user_id: str
     role_ids: list[str]
     expected_version: int
-    reason: str
+    reason: str | None
     actor_user_id: str
     operation_id: str
 
@@ -88,7 +88,7 @@ class ReplaceUserRolesCommand:
 @dataclass(frozen=True, slots=True)
 class RegisterRecognizedScopeCommand:
     definition_key: str
-    reason: str
+    reason: str | None
     actor_user_id: str
     operation_id: str
 
@@ -97,7 +97,7 @@ class RegisterRecognizedScopeCommand:
 class ActivateScopeCommand:
     scope_id: str
     expected_version: int
-    reason: str
+    reason: str | None
     actor_user_id: str
     operation_id: str
 
@@ -106,7 +106,7 @@ class ActivateScopeCommand:
 class DeactivateScopeCommand:
     scope_id: str
     expected_version: int
-    reason: str
+    reason: str | None
     actor_user_id: str
     operation_id: str
 
@@ -121,13 +121,43 @@ class PermissionInput:
 
 @dataclass(frozen=True, slots=True)
 class CreateRolePresetCommand:
-    preset_code: str; preset_name: str; description: str | None; permissions: list[PermissionInput]; reason: str; actor_user_id: str; operation_id: str
+    preset_code: str
+    preset_name: str
+    description: str | None
+    permissions: list[PermissionInput]
+    reason: str | None
+    actor_user_id: str
+    operation_id: str
+
+
 @dataclass(frozen=True, slots=True)
 class UpdateRolePresetCommand:
-    preset_id: str; preset_name: str; description: str | None; permissions: list[PermissionInput]; expected_version: int; reason: str; actor_user_id: str; operation_id: str
+    preset_id: str
+    preset_name: str
+    description: str | None
+    permissions: list[PermissionInput]
+    expected_version: int
+    reason: str | None
+    actor_user_id: str
+    operation_id: str
+
+
 @dataclass(frozen=True, slots=True)
 class ChangeRolePresetStatusCommand:
-    preset_id: str; is_active: bool; expected_version: int; reason: str; actor_user_id: str; operation_id: str
+    preset_id: str
+    is_active: bool
+    expected_version: int
+    reason: str | None
+    actor_user_id: str
+    operation_id: str
+
+
 @dataclass(frozen=True, slots=True)
 class CreateRoleFromPresetCommand:
-    preset_id: str; role_code: str; role_name: str; description: str | None; reason: str; actor_user_id: str; operation_id: str
+    preset_id: str
+    role_code: str
+    role_name: str
+    description: str | None
+    reason: str | None
+    actor_user_id: str
+    operation_id: str
