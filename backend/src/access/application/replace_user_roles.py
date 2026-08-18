@@ -8,13 +8,13 @@ from access.domain.errors import (
     InactiveAccessRole,
     LastSystemAdministratorRequired,
 )
-from access.ports.clock import ClockPort
-from access.ports.identity import IdentityPort
 from access.ports.assignments import AssignmentRepository
 from access.ports.audit import AccessAuditRepository
+from access.ports.clock import ClockPort
+from access.ports.identity import IdentityPort
 from access.ports.roles import RoleRepository
-from access.ports.users import AccessUserRepository
 from access.ports.transaction import TransactionPort
+from access.ports.users import AccessUserRepository
 
 
 class ReplaceUserRoles:
