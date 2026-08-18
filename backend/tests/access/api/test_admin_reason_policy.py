@@ -122,3 +122,30 @@ class AdministrativeReasonModelTests(unittest.TestCase):
                 )
 
                 self.assertEqual(response.reason, reason)
+
+    def test_administrative_reason_is_optional_and_documented(self) -> None:
+        request_models = (
+            CreateRoleRequest,
+            UpdateRoleRequest,
+            StatusChangeRequest,
+            ReplaceUserRolesRequest,
+            RegisterScopeRequest,
+            CreateRolePresetRequest,
+            UpdateRolePresetRequest,
+            CreateRoleFromPresetRequest,
+        )
+
+        for request_model in request_models:
+            with self.subTest(model=request_model.__name__):
+                schema = request_model.model_json_schema()
+                reason = schema["properties"]["reason"]
+
+                self.assertNotIn("reason", schema["required"])
+                self.assertEqual(
+                    reason["description"],
+                    (
+                        "Optional form-level reason for this administrative "
+                        "change. Omitted, null, empty, or whitespace-only "
+                        "values are treated as absent; supplied text is trimmed."
+                    ),
+                )

@@ -5,7 +5,7 @@ All models use strict mode and forbid extra fields.
 
 from typing import Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 T = TypeVar("T")
 
@@ -15,7 +15,14 @@ class _StrictModel(BaseModel):
 
 
 class _AdministrativeMutationRequest(_StrictModel):
-    reason: str | None = None
+    reason: str | None = Field(
+        default=None,
+        description=(
+            "Optional form-level reason for this administrative change. "
+            "Omitted, null, empty, or whitespace-only values are treated as "
+            "absent; supplied text is trimmed."
+        ),
+    )
 
     @field_validator("reason")
     @classmethod
