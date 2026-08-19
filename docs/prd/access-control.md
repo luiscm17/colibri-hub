@@ -137,7 +137,7 @@ Labels such as Shift Summary or Daily Summary describe filtered queries or dashb
 25. An inactive role grants no effective permission but must remain available for historical traceability.
 26. Deactivation must preserve the user's identity, prior assignments, and access history.
 27. Access configuration changes must identify the acting user, the affected user or role, the change, the previous and resulting configuration, and the date and time of the change.
-28. The reason for an exceptional correction or another privileged access intervention must be preserved.
+28. The reason for an exceptional correction or another privileged access intervention must be nonblank and preserved. An administrative access-configuration change is ordinary governance: its form-level reason is optional, and when supplied it must be nonblank after trimming. Its absence never weakens the traceability required by the preceding rule. Holding Manage Access alone does not make an administrative access-configuration change a privileged access intervention.
 29. Access Control determines whether an action is authorized. The owning business context determines whether the requested operation is valid under its own business rules.
 30. A business context must not infer authorization from shift, job title, page visibility, or an operational user reference stored in a business record.
 31. Operational audits must identify the individual user and may include business date, time, shift, correction reason, and changed values. These facts do not alter the authorization decision.

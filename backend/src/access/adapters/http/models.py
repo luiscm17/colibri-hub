@@ -5,13 +5,33 @@ All models use strict mode and forbid extra fields.
 
 from typing import Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 T = TypeVar("T")
 
 
 class _StrictModel(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid")
+
+
+class _AdministrativeMutationRequest(_StrictModel):
+    reason: str | None = Field(
+        default=None,
+        description=(
+            "Optional form-level reason for this administrative change. "
+            "Omitted, null, empty, or whitespace-only values are treated as "
+            "absent; supplied text is trimmed."
+        ),
+    )
+
+    @field_validator("reason")
+    @classmethod
+    def _normalized_reason(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+
+        normalized = value.strip()
+        return normalized or None
 
 
 class PaginatedResponse(BaseModel, Generic[T]):
@@ -28,12 +48,11 @@ class PaginatedResponse(BaseModel, Generic[T]):
 # --- Requests ---
 
 
-class CreateRoleRequest(_StrictModel):
+class CreateRoleRequest(_AdministrativeMutationRequest):
     role_code: str
     role_name: str
     description: str | None = None
     permissions: list["PermissionInput"]
-    reason: str
 
 
 class PermissionInput(_StrictModel):
@@ -41,24 +60,21 @@ class PermissionInput(_StrictModel):
     scope_id: str
 
 
-class UpdateRoleRequest(_StrictModel):
+class UpdateRoleRequest(_AdministrativeMutationRequest):
     role_name: str
     description: str | None = None
     permissions: list[PermissionInput]
     expected_version: int
-    reason: str
 
 
-class StatusChangeRequest(_StrictModel):
+class StatusChangeRequest(_AdministrativeMutationRequest):
     is_active: bool
     expected_version: int
-    reason: str
 
 
-class ReplaceUserRolesRequest(_StrictModel):
+class ReplaceUserRolesRequest(_AdministrativeMutationRequest):
     role_ids: list[str]
     expected_version: int
-    reason: str
 
 
 class PreviewRoleChangeRequest(_StrictModel):
@@ -69,16 +85,28 @@ class PreviewUserRoleReplacementRequest(_StrictModel):
     role_ids: list[str]
 
 
-class RegisterScopeRequest(_StrictModel):
+class RegisterScopeRequest(_AdministrativeMutationRequest):
     definition_key: str
-    reason: str
 
-class CreateRolePresetRequest(_StrictModel):
-    preset_code: str; preset_name: str; description: str | None = None; permissions: list[PermissionInput]; reason: str
-class UpdateRolePresetRequest(_StrictModel):
-    preset_name: str; description: str | None = None; permissions: list[PermissionInput]; expected_version: int; reason: str
-class CreateRoleFromPresetRequest(_StrictModel):
-    role_code: str; role_name: str; description: str | None = None; reason: str
+
+class CreateRolePresetRequest(_AdministrativeMutationRequest):
+    preset_code: str
+    preset_name: str
+    description: str | None = None
+    permissions: list[PermissionInput]
+
+
+class UpdateRolePresetRequest(_AdministrativeMutationRequest):
+    preset_name: str
+    description: str | None = None
+    permissions: list[PermissionInput]
+    expected_version: int
+
+
+class CreateRoleFromPresetRequest(_AdministrativeMutationRequest):
+    role_code: str
+    role_name: str
+    description: str | None = None
 
 
 # --- Responses ---
@@ -121,8 +149,15 @@ class RoleResponse(_StrictModel):
     version: int
     permissions: list[PermissionResponse]
 
+
 class RolePresetResponse(_StrictModel):
-    preset_id: str; preset_code: str; preset_name: str; description: str | None; is_active: bool; version: int; permissions: list[PermissionResponse]
+    preset_id: str
+    preset_code: str
+    preset_name: str
+    description: str | None
+    is_active: bool
+    version: int
+    permissions: list[PermissionResponse]
 
 
 class AccessUserResponse(_StrictModel):
