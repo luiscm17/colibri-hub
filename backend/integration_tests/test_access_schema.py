@@ -78,29 +78,41 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
         uid1 = _uuid()
         uid2 = _uuid()
         with self.engine.begin() as conn:
-            conn.execute(text(
-                "INSERT INTO access_users (user_id, identity_subject, user_code, display_name) "
-                "VALUES (:id, 'dup-subject', 'USR-A', 'A')"
-            ), {"id": uid1})
-            with self.assertRaises(Exception) as ctx:
-                conn.execute(text(
+            conn.execute(
+                text(
                     "INSERT INTO access_users (user_id, identity_subject, user_code, display_name) "
-                    "VALUES (:id, 'dup-subject', 'USR-B', 'B')"
-                ), {"id": uid2})
+                    "VALUES (:id, 'dup-subject', 'USR-A', 'A')"
+                ),
+                {"id": uid1},
+            )
+            with self.assertRaises(Exception) as ctx:
+                conn.execute(
+                    text(
+                        "INSERT INTO access_users (user_id, identity_subject, user_code, display_name) "
+                        "VALUES (:id, 'dup-subject', 'USR-B', 'B')"
+                    ),
+                    {"id": uid2},
+                )
             self.assertIn("uq_access_users_identity_subject", str(ctx.exception))
             conn.rollback()
 
     def test_user_identity_immutable_trigger(self):
         uid = _uuid()
         with self.engine.begin() as conn:
-            conn.execute(text(
-                "INSERT INTO access_users (user_id, identity_subject, user_code, display_name) "
-                "VALUES (:id, 'immutable-test', 'USR-IMM', 'Immutable')"
-            ), {"id": uid})
+            conn.execute(
+                text(
+                    "INSERT INTO access_users (user_id, identity_subject, user_code, display_name) "
+                    "VALUES (:id, 'immutable-test', 'USR-IMM', 'Immutable')"
+                ),
+                {"id": uid},
+            )
             with self.assertRaises(Exception) as ctx:
-                conn.execute(text(
-                    "UPDATE access_users SET identity_subject = 'changed' WHERE user_id = :id"
-                ), {"id": uid})
+                conn.execute(
+                    text(
+                        "UPDATE access_users SET identity_subject = 'changed' WHERE user_id = :id"
+                    ),
+                    {"id": uid},
+                )
             self.assertIn("immutable", str(ctx.exception).lower())
             conn.rollback()
 
@@ -112,10 +124,13 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
         r2 = _uuid()
         with self.engine.begin() as conn:
             with self.assertRaises(Exception) as ctx:
-                conn.execute(text(
-                    "INSERT INTO access_roles (role_id, role_code, role_name, is_system_administrator) "
-                    "VALUES (:id, 'sysadmin2', 'Another Admin', true)"
-                ), {"id": r2})
+                conn.execute(
+                    text(
+                        "INSERT INTO access_roles (role_id, role_code, role_name, is_system_administrator) "
+                        "VALUES (:id, 'sysadmin2', 'Another Admin', true)"
+                    ),
+                    {"id": r2},
+                )
             self.assertIn("uq_access_roles_single_sysadmin", str(ctx.exception))
             conn.rollback()
 
@@ -125,26 +140,38 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
         a1 = _uuid()
         a2 = _uuid()
         with self.engine.begin() as conn:
-            conn.execute(text(
-                "INSERT INTO access_users (user_id, identity_subject, user_code, display_name) "
-                "VALUES (:id, 'assign-test', 'USR-AT', 'Assign')"
-            ), {"id": uid})
-            conn.execute(text(
-                "INSERT INTO access_roles (role_id, role_code, role_name) "
-                "VALUES (:id, 'test-role', 'Test Role')"
-            ), {"id": rid})
-            conn.execute(text(
-                "INSERT INTO access_user_role_assignments "
-                "(assignment_id, user_id, role_id, assigned_by_user_id) "
-                "VALUES (:aid, :uid, :rid, :uid)"
-            ), {"aid": a1, "uid": uid, "rid": rid})
-            # Second current assignment for same user+role should fail
-            with self.assertRaises(Exception) as ctx:
-                conn.execute(text(
+            conn.execute(
+                text(
+                    "INSERT INTO access_users (user_id, identity_subject, user_code, display_name) "
+                    "VALUES (:id, 'assign-test', 'USR-AT', 'Assign')"
+                ),
+                {"id": uid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO access_roles (role_id, role_code, role_name) "
+                    "VALUES (:id, 'test-role', 'Test Role')"
+                ),
+                {"id": rid},
+            )
+            conn.execute(
+                text(
                     "INSERT INTO access_user_role_assignments "
                     "(assignment_id, user_id, role_id, assigned_by_user_id) "
                     "VALUES (:aid, :uid, :rid, :uid)"
-                ), {"aid": a2, "uid": uid, "rid": rid})
+                ),
+                {"aid": a1, "uid": uid, "rid": rid},
+            )
+            # Second current assignment for same user+role should fail
+            with self.assertRaises(Exception) as ctx:
+                conn.execute(
+                    text(
+                        "INSERT INTO access_user_role_assignments "
+                        "(assignment_id, user_id, role_id, assigned_by_user_id) "
+                        "VALUES (:aid, :uid, :rid, :uid)"
+                    ),
+                    {"aid": a2, "uid": uid, "rid": rid},
+                )
             self.assertIn("uq_access_assignments_current", str(ctx.exception))
             conn.rollback()
 
@@ -154,27 +181,39 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
         a1 = _uuid()
         a2 = _uuid()
         with self.engine.begin() as conn:
-            conn.execute(text(
-                "INSERT INTO access_users (user_id, identity_subject, user_code, display_name) "
-                "VALUES (:id, 'revoke-test', 'USR-RT', 'Revoke')"
-            ), {"id": uid})
-            conn.execute(text(
-                "INSERT INTO access_roles (role_id, role_code, role_name) "
-                "VALUES (:id, 'revoke-role', 'Revoke Role')"
-            ), {"id": rid})
+            conn.execute(
+                text(
+                    "INSERT INTO access_users (user_id, identity_subject, user_code, display_name) "
+                    "VALUES (:id, 'revoke-test', 'USR-RT', 'Revoke')"
+                ),
+                {"id": uid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO access_roles (role_id, role_code, role_name) "
+                    "VALUES (:id, 'revoke-role', 'Revoke Role')"
+                ),
+                {"id": rid},
+            )
             # First assignment, then revoke it
-            conn.execute(text(
-                "INSERT INTO access_user_role_assignments "
-                "(assignment_id, user_id, role_id, assigned_by_user_id, "
-                "revoked_at, revoked_by_user_id, revoke_reason) "
-                "VALUES (:aid, :uid, :rid, :uid, now(), :uid, 'test')"
-            ), {"aid": a1, "uid": uid, "rid": rid})
+            conn.execute(
+                text(
+                    "INSERT INTO access_user_role_assignments "
+                    "(assignment_id, user_id, role_id, assigned_by_user_id, "
+                    "revoked_at, revoked_by_user_id, revoke_reason) "
+                    "VALUES (:aid, :uid, :rid, :uid, now(), :uid, 'test')"
+                ),
+                {"aid": a1, "uid": uid, "rid": rid},
+            )
             # New current assignment should succeed (old is revoked)
-            conn.execute(text(
-                "INSERT INTO access_user_role_assignments "
-                "(assignment_id, user_id, role_id, assigned_by_user_id) "
-                "VALUES (:aid, :uid, :rid, :uid)"
-            ), {"aid": a2, "uid": uid, "rid": rid})
+            conn.execute(
+                text(
+                    "INSERT INTO access_user_role_assignments "
+                    "(assignment_id, user_id, role_id, assigned_by_user_id) "
+                    "VALUES (:aid, :uid, :rid, :uid)"
+                ),
+                {"aid": a2, "uid": uid, "rid": rid},
+            )
             conn.rollback()
 
     def test_audit_append_only_trigger(self):
@@ -182,21 +221,30 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
         audit_id = _uuid()
         op_id = _uuid()
         with self.engine.begin() as conn:
-            conn.execute(text(
-                "INSERT INTO access_users (user_id, identity_subject, user_code, display_name) "
-                "VALUES (:id, 'audit-test', 'USR-AUD', 'Audit')"
-            ), {"id": uid})
-            conn.execute(text(
-                "INSERT INTO access_change_audits "
-                "(access_change_audit_id, operation_id, change_kind, "
-                "subject_type, subject_id, performed_by_user_id, reason) "
-                "VALUES (:aid, :oid, 'role_created', 'role', :sid, :uid, 'test')"
-            ), {"aid": audit_id, "oid": op_id, "sid": _uuid(), "uid": uid})
+            conn.execute(
+                text(
+                    "INSERT INTO access_users (user_id, identity_subject, user_code, display_name) "
+                    "VALUES (:id, 'audit-test', 'USR-AUD', 'Audit')"
+                ),
+                {"id": uid},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO access_change_audits "
+                    "(access_change_audit_id, operation_id, change_kind, "
+                    "subject_type, subject_id, performed_by_user_id, reason) "
+                    "VALUES (:aid, :oid, 'role_created', 'role', :sid, :uid, 'test')"
+                ),
+                {"aid": audit_id, "oid": op_id, "sid": _uuid(), "uid": uid},
+            )
             with self.assertRaises(Exception) as ctx:
-                conn.execute(text(
-                    "UPDATE access_change_audits SET reason = 'hacked' "
-                    "WHERE access_change_audit_id = :id"
-                ), {"id": audit_id})
+                conn.execute(
+                    text(
+                        "UPDATE access_change_audits SET reason = 'hacked' "
+                        "WHERE access_change_audit_id = :id"
+                    ),
+                    {"id": audit_id},
+                )
             self.assertIn("append-only", str(ctx.exception).lower())
             conn.rollback()
 
@@ -204,35 +252,72 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
         sid = _uuid()
         with self.engine.begin() as conn:
             # Valid: references existing definition
-            conn.execute(text(
-                "INSERT INTO access_scopes "
-                "(scope_id, definition_key, scope_code, scope_name, owning_context, description) "
-                "VALUES (:id, 'warehouse.raw_materials', :code, 'Raw Materials', 'Warehouse', 'Admin')"
-            ), {"id": sid, "code": f"warehouse-test-{sid[:8]}"})
+            conn.execute(
+                text(
+                    "INSERT INTO access_scopes "
+                    "(scope_id, definition_key, scope_code, scope_name, owning_context, description) "
+                    "VALUES (:id, 'warehouse.raw_materials', :code, 'Raw Materials', 'Warehouse', 'Admin')"
+                ),
+                {"id": sid, "code": f"warehouse-test-{sid[:8]}"},
+            )
             conn.rollback()
 
     def test_scope_rejects_unknown_definition_key(self):
         sid = _uuid()
         with self.engine.begin() as conn:
             with self.assertRaises(Exception) as ctx:
-                conn.execute(text(
-                    "INSERT INTO access_scopes "
-                    "(scope_id, definition_key, scope_code, scope_name, owning_context, description) "
-                    "VALUES (:id, 'unknown.scope', 'unknown.scope', 'X', 'X', 'X')"
-                ), {"id": sid})
+                conn.execute(
+                    text(
+                        "INSERT INTO access_scopes "
+                        "(scope_id, definition_key, scope_code, scope_name, owning_context, description) "
+                        "VALUES (:id, 'unknown.scope', 'unknown.scope', 'X', 'X', 'X')"
+                    ),
+                    {"id": sid},
+                )
             self.assertIn("fk_access_scopes_definition", str(ctx.exception))
             conn.rollback()
 
     def test_role_preset_code_and_permission_triples_are_unique(self):
         preset_id, user_id, scope_id = _uuid(), _uuid(), _uuid()
         with self.engine.begin() as conn:
-            conn.execute(text("INSERT INTO access_users (user_id, identity_subject, user_code, display_name) VALUES (:id, :subject, :code, 'Preset actor')"), {"id": user_id, "subject": f"preset-{user_id}", "code": f"USR-{user_id[:6]}"})
-            conn.execute(text("INSERT INTO access_scopes (scope_id, definition_key, scope_code, scope_name, owning_context, description) VALUES (:id, 'warehouse.raw_materials', :code, 'Access', 'Access', 'test')"), {"id": scope_id, "code": f"access-preset-{scope_id[:8]}"})
-            conn.execute(text("INSERT INTO access_role_presets (preset_id, preset_code, preset_name) VALUES (:id, 'preset-unique', 'Preset')"), {"id": preset_id})
-            conn.execute(text("INSERT INTO access_role_preset_permissions (preset_id, scope_id, action, created_by_user_id) VALUES (:preset, :scope, 'read', :user)"), {"preset": preset_id, "scope": scope_id, "user": user_id})
+            conn.execute(
+                text(
+                    "INSERT INTO access_users (user_id, identity_subject, user_code, display_name) VALUES (:id, :subject, :code, 'Preset actor')"
+                ),
+                {
+                    "id": user_id,
+                    "subject": f"preset-{user_id}",
+                    "code": f"USR-{user_id[:6]}",
+                },
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO access_scopes (scope_id, definition_key, scope_code, scope_name, owning_context, description) VALUES (:id, 'warehouse.raw_materials', :code, 'Access', 'Access', 'test')"
+                ),
+                {"id": scope_id, "code": f"access-preset-{scope_id[:8]}"},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO access_role_presets (preset_id, preset_code, preset_name) VALUES (:id, 'preset-unique', 'Preset')"
+                ),
+                {"id": preset_id},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO access_role_preset_permissions (preset_id, scope_id, action, created_by_user_id) VALUES (:preset, :scope, 'read', :user)"
+                ),
+                {"preset": preset_id, "scope": scope_id, "user": user_id},
+            )
             with self.assertRaises(Exception) as ctx:
-                conn.execute(text("INSERT INTO access_role_preset_permissions (preset_id, scope_id, action, created_by_user_id) VALUES (:preset, :scope, 'read', :user)"), {"preset": preset_id, "scope": scope_id, "user": user_id})
-            self.assertIn("uq_access_role_preset_permissions_triple", str(ctx.exception))
+                conn.execute(
+                    text(
+                        "INSERT INTO access_role_preset_permissions (preset_id, scope_id, action, created_by_user_id) VALUES (:preset, :scope, 'read', :user)"
+                    ),
+                    {"preset": preset_id, "scope": scope_id, "user": user_id},
+                )
+            self.assertIn(
+                "uq_access_role_preset_permissions_triple", str(ctx.exception)
+            )
             conn.rollback()
 
     def test_preset_creation_rejects_inactive_scope(self):
@@ -255,18 +340,57 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
 
         actor_id, scope_id = _uuid(), _uuid()
         with self.engine.begin() as conn:
-            conn.execute(text("INSERT INTO access_users (user_id, identity_subject, user_code, display_name) VALUES (:id, :subject, :code, 'Actor')"), {"id": actor_id, "subject": f"inactive-{actor_id}", "code": f"USR-{actor_id[:6]}"})
-            conn.execute(text("INSERT INTO access_scopes (scope_id, definition_key, scope_code, scope_name, owning_context, description, is_active) VALUES (:id, 'warehouse.raw_materials', :code, 'Raw', 'Warehouse', 'test', false)"), {"id": scope_id, "code": f"warehouse-inactive-{scope_id[:8]}"})
+            conn.execute(
+                text(
+                    "INSERT INTO access_users (user_id, identity_subject, user_code, display_name) VALUES (:id, :subject, :code, 'Actor')"
+                ),
+                {
+                    "id": actor_id,
+                    "subject": f"inactive-{actor_id}",
+                    "code": f"USR-{actor_id[:6]}",
+                },
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO access_scopes (scope_id, definition_key, scope_code, scope_name, owning_context, description, is_active) VALUES (:id, 'warehouse.raw_materials', :code, 'Raw', 'Warehouse', 'test', false)"
+                ),
+                {"id": scope_id, "code": f"warehouse-inactive-{scope_id[:8]}"},
+            )
         session = Session(self.engine)
         try:
-            use_case = CreateRolePreset(preset_repository=RolePresetRepositoryAdapter(session), scope_repository=ScopeRepositoryAdapter(session), scope_definition_registry=ScopeDefinitionRegistryAdapter(session), audit_repository=AccessAuditRepositoryAdapter(session), transaction=TransactionAdapter(session), clock=SystemClock(), identity=SystemIdentity())
+            use_case = CreateRolePreset(
+                preset_repository=RolePresetRepositoryAdapter(session),
+                scope_repository=ScopeRepositoryAdapter(session),
+                scope_definition_registry=ScopeDefinitionRegistryAdapter(session),
+                audit_repository=AccessAuditRepositoryAdapter(session),
+                transaction=TransactionAdapter(session),
+                clock=SystemClock(),
+                identity=SystemIdentity(),
+            )
             with self.assertRaises(InactiveAccessScope):
-                use_case.execute(CreateRolePresetCommand("inactive-scope-preset", "Inactive", None, [PermissionInput("read", scope_id)], "test", actor_id, _uuid()))
+                use_case.execute(
+                    CreateRolePresetCommand(
+                        "inactive-scope-preset",
+                        "Inactive",
+                        None,
+                        [PermissionInput("read", scope_id)],
+                        "test",
+                        actor_id,
+                        _uuid(),
+                    )
+                )
         finally:
-            session.rollback(); session.close()
+            session.rollback()
+            session.close()
             with self.engine.begin() as conn:
-                conn.execute(text("DELETE FROM access_scopes WHERE scope_id = :id"), {"id": scope_id})
-                conn.execute(text("DELETE FROM access_users WHERE user_id = :id"), {"id": actor_id})
+                conn.execute(
+                    text("DELETE FROM access_scopes WHERE scope_id = :id"),
+                    {"id": scope_id},
+                )
+                conn.execute(
+                    text("DELETE FROM access_users WHERE user_id = :id"),
+                    {"id": actor_id},
+                )
 
     def test_role_preset_and_scope_lifecycles_are_audited_and_rolled_back(self):
         actor_id = _uuid()
@@ -423,23 +547,37 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
                 )
             )
 
-            audit_rows = session.execute(
-                text(
-                    "SELECT change_kind, subject_type, before_values, after_values "
-                    "FROM access_change_audits "
-                    "WHERE operation_id = ANY(CAST(:operation_ids AS uuid[]))"
-                ),
-                {"operation_ids": list(operation_ids.values())},
-            ).mappings().all()
+            audit_rows = (
+                session.execute(
+                    text(
+                        "SELECT change_kind, subject_type, before_values, after_values "
+                        "FROM access_change_audits "
+                        "WHERE operation_id = ANY(CAST(:operation_ids AS uuid[]))"
+                    ),
+                    {"operation_ids": list(operation_ids.values())},
+                )
+                .mappings()
+                .all()
+            )
             self.assertEqual(
                 {(row["change_kind"], row["subject_type"]) for row in audit_rows},
                 {
-                    (name, "role_preset" if name.startswith("role_preset_") else name.split("_", 1)[0])
+                    (
+                        name,
+                        (
+                            "role_preset"
+                            if name.startswith("role_preset_")
+                            else name.split("_", 1)[0]
+                        ),
+                    )
                     for name in operation_ids
                 },
             )
             self.assertTrue(
-                all(row["before_values"] is not None and row["after_values"] is not None for row in audit_rows)
+                all(
+                    row["before_values"] is not None and row["after_values"] is not None
+                    for row in audit_rows
+                )
             )
         finally:
             if outer_transaction.is_active:
@@ -474,6 +612,64 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
             ).one()
             self.assertEqual(tuple(restored_scope), (True, original_scope_version))
 
+    def test_audit_repository_reads_absent_and_empty_reasons(self):
+        from access.adapters.persistence.audit_repository import (
+            AccessAuditRepositoryAdapter,
+        )
+
+        actor_id, subject_id = _uuid(), _uuid()
+        absent_operation_id, empty_operation_id = _uuid(), _uuid()
+
+        connection = self.engine.connect()
+        outer_transaction = connection.begin()
+        session = Session(bind=connection)
+
+        try:
+            session.execute(
+                text(
+                    "INSERT INTO access_users "
+                    "(user_id, identity_subject, user_code, display_name) "
+                    "VALUES (:id, :subject, :code, 'Audit actor')"
+                ),
+                {
+                    "id": actor_id,
+                    "subject": f"audit-actor-{actor_id}",
+                    "code": f"AUD-{actor_id[:8]}",
+                },
+            )
+
+            repository = AccessAuditRepositoryAdapter(session)
+
+            for operation_id, reason in (
+                (absent_operation_id, None),
+                (empty_operation_id, ""),
+            ):
+                repository.append(
+                    operation_id=operation_id,
+                    change_kind="role_updated",
+                    subject_type="role",
+                    subject_id=subject_id,
+                    performed_by_user_id=actor_id,
+                    reason=reason,
+                    before_values={},
+                    after_values={},
+                )
+
+            session.flush()
+
+            entries = {
+                entry.operation_id: entry for entry in repository.list_recent(limit=10)
+            }
+
+            self.assertIsNone(entries[absent_operation_id].reason)
+            self.assertEqual(entries[empty_operation_id].reason, "")
+
+        finally:
+            if outer_transaction.is_active:
+                outer_transaction.rollback()
+            session.close()
+            connection.close()
+
 
 class AccessSchemaRlsTest(unittest.TestCase):
     """Verify RLS and privilege revocations."""
@@ -498,10 +694,13 @@ class AccessSchemaRlsTest(unittest.TestCase):
         with self.engine.connect() as conn:
             for table in tables:
                 with self.subTest(table=table):
-                    result = conn.execute(text(
-                        "SELECT relrowsecurity FROM pg_class "
-                        "WHERE relname = :name"
-                    ), {"name": table}).scalar()
+                    result = conn.execute(
+                        text(
+                            "SELECT relrowsecurity FROM pg_class "
+                            "WHERE relname = :name"
+                        ),
+                        {"name": table},
+                    ).scalar()
                     self.assertTrue(
                         result,
                         f"RLS not enabled on {table}",
@@ -523,9 +722,10 @@ class AccessSchemaRlsTest(unittest.TestCase):
             for table in tables:
                 for role in ("anon", "authenticated", "service_role"):
                     with self.subTest(table=table, role=role):
-                        result = conn.execute(text(
-                            "SELECT has_table_privilege(:role, :table, 'SELECT')"
-                        ), {"role": role, "table": f"public.{table}"}).scalar()
+                        result = conn.execute(
+                            text("SELECT has_table_privilege(:role, :table, 'SELECT')"),
+                            {"role": role, "table": f"public.{table}"},
+                        ).scalar()
                         self.assertFalse(
                             result,
                             f"{role} has SELECT on {table}",
