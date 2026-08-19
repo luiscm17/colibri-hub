@@ -1,6 +1,9 @@
 """Use case: reactivate an access user profile."""
 
-from access.application.commands import ActivateAccessUserCommand
+from access.application.commands import (
+    ActivateAccessUserCommand,
+    AdministrativeProfileLifecycleCommand,
+)
 from access.domain.errors import AccessUserNotFound
 from access.ports.clock import ClockPort
 from access.ports.audit import AccessAuditRepository
@@ -22,7 +25,9 @@ class ActivateAccessUser:
         self._transaction = transaction
         self._clock = clock
 
-    def execute(self, command: ActivateAccessUserCommand) -> None:
+    def execute(
+        self, command: ActivateAccessUserCommand | AdministrativeProfileLifecycleCommand
+    ) -> None:
         with self._transaction.atomic():
             user = self._users.find_by_subject(command.subject)
             if user is None:

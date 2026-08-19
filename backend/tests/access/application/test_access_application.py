@@ -12,11 +12,13 @@ from access.application.activate_scope import ActivateScope
 from access.application.commands import (
     ActivateRoleCommand,
     ActivateScopeCommand,
+    AdministrativeProfileLifecycleCommand,
     DeactivateRoleCommand,
     DeactivateScopeCommand,
     ReplaceUserRolesCommand,
     UpdateRoleCommand,
 )
+from access.application.deactivate_access_user import DeactivateAccessUser
 from access.application.deactivate_role import DeactivateRole
 from access.application.deactivate_scope import DeactivateScope
 from access.application.get_access_user import GetAccessUser
@@ -603,6 +605,38 @@ class TestDeactivateScope(unittest.TestCase):
             )
 
 
+class TestDeactivateAccessUser(unittest.TestCase):
+    def setUp(self) -> None:
+        self.target = _user("user-1")
+        self.actor = _user("admin-1")
+        self.user_repository = FakeUserRepo([self.target, self.actor])
+        self.audit_repository = FakeAuditRepo()
+
+        self.use_case = DeactivateAccessUser(
+            user_repository=self.user_repository,
+            audit_repository=self.audit_repository,
+            transaction=FakeTransaction(),
+            clock=FakeClock(),
+        )
+
+    def test_normalizes_whitespace_reason_for_direct_administration(self) -> None:
+        self.use_case.execute(
+            AdministrativeProfileLifecycleCommand(
+                subject=self.target.identity_subject,
+                actor_subject=self.actor.identity_subject,
+                reason=" \t ",
+                operation_id="operation-3",
+            )
+        )
+
+        self.assertFalse(self.target.is_active)
+        self.assertIsNone(self.audit_repository.entries[0]["reason"])
+        self.assertEqual(
+            self.audit_repository.entries[0]["performed_by_user_id"],
+            self.actor.user_id,
+        )
+
+
 class TestReplaceUserRoles(unittest.TestCase):
     def setUp(self) -> None:
         self.user = _user("user-1")
@@ -662,6 +696,21 @@ class TestReplaceUserRoles(unittest.TestCase):
         self.assertEqual(audit["subject_id"], self.user.user_id)
         self.assertEqual(audit["before_values"], {"role_codes": ["old_role"]})
         self.assertEqual(audit["after_values"], {"role_codes": ["new_role"]})
+
+    def test_normalizes_whitespace_reason_when_command_bypasses_http(self) -> None:
+        self.use_case.execute(
+            ReplaceUserRolesCommand(
+                user_id=self.user.user_id,
+                role_ids=[self.new_role.role_id],
+                expected_version=self.user.version,
+                reason=" \t ",
+                actor_user_id="admin-2",
+                operation_id="operation-2",
+            )
+        )
+
+        self.assertIsNone(self.old_assignment.revoke_reason)
+        self.assertIsNone(self.audit_repository.entries[0]["reason"])
 
 
 # ============================================================

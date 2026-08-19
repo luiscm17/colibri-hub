@@ -38,14 +38,13 @@ from access.adapters.http.models import (
 )
 from access.application.authorize_action import AuthorizeAction
 from access.application.commands import (
-    ActivateAccessUserCommand,
     ActivateRoleCommand,
     ActivateScopeCommand,
+    AdministrativeProfileLifecycleCommand,
     ChangeRolePresetStatusCommand,
     CreateRoleCommand,
     CreateRoleFromPresetCommand,
     CreateRolePresetCommand,
-    DeactivateAccessUserCommand,
     DeactivateRoleCommand,
     DeactivateScopeCommand,
     RegisterRecognizedScopeCommand,
@@ -199,7 +198,7 @@ def create_admin_router(
         operation_id = use_cases.identity.generate_operation_id()
         if body.is_active:
             use_cases.activate_access_user.execute(
-                ActivateAccessUserCommand(
+                AdministrativeProfileLifecycleCommand(
                     subject=user.identity_subject,
                     actor_subject=actor_subject,
                     reason=body.reason,
@@ -208,7 +207,7 @@ def create_admin_router(
             )
         else:
             use_cases.deactivate_access_user.execute(
-                DeactivateAccessUserCommand(
+                AdministrativeProfileLifecycleCommand(
                     subject=user.identity_subject,
                     actor_subject=actor_subject,
                     reason=body.reason,

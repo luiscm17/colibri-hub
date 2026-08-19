@@ -5,6 +5,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+class _OptionalAdministrativeReason:
+    reason: str | None
+
+    def __post_init__(self) -> None:
+        if self.reason is None:
+            return
+
+        normalized = self.reason.strip()
+        object.__setattr__(self, "reason", normalized or None)
+
+
 @dataclass(frozen=True, slots=True)
 class CreateAccessUserCommand:
     """Internal command: create an access profile during unified provisioning."""
@@ -35,7 +46,15 @@ class DeactivateAccessUserCommand:
 
 
 @dataclass(frozen=True, slots=True)
-class CreateRoleCommand:
+class AdministrativeProfileLifecycleCommand(_OptionalAdministrativeReason):
+    subject: str
+    actor_subject: str
+    reason: str | None
+    operation_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class CreateRoleCommand(_OptionalAdministrativeReason):
     role_code: str
     role_name: str
     description: str | None
@@ -46,7 +65,7 @@ class CreateRoleCommand:
 
 
 @dataclass(frozen=True, slots=True)
-class UpdateRoleCommand:
+class UpdateRoleCommand(_OptionalAdministrativeReason):
     role_id: str
     role_name: str
     description: str | None
@@ -58,7 +77,7 @@ class UpdateRoleCommand:
 
 
 @dataclass(frozen=True, slots=True)
-class ActivateRoleCommand:
+class ActivateRoleCommand(_OptionalAdministrativeReason):
     role_id: str
     expected_version: int
     reason: str | None
@@ -67,7 +86,7 @@ class ActivateRoleCommand:
 
 
 @dataclass(frozen=True, slots=True)
-class DeactivateRoleCommand:
+class DeactivateRoleCommand(_OptionalAdministrativeReason):
     role_id: str
     expected_version: int
     reason: str | None
@@ -76,7 +95,7 @@ class DeactivateRoleCommand:
 
 
 @dataclass(frozen=True, slots=True)
-class ReplaceUserRolesCommand:
+class ReplaceUserRolesCommand(_OptionalAdministrativeReason):
     user_id: str
     role_ids: list[str]
     expected_version: int
@@ -86,7 +105,7 @@ class ReplaceUserRolesCommand:
 
 
 @dataclass(frozen=True, slots=True)
-class RegisterRecognizedScopeCommand:
+class RegisterRecognizedScopeCommand(_OptionalAdministrativeReason):
     definition_key: str
     reason: str | None
     actor_user_id: str
@@ -94,7 +113,7 @@ class RegisterRecognizedScopeCommand:
 
 
 @dataclass(frozen=True, slots=True)
-class ActivateScopeCommand:
+class ActivateScopeCommand(_OptionalAdministrativeReason):
     scope_id: str
     expected_version: int
     reason: str | None
@@ -103,7 +122,7 @@ class ActivateScopeCommand:
 
 
 @dataclass(frozen=True, slots=True)
-class DeactivateScopeCommand:
+class DeactivateScopeCommand(_OptionalAdministrativeReason):
     scope_id: str
     expected_version: int
     reason: str | None
@@ -120,7 +139,7 @@ class PermissionInput:
 
 
 @dataclass(frozen=True, slots=True)
-class CreateRolePresetCommand:
+class CreateRolePresetCommand(_OptionalAdministrativeReason):
     preset_code: str
     preset_name: str
     description: str | None
@@ -131,7 +150,7 @@ class CreateRolePresetCommand:
 
 
 @dataclass(frozen=True, slots=True)
-class UpdateRolePresetCommand:
+class UpdateRolePresetCommand(_OptionalAdministrativeReason):
     preset_id: str
     preset_name: str
     description: str | None
@@ -143,7 +162,7 @@ class UpdateRolePresetCommand:
 
 
 @dataclass(frozen=True, slots=True)
-class ChangeRolePresetStatusCommand:
+class ChangeRolePresetStatusCommand(_OptionalAdministrativeReason):
     preset_id: str
     is_active: bool
     expected_version: int
@@ -153,7 +172,7 @@ class ChangeRolePresetStatusCommand:
 
 
 @dataclass(frozen=True, slots=True)
-class CreateRoleFromPresetCommand:
+class CreateRoleFromPresetCommand(_OptionalAdministrativeReason):
     preset_id: str
     role_code: str
     role_name: str

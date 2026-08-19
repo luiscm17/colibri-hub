@@ -1,6 +1,9 @@
 """Use case: deactivate an access user profile."""
 
-from access.application.commands import DeactivateAccessUserCommand
+from access.application.commands import (
+    DeactivateAccessUserCommand,
+    AdministrativeProfileLifecycleCommand,
+)
 from access.domain.errors import AccessUserNotFound, LastSystemAdministratorRequired
 from access.ports.clock import ClockPort
 from access.ports.audit import AccessAuditRepository
@@ -22,7 +25,10 @@ class DeactivateAccessUser:
         self._transaction = transaction
         self._clock = clock
 
-    def execute(self, command: DeactivateAccessUserCommand) -> None:
+    def execute(
+        self,
+        command: DeactivateAccessUserCommand | AdministrativeProfileLifecycleCommand,
+    ) -> None:
         with self._transaction.atomic():
             user = self._users.find_by_subject(command.subject)
             if user is None:
