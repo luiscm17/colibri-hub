@@ -1,6 +1,6 @@
 ---
 document_type: prd
-status: draft
+status: activate
 scope: access-control
 authority: normative
 owner: product
