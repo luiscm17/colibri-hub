@@ -8,15 +8,13 @@ AuthenticatedIdentity.
 from __future__ import annotations
 
 import logging
-import time
-from threading import Lock
 
 import jwt
-from jwt import PyJWKClient
 from fastapi import Request
+from jwt import PyJWKClient
+from shared.identity import AuthenticatedIdentity
 
 from auth.domain.errors import AuthenticationRequired
-from shared.identity import AuthenticatedIdentity
 
 logger = logging.getLogger(__name__)
 
@@ -69,10 +67,10 @@ class TokenValidatorAdapter:
             raise AuthenticationRequired()
 
         session_id = claims.get("session_id")
-        if isinstance(session_id, str) and session_id:
-            return AuthenticatedIdentity(subject=subject, session_id=session_id)
+        if not isinstance(session_id, str) or not session_id:
+            raise AuthenticationRequired()
 
-        return AuthenticatedIdentity(subject=subject, session_id=None)
+        return AuthenticatedIdentity(subject=subject, session_id=session_id)
 
     def _extract_token(self, request: Request) -> str:
         """Extract Bearer token from Authorization header."""
@@ -117,9 +115,5 @@ class TokenValidatorAdapter:
 
             raise AuthenticationRequired()
 
-        except jwt.ExpiredSignatureError:
-            raise AuthenticationRequired()
-        except jwt.InvalidTokenError:
-            raise AuthenticationRequired()
-        except Exception:
+        except jwt.PyJWTError:
             raise AuthenticationRequired()

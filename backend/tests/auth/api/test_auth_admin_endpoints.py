@@ -95,11 +95,14 @@ class FakeIdentityProvider:
     def unban_user(self, **kwargs):
         pass
 
-    def revoke_sessions(self, **kwargs):
+    def revoke_session(self, *, session_id, subject):
         pass
 
-    def get_session(self, **kwargs):
-        return None
+    def revoke_subject_sessions(self, *, subject):
+        pass
+
+    def has_active_session(self, *, session_id, subject):
+        return False
 
     def delete_user(self, **kwargs):
         pass
@@ -125,6 +128,11 @@ class FakeAccessProvisioning:
 
     def would_remove_last_administrator(self, subject):
         return False
+
+
+class FakeTransaction:
+    def commit(self):
+        pass
 
 
 class FakeClock:
@@ -164,6 +172,7 @@ def _build_test_app(
     access = FakeAccessProvisioning()
     clock = FakeClock()
     identity = FakeIdentity()
+    transaction = FakeTransaction()
 
     use_cases = AuthUseCases(
         get_current_authentication=GetCurrentAuthentication(repo),
@@ -194,6 +203,7 @@ def _build_test_app(
             audit_repository=audits,
             identity_provider=provider,
             access_provisioning=access,
+            transaction=transaction,
             clock=clock,
             identity=identity,
         ),
@@ -202,6 +212,7 @@ def _build_test_app(
             audit_repository=audits,
             identity_provider=provider,
             access_provisioning=access,
+            transaction=transaction,
             clock=clock,
             identity=identity,
         ),
@@ -303,7 +314,7 @@ class TestDisableEndpoint(unittest.TestCase):
     def test_returns_503_when_provider_unavailable(self):
         account = _make_active_account()
         provider = FakeIdentityProvider(ban_raises=True)
-        client, _ = _build_test_app(
+        client, repo = _build_test_app(
             accounts={"acc-1": account}, provider=provider
         )
 
@@ -317,6 +328,9 @@ class TestDisableEndpoint(unittest.TestCase):
             response.json()["error"]["code"],
             "authentication_provider_unavailable",
         )
+        saved = repo.find_by_id("acc-1")
+        assert saved is not None
+        self.assertEqual(saved.status.value, "disabled")
 
 
 # ─── Enable Tests ───────────────────────────────────────────────────────────────

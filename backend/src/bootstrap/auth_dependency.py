@@ -5,15 +5,15 @@ resolver and a typed AuthUseCases container built per-request with shared
 SQLAlchemy session scope (preserving access-provisioning session sharing).
 """
 
-from collections.abc import Callable
 from typing import Annotated
 
 from auth.adapters.identity_provider.admin_client import IdentityProviderAdapter
 from auth.adapters.identity_provider.jwt_validator import TokenValidatorAdapter
+from auth.adapters.identity_provider.request_pipeline import RequestPipeline
 from auth.adapters.persistence.account_repository import AuthAccountRepositoryAdapter
 from auth.adapters.persistence.audit_repository import AuthAuditRepositoryAdapter
+from auth.application.auth_use_cases import AuthUseCaseProvider, AuthUseCases
 from auth.application.change_required_password import ChangeRequiredPassword
-from auth.application.auth_use_cases import AuthUseCases, AuthUseCaseProvider
 from auth.application.disable_account import DisableAccount
 from auth.application.enable_account import EnableAccount
 from auth.application.get_account import GetAccount
@@ -30,9 +30,9 @@ from infra.identity import SystemIdentity
 from infra.persistence.record_registry import register_auth_records
 from shared.identity import AuthenticatedIdentity, IdentityResolver
 from sqlalchemy.orm import Session
-from supabase import create_client
 
 from bootstrap.database_session_dependency import SessionProvider
+from supabase import create_client
 
 
 def compose_auth(
@@ -58,7 +58,6 @@ def compose_auth(
 
     # Create admin client for server-side identity operations
     provider_client = create_client(provider_settings.url, service_role_key)
-    identity_provider = IdentityProviderAdapter(provider_client)
 
     # Token validator as the identity resolver (JWKS preferred, HMAC fallback)
     jwks_url = f"{provider_settings.url}/auth/v1/.well-known/jwks.json"
@@ -67,8 +66,17 @@ def compose_auth(
         jwt_secret=jwt_secret,
     )
 
-    def identity_resolver(request: Request) -> AuthenticatedIdentity:
-        return token_validator.resolve_identity(request)
+    def identity_resolver(
+        request: Request,
+        session: Annotated[Session, Depends(session_provider)],
+    ) -> AuthenticatedIdentity:
+        identity = token_validator.resolve_identity(request)
+        identity_provider = IdentityProviderAdapter(provider_client, session)
+        pipeline = RequestPipeline(
+            account_repository=AuthAccountRepositoryAdapter(session),
+            identity_provider=identity_provider,
+        )
+        return pipeline.validate(identity, request.url.path, request.method)
 
     # Shared infra adapters
     clock = SystemClock()
@@ -79,23 +87,24 @@ def compose_auth(
     ) -> AuthUseCases:
         account_repo = AuthAccountRepositoryAdapter(session)
         audit_repo = AuthAuditRepositoryAdapter(session)
+        identity_provider = IdentityProviderAdapter(provider_client, session)
 
         # Build the real Access provisioning adapter sharing this session
         from access.adapters.access_provisioning import AccessProvisioningAdapter
-        from access.adapters.persistence.audit_repository import (
-            AccessAuditRepositoryAdapter,
-        )
-        from access.adapters.persistence.user_repository import (
-            AccessUserRepositoryAdapter,
-        )
         from access.adapters.persistence.assignment_repository import (
             AssignmentRepositoryAdapter,
+        )
+        from access.adapters.persistence.audit_repository import (
+            AccessAuditRepositoryAdapter,
         )
         from access.adapters.persistence.role_repository import (
             RoleRepositoryAdapter,
         )
         from access.adapters.persistence.transaction import (
             TransactionAdapter as AccessTransactionAdapter,
+        )
+        from access.adapters.persistence.user_repository import (
+            AccessUserRepositoryAdapter,
         )
         from access.application.activate_access_user import ActivateAccessUser
         from access.application.create_access_user import CreateAccessUser
@@ -165,6 +174,7 @@ def compose_auth(
                 audit_repository=audit_repo,
                 identity_provider=identity_provider,
                 access_provisioning=access_provisioning,
+                transaction=access_transaction,
                 clock=clock,
                 identity=identity_gen,
             ),
@@ -173,6 +183,7 @@ def compose_auth(
                 audit_repository=audit_repo,
                 identity_provider=identity_provider,
                 access_provisioning=access_provisioning,
+                transaction=access_transaction,
                 clock=clock,
                 identity=identity_gen,
             ),

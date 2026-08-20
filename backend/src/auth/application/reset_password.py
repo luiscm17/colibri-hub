@@ -6,12 +6,13 @@ from auth.domain.errors import (
     LastSystemAdministratorRequired,
     VersionConflict,
 )
-from auth.ports.account_repository import AuthAccountRepository
 from auth.ports.access_provisioning import AccessProvisioningPort
+from auth.ports.account_repository import AuthAccountRepository
 from auth.ports.audit_repository import AuthAuditEntry, AuthAuditRepository
 from auth.ports.clock import ClockPort
 from auth.ports.identity import IdentityPort
 from auth.ports.identity_provider import IdentityProviderPort
+from auth.ports.transaction import Transaction
 
 
 class ResetPassword:
@@ -28,6 +29,7 @@ class ResetPassword:
         audit_repository: AuthAuditRepository,
         identity_provider: IdentityProviderPort,
         access_provisioning: AccessProvisioningPort,
+        transaction: Transaction,
         clock: ClockPort,
         identity: IdentityPort,
     ) -> None:
@@ -35,6 +37,7 @@ class ResetPassword:
         self._audits = audit_repository
         self._provider = identity_provider
         self._access = access_provisioning
+        self._transaction = transaction
         self._clock = clock
         self._identity = identity
 
@@ -54,13 +57,14 @@ class ResetPassword:
         now = self._clock.now()
         account.reset_to_awaiting(now)
         self._accounts.save(account)
+        self._transaction.commit()
 
         # Provider operations after account denial is persisted
         self._provider.update_password(
             subject=account.identity_subject,
             new_password=command.provisional_password,
         )
-        self._provider.revoke_sessions(subject=account.identity_subject)
+        self._provider.revoke_subject_sessions(subject=account.identity_subject)
 
         operation_id = self._identity.generate_operation_id()
         self._audits.append(

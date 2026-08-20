@@ -26,8 +26,10 @@ from auth.domain.email import NormalizedEmail
 from auth.domain.errors import (
     AccountNotFound,
     AccountStateConflict,
+    AuthenticationRequired,
     DuplicateEmail,
     LastSystemAdministratorRequired,
+    ProviderUnavailable,
     ReplacementPasswordMustDiffer,
     VersionConflict,
 )
@@ -89,9 +91,12 @@ class FakeIdentityProvider:
         self.password_updates: list[dict] = []
         self.banned: set[str] = set()
         self.unbanned: set[str] = set()
-        self.revoked: set[str] = set()
+        self.revoked_sessions: list[tuple[str, str]] = []
+        self.revoke_subjects: list[str] = []
         self.deleted: set[str] = set()
         self._next_subject = "provider-sub-001"
+        self.failure: str | None = None
+        self.events: list[str] = []
 
     def create_user(self, *, email: str, password: str) -> ProviderIdentity:
         self.created_users.append({"email": email})
@@ -99,19 +104,31 @@ class FakeIdentityProvider:
         return result
 
     def update_password(self, *, subject: str, new_password: str):
+        self.events.append("update_password")
+        if self.failure == "update_password":
+            raise ProviderUnavailable()
         self.password_updates.append({"subject": subject})
 
     def ban_user(self, *, subject: str):
+        self.events.append("ban_user")
+        if self.failure == "ban_user":
+            raise ProviderUnavailable()
         self.banned.add(subject)
 
     def unban_user(self, *, subject: str):
         self.unbanned.add(subject)
 
-    def revoke_sessions(self, *, subject: str):
-        self.revoked.add(subject)
+    def revoke_session(self, *, session_id: str, subject: str):
+        self.revoked_sessions.append((session_id, subject))
 
-    def get_session(self, *, session_id: str):
-        return None
+    def revoke_subject_sessions(self, *, subject: str):
+        self.events.append("revoke_subject_sessions")
+        if self.failure == "revoke_subject_sessions":
+            raise ProviderUnavailable()
+        self.revoke_subjects.append(subject)
+
+    def has_active_session(self, *, session_id: str, subject: str) -> bool:
+        return False
 
     def delete_user(self, *, subject: str):
         self.deleted.add(subject)
@@ -127,8 +144,20 @@ class FakeAccessProvisioning:
         self.deactivated: list[str] = []
         self._would_remove_last = would_remove_last
 
-    def provision_profile(self, *, subject, profile_code, display_name="", role_codes, actor_subject, reason, operation_id):
-        self.provisioned.append({"subject": subject, "role_codes": role_codes, "display_name": display_name})
+    def provision_profile(
+        self,
+        *,
+        subject,
+        profile_code,
+        display_name="",
+        role_codes,
+        actor_subject,
+        reason,
+        operation_id,
+    ):
+        self.provisioned.append(
+            {"subject": subject, "role_codes": role_codes, "display_name": display_name}
+        )
 
     def activate_profile(self, *, subject, actor_subject, reason, operation_id):
         self.activated.append(subject)
@@ -138,6 +167,17 @@ class FakeAccessProvisioning:
 
     def would_remove_last_administrator(self, subject: str) -> bool:
         return self._would_remove_last
+
+
+class FakeTransaction:
+    def __init__(self, events: list[str] | None = None):
+        self.commits = 0
+        self.events = events
+
+    def commit(self) -> None:
+        self.commits += 1
+        if self.events is not None:
+            self.events.append("commit")
 
 
 class FakeClock:
@@ -171,9 +211,12 @@ class TestGetCurrentAuthentication(unittest.TestCase):
 
     def test_returns_change_password_for_awaiting(self):
         account = AuthenticationAccount.provision(
-            account_id="acc-1", identity_subject="sub-1",
-            email=NormalizedEmail.from_raw("u@e.com"), display_name="U",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
+            account_id="acc-1",
+            identity_subject="sub-1",
+            email=NormalizedEmail.from_raw("u@e.com"),
+            display_name="U",
+            user_code="USR-1",
+            now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         self.repo.save(account)
         result = self.use_case.execute("sub-1")
@@ -182,9 +225,12 @@ class TestGetCurrentAuthentication(unittest.TestCase):
 
     def test_returns_load_access_for_active(self):
         account = AuthenticationAccount.provision(
-            account_id="acc-1", identity_subject="sub-1",
-            email=NormalizedEmail.from_raw("u@e.com"), display_name="U",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
+            account_id="acc-1",
+            identity_subject="sub-1",
+            email=NormalizedEmail.from_raw("u@e.com"),
+            display_name="U",
+            user_code="USR-1",
+            now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         account.activate(datetime(2026, 1, 2, tzinfo=UTC))
         self.repo.save(account)
@@ -211,16 +257,21 @@ class TestChangeRequiredPassword(unittest.TestCase):
             identity=self.identity,
         )
         self.account = AuthenticationAccount.provision(
-            account_id="acc-1", identity_subject="sub-1",
-            email=NormalizedEmail.from_raw("u@e.com"), display_name="U",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
+            account_id="acc-1",
+            identity_subject="sub-1",
+            email=NormalizedEmail.from_raw("u@e.com"),
+            display_name="U",
+            user_code="USR-1",
+            now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         self.repo.save(self.account)
 
     def test_activates_account_after_password_change(self):
         cmd = ChangePasswordCommand(
-            current_password="provisional", new_password="replacement",
-            actor_subject="sub-1", session_id="ses-1",
+            current_password="provisional",
+            new_password="replacement",
+            actor_subject="sub-1",
+            session_id="ses-1",
         )
         self.use_case.execute(cmd)
         saved = self.repo.find_by_subject("sub-1")
@@ -229,8 +280,10 @@ class TestChangeRequiredPassword(unittest.TestCase):
 
     def test_rejects_same_password(self):
         cmd = ChangePasswordCommand(
-            current_password="same", new_password="same",
-            actor_subject="sub-1", session_id=None,
+            current_password="same",
+            new_password="same",
+            actor_subject="sub-1",
+            session_id=None,
         )
         with self.assertRaises(ReplacementPasswordMustDiffer):
             self.use_case.execute(cmd)
@@ -239,24 +292,30 @@ class TestChangeRequiredPassword(unittest.TestCase):
         self.account.activate(datetime(2026, 1, 2, tzinfo=UTC))
         self.repo.save(self.account)
         cmd = ChangePasswordCommand(
-            current_password="old", new_password="new",
-            actor_subject="sub-1", session_id=None,
+            current_password="old",
+            new_password="new",
+            actor_subject="sub-1",
+            session_id=None,
         )
         with self.assertRaises(AccountStateConflict):
             self.use_case.execute(cmd)
 
     def test_updates_provider_password(self):
         cmd = ChangePasswordCommand(
-            current_password="provisional", new_password="replacement",
-            actor_subject="sub-1", session_id=None,
+            current_password="provisional",
+            new_password="replacement",
+            actor_subject="sub-1",
+            session_id=None,
         )
         self.use_case.execute(cmd)
         self.assertEqual(len(self.provider.password_updates), 1)
 
     def test_records_audit_without_secrets(self):
         cmd = ChangePasswordCommand(
-            current_password="provisional", new_password="replacement",
-            actor_subject="sub-1", session_id="ses-1",
+            current_password="provisional",
+            new_password="replacement",
+            actor_subject="sub-1",
+            session_id="ses-1",
         )
         self.use_case.execute(cmd)
         self.assertEqual(len(self.audits.entries), 1)
@@ -286,9 +345,12 @@ class TestProvisionAccount(unittest.TestCase):
 
     def test_provisions_successfully(self):
         cmd = ProvisionAccountCommand(
-            email="new@example.com", provisional_password="temp123",
-            user_code="USR-002", display_name="New Person",
-            role_codes=["operator"], reason="Assign operator role",
+            email="new@example.com",
+            provisional_password="temp123",
+            user_code="USR-002",
+            display_name="New Person",
+            role_codes=["operator"],
+            reason="Assign operator role",
             actor_subject="admin-sub",
         )
         result = self.use_case.execute(cmd)
@@ -299,16 +361,22 @@ class TestProvisionAccount(unittest.TestCase):
 
     def test_rejects_duplicate_email(self):
         existing = AuthenticationAccount.provision(
-            account_id="acc-existing", identity_subject="sub-existing",
+            account_id="acc-existing",
+            identity_subject="sub-existing",
             email=NormalizedEmail.from_raw("dup@example.com"),
-            display_name="Existing", user_code="USR-001",
+            display_name="Existing",
+            user_code="USR-001",
             now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         self.repo.save(existing)
         cmd = ProvisionAccountCommand(
-            email="DUP@example.com", provisional_password="temp",
-            user_code="USR-003", display_name="Dup",
-            role_codes=["r1"], reason="test", actor_subject="admin",
+            email="DUP@example.com",
+            provisional_password="temp",
+            user_code="USR-003",
+            display_name="Dup",
+            role_codes=["r1"],
+            reason="test",
+            actor_subject="admin",
         )
         with self.assertRaises(DuplicateEmail):
             self.use_case.execute(cmd)
@@ -321,9 +389,13 @@ class TestProvisionAccount(unittest.TestCase):
         self.repo.save = failing_save
 
         cmd = ProvisionAccountCommand(
-            email="fail@example.com", provisional_password="temp",
-            user_code="USR-004", display_name="Fail",
-            role_codes=["r1"], reason="test", actor_subject="admin",
+            email="fail@example.com",
+            provisional_password="temp",
+            user_code="USR-004",
+            display_name="Fail",
+            role_codes=["r1"],
+            reason="test",
+            actor_subject="admin",
         )
         with self.assertRaises(RuntimeError):
             self.use_case.execute(cmd)
@@ -332,9 +404,13 @@ class TestProvisionAccount(unittest.TestCase):
 
     def test_audit_does_not_contain_password(self):
         cmd = ProvisionAccountCommand(
-            email="audit@example.com", provisional_password="secret123",
-            user_code="USR-005", display_name="Audit Test",
-            role_codes=["r1"], reason="test", actor_subject="admin",
+            email="audit@example.com",
+            provisional_password="secret123",
+            user_code="USR-005",
+            display_name="Audit Test",
+            role_codes=["r1"],
+            reason="test",
+            actor_subject="admin",
         )
         self.use_case.execute(cmd)
         self.assertEqual(len(self.audits.entries), 1)
@@ -351,36 +427,49 @@ class TestResetPassword(unittest.TestCase):
         self.access = FakeAccessProvisioning()
         self.clock = FakeClock()
         self.identity = FakeIdentity()
+        self.transaction = FakeTransaction(self.provider.events)
         self.use_case = ResetPassword(
             account_repository=self.repo,
             audit_repository=self.audits,
             identity_provider=self.provider,
             access_provisioning=self.access,
+            transaction=self.transaction,
             clock=self.clock,
             identity=self.identity,
         )
         self.account = AuthenticationAccount.provision(
-            account_id="acc-1", identity_subject="sub-1",
-            email=NormalizedEmail.from_raw("u@e.com"), display_name="U",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
+            account_id="acc-1",
+            identity_subject="sub-1",
+            email=NormalizedEmail.from_raw("u@e.com"),
+            display_name="U",
+            user_code="USR-1",
+            now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         self.account.activate(datetime(2026, 1, 2, tzinfo=UTC))
         self.repo.save(self.account)
 
     def test_resets_to_awaiting(self):
         cmd = ResetPasswordCommand(
-            account_id="acc-1", provisional_password="newtemp",
-            reason="Forgot", expected_version=2, actor_subject="admin-sub",
+            account_id="acc-1",
+            provisional_password="newtemp",
+            reason="Forgot",
+            expected_version=2,
+            actor_subject="admin-sub",
         )
         self.use_case.execute(cmd)
         saved = self.repo.find_by_id("acc-1")
         assert saved is not None
-        self.assertEqual(saved.status, AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE)
+        self.assertEqual(
+            saved.status, AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE
+        )
 
     def test_rejects_stale_version(self):
         cmd = ResetPasswordCommand(
-            account_id="acc-1", provisional_password="newtemp",
-            reason="Forgot", expected_version=99, actor_subject="admin-sub",
+            account_id="acc-1",
+            provisional_password="newtemp",
+            reason="Forgot",
+            expected_version=99,
+            actor_subject="admin-sub",
         )
         with self.assertRaises(VersionConflict):
             self.use_case.execute(cmd)
@@ -388,19 +477,46 @@ class TestResetPassword(unittest.TestCase):
     def test_rejects_last_admin_removal(self):
         self.access._would_remove_last = True
         cmd = ResetPasswordCommand(
-            account_id="acc-1", provisional_password="newtemp",
-            reason="Forgot", expected_version=2, actor_subject="admin-sub",
+            account_id="acc-1",
+            provisional_password="newtemp",
+            reason="Forgot",
+            expected_version=2,
+            actor_subject="admin-sub",
         )
         with self.assertRaises(LastSystemAdministratorRequired):
             self.use_case.execute(cmd)
 
     def test_revokes_provider_sessions(self):
         cmd = ResetPasswordCommand(
-            account_id="acc-1", provisional_password="newtemp",
-            reason="Forgot", expected_version=2, actor_subject="admin-sub",
+            account_id="acc-1",
+            provisional_password="newtemp",
+            reason="Forgot",
+            expected_version=2,
+            actor_subject="admin-sub",
         )
         self.use_case.execute(cmd)
-        self.assertIn("sub-1", self.provider.revoked)
+        self.assertEqual(self.provider.revoke_subjects, ["sub-1"])
+        self.assertEqual(self.provider.revoked_sessions, [])
+        self.assertEqual(
+            self.provider.events,
+            ["commit", "update_password", "revoke_subject_sessions"],
+        )
+
+    def test_preserves_local_denial_without_auth_audit_when_provider_fails(self):
+        self.provider.failure = "update_password"
+        cmd = ResetPasswordCommand("acc-1", "newtemp", "Forgot", 2, "admin-sub")
+
+        with self.assertRaises(ProviderUnavailable):
+            self.use_case.execute(cmd)
+
+        saved = self.repo.find_by_id("acc-1")
+        assert saved is not None
+        self.assertEqual(
+            saved.status,
+            AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE,
+        )
+        self.assertEqual(self.transaction.commits, 1)
+        self.assertEqual(self.audits.entries, [])
 
 
 class TestDisableAccount(unittest.TestCase):
@@ -411,26 +527,33 @@ class TestDisableAccount(unittest.TestCase):
         self.access = FakeAccessProvisioning()
         self.clock = FakeClock()
         self.identity = FakeIdentity()
+        self.transaction = FakeTransaction(self.provider.events)
         self.use_case = DisableAccount(
             account_repository=self.repo,
             audit_repository=self.audits,
             identity_provider=self.provider,
             access_provisioning=self.access,
+            transaction=self.transaction,
             clock=self.clock,
             identity=self.identity,
         )
         self.account = AuthenticationAccount.provision(
-            account_id="acc-1", identity_subject="sub-1",
-            email=NormalizedEmail.from_raw("u@e.com"), display_name="U",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
+            account_id="acc-1",
+            identity_subject="sub-1",
+            email=NormalizedEmail.from_raw("u@e.com"),
+            display_name="U",
+            user_code="USR-1",
+            now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         self.account.activate(datetime(2026, 1, 2, tzinfo=UTC))
         self.repo.save(self.account)
 
     def test_disables_account(self):
         cmd = DisableAccountCommand(
-            account_id="acc-1", reason="Left org",
-            expected_version=2, actor_subject="admin-sub",
+            account_id="acc-1",
+            reason="Left org",
+            expected_version=2,
+            actor_subject="admin-sub",
         )
         self.use_case.execute(cmd)
         saved = self.repo.find_by_id("acc-1")
@@ -439,26 +562,69 @@ class TestDisableAccount(unittest.TestCase):
 
     def test_deactivates_access_profile(self):
         cmd = DisableAccountCommand(
-            account_id="acc-1", reason="Left org",
-            expected_version=2, actor_subject="admin-sub",
+            account_id="acc-1",
+            reason="Left org",
+            expected_version=2,
+            actor_subject="admin-sub",
         )
         self.use_case.execute(cmd)
         self.assertIn("sub-1", self.access.deactivated)
 
     def test_bans_and_revokes_provider(self):
         cmd = DisableAccountCommand(
-            account_id="acc-1", reason="Left org",
-            expected_version=2, actor_subject="admin-sub",
+            account_id="acc-1",
+            reason="Left org",
+            expected_version=2,
+            actor_subject="admin-sub",
         )
         self.use_case.execute(cmd)
         self.assertIn("sub-1", self.provider.banned)
-        self.assertIn("sub-1", self.provider.revoked)
+        self.assertEqual(self.provider.revoke_subjects, ["sub-1"])
+        self.assertEqual(self.provider.revoked_sessions, [])
+        self.assertEqual(
+            self.provider.events,
+            ["commit", "ban_user", "revoke_subject_sessions"],
+        )
+
+    def test_preserves_local_denial_without_auth_audit_when_ban_fails(self):
+        self.provider.failure = "ban_user"
+        cmd = DisableAccountCommand("acc-1", "Left org", 2, "admin-sub")
+
+        with self.assertRaises(ProviderUnavailable):
+            self.use_case.execute(cmd)
+
+        saved = self.repo.find_by_id("acc-1")
+        assert saved is not None
+        self.assertEqual(
+            saved.status,
+            AuthenticationAccountStatus.DISABLED,
+        )
+        self.assertEqual(self.transaction.commits, 1)
+        self.assertEqual(self.audits.entries, [])
+
+    def test_preserves_local_denial_without_auth_audit_when_revocation_fails(self):
+        self.provider.failure = "revoke_subject_sessions"
+        cmd = DisableAccountCommand("acc-1", "Left org", 2, "admin-sub")
+
+        with self.assertRaises(ProviderUnavailable):
+            self.use_case.execute(cmd)
+
+        saved = self.repo.find_by_id("acc-1")
+        assert saved is not None
+        self.assertEqual(
+            saved.status,
+            AuthenticationAccountStatus.DISABLED,
+        )
+        self.assertEqual(self.transaction.commits, 1)
+        self.assertEqual(self.audits.entries, [])
 
     def test_rejects_last_admin(self):
         self.access._would_remove_last = True
         cmd = DisableAccountCommand(
-            account_id="acc-1", reason="Left org",
-            expected_version=2, actor_subject="admin-sub",
+            account_id="acc-1",
+            reason="Left org",
+            expected_version=2,
+            actor_subject="admin-sub",
         )
         with self.assertRaises(LastSystemAdministratorRequired):
             self.use_case.execute(cmd)
@@ -481,9 +647,12 @@ class TestEnableAccount(unittest.TestCase):
             identity=self.identity,
         )
         self.account = AuthenticationAccount.provision(
-            account_id="acc-1", identity_subject="sub-1",
-            email=NormalizedEmail.from_raw("u@e.com"), display_name="U",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
+            account_id="acc-1",
+            identity_subject="sub-1",
+            email=NormalizedEmail.from_raw("u@e.com"),
+            display_name="U",
+            user_code="USR-1",
+            now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         self.account.activate(datetime(2026, 1, 2, tzinfo=UTC))
         self.account.disable(datetime(2026, 1, 3, tzinfo=UTC))
@@ -491,34 +660,48 @@ class TestEnableAccount(unittest.TestCase):
 
     def test_enables_disabled_account(self):
         cmd = EnableAccountCommand(
-            account_id="acc-1", provisional_password="newtemp",
-            reason="Restored", expected_version=3, actor_subject="admin-sub",
+            account_id="acc-1",
+            provisional_password="newtemp",
+            reason="Restored",
+            expected_version=3,
+            actor_subject="admin-sub",
         )
         self.use_case.execute(cmd)
         saved = self.repo.find_by_id("acc-1")
         assert saved is not None
-        self.assertEqual(saved.status, AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE)
+        self.assertEqual(
+            saved.status, AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE
+        )
 
     def test_activates_access_profile(self):
         cmd = EnableAccountCommand(
-            account_id="acc-1", provisional_password="newtemp",
-            reason="Restored", expected_version=3, actor_subject="admin-sub",
+            account_id="acc-1",
+            provisional_password="newtemp",
+            reason="Restored",
+            expected_version=3,
+            actor_subject="admin-sub",
         )
         self.use_case.execute(cmd)
         self.assertIn("sub-1", self.access.activated)
 
     def test_unbans_provider(self):
         cmd = EnableAccountCommand(
-            account_id="acc-1", provisional_password="newtemp",
-            reason="Restored", expected_version=3, actor_subject="admin-sub",
+            account_id="acc-1",
+            provisional_password="newtemp",
+            reason="Restored",
+            expected_version=3,
+            actor_subject="admin-sub",
         )
         self.use_case.execute(cmd)
         self.assertIn("sub-1", self.provider.unbanned)
 
     def test_rejects_stale_version(self):
         cmd = EnableAccountCommand(
-            account_id="acc-1", provisional_password="newtemp",
-            reason="Restored", expected_version=1, actor_subject="admin-sub",
+            account_id="acc-1",
+            provisional_password="newtemp",
+            reason="Restored",
+            expected_version=1,
+            actor_subject="admin-sub",
         )
         with self.assertRaises(VersionConflict):
             self.use_case.execute(cmd)
@@ -539,17 +722,28 @@ class TestRecordLogout(unittest.TestCase):
             identity=self.identity,
         )
         self.account = AuthenticationAccount.provision(
-            account_id="acc-1", identity_subject="sub-1",
-            email=NormalizedEmail.from_raw("u@e.com"), display_name="U",
-            user_code="USR-1", now=datetime(2026, 1, 1, tzinfo=UTC),
+            account_id="acc-1",
+            identity_subject="sub-1",
+            email=NormalizedEmail.from_raw("u@e.com"),
+            display_name="U",
+            user_code="USR-1",
+            now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         self.repo.save(self.account)
 
     def test_records_logout_and_revokes(self):
         self.use_case.execute(identity_subject="sub-1", session_id="ses-1")
-        self.assertIn("sub-1", self.provider.revoked)
+        self.assertEqual(self.provider.revoked_sessions, [("ses-1", "sub-1")])
+        self.assertEqual(self.provider.revoke_subjects, [])
         self.assertEqual(len(self.audits.entries), 1)
         self.assertEqual(self.audits.entries[0].event_type, "logout")
+
+    def test_rejects_logout_without_session_id_without_side_effects(self):
+        with self.assertRaises(AuthenticationRequired):
+            self.use_case.execute(identity_subject="sub-1", session_id=None)
+
+        self.assertEqual(self.provider.revoked_sessions, [])
+        self.assertEqual(self.audits.entries, [])
 
     def test_raises_for_unknown_subject(self):
         with self.assertRaises(AccountNotFound):
@@ -561,9 +755,11 @@ class TestListAccounts(unittest.TestCase):
         repo = InMemoryAccountRepository()
         for i in range(3):
             a = AuthenticationAccount.provision(
-                account_id=f"acc-{i}", identity_subject=f"sub-{i}",
+                account_id=f"acc-{i}",
+                identity_subject=f"sub-{i}",
                 email=NormalizedEmail.from_raw(f"u{i}@e.com"),
-                display_name=f"User {i}", user_code=f"USR-{i}",
+                display_name=f"User {i}",
+                user_code=f"USR-{i}",
                 now=datetime(2026, 1, 1, tzinfo=UTC),
             )
             repo.save(a)
@@ -576,26 +772,49 @@ class TestListAudits(unittest.TestCase):
     def test_rejects_missing_audit_timestamp_at_the_dto_boundary(self):
         with self.assertRaises(ValueError):
             AuthAuditEntry(
-                "audit-1", "operation-1", "logout", "succeeded", None, None,
-                None, None, {}, cast(str, None),
+                "audit-1",
+                "operation-1",
+                "logout",
+                "succeeded",
+                None,
+                None,
+                None,
+                None,
+                {},
+                cast(str, None),
             )
 
     def test_merges_uuid_subjects_and_leaves_unsafe_subjects_uncorrelated(self):
         accounts = InMemoryAccountRepository()
         account = AuthenticationAccount.provision(
-            account_id="acc-1", identity_subject="123e4567-e89b-12d3-a456-426614174000",
-            email=NormalizedEmail.from_raw("a@example.com"), display_name="A", user_code="A",
+            account_id="acc-1",
+            identity_subject="123e4567-e89b-12d3-a456-426614174000",
+            email=NormalizedEmail.from_raw("a@example.com"),
+            display_name="A",
+            user_code="A",
             now=datetime(2026, 1, 1, tzinfo=UTC),
         )
         accounts.save(account)
         audits = InMemoryAuditRepository()
         provider = FakeIdentityProvider()
         provider.list_successful_login_audit_evidence = lambda **_: [
-            ProviderLoginAuditEvidence("p-unsafe", "2026-08-03T12:00:00+00:00", "email@example.com", "login_succeeded"),
-            ProviderLoginAuditEvidence("p-safe", "2026-08-03T12:00:00+00:00", account.identity_subject, "login_succeeded"),
+            ProviderLoginAuditEvidence(
+                "p-unsafe",
+                "2026-08-03T12:00:00+00:00",
+                "email@example.com",
+                "login_succeeded",
+            ),
+            ProviderLoginAuditEvidence(
+                "p-safe",
+                "2026-08-03T12:00:00+00:00",
+                account.identity_subject,
+                "login_succeeded",
+            ),
         ]
         page = ListAudits(audits, accounts, provider, FakeClock()).execute()
-        self.assertEqual([entry.audit_id for entry in page.entries], ["p-safe", "p-unsafe"])
+        self.assertEqual(
+            [entry.audit_id for entry in page.entries], ["p-safe", "p-unsafe"]
+        )
         self.assertEqual(page.entries[0].affected_account_id, "acc-1")
         self.assertIsNone(page.entries[1].affected_account_id)
 

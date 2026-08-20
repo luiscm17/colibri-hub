@@ -18,15 +18,6 @@ class ProviderIdentity:
 
 
 @dataclass(frozen=True, slots=True)
-class ProviderSession:
-    """Provider-owned session metadata for age validation."""
-
-    session_id: str
-    created_at: str  # ISO 8601
-    is_active: bool
-
-
-@dataclass(frozen=True, slots=True)
 class ProviderLoginAuditEvidence:
     """Safe, provider-neutral evidence of a successful password login."""
 
@@ -58,12 +49,12 @@ class IdentityProviderPort(Protocol):
         """Restore provider login for this identity."""
         ...
 
-    def revoke_sessions(self, *, subject: str) -> None:
+    def revoke_session(self, *, session_id: str, subject: str) -> None:
         """Revoke all active provider sessions for this identity."""
         ...
 
-    def get_session(self, *, session_id: str) -> ProviderSession | None:
-        """Resolve provider-owned session by ID for age validation."""
+    def revoke_subject_sessions(self, *, subject: str) -> None:
+        """Revoke every provider session belong to this identity."""
         ...
 
     def list_successful_login_audit_evidence(
@@ -78,4 +69,8 @@ class IdentityProviderPort(Protocol):
         Only valid for identities that never completed provisioning.
         Established identities are banned, never deleted.
         """
+        ...
+
+    def has_active_session(self, *, session_id: str, subject: str) -> bool:
+        """Return whether a provider session belongs to the verified identity."""
         ...

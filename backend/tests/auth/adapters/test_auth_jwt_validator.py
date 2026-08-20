@@ -84,7 +84,7 @@ class TestJwtValidatorAdapter(unittest.TestCase):
         with self.assertRaises(AuthenticationRequired):
             self.validator.resolve_identity(request)
 
-    def test_no_session_id_returns_none_session(self):
+    def test_missing_session_id_raises(self):
         payload = {
             "sub": "user-no-session",
             "exp": int(time.time()) + 3600,
@@ -92,9 +92,9 @@ class TestJwtValidatorAdapter(unittest.TestCase):
         }
         token = pyjwt.encode(payload, TEST_SECRET, algorithm="HS256")
         request = self._make_request(token)
-        identity = self.validator.resolve_identity(request)
-        self.assertEqual(identity.subject, "user-no-session")
-        self.assertIsNone(identity.session_id)
+
+        with self.assertRaises(AuthenticationRequired):
+            self.validator.resolve_identity(request)
 
     def test_issuer_validation_when_configured(self):
         validator = TokenValidatorAdapter(

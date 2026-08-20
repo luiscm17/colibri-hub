@@ -1,7 +1,7 @@
 """Unit tests for Authentication request pipeline."""
 
 import unittest
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from auth.adapters.identity_provider.request_pipeline import RequestPipeline
 from auth.domain.account import AuthenticationAccount
@@ -12,7 +12,7 @@ from auth.domain.errors import (
     AuthenticationRequired,
     PasswordChangeRequired,
 )
-from auth.ports.identity_provider import ProviderIdentity, ProviderSession
+from auth.ports.identity_provider import ProviderIdentity
 from shared.identity import AuthenticatedIdentity
 
 # ─── Test Doubles ───────────────────────────────────────────────────────────────
@@ -25,28 +25,53 @@ class FakeAccountRepository:
     def find_by_subject(self, identity_subject: str):
         return self._accounts.get(identity_subject)
 
-    def find_by_email(self, email): return None
-    def find_by_id(self, account_id): return None
-    def list_all(self): return []
-    def list_enabled_administrators(self): return []
-    def save(self, account): pass
+    def find_by_email(self, email):
+        return None
+
+    def find_by_id(self, account_id):
+        return None
+
+    def list_all(self):
+        return []
+
+    def list_enabled_administrators(self):
+        return []
+
+    def save(self, account):
+        pass
 
 
 class FakeIdentityProvider:
-    def __init__(self, sessions: dict[str, ProviderSession] | None = None):
-        self._sessions = sessions or {}
+    def __init__(
+        self,
+        active_sessions: set[tuple[str, str]] | None = None,
+    ):
+        self._active_sessions = active_sessions or set()
 
-    def get_session(self, *, session_id: str):
-        return self._sessions.get(session_id)
+    def has_active_session(self, *, session_id: str, subject: str) -> bool:
+        return (session_id, subject) in self._active_sessions
 
     def create_user(self, *, email: str, password: str) -> ProviderIdentity:
         del password
         return ProviderIdentity(subject="unused", email=email)
-    def update_password(self, **kwargs): pass
-    def ban_user(self, **kwargs): pass
-    def unban_user(self, **kwargs): pass
-    def revoke_sessions(self, **kwargs): pass
-    def delete_user(self, **kwargs): pass
+
+    def update_password(self, **kwargs):
+        pass
+
+    def ban_user(self, **kwargs):
+        pass
+
+    def unban_user(self, **kwargs):
+        pass
+
+    def revoke_session(self, **kwargs):
+        pass
+
+    def revoke_subject_sessions(self, **kwargs):
+        pass
+
+    def delete_user(self, **kwargs):
+        pass
 
     def list_successful_login_audit_evidence(self, *, timestamp_to: str):
         del timestamp_to
@@ -106,65 +131,49 @@ class TestPipelineAccountState(unittest.TestCase):
         self.assertEqual(result.subject, "sub-1")
 
 
-class TestPipelineSessionAge(unittest.TestCase):
-    """Pipeline rejects sessions older than 8 hours."""
-
-    def test_session_within_8h_passes(self):
-        now = datetime.now(UTC)
-        session = ProviderSession(
-            session_id="ses-1",
-            created_at=(now - timedelta(hours=7)).isoformat(),
-            is_active=True,
-        )
+class TestPipelineProviderSession(unittest.TestCase):
+    def test_active_provider_session_passes(self):
         account = _make_account("sub-1")
         pipeline = RequestPipeline(
             account_repository=FakeAccountRepository({"sub-1": account}),
-            identity_provider=FakeIdentityProvider({"ses-1": session}),
+            identity_provider=FakeIdentityProvider({("ses-1", "sub-1")}),
         )
-        identity = AuthenticatedIdentity(subject="sub-1", session_id="ses-1")
-        result = pipeline.validate(identity, "/api/v1/warehouse/bales", "GET")
+
+        result = pipeline.validate(
+            AuthenticatedIdentity(subject="sub-1", session_id="ses-1"),
+            "/api/v1/warehouse/bales",
+            "GET",
+        )
+
         self.assertEqual(result.subject, "sub-1")
 
-    def test_session_at_8h_boundary_raises(self):
-        now = datetime.now(UTC)
-        session = ProviderSession(
-            session_id="ses-1",
-            created_at=(now - timedelta(hours=8, seconds=1)).isoformat(),
-            is_active=True,
-        )
+    def test_missing_provider_session_raises(self):
         account = _make_account("sub-1")
         pipeline = RequestPipeline(
             account_repository=FakeAccountRepository({"sub-1": account}),
-            identity_provider=FakeIdentityProvider({"ses-1": session}),
+            identity_provider=FakeIdentityProvider(),
         )
-        identity = AuthenticatedIdentity(subject="sub-1", session_id="ses-1")
-        with self.assertRaises(AuthenticationRequired):
-            pipeline.validate(identity, "/api/v1/warehouse/bales", "GET")
 
-    def test_ended_session_raises(self):
-        session = ProviderSession(
-            session_id="ses-1",
-            created_at=datetime.now(UTC).isoformat(),
-            is_active=False,
-        )
-        account = _make_account("sub-1")
-        pipeline = RequestPipeline(
-            account_repository=FakeAccountRepository({"sub-1": account}),
-            identity_provider=FakeIdentityProvider({"ses-1": session}),
-        )
-        identity = AuthenticatedIdentity(subject="sub-1", session_id="ses-1")
         with self.assertRaises(AuthenticationRequired):
-            pipeline.validate(identity, "/api/v1/warehouse/bales", "GET")
+            pipeline.validate(
+                AuthenticatedIdentity(subject="sub-1", session_id="ses-gone"),
+                "/api/v1/warehouse/bales",
+                "GET",
+            )
 
-    def test_missing_session_in_provider_raises(self):
+    def test_session_owned_by_another_subject_raises(self):
         account = _make_account("sub-1")
         pipeline = RequestPipeline(
             account_repository=FakeAccountRepository({"sub-1": account}),
-            identity_provider=FakeIdentityProvider(),  # empty — session not found
+            identity_provider=FakeIdentityProvider({("ses-1", "other-subject")}),
         )
-        identity = AuthenticatedIdentity(subject="sub-1", session_id="ses-gone")
+
         with self.assertRaises(AuthenticationRequired):
-            pipeline.validate(identity, "/api/v1/warehouse/bales", "GET")
+            pipeline.validate(
+                AuthenticatedIdentity(subject="sub-1", session_id="ses-1"),
+                "/api/v1/warehouse/bales",
+                "GET",
+            )
 
 
 class TestPipelineAwaitingRestriction(unittest.TestCase):
