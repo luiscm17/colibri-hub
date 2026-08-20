@@ -16,6 +16,14 @@ class TransactionAdapter:
     def __init__(self, session: Session) -> None:
         self._session = session
 
+    def commit(self) -> None:
+        """Commit a checkpoint, rolling back if it cannot be persisted."""
+        try:
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+
     @contextmanager
     def atomic(self):
         try:

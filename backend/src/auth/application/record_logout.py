@@ -1,6 +1,6 @@
 """Use case: record and terminate a logout."""
 
-from auth.domain.errors import AccountNotFound
+from auth.domain.errors import AccountNotFound, AuthenticationRequired
 from auth.ports.account_repository import AuthAccountRepository
 from auth.ports.audit_repository import AuthAuditEntry, AuthAuditRepository
 from auth.ports.clock import ClockPort
@@ -34,8 +34,14 @@ class RecordLogout:
         if account is None:
             raise AccountNotFound(identity_subject)
 
+        if not session_id:
+            raise AuthenticationRequired()
+
         # Revoke provider session (idempotent if already ended)
-        self._provider.revoke_sessions(subject=identity_subject)
+        self._provider.revoke_session(
+            session_id=session_id,
+            subject=identity_subject,
+        )
 
         now = self._clock.now()
         self._audits.append(

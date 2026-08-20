@@ -15,11 +15,14 @@ from __future__ import annotations
 
 import logging
 
+from access.domain.errors import AccessError
+from sqlalchemy.exc import SQLAlchemyError
+
 from auth.domain.account import AuthenticationAccount
 from auth.domain.email import NormalizedEmail
-from auth.domain.errors import DuplicateEmail, IdentityConflict
-from auth.ports.account_repository import AuthAccountRepository
+from auth.domain.errors import AuthenticationError, ProviderUnavailable
 from auth.ports.access_provisioning import AccessProvisioningPort
+from auth.ports.account_repository import AuthAccountRepository
 from auth.ports.audit_repository import AuthAuditEntry, AuthAuditRepository
 from auth.ports.clock import ClockPort
 from auth.ports.identity import IdentityPort
@@ -83,7 +86,7 @@ class BootstrapInitialAdministrator:
             password=provisional_password,
         )
 
-        # Create application account
+        completed = False
         try:
             now = self._clock.now()
             account = AuthenticationAccount.provision(
@@ -125,15 +128,17 @@ class BootstrapInitialAdministrator:
             logger.info(
                 "Initial administrator bootstrapped: %s", account.account_id
             )
+            completed = True
             return account.account_id
-
-        except Exception:
-            # Compensation
-            try:
-                self._provider.delete_user(subject=provider_identity.subject)
-            except Exception:
-                pass
-            raise
+        finally:
+            if not completed:
+                try:
+                    self._provider.delete_user(subject=provider_identity.subject)
+                except ProviderUnavailable:
+                    logger.warning(
+                        "Failed to delete compensating identity %s",
+                        provider_identity.subject,
+                    )
 
 
 def main() -> None:
@@ -183,20 +188,29 @@ def main() -> None:
     session_factory = create_session_factory(engine)
     register_auth_records()
 
-    from auth.adapters.persistence.account_repository import AuthAccountRepositoryAdapter
-    from auth.adapters.persistence.audit_repository import AuthAuditRepositoryAdapter
-    from auth.adapters.identity_provider.admin_client import IdentityProviderAdapter
     from access.adapters.access_provisioning import AccessProvisioningAdapter
-    from access.adapters.persistence.user_repository import AccessUserRepositoryAdapter
-    from access.adapters.persistence.assignment_repository import AssignmentRepositoryAdapter
+    from access.adapters.persistence.assignment_repository import (
+        AssignmentRepositoryAdapter,
+    )
+    from access.adapters.persistence.audit_repository import (
+        AccessAuditRepositoryAdapter,
+    )
     from access.adapters.persistence.role_repository import RoleRepositoryAdapter
-    from access.adapters.persistence.audit_repository import AccessAuditRepositoryAdapter
-    from access.adapters.persistence.transaction import TransactionAdapter as AccessTransactionAdapter
+    from access.adapters.persistence.transaction import (
+        TransactionAdapter as AccessTransactionAdapter,
+    )
+    from access.adapters.persistence.user_repository import AccessUserRepositoryAdapter
     from access.application.activate_access_user import ActivateAccessUser
     from access.application.create_access_user import CreateAccessUser
     from access.application.deactivate_access_user import DeactivateAccessUser
     from infra.clock import SystemClock
     from infra.identity import SystemIdentity
+
+    from auth.adapters.identity_provider.admin_client import IdentityProviderAdapter
+    from auth.adapters.persistence.account_repository import (
+        AuthAccountRepositoryAdapter,
+    )
+    from auth.adapters.persistence.audit_repository import AuthAuditRepositoryAdapter
     from supabase import create_client
 
     provider_settings = settings.auth_provider
@@ -206,7 +220,6 @@ def main() -> None:
 
     service_role_key = provider_settings.service_role_key.get_secret_value()
     provider_client = create_client(provider_settings.url, service_role_key)
-    identity_provider = IdentityProviderAdapter(provider_client)
 
     clock = SystemClock()
     identity_gen = SystemIdentity()
@@ -215,6 +228,7 @@ def main() -> None:
     try:
         account_repo = AuthAccountRepositoryAdapter(session)
         audit_repo = AuthAuditRepositoryAdapter(session)
+        identity_provider = IdentityProviderAdapter(provider_client, session)
 
         access_user_repo = AccessUserRepositoryAdapter(session)
         access_role_repo = RoleRepositoryAdapter(session)
@@ -269,7 +283,7 @@ def main() -> None:
         session.commit()
         print(f"Bootstrap complete. Account ID: {account_id}")
 
-    except Exception as exc:
+    except (AccessError, AuthenticationError, OSError, SQLAlchemyError, ValueError) as exc:
         session.rollback()
         print(f"ERROR: Bootstrap failed: {exc}", file=sys.stderr)
         sys.exit(1)

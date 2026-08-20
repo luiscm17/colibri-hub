@@ -7,14 +7,22 @@ returns provider-neutral DTOs.
 
 from __future__ import annotations
 
-import logging
 import json
+import logging
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Any, Mapping, Never, cast
+from typing import Never, cast
 from uuid import UUID
 
 from httpx import QueryParams
+from sqlalchemy import text
+from sqlalchemy.engine import CursorResult
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+from supabase_auth.errors import AuthError
+
 from auth.domain.errors import (
+    AuthenticationRequired,
     DuplicateEmail,
     IdentityConflict,
     ProviderUnavailable,
@@ -23,7 +31,6 @@ from auth.domain.errors import (
 from auth.ports.identity_provider import (
     ProviderIdentity,
     ProviderLoginAuditEvidence,
-    ProviderSession,
 )
 from supabase import Client as SupabaseClient
 
@@ -39,8 +46,13 @@ MAX_PROVIDER_AUDIT_RESPONSE_BYTES = 2 + MAX_PROVIDER_AUDIT_ENTRIES * (
 class IdentityProviderAdapter:
     """Server-side identity provider administration via service_role key."""
 
-    def __init__(self, client: SupabaseClient) -> None:
+    def __init__(
+        self,
+        client: SupabaseClient,
+        database_session: Session,
+    ) -> None:
         self._client = client
+        self._database_session = database_session
 
     def create_user(self, *, email: str, password: str) -> ProviderIdentity:
         """Create a provider identity without sending email confirmation."""
@@ -56,7 +68,7 @@ class IdentityProviderAdapter:
                 subject=str(response.user.id),
                 email=response.user.email or email,
             )
-        except Exception as exc:
+        except AuthError as exc:
             self._handle_provider_error(exc, context="create_user")
 
     def update_password(self, *, subject: str, new_password: str) -> None:
@@ -65,7 +77,7 @@ class IdentityProviderAdapter:
             self._client.auth.admin.update_user_by_id(
                 subject, {"password": new_password}
             )
-        except Exception as exc:
+        except AuthError as exc:
             self._handle_provider_error(exc, context="update_password")
 
     def ban_user(self, *, subject: str) -> None:
@@ -74,70 +86,85 @@ class IdentityProviderAdapter:
             self._client.auth.admin.update_user_by_id(
                 subject, {"ban_duration": "876600h"}  # ~100 years
             )
-        except Exception as exc:
+        except AuthError as exc:
             self._handle_provider_error(exc, context="ban_user")
 
     def unban_user(self, *, subject: str) -> None:
         """Restore provider login for this identity."""
         try:
-            self._client.auth.admin.update_user_by_id(
-                subject, {"ban_duration": "none"}
-            )
-        except Exception as exc:
+            self._client.auth.admin.update_user_by_id(subject, {"ban_duration": "none"})
+        except AuthError as exc:
             self._handle_provider_error(exc, context="unban_user")
 
-    def revoke_sessions(self, *, subject: str) -> None:
-        """Revoke all active provider sessions for this identity.
-
-        Uses direct deletion from auth.sessions via service-role schema
-        query. This is the same mechanism used by get_session for lookups.
-        """
+    def revoke_session(
+        self,
+        *,
+        session_id: str,
+        subject: str,
+    ) -> None:
+        """Revoke one provider session owned by the verified identity."""
         try:
-            (
-                self._client.schema("auth")
-                .from_("sessions")
-                .delete()
-                .eq("user_id", subject)
-                .execute()
+            result = self._database_session.execute(
+                text("""
+                    DELETE FROM auth.sessions
+                    WHERE id = :session_id
+                    AND user_id = :subject
+                    """),
+                {
+                    "session_id": session_id,
+                    "subject": subject,
+                },
             )
-        except Exception as exc:
-            # Session revocation is best-effort; log but don't fail
-            logger.warning(
-                "Failed to revoke sessions for subject %s: %s",
-                subject,
-                exc,
-            )
+        except SQLAlchemyError as exc:
+            self._handle_provider_error(exc, context="revoke_session")
 
-    def get_session(self, *, session_id: str) -> ProviderSession | None:
-        """Resolve provider-owned session by ID for age validation.
+        delete_result = cast(CursorResult[object], result)
+        if delete_result.rowcount != 1:
+            raise AuthenticationRequired()
 
-        Uses direct database query via service role since the admin API
-        does not expose individual session lookup.
-        """
+    def revoke_subject_sessions(
+        self,
+        *,
+        subject: str,
+    ) -> None:
+        """Revoke every provider session belonging to one identity."""
         try:
-            response = (
-                self._client.schema("auth")
-                .from_("sessions")
-                .select("id, created_at, not_after")
-                .eq("id", session_id)
-                .execute()
+            self._database_session.execute(
+                text("""
+                    DELETE FROM auth.sessions
+                    WHERE user_id = :subject
+                    """),
+                {
+                    "subject": subject,
+                },
             )
+        except SQLAlchemyError as exc:
+            self._handle_provider_error(exc, context="revoke_subject_sessions")
 
-            data = response.data
-            if not data:
-                return None
-
-            row = cast(dict[str, Any], data[0])
-            return ProviderSession(
-                session_id=str(row["id"]),
-                created_at=row["created_at"],
-                is_active=row.get("not_after") is None,
+    def has_active_session(
+        self,
+        *,
+        session_id: str,
+        subject: str,
+    ) -> bool:
+        try:
+            result = self._database_session.execute(
+                text("""
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM auth.sessions
+                        WHERE id = :session_id
+                        AND user_id = :subject
+                    )
+                    """),
+                {
+                    "session_id": session_id,
+                    "subject": subject,
+                },
             )
-        except Exception as exc:
-            logger.warning(
-                "Failed to resolve session %s: %s", session_id, exc
-            )
-            return None
+            return bool(result.scalar_one())
+        except SQLAlchemyError as exc:
+            self._handle_provider_error(exc, context="has_active_session")
 
     def list_successful_login_audit_evidence(
         self, *, timestamp_to: str
@@ -158,9 +185,12 @@ class IdentityProviderAdapter:
             ]
             return sorted(
                 evidence,
-                key=lambda item: (-self._parse_timestamp(item.occurred_at).timestamp(), item.entry_id),
+                key=lambda item: (
+                    -self._parse_timestamp(item.occurred_at).timestamp(),
+                    item.entry_id,
+                ),
             )
-        except Exception as exc:
+        except (AuthError, OSError, ValueError) as exc:
             logger.error(
                 "Provider unavailable during list_successful_login_audit_evidence: %s",
                 type(exc).__name__,
@@ -180,7 +210,11 @@ class IdentityProviderAdapter:
             if not 200 <= response.status_code < 300:
                 raise ValueError("audit request failed")
             content_length = response.headers.get("Content-Length")
-            if content_length and content_length.isdigit() and int(content_length) > MAX_PROVIDER_AUDIT_RESPONSE_BYTES:
+            if (
+                content_length
+                and content_length.isdigit()
+                and int(content_length) > MAX_PROVIDER_AUDIT_RESPONSE_BYTES
+            ):
                 raise ValueError("audit response exceeds byte ceiling")
             body = bytearray()
             for chunk in response.iter_bytes():
@@ -198,16 +232,21 @@ class IdentityProviderAdapter:
         entry_ids: set[str] = set()
         for entry in payload:
             if not isinstance(entry, Mapping):
-                raise ValueError("invalid audit entry")
+                raise TypeError("invalid audit entry")
             entry_id = entry.get("id")
             occurred_at = entry.get("created_at")
             audit_payload = entry.get("payload")
             if not isinstance(entry_id, str) or not entry_id or entry_id in entry_ids:
                 raise ValueError("missing audit entry id")
-            if not isinstance(occurred_at, str) or self._parse_timestamp(occurred_at) > cutoff:
+            if (
+                not isinstance(occurred_at, str)
+                or self._parse_timestamp(occurred_at) > cutoff
+            ):
                 raise ValueError("invalid audit entry timestamp")
-            if not isinstance(audit_payload, Mapping) or not isinstance(audit_payload.get("action"), str):
-                raise ValueError("invalid audit entry payload")
+            if not isinstance(audit_payload, Mapping) or not isinstance(
+                audit_payload.get("action"), str
+            ):
+                raise TypeError("invalid audit entry payload")
             entry_ids.add(entry_id)
             validated_entries.append(entry)
         return validated_entries
@@ -223,7 +262,11 @@ class IdentityProviderAdapter:
     ) -> ProviderLoginAuditEvidence:
         payload = cast(Mapping[str, object], entry["payload"])
         actor_id = payload.get("actor_id")
-        subject = actor_id if isinstance(actor_id, str) and IdentityProviderAdapter._is_uuid(actor_id) else None
+        subject = (
+            actor_id
+            if isinstance(actor_id, str) and IdentityProviderAdapter._is_uuid(actor_id)
+            else None
+        )
         return ProviderLoginAuditEvidence(
             entry_id=cast(str, entry["id"]),
             occurred_at=cast(str, entry["created_at"]),
@@ -233,7 +276,7 @@ class IdentityProviderAdapter:
 
     @staticmethod
     def _parse_timestamp(value: str) -> datetime:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value)
         if parsed.tzinfo is None:
             raise ValueError("timestamp must include timezone")
         return parsed
@@ -250,7 +293,7 @@ class IdentityProviderAdapter:
         """Remove a never-established identity as compensation."""
         try:
             self._client.auth.admin.delete_user(subject)
-        except Exception as exc:
+        except AuthError as exc:
             logger.warning(
                 "Failed to delete compensating identity %s: %s",
                 subject,

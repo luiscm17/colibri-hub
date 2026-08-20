@@ -6,12 +6,13 @@ from auth.domain.errors import (
     LastSystemAdministratorRequired,
     VersionConflict,
 )
-from auth.ports.account_repository import AuthAccountRepository
 from auth.ports.access_provisioning import AccessProvisioningPort
+from auth.ports.account_repository import AuthAccountRepository
 from auth.ports.audit_repository import AuthAuditEntry, AuthAuditRepository
 from auth.ports.clock import ClockPort
 from auth.ports.identity import IdentityPort
 from auth.ports.identity_provider import IdentityProviderPort
+from auth.ports.transaction import Transaction
 
 
 class DisableAccount:
@@ -27,6 +28,7 @@ class DisableAccount:
         audit_repository: AuthAuditRepository,
         identity_provider: IdentityProviderPort,
         access_provisioning: AccessProvisioningPort,
+        transaction: Transaction,
         clock: ClockPort,
         identity: IdentityPort,
     ) -> None:
@@ -34,6 +36,7 @@ class DisableAccount:
         self._audits = audit_repository
         self._provider = identity_provider
         self._access = access_provisioning
+        self._transaction = transaction
         self._clock = clock
         self._identity = identity
 
@@ -63,10 +66,11 @@ class DisableAccount:
             reason=command.reason,
             operation_id=operation_id,
         )
+        self._transaction.commit()
 
         # Provider ban and session revocation
         self._provider.ban_user(subject=account.identity_subject)
-        self._provider.revoke_sessions(subject=account.identity_subject)
+        self._provider.revoke_subject_sessions(subject=account.identity_subject)
 
         self._audits.append(
             AuthAuditEntry(

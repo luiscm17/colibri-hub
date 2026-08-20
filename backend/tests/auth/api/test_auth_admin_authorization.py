@@ -183,11 +183,12 @@ class _FakeIdentityProvider:
     def update_password(self, **kw): pass
     def ban_user(self, **kw): pass
     def unban_user(self, **kw): pass
-    def revoke_sessions(self, **kw): pass
+    def revoke_session(self, **kw): pass
+    def revoke_subject_sessions(self, **kw): pass
     def delete_user(self, **kw): pass
     def list_successful_login_audit_evidence(self, *, timestamp_to): return []
 
-    def get_session(self, *, session_id): return None
+    def has_active_session(self, *, session_id, subject): return False
 
 
 class _FakeAccessProvisioning:
@@ -195,6 +196,10 @@ class _FakeAccessProvisioning:
     def activate_profile(self, **kw): pass
     def deactivate_profile(self, **kw): pass
     def would_remove_last_administrator(self, subject): return False
+
+
+class _FakeTransaction:
+    def commit(self): pass
 
 
 class _FakeClock:
@@ -235,6 +240,7 @@ def _build_app(subject: str) -> TestClient:
     access = _FakeAccessProvisioning()
     clock = _FakeClock()
     identity = _FakeIdentity()
+    transaction = _FakeTransaction()
 
     use_cases = AuthUseCases(
         get_current_authentication=GetCurrentAuthentication(account_repo),
@@ -254,11 +260,13 @@ def _build_app(subject: str) -> TestClient:
         reset_password=ResetPassword(
             account_repository=account_repo, audit_repository=audit_repo,
             identity_provider=provider, access_provisioning=access,
+            transaction=transaction,
             clock=clock, identity=identity,
         ),
         disable_account=DisableAccount(
             account_repository=account_repo, audit_repository=audit_repo,
             identity_provider=provider, access_provisioning=access,
+            transaction=transaction,
             clock=clock, identity=identity,
         ),
         enable_account=EnableAccount(
