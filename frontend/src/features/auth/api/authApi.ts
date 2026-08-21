@@ -1,5 +1,5 @@
 import { httpJson } from '@/api/httpClient'
-import type { AuthMeResponse, PasswordChangeRequest, PasswordChangeResponse } from './authApi.types'
+import type { AuthMeResponse, PasswordChangeRequest } from './authApi.types'
 import type { AuthenticationAccountSummary } from '../model/authenticationState'
 
 export async function fetchCurrentAuthentication(): Promise<AuthMeResponse> {
@@ -9,12 +9,12 @@ export async function fetchCurrentAuthentication(): Promise<AuthMeResponse> {
 export async function submitPasswordChange(
   currentPassword: string,
   newPassword: string,
-): Promise<PasswordChangeResponse> {
+): Promise<void> {
   const body: PasswordChangeRequest = {
     current_password: currentPassword,
     new_password: newPassword,
   }
-  return httpJson<PasswordChangeResponse>('/auth/password-change', {
+  return httpJson<void>('/auth/password-change', {
     method: 'POST',
     body,
   })
@@ -29,7 +29,11 @@ export function mapToAccountSummary(response: AuthMeResponse): AuthenticationAcc
     accountId: response.account_id,
     email: response.email,
     displayName: response.display_name,
-    initials: response.initials,
-    version: response.version,
+    initials: deriveInitials(response.display_name),
   }
+}
+
+function deriveInitials(displayName: string): string {
+  const words = displayName.trim().split(/\s+/).filter(Boolean)
+  return words.slice(0, 2).map((word) => word.charAt(0).toUpperCase()).join('') || '?'
 }

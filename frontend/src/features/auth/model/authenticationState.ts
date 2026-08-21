@@ -3,7 +3,6 @@ export interface AuthenticationAccountSummary {
   email: string
   displayName: string
   initials: string
-  version: number
 }
 
 export type UnauthenticatedReason = 'logged-out' | 'expired' | 'denied'
