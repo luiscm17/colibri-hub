@@ -9,11 +9,11 @@
 | Chained PRs recommended | Yes |
 | Suggested split | PR 1 → PR 2 → PR 3 → PR 4 |
 | Delivery strategy | auto-chain |
-| Chain strategy | stacked-to-main |
+| Chain strategy | feature-branch-chain |
 
 Decision needed before apply: No
 Chained PRs recommended: Yes
-Chain strategy: stacked-to-main
+Chain strategy: feature-branch-chain
 400-line budget risk: High
 
 ### Suggested Work Units
@@ -27,9 +27,9 @@ Chain strategy: stacked-to-main
 
 ## Phase 1: F-1 Typed Policy Rejection (PR 1)
 
-- [ ] 1.1 RED: In `backend/tests/auth/adapters/test_auth_adapter_provider.py`, preserve/add SDK-shaped weak-policy and non-policy failure characterizations: 422 `WeakPassword`, no activation, and no 204.
-- [ ] 1.2 GREEN: In `backend/src/auth/adapters/identity_provider/admin_client.py` and `backend/src/auth/domain/errors.py`, classify only stable policy code/status as `WeakPassword`; redact raw provider payloads and map unknown failures to `ProviderUnavailable`.
-- [ ] 1.3 Verify the focused adapter tests, then the full backend unit suite; retain F-2/F-3 RED characterizations.
+- [x] 1.1 RED: In `backend/tests/auth/adapters/test_auth_adapter_provider.py`, preserve/add SDK-shaped weak-policy and non-policy failure characterizations: 422 `WeakPassword`, no activation, and no 204.
+- [x] 1.2 GREEN: In `backend/src/auth/adapters/identity_provider/admin_client.py` and `backend/src/auth/domain/errors.py`, classify only stable policy code/status as `WeakPassword`; redact raw provider payloads and map unknown failures to `ProviderUnavailable`.
+- [x] 1.3 Verify the focused adapter tests, then the full backend unit suite; retain F-2/F-3 RED characterizations.
 
 ## Phase 2: F-2 Self-Service Rejection Boundary (PR 2)
 

@@ -107,7 +107,7 @@ class ReplacementPasswordMustDiffer(AuthenticationError):
 
 
 class WeakPassword(AuthenticationError):
-    """Provider password policy rejects the value. → 422"""
+    """Provider password policy rejects the value with a redacted 422 outcome."""
 
     code = "weak_password"
 

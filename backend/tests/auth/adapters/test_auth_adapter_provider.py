@@ -168,11 +168,23 @@ class TestHandleProviderError(unittest.TestCase):
                 Exception("duplicate key value"), context="create_user"
             )
 
-    def test_maps_weak_password(self):
-        with self.assertRaises(WeakPassword):
+    def test_maps_sdk_weak_password_code_without_exposing_provider_payload(self):
+        with self.assertRaises(WeakPassword) as raised:
             self.adapter._handle_provider_error(
-                Exception("weak password"), context="create_user"
+                AuthError("provider payload containing a submitted secret", "weak_password"),
+                context="update_password",
             )
+
+        self.assertNotIn("submitted secret", str(raised.exception))
+
+    def test_does_not_map_non_policy_sdk_error_with_weak_message(self):
+        with self.assertRaises(ProviderUnavailable) as raised:
+            self.adapter._handle_provider_error(
+                AuthError("weak password in raw provider payload", "validation_failed"),
+                context="update_password",
+            )
+
+        self.assertNotIn("raw provider payload", str(raised.exception))
 
     def test_maps_unknown_error_to_provider_unavailable(self):
         with self.assertRaises(ProviderUnavailable):
