@@ -150,7 +150,6 @@ def compose_auth(
             change_required_password=ChangeRequiredPassword(
                 account_repository=account_repo,
                 audit_repository=audit_repo,
-                identity_provider=identity_provider,
                 clock=clock,
                 identity=identity_gen,
             ),

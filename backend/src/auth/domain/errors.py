@@ -106,6 +106,15 @@ class ReplacementPasswordMustDiffer(AuthenticationError):
         super().__init__("The new password must differ from the current password.")
 
 
+class CurrentPasswordRejected(AuthenticationError):
+    """Submitted current password was not verified by the provider. → 401"""
+
+    code = "current_password_rejected"
+
+    def __init__(self) -> None:
+        super().__init__("The current password is incorrect.")
+
+
 class WeakPassword(AuthenticationError):
     """Provider password policy rejects the value with a redacted 422 outcome."""
 

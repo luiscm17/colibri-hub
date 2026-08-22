@@ -246,7 +246,7 @@ def _build_app(subject: str) -> TestClient:
         get_current_authentication=GetCurrentAuthentication(account_repo),
         change_required_password=ChangeRequiredPassword(
             account_repository=account_repo, audit_repository=audit_repo,
-            identity_provider=provider, clock=clock, identity=identity,
+            clock=clock, identity=identity,
         ),
         record_logout=RecordLogout(
             account_repository=account_repo, audit_repository=audit_repo,

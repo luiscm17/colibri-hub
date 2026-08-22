@@ -19,6 +19,7 @@ from auth.application.reset_password import ResetPassword
 from auth.domain.account import AuthenticationAccount
 from auth.domain.account_status import AuthenticationAccountStatus
 from auth.domain.email import NormalizedEmail
+from auth.domain.errors import CurrentPasswordRejected
 from auth.ports.audit_repository import AuthAuditEntry
 from auth.ports.identity_provider import ProviderIdentity
 from bootstrap.http_error_handlers import register_exception_handlers
@@ -108,6 +109,15 @@ class FakeIdentityProvider:
         pass
 
 
+class FakePasswordReplacement:
+    def __init__(self, *, reject_current_password: bool = False) -> None:
+        self.reject_current_password = reject_current_password
+
+    def replace_required_password(self, **kwargs) -> None:
+        if self.reject_current_password:
+            raise CurrentPasswordRejected()
+
+
 class FakeAccessProvisioning:
     def __init__(self):
         self.provisioned = []
@@ -155,6 +165,7 @@ def _build_test_app(
     identity_subject: str = "test-subject",
     accounts: dict | None = None,
     session_id: str | None = "ses-test",
+    password_replacement: FakePasswordReplacement | None = None,
 ) -> tuple[TestClient, InMemoryAccountRepository]:
     repo = InMemoryAccountRepository()
     if accounts:
@@ -163,6 +174,7 @@ def _build_test_app(
 
     audits = InMemoryAuditRepository()
     provider = FakeIdentityProvider()
+    password_replacement = password_replacement or FakePasswordReplacement()
     access = FakeAccessProvisioning()
     clock = FakeClock()
     identity = FakeIdentity()
@@ -173,7 +185,7 @@ def _build_test_app(
         change_required_password=ChangeRequiredPassword(
             account_repository=repo,
             audit_repository=audits,
-            identity_provider=provider,
+            password_replacement=password_replacement,
             clock=clock,
             identity=identity,
         ),
@@ -305,9 +317,39 @@ class TestPasswordChangeEndpoint(unittest.TestCase):
             json={"current_password": "old", "new_password": "new"},
         )
         self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")
         saved = repo.find_by_id("acc-1")
         assert saved is not None
         self.assertEqual(saved.status, AuthenticationAccountStatus.ACTIVE)
+
+    def test_wrong_current_password_returns_safe_401_without_session_response(self):
+        account = AuthenticationAccount.provision(
+            account_id="acc-1",
+            identity_subject="test-subject",
+            email=NormalizedEmail.from_raw("u@e.com"),
+            display_name="User",
+            user_code="USR-1",
+            now=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        client, repo = _build_test_app(
+            accounts={"acc-1": account},
+            password_replacement=FakePasswordReplacement(reject_current_password=True),
+        )
+
+        response = client.post(
+            "/api/v1/auth/password-change",
+            json={"current_password": "wrong", "new_password": "replacement"},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["error"]["code"], "current_password_rejected")
+        self.assertEqual(response.json()["error"]["message"], "The current password is incorrect.")
+        self.assertNotIn("session", response.text)
+        self.assertNotIn("token", response.text)
+        self.assertNotIn("wrong", response.text)
+        saved = repo.find_by_id("acc-1")
+        assert saved is not None
+        self.assertEqual(saved.status, AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE)
 
     def test_same_password_returns_422(self):
         account = AuthenticationAccount.provision(

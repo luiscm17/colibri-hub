@@ -33,9 +33,9 @@ Chain strategy: feature-branch-chain
 
 ## Phase 2: F-2 Self-Service Rejection Boundary (PR 2)
 
-- [ ] 2.1 RED: In `backend/tests/auth/application/` and `backend/tests/auth/api/test_auth_endpoints.py`, assert wrong-current returns safe 401 with unchanged credential, status, version, success audit, and no session/token response.
-- [ ] 2.2 GREEN: Create `backend/src/auth/ports/password_replacement.py`; update `change_required_password.py` to call it before activation/audit and never retry or use admin/recovery/auth-schema/session fallback.
-- [ ] 2.3 GREEN: Add `CurrentPasswordRejected` in `backend/src/auth/domain/errors.py` and its safe 401 mapping in `backend/src/auth/adapters/http/error_handlers.py`; verify `user_router.py` remains bodyless 204.
+- [x] 2.1 RED: In `backend/tests/auth/application/` and `backend/tests/auth/api/test_auth_endpoints.py`, assert wrong-current returns safe 401 with unchanged credential, status, version, success audit, and no session/token response.
+- [x] 2.2 GREEN: Create `backend/src/auth/ports/password_replacement.py`; update `change_required_password.py` to call it before activation/audit and never retry or use admin/recovery/auth-schema/session fallback.
+- [x] 2.3 GREEN: Add `CurrentPasswordRejected` in `backend/src/auth/domain/errors.py` and its safe 401 mapping in `backend/src/auth/adapters/http/error_handlers.py`; verify `user_router.py` remains bodyless 204.
 
 ## Phase 3: Required Capability Gate (PR 3)
 

@@ -1,24 +1,24 @@
 """Use case: mandatory replacement of a provisional password."""
 
 from auth.application.commands import ChangePasswordCommand
+from auth.domain.account_status import AuthenticationAccountStatus
 from auth.domain.errors import (
     AccountNotFound,
     AccountStateConflict,
-    PasswordChangeRequired,
+    ProviderUnavailable,
     ReplacementPasswordMustDiffer,
 )
-from auth.domain.account_status import AuthenticationAccountStatus
 from auth.ports.account_repository import AuthAccountRepository
 from auth.ports.audit_repository import AuthAuditEntry, AuthAuditRepository
 from auth.ports.clock import ClockPort
 from auth.ports.identity import IdentityPort
-from auth.ports.identity_provider import IdentityProviderPort
+from auth.ports.password_replacement import PasswordReplacementPort
 
 
 class ChangeRequiredPassword:
     """Replace a provisional password, activate the account.
 
-    Does NOT restart or extend the provider session's eight-hour maximum.
+    Does not restart, extend, rotate, or substitute the provider session.
     """
 
     def __init__(
@@ -26,13 +26,13 @@ class ChangeRequiredPassword:
         *,
         account_repository: AuthAccountRepository,
         audit_repository: AuthAuditRepository,
-        identity_provider: IdentityProviderPort,
+        password_replacement: PasswordReplacementPort | None = None,
         clock: ClockPort,
         identity: IdentityPort,
     ) -> None:
         self._accounts = account_repository
         self._audits = audit_repository
-        self._provider = identity_provider
+        self._password_replacement = password_replacement
         self._clock = clock
         self._identity = identity
 
@@ -47,10 +47,15 @@ class ChangeRequiredPassword:
         if command.current_password == command.new_password:
             raise ReplacementPasswordMustDiffer()
 
-        # Update credential in the provider first (safe ordering: provider
-        # failure leaves account in awaiting state, which is the safe default)
-        self._provider.update_password(
+        if self._password_replacement is None:
+            raise ProviderUnavailable()
+
+        # Replacement is provider-first: every failure leaves the account in
+        # awaiting state. No administrative or recovery fallback is attempted.
+        self._password_replacement.replace_required_password(
             subject=command.actor_subject,
+            session_id=command.session_id,
+            current_password=command.current_password,
             new_password=command.new_password,
         )
 
