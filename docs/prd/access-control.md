@@ -145,8 +145,11 @@ Labels such as Shift Summary or Daily Summary describe filtered queries or dashb
 33. Authentication owns login-account enablement and disablement; Access Control owns access-profile activation and inactivation.
 34. Provisioning creates the Access profile only through the unified Authentication administrative flow. Access Control profile creation is not an independent user-facing operation.
 35. Inactivating an Access profile denies protected capabilities without changing credentials or the Authentication account state.
-36. Disabling an Authentication account also inactivates its Access profile. Re-enabling the account may reactivate the profile only after its roles and invariants are valid.
+36. Disabling an Authentication account also inactivates its Access profile. Re-enabling the account may reactivate the profile after Access Control validates its lifecycle invariants; zero active assigned roles are permitted and grant no effective permission.
 37. An account in mandatory password replacement may hold an active Access profile, but it receives no protected authorization until Authentication becomes Active.
+38. For Authentication consumers, Access Control owns two narrow backend-authorized, account-addressed semantic projections: eligible provisioning roles and account review. The general Access roles collection is not the provisioning contract.
+39. The eligible provisioning-roles projection contains only active roles eligible for assignment and excludes inactive roles and permission payloads.
+40. The account-review projection provides Access profile status and assigned-role summaries for review only. It must not transfer provider identities or subjects, and Authentication consumers must not use it to resolve capabilities or make authorization decisions.
 
 ## Flows and Processes
 
@@ -258,6 +261,9 @@ Authentication state and Access-profile state are evaluated independently:
 27. An Access profile is created only as part of unified account provisioning and cannot be created through a separate user-facing Access Control operation.
 28. Inactivating only the Access profile denies protected entry without disabling the Authentication account.
 29. An account Awaiting Password Change receives no protected authorization even when its Access profile is active.
+30. Provisioning consumes only the Access-owned eligible provisioning-roles projection; inactive roles and permission payloads are absent from that contract.
+31. Account re-enablement may proceed with zero active assigned roles. Access Control remains authoritative for resulting profile state and every capability decision.
+32. Account review for Authentication exposes only Access profile status and assigned-role summaries, contains no provider identity or subject, and is not an authorization decision.
 
 ## Capability Boundaries
 

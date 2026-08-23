@@ -70,6 +70,15 @@ effective-permission evaluation, and access-change auditing. It consumes a
 trusted Authentication identity and does not change business invariants owned
 by Warehouse, Yarn Spinning, Lot Processing, or other contexts.
 
+For Authentication consumers, Access also owns two narrow, backend-authorized,
+account-addressed semantic projections: eligible provisioning roles and account
+review. Eligible provisioning roles contains only active assignment-eligible roles
+and no inactive roles or permission payload. Account review contains Access profile
+status and assigned-role summaries only. Neither projection transfers provider
+identities or subjects, resolves capabilities, or authorizes a request. These are
+future projection boundaries: their routes and shapes remain intentionally
+unspecified until a dedicated implementation SDD.
+
 ## 4. Objectives
 
 ### 4.1 Functional objectives
@@ -441,7 +450,7 @@ and Access Control does not change batch, bale, stock, or delivery invariants.
 ### 9.2 Commands
 
 - Create access user as an internal provisioning command invoked only by Authentication.
-- Activate access user and deactivate access user.
+- Activate access user and deactivate access user. Activation may be valid with zero active assigned roles; authorization remains default-deny until Access resolves an effective permission.
 - Create role, update role, activate role, and deactivate role.
 - Replace user roles.
 - Create role from preset.

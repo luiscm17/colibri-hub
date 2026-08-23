@@ -337,12 +337,12 @@ outcome, account, source, text, or date filter. The cursor is opaque and is used
 only to request the next page. A changed initial query or refreshed history
 invalidates later-page continuity rather than combining different snapshots.
 
-Each entry presents only implemented metadata: audit identity, operation
+Each entry presents only backend-issued metadata: audit identity, operation
 correlation when present, event type, outcome, affected account when present,
 occurrence time, and source. Source distinguishes `application` evidence from the
 current `provider` evidence exposed by the backend. The frontend does not infer an
-actor, reason, provider subject, completeness, retention period, or unavailable
-failed-login evidence.
+actor, reason, provider subject, completeness, retention period, failed-login
+traceability, or unavailable evidence.
 
 History distinguishes initial loading, no evidence, end of results, loading more,
 retryable page failure, and loaded pages. Repeated load-more actions do not issue
@@ -366,12 +366,13 @@ and responsibility for communicating the provisional password outside Colibri
 Hub. The system neither verifies nor administers the mailbox and never emails,
 echoes, or displays the password after success.
 
-Role selection consumes the implemented Access roles collection and follows the
+Role selection consumes Access's backend-authorized eligible provisioning-roles
+projection, not the general Access roles collection. The projection contains only
+active eligible roles and no permission payload. The selector follows the
 searchable multiple-selection semantics in
-[Frontend Access Control](access-control.md#63-users-and-role-assignment). Only
-active roles may be newly selected; role identity remains unambiguous and the
-complete non-empty set is submitted once. Authentication does not duplicate role
-or permission semantics.
+[Frontend Access Control](access-control.md#63-users-and-role-assignment); role
+identity remains unambiguous and the complete non-empty set is submitted once.
+Authentication does not duplicate role or permission semantics.
 
 Incomplete or failed provisioning never presents a usable account or successful
 Access. Recoverable errors preserve safe non-secret account and role input.
@@ -384,8 +385,10 @@ account identity plus the external-communication reminder.
 
 Detail presents separate Authentication and Access sections. Authentication may
 show account identity, organizational email, display name, user code, lifecycle
-status, and version. Access supplies profile state and assigned-role summaries
-under its own contract. Provider subject, private metadata, credentials, password
+status, and version. Access supplies an account-addressed review projection with
+profile state and assigned-role summaries under its own backend-authorized contract.
+The frontend does not join Access data, resolve capabilities, or make authorization
+decisions from this review. Provider subject, private metadata, credentials, password
 flags, tokens, and credential history are never exposed. No email, display-name,
 or user-code editing is offered because no implemented mutation supports it.
 
@@ -399,7 +402,7 @@ identical pending mutation.
 | --- | --- |
 | Reset password | New provisional password and confirmation; active sessions are requested to end, the account becomes awaiting password change, and the credential must be communicated outside the system |
 | Disable | Explain that login is denied, sessions are requested to end, the Access profile is inactivated, and identity and history remain preserved |
-| Enable | Review current Access profile and roles, provide a new provisional password and confirmation, and explain that protected use remains blocked until mandatory replacement |
+| Enable | Review current Access profile state and assigned-role summaries, provide a new provisional password and confirmation, and explain that re-enablement may proceed with zero active assigned roles, grants no capability by implication, and remains blocked until mandatory replacement |
 
 Password replacement and administrative password update do not by themselves
 prove that every other provider session or already issued access token has been
@@ -615,9 +618,11 @@ The implementation must prove these observable contracts at justified levels.
 - Reset, disable, and enable present their exact consequences, reason,
   `expected_version`, progress, duplicate prevention, last-administrator outcome,
   focus recovery, and post-success refresh.
-- Enable requires Access profile and role review plus a new confirmed provisional
-  password; reset and enable result in awaiting password change; disable preserves
-  identity and history while affecting login, sessions, and profile state.
+- Enable requires Access profile-state and assigned-role-summary review plus a
+  new confirmed provisional password; zero active assigned roles do not block
+  re-enablement or imply a capability. Reset and enable result in awaiting
+  password change; disable preserves identity and history while affecting login,
+  sessions, and profile state.
 - Version and state conflicts keep safe proposals separate, clear secrets, load
   current detail, and require a new confirmation; stale and missing accounts
   never remain current.

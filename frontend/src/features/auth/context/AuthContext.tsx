@@ -34,13 +34,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authState, dispatch] = useReducer(reducer, INITIAL_STATE)
   const mountedRef = useRef(true)
   const logoutInitiatedRef = useRef(false)
+  const validationEpochRef = useRef(0)
+
+  const endLocalSession = useCallback((reason: 'logged-out' | 'expired' | 'denied'): void => {
+    validationEpochRef.current += 1
+    clearTokenAccessor()
+    if (mountedRef.current) dispatch({ type: 'UNAUTHENTICATED', reason })
+  }, [])
 
   const validateAccount = useCallback(async (): Promise<void> => {
+    const validationEpoch = validationEpochRef.current
     try {
       const response = await fetchCurrentAuthentication()
       const account = mapToAccountSummary(response)
 
-      if (!mountedRef.current) return
+      if (!mountedRef.current || validationEpoch !== validationEpochRef.current) return
 
       if (response.next_step === 'change_password') {
         dispatch({ type: 'PASSWORD_CHANGE_REQUIRED', account })
@@ -48,12 +56,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SESSION_RESTORED', account, handoffId: crypto.randomUUID() })
       }
     } catch (error) {
-      if (!mountedRef.current) return
+      if (!mountedRef.current || validationEpoch !== validationEpochRef.current) return
 
       if (isApiError(error)) {
         if (error.status === 401 || error.status === 403) {
-          await providerSession.signOut()
-          dispatch({ type: 'UNAUTHENTICATED', reason: 'denied' })
+          endLocalSession(error.status === 401 ? 'expired' : 'denied')
+          try {
+            await providerSession.signOut()
+          } catch {
+            // Provider cleanup is best-effort after local session termination.
+          }
           return
         }
         if (error.kind === 'network') {
@@ -63,19 +75,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       dispatch({ type: 'UNAUTHENTICATED', reason: 'denied' })
     }
-  }, [])
+  }, [endLocalSession])
 
   useEffect(() => {
     mountedRef.current = true
 
     setTokenAccessor(providerSession.getAccessToken)
     setAuthenticationRequiredHandler(async () => {
-      await providerSession.signOut()
-      if (mountedRef.current) dispatch({ type: 'UNAUTHENTICATED', reason: 'expired' })
+      endLocalSession('expired')
+      try {
+        await providerSession.signOut()
+      } catch {
+        // Provider cleanup is best-effort after local session termination.
+      }
     })
 
     async function initialize() {
-      const active = await providerSession.hasSession()
+      let active: boolean
+      try {
+        active = await providerSession.hasSession()
+      } catch {
+        if (mountedRef.current) dispatch({ type: 'UNAVAILABLE', retryable: true })
+        return
+      }
       if (!mountedRef.current) return
 
       if (!active) {
@@ -94,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === 'SIGNED_OUT') {
         const reason = logoutInitiatedRef.current ? 'logged-out' : 'expired'
         logoutInitiatedRef.current = false
-        dispatch({ type: 'UNAUTHENTICATED', reason })
+        endLocalSession(reason)
       } else if (event === 'TOKEN_REFRESHED') {
         // Token accessor already returns fresh token — no action needed
       }
@@ -106,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearAuthenticationRequiredHandler()
       clearTokenAccessor()
     }
-  }, [validateAccount])
+  }, [endLocalSession, validateAccount])
 
   const login = useCallback(async (email: string, password: string): Promise<void> => {
     const { error } = await providerSession.signIn(email, password)
@@ -123,9 +145,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Best-effort backend notification — proceed with local cleanup
     }
-    await providerSession.signOut()
-    dispatch({ type: 'UNAUTHENTICATED', reason: 'logged-out' })
-  }, [])
+    endLocalSession('logged-out')
+    try {
+      await providerSession.signOut()
+    } catch {
+      // Provider cleanup is best-effort after local session termination.
+    }
+  }, [endLocalSession])
 
   const revalidate = useCallback(async (): Promise<void> => {
     await validateAccount()
