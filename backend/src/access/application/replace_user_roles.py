@@ -6,8 +6,8 @@ from access.domain.errors import (
     AccessUserNotFound,
     AccessVersionConflict,
     InactiveAccessRole,
-    LastSystemAdministratorRequired,
 )
+from access.ports.administrator_continuity import AdministratorContinuityPort
 from access.ports.assignments import AssignmentRepository
 from access.ports.audit import AccessAuditRepository
 from access.ports.clock import ClockPort
@@ -34,6 +34,7 @@ class ReplaceUserRoles:
         transaction: TransactionPort,
         clock: ClockPort,
         identity: IdentityPort,
+        continuity: AdministratorContinuityPort,
     ) -> None:
         self._users = user_repository
         self._roles = role_repository
@@ -42,6 +43,7 @@ class ReplaceUserRoles:
         self._transaction = transaction
         self._clock = clock
         self._identity = identity
+        self._continuity = continuity
 
     def execute(self, command: ReplaceUserRolesCommand) -> None:
         with self._transaction.atomic():
@@ -73,11 +75,7 @@ class ReplaceUserRoles:
                 and sysadmin_role.role_id in current_role_ids
                 and sysadmin_role.role_id not in desired_role_ids
             ):
-                remaining = self._users.count_active_administrators(
-                    exclude_user_id=user.user_id, for_update=True
-                )
-                if remaining < 1:
-                    raise LastSystemAdministratorRequired()
+                self._continuity.assert_reduction_allowed(user.identity_subject)
 
             now = self._clock.now()
 

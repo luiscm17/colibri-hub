@@ -33,6 +33,7 @@ from access.domain.errors import (
     AccessScopeNotFound,
     AccessUserNotFound,
     AccessVersionConflict,
+    AdministratorContinuityRequired,
     PrivilegedActionRequiresSystemAdministrator,
     ReservedRoleMutationForbidden,
 )
@@ -67,6 +68,17 @@ class FakeTransaction:
     @contextmanager
     def atomic(self):
         yield
+
+
+class FakeContinuity:
+    def __init__(self, *, reject: bool = False):
+        self.reject = reject
+        self.subjects: list[str] = []
+
+    def assert_reduction_allowed(self, subject: str) -> None:
+        self.subjects.append(subject)
+        if self.reject:
+            raise AdministratorContinuityRequired()
 
 
 class FakeAuditRepo:
@@ -611,12 +623,14 @@ class TestDeactivateAccessUser(unittest.TestCase):
         self.actor = _user("admin-1")
         self.user_repository = FakeUserRepo([self.target, self.actor])
         self.audit_repository = FakeAuditRepo()
+        self.continuity = FakeContinuity()
 
         self.use_case = DeactivateAccessUser(
             user_repository=self.user_repository,
             audit_repository=self.audit_repository,
             transaction=FakeTransaction(),
             clock=FakeClock(),
+            continuity=self.continuity,
         )
 
     def test_normalizes_whitespace_reason_for_direct_administration(self) -> None:
@@ -635,6 +649,22 @@ class TestDeactivateAccessUser(unittest.TestCase):
             self.audit_repository.entries[0]["performed_by_user_id"],
             self.actor.user_id,
         )
+
+    def test_rejects_two_to_one_without_deactivating_the_profile(self) -> None:
+        self.continuity.reject = True
+
+        with self.assertRaises(AdministratorContinuityRequired):
+            self.use_case.execute(
+                AdministrativeProfileLifecycleCommand(
+                    subject=self.target.identity_subject,
+                    actor_subject=self.actor.identity_subject,
+                    reason=None,
+                    operation_id="operation-4",
+                )
+            )
+
+        self.assertTrue(self.target.is_active)
+        self.assertEqual(self.audit_repository.entries, [])
 
 
 class TestReplaceUserRoles(unittest.TestCase):
@@ -655,6 +685,7 @@ class TestReplaceUserRoles(unittest.TestCase):
         self.role_repository = FakeRoleRepo([self.old_role, self.new_role])
         self.assignment_repository = FakeAssignmentRepo([self.old_assignment])
         self.audit_repository = FakeAuditRepo()
+        self.continuity = FakeContinuity()
 
         self.use_case = ReplaceUserRoles(
             user_repository=self.user_repository,
@@ -664,6 +695,7 @@ class TestReplaceUserRoles(unittest.TestCase):
             transaction=FakeTransaction(),
             clock=FakeClock(),
             identity=FakeIdentity(),
+            continuity=self.continuity,
         )
 
     def test_replaces_roles_and_audits_absent_reason(self) -> None:
@@ -696,6 +728,27 @@ class TestReplaceUserRoles(unittest.TestCase):
         self.assertEqual(audit["subject_id"], self.user.user_id)
         self.assertEqual(audit["before_values"], {"role_codes": ["old_role"]})
         self.assertEqual(audit["after_values"], {"role_codes": ["new_role"]})
+
+    def test_rejects_system_administrator_removal_without_revoking_assignment(
+        self,
+    ) -> None:
+        self.old_role.is_system_administrator = True
+        self.continuity.reject = True
+
+        with self.assertRaises(AdministratorContinuityRequired):
+            self.use_case.execute(
+                ReplaceUserRolesCommand(
+                    user_id=self.user.user_id,
+                    role_ids=[self.new_role.role_id],
+                    expected_version=self.user.version,
+                    reason=None,
+                    actor_user_id="admin-2",
+                    operation_id="operation-3",
+                )
+            )
+
+        self.assertTrue(self.old_assignment.is_current)
+        self.assertEqual(self.audit_repository.entries, [])
 
     def test_normalizes_whitespace_reason_when_command_bypasses_http(self) -> None:
         self.use_case.execute(
