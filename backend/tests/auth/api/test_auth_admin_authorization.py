@@ -45,12 +45,33 @@ ACCESS_CONTROL_SCOPE = Scope(
     updated_at=NOW,
 )
 
-ADMIN_USER = AccessUser("user-admin", "admin-subject", "USR-ADM", "Admin", True, 1, 1, NOW, NOW)
-ORDINARY_USER = AccessUser("user-ord", "ordinary-subject", "USR-ORD", "Ordinary", True, 1, 1, NOW, NOW)
+ADMIN_USER = AccessUser(
+    "user-admin", "admin-subject", "USR-ADM", "Admin", True, 1, 1, NOW, NOW
+)
+ORDINARY_USER = AccessUser(
+    "user-ord", "ordinary-subject", "USR-ORD", "Ordinary", True, 1, 1, NOW, NOW
+)
 
-ADMIN_ROLE = Role("role-admin", "system_administrator", "System Administrator", None, True, True, 1, set())
-ORDINARY_ROLE = Role("role-ord", "warehouse_reader", "Warehouse Reader", None, False, True, 1,
-                     {Permission(Action.READ, "warehouse.raw_materials")})
+ADMIN_ROLE = Role(
+    "role-admin",
+    "system_administrator",
+    "System Administrator",
+    None,
+    True,
+    True,
+    1,
+    set(),
+)
+ORDINARY_ROLE = Role(
+    "role-ord",
+    "warehouse_reader",
+    "Warehouse Reader",
+    None,
+    False,
+    True,
+    1,
+    {Permission(Action.READ, "warehouse.raw_materials")},
+)
 
 ASSIGNMENTS = [
     Assignment("asgn-1", "user-admin", "role-admin", "user-admin", NOW),
@@ -121,7 +142,9 @@ class _FakeAssignmentRepo:
 
 class _FakeScopeRepo:
     def find_by_id(self, scope_id: str):
-        return ACCESS_CONTROL_SCOPE if scope_id == ACCESS_CONTROL_SCOPE.scope_id else None
+        return (
+            ACCESS_CONTROL_SCOPE if scope_id == ACCESS_CONTROL_SCOPE.scope_id else None
+        )
 
     def find_by_code(self, scope_code: str):
         return ACCESS_CONTROL_SCOPE if scope_code == "access_control" else None
@@ -147,7 +170,14 @@ class _FakeAccountRepo:
         return self.accounts.get(account_id)
 
     def find_by_subject(self, identity_subject):
-        return next((a for a in self.accounts.values() if a.identity_subject == identity_subject), None)
+        return next(
+            (
+                a
+                for a in self.accounts.values()
+                if a.identity_subject == identity_subject
+            ),
+            None,
+        )
 
     def list_enabled_administrators(self):
         return []
@@ -180,26 +210,48 @@ class _FakeIdentityProvider:
     def create_user(self, *, email, password):
         return ProviderIdentity(subject="prov-sub", email=email)
 
-    def update_password(self, **kw): pass
-    def ban_user(self, **kw): pass
-    def unban_user(self, **kw): pass
-    def revoke_session(self, **kw): pass
-    def revoke_subject_sessions(self, **kw): pass
-    def delete_user(self, **kw): pass
-    def list_successful_login_audit_evidence(self, *, timestamp_to): return []
+    def update_password(self, **kw):
+        pass
 
-    def has_active_session(self, *, session_id, subject): return False
+    def ban_user(self, **kw):
+        pass
+
+    def unban_user(self, **kw):
+        pass
+
+    def revoke_session(self, **kw):
+        pass
+
+    def revoke_subject_sessions(self, **kw):
+        pass
+
+    def delete_user(self, **kw):
+        pass
+
+    def list_successful_login_audit_evidence(self, *, timestamp_to):
+        return []
+
+    def has_active_session(self, *, session_id, subject):
+        return False
 
 
 class _FakeAccessProvisioning:
-    def provision_profile(self, **kw): pass
-    def activate_profile(self, **kw): pass
-    def deactivate_profile(self, **kw): pass
-    def would_remove_last_administrator(self, subject): return False
+    def provision_profile(self, **kw):
+        pass
+
+    def activate_profile(self, **kw):
+        pass
+
+    def deactivate_profile(self, **kw):
+        pass
+
+    def assert_reduction_allowed(self, subject):
+        return None
 
 
 class _FakeTransaction:
-    def commit(self): pass
+    def commit(self):
+        pass
 
 
 class _FakeClock:
@@ -245,34 +297,51 @@ def _build_app(subject: str) -> TestClient:
     use_cases = AuthUseCases(
         get_current_authentication=GetCurrentAuthentication(account_repo),
         change_required_password=ChangeRequiredPassword(
-            account_repository=account_repo, audit_repository=audit_repo,
-            clock=clock, identity=identity,
+            account_repository=account_repo,
+            audit_repository=audit_repo,
+            clock=clock,
+            identity=identity,
         ),
         record_logout=RecordLogout(
-            account_repository=account_repo, audit_repository=audit_repo,
-            identity_provider=provider, clock=clock, identity=identity,
+            account_repository=account_repo,
+            audit_repository=audit_repo,
+            identity_provider=provider,
+            clock=clock,
+            identity=identity,
         ),
         provision_account=ProvisionAccount(
-            account_repository=account_repo, audit_repository=audit_repo,
-            identity_provider=provider, access_provisioning=access,
-            clock=clock, identity=identity,
+            account_repository=account_repo,
+            audit_repository=audit_repo,
+            identity_provider=provider,
+            access_provisioning=access,
+            clock=clock,
+            identity=identity,
         ),
         reset_password=ResetPassword(
-            account_repository=account_repo, audit_repository=audit_repo,
-            identity_provider=provider, access_provisioning=access,
+            account_repository=account_repo,
+            audit_repository=audit_repo,
+            identity_provider=provider,
+            access_provisioning=access,
             transaction=transaction,
-            clock=clock, identity=identity,
+            clock=clock,
+            identity=identity,
         ),
         disable_account=DisableAccount(
-            account_repository=account_repo, audit_repository=audit_repo,
-            identity_provider=provider, access_provisioning=access,
+            account_repository=account_repo,
+            audit_repository=audit_repo,
+            identity_provider=provider,
+            access_provisioning=access,
             transaction=transaction,
-            clock=clock, identity=identity,
+            clock=clock,
+            identity=identity,
         ),
         enable_account=EnableAccount(
-            account_repository=account_repo, audit_repository=audit_repo,
-            identity_provider=provider, access_provisioning=access,
-            clock=clock, identity=identity,
+            account_repository=account_repo,
+            audit_repository=audit_repo,
+            identity_provider=provider,
+            access_provisioning=access,
+            clock=clock,
+            identity=identity,
         ),
         get_account=GetAccount(account_repo),
         list_accounts=ListAccounts(account_repo),
@@ -292,7 +361,9 @@ def _build_app(subject: str) -> TestClient:
     register_exception_handlers(app)
     api_router = APIRouter(prefix="/api/v1")
     api_router.include_router(
-        create_auth_admin_router(identity_resolver, use_case_factory, authorize_action_provider)
+        create_auth_admin_router(
+            identity_resolver, use_case_factory, authorize_action_provider
+        )
     )
     app.include_router(api_router)
 
@@ -314,14 +385,17 @@ class TestAuthAdminAuthorization(unittest.TestCase):
 
     def test_non_admin_gets_403_on_post_accounts(self):
         client = _build_app("ordinary-subject")
-        resp = client.post("/api/v1/auth/accounts", json={
-            "email": "test@example.com",
-            "provisional_password": "temp123",
-            "user_code": "USR-999",
-            "display_name": "Test",
-            "role_codes": ["warehouse_reader"],
-            "reason": "Test",
-        })
+        resp = client.post(
+            "/api/v1/auth/accounts",
+            json={
+                "email": "test@example.com",
+                "provisional_password": "temp123",
+                "user_code": "USR-999",
+                "display_name": "Test",
+                "role_codes": ["warehouse_reader"],
+                "reason": "Test",
+            },
+        )
         self.assertEqual(resp.status_code, 403)
 
     def test_non_admin_gets_403_on_audits(self):
