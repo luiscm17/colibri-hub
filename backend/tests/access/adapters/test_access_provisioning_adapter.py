@@ -18,13 +18,14 @@ class TestAccessProvisioningDisplayName(unittest.TestCase):
         create_user = MagicMock()
         activate_user = MagicMock()
         deactivate_user = MagicMock()
-        user_repository = MagicMock()
+        continuity = MagicMock()
+        continuity.assert_reduction_allowed = MagicMock()
 
         adapter = AccessProvisioningAdapter(
             create_user=create_user,
             activate_user=activate_user,
             deactivate_user=deactivate_user,
-            user_repository=user_repository,
+            continuity=continuity,
         )
 
         adapter.provision_profile(
@@ -47,13 +48,13 @@ class TestAccessProvisioningDisplayName(unittest.TestCase):
         create_user = MagicMock()
         activate_user = MagicMock()
         deactivate_user = MagicMock()
-        user_repository = MagicMock()
+        continuity = MagicMock()
 
         adapter = AccessProvisioningAdapter(
             create_user=create_user,
             activate_user=activate_user,
             deactivate_user=deactivate_user,
-            user_repository=user_repository,
+            continuity=continuity,
         )
 
         adapter.provision_profile(
@@ -69,29 +70,23 @@ class TestAccessProvisioningDisplayName(unittest.TestCase):
         call_args = create_user.execute.call_args[0][0]
         self.assertEqual(call_args.display_name, "USR-015")
 
-    def test_would_remove_last_administrator_uses_for_update(self):
-        """C3: would_remove_last_administrator calls count_active_administrators with for_update=True."""
+    def test_assert_reduction_allowed_delegates_to_access_continuity(self):
         create_user = MagicMock()
         activate_user = MagicMock()
         deactivate_user = MagicMock()
-        user_repository = MagicMock()
-
-        user_repository.find_by_subject.return_value = MagicMock(user_id="uid-1")
-        user_repository.count_active_administrators.return_value = 0
+        continuity = MagicMock()
+        continuity.assert_reduction_allowed = MagicMock()
 
         adapter = AccessProvisioningAdapter(
             create_user=create_user,
             activate_user=activate_user,
             deactivate_user=deactivate_user,
-            user_repository=user_repository,
+            continuity=continuity,
         )
 
-        result = adapter.would_remove_last_administrator("sub-123")
+        adapter.assert_reduction_allowed("sub-123")
 
-        self.assertTrue(result)
-        user_repository.count_active_administrators.assert_called_once_with(
-            exclude_user_id="uid-1", for_update=True
-        )
+        continuity.assert_reduction_allowed.assert_called_once_with("sub-123")
 
 
 if __name__ == "__main__":

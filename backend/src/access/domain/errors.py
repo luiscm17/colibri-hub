@@ -133,13 +133,16 @@ class AccessVersionConflict(AccessError):
         super().__init__("The resource has been modified by another operation.")
 
 
-class LastSystemAdministratorRequired(AccessError):
-    """Mutation would leave no active System Administrator."""
+class AdministratorContinuityRequired(AccessError):
+    """Mutation would leave fewer than two operational administrators."""
 
-    code = "last_system_administrator_required"
+    code = "administrator_continuity_required"
 
     def __init__(self) -> None:
-        super().__init__("At least one active System Administrator must remain.")
+        super().__init__("At least two operational System Administrators must remain.")
+
+
+LastSystemAdministratorRequired = AdministratorContinuityRequired
 
 
 class InactiveAccessRole(AccessError):
