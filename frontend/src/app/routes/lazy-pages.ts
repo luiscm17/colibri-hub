@@ -2,6 +2,7 @@ import { lazy } from 'react'
 
 export const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'))
 export const MandatoryPasswordChangePage = lazy(() => import('@/features/auth/pages/MandatoryPasswordChangePage'))
+export const AuthenticationAccountsPage = lazy(() => import('@/features/auth/pages/AuthenticationAccountsPage'))
 export const NotFoundPage = lazy(() => import('@/features/not-found/pages/NotFoundPage'))
 export const BaleReceptionPage = lazy(() => import('@/features/warehouse/bales/pages/BaleReceptionPage'))
 export const BaleStockPage = lazy(() => import('@/features/warehouse/bales/pages/BaleStockPage'))
