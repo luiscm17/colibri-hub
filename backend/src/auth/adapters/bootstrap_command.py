@@ -125,9 +125,7 @@ class BootstrapInitialAdministrator:
                 )
             )
 
-            logger.info(
-                "Initial administrator bootstrapped: %s", account.account_id
-            )
+            logger.info("Initial administrator bootstrapped: %s", account.account_id)
             completed = True
             return account.account_id
         finally:
@@ -177,7 +175,10 @@ def main() -> None:
         if not val
     ]
     if missing:
-        print(f"ERROR: Missing environment variables: {', '.join(missing)}", file=sys.stderr)
+        print(
+            f"ERROR: Missing environment variables: {', '.join(missing)}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     assert email and password and user_code and display_name
@@ -189,6 +190,9 @@ def main() -> None:
     register_auth_records()
 
     from access.adapters.access_provisioning import AccessProvisioningAdapter
+    from access.adapters.persistence.administrator_continuity import (
+        AdministratorContinuityAdapter,
+    )
     from access.adapters.persistence.assignment_repository import (
         AssignmentRepositoryAdapter,
     )
@@ -235,6 +239,7 @@ def main() -> None:
         access_assignment_repo = AssignmentRepositoryAdapter(session)
         access_audit_repo = AccessAuditRepositoryAdapter(session)
         access_transaction = AccessTransactionAdapter(session)
+        continuity = AdministratorContinuityAdapter(session)
 
         create_access_user = CreateAccessUser(
             user_repository=access_user_repo,
@@ -256,13 +261,14 @@ def main() -> None:
             audit_repository=access_audit_repo,
             transaction=access_transaction,
             clock=clock,
+            continuity=continuity,
         )
 
         access_provisioning = AccessProvisioningAdapter(
             create_user=create_access_user,
             activate_user=activate_access_user,
             deactivate_user=deactivate_access_user,
-            user_repository=access_user_repo,
+            continuity=continuity,
         )
 
         bootstrap = BootstrapInitialAdministrator(
@@ -283,7 +289,13 @@ def main() -> None:
         session.commit()
         print(f"Bootstrap complete. Account ID: {account_id}")
 
-    except (AccessError, AuthenticationError, OSError, SQLAlchemyError, ValueError) as exc:
+    except (
+        AccessError,
+        AuthenticationError,
+        OSError,
+        SQLAlchemyError,
+        ValueError,
+    ) as exc:
         session.rollback()
         print(f"ERROR: Bootstrap failed: {exc}", file=sys.stderr)
         sys.exit(1)

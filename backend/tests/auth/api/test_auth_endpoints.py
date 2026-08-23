@@ -131,8 +131,8 @@ class FakeAccessProvisioning:
     def deactivate_profile(self, **kwargs):
         pass
 
-    def would_remove_last_administrator(self, subject):
-        return False
+    def assert_reduction_allowed(self, subject):
+        return None
 
 
 class FakeTransaction:
@@ -343,13 +343,17 @@ class TestPasswordChangeEndpoint(unittest.TestCase):
 
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()["error"]["code"], "current_password_rejected")
-        self.assertEqual(response.json()["error"]["message"], "The current password is incorrect.")
+        self.assertEqual(
+            response.json()["error"]["message"], "The current password is incorrect."
+        )
         self.assertNotIn("session", response.text)
         self.assertNotIn("token", response.text)
         self.assertNotIn("wrong", response.text)
         saved = repo.find_by_id("acc-1")
         assert saved is not None
-        self.assertEqual(saved.status, AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE)
+        self.assertEqual(
+            saved.status, AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE
+        )
 
     def test_same_password_returns_422(self):
         account = AuthenticationAccount.provision(

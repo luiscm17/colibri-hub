@@ -3,7 +3,6 @@
 from auth.application.commands import ResetPasswordCommand
 from auth.domain.errors import (
     AccountNotFound,
-    LastSystemAdministratorRequired,
     VersionConflict,
 )
 from auth.ports.access_provisioning import AccessProvisioningPort
@@ -49,9 +48,7 @@ class ResetPassword:
         if not account.check_version(command.expected_version):
             raise VersionConflict()
 
-        # Last-admin check before any state change
-        if self._access.would_remove_last_administrator(account.identity_subject):
-            raise LastSystemAdministratorRequired()
+        self._access.assert_reduction_allowed(account.identity_subject)
 
         # Establish account denial first (safe ordering)
         now = self._clock.now()

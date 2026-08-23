@@ -7,6 +7,9 @@ import unittest
 from uuid import uuid4
 
 from access.adapters.access_provisioning import AccessProvisioningAdapter
+from access.adapters.persistence.administrator_continuity import (
+    AdministratorContinuityAdapter,
+)
 from access.adapters.persistence.assignment_repository import (
     AssignmentRepositoryAdapter,
 )
@@ -76,7 +79,9 @@ class AuthLifecycleLocalSupabaseIntegrationTests(unittest.TestCase):
         finally:
             fixture.close()
 
-    def test_reset_password_revokes_target_sessions_and_keeps_access_active(self) -> None:
+    def test_reset_password_revokes_target_sessions_and_keeps_access_active(
+        self,
+    ) -> None:
         fixture = self._active_target_fixture()
         try:
             session_a = self._sign_in(fixture.email, fixture.password)
@@ -110,7 +115,9 @@ class AuthLifecycleLocalSupabaseIntegrationTests(unittest.TestCase):
         finally:
             fixture.close()
 
-    def test_disable_account_revokes_sessions_and_deactivates_access_profile(self) -> None:
+    def test_disable_account_revokes_sessions_and_deactivates_access_profile(
+        self,
+    ) -> None:
         fixture = self._active_target_fixture()
         try:
             session_a = self._sign_in(fixture.email, fixture.password)
@@ -141,7 +148,9 @@ class AuthLifecycleLocalSupabaseIntegrationTests(unittest.TestCase):
         finally:
             fixture.close()
 
-    def test_required_password_replacement_requires_fresh_login_before_access(self) -> None:
+    def test_required_password_replacement_requires_fresh_login_before_access(
+        self,
+    ) -> None:
         fixture = self._awaiting_target_fixture()
         try:
             original_login = self._sign_in_response(fixture.email, fixture.password)
@@ -184,7 +193,9 @@ class AuthLifecycleLocalSupabaseIntegrationTests(unittest.TestCase):
             assert active is not None
             self.assertEqual(active.status, AuthenticationAccountStatus.ACTIVE)
             self.assertFalse(self._can_sign_in(fixture.email, fixture.password))
-            self.assertTrue(self._prior_bearer_is_rejected(original_login.session.access_token))
+            self.assertTrue(
+                self._prior_bearer_is_rejected(original_login.session.access_token)
+            )
 
             fresh_login = self._sign_in_response(fixture.email, replacement_password)
             self.assertIsNotNone(fresh_login.session)
@@ -192,7 +203,9 @@ class AuthLifecycleLocalSupabaseIntegrationTests(unittest.TestCase):
             assert fresh_login.user is not None
             self.assertEqual(str(fresh_login.user.id), fixture.subject)
             self.assertEqual(
-                fixture.use_cases.get_current_authentication.execute(fixture.subject).next_step,
+                fixture.use_cases.get_current_authentication.execute(
+                    fixture.subject
+                ).next_step,
                 "load_access",
             )
         finally:
@@ -259,17 +272,28 @@ class AuthLifecycleLocalSupabaseIntegrationTests(unittest.TestCase):
                 )
             )
             session.commit()
-            account = AuthAccountRepositoryAdapter(session).find_by_id(target.account_id)
+            account = AuthAccountRepositoryAdapter(session).find_by_id(
+                target.account_id
+            )
             assert account is not None
             subjects.append(account.identity_subject)
             return _LifecycleFixture(
-                session, use_cases, target.account_id, account.identity_subject,
-                admin.identity_subject, target_email, password, subjects, self
+                session,
+                use_cases,
+                target.account_id,
+                account.identity_subject,
+                admin.identity_subject,
+                target_email,
+                password,
+                subjects,
+                self,
             )
         except Exception:
             session.rollback()
             for subject in subjects:
-                IdentityProviderAdapter(self._client(), session).delete_user(subject=subject)
+                IdentityProviderAdapter(self._client(), session).delete_user(
+                    subject=subject
+                )
             session.close()
             raise
 
@@ -294,22 +318,71 @@ class AuthLifecycleLocalSupabaseIntegrationTests(unittest.TestCase):
                 clock=clock,
                 identity=identity,
             ),
-            record_logout=RecordLogout(account_repository=accounts, audit_repository=audits, identity_provider=provider, clock=clock, identity=identity),
-            provision_account=ProvisionAccount(account_repository=accounts, audit_repository=audits, identity_provider=provider, access_provisioning=access, clock=clock, identity=identity),
-            reset_password=ResetPassword(account_repository=accounts, audit_repository=audits, identity_provider=provider, access_provisioning=access, transaction=transaction, clock=clock, identity=identity),
-            disable_account=DisableAccount(account_repository=accounts, audit_repository=audits, identity_provider=provider, access_provisioning=access, transaction=transaction, clock=clock, identity=identity),
+            record_logout=RecordLogout(
+                account_repository=accounts,
+                audit_repository=audits,
+                identity_provider=provider,
+                clock=clock,
+                identity=identity,
+            ),
+            provision_account=ProvisionAccount(
+                account_repository=accounts,
+                audit_repository=audits,
+                identity_provider=provider,
+                access_provisioning=access,
+                clock=clock,
+                identity=identity,
+            ),
+            reset_password=ResetPassword(
+                account_repository=accounts,
+                audit_repository=audits,
+                identity_provider=provider,
+                access_provisioning=access,
+                transaction=transaction,
+                clock=clock,
+                identity=identity,
+            ),
+            disable_account=DisableAccount(
+                account_repository=accounts,
+                audit_repository=audits,
+                identity_provider=provider,
+                access_provisioning=access,
+                transaction=transaction,
+                clock=clock,
+                identity=identity,
+            ),
         )
 
     def _access_provisioning(self, session: Session) -> AccessProvisioningAdapter:
         users = AccessUserRepositoryAdapter(session)
         transaction = TransactionAdapter(session)
+        continuity = AdministratorContinuityAdapter(session)
         clock = SystemClock()
         identity = SystemIdentity()
         return AccessProvisioningAdapter(
-            create_user=CreateAccessUser(user_repository=users, role_repository=RoleRepositoryAdapter(session), assignment_repository=AssignmentRepositoryAdapter(session), audit_repository=AccessAuditRepositoryAdapter(session), transaction=transaction, clock=clock, identity=identity),
-            activate_user=ActivateAccessUser(user_repository=users, audit_repository=AccessAuditRepositoryAdapter(session), transaction=transaction, clock=clock),
-            deactivate_user=DeactivateAccessUser(user_repository=users, audit_repository=AccessAuditRepositoryAdapter(session), transaction=transaction, clock=clock),
-            user_repository=users,
+            create_user=CreateAccessUser(
+                user_repository=users,
+                role_repository=RoleRepositoryAdapter(session),
+                assignment_repository=AssignmentRepositoryAdapter(session),
+                audit_repository=AccessAuditRepositoryAdapter(session),
+                transaction=transaction,
+                clock=clock,
+                identity=identity,
+            ),
+            activate_user=ActivateAccessUser(
+                user_repository=users,
+                audit_repository=AccessAuditRepositoryAdapter(session),
+                transaction=transaction,
+                clock=clock,
+            ),
+            deactivate_user=DeactivateAccessUser(
+                user_repository=users,
+                audit_repository=AccessAuditRepositoryAdapter(session),
+                transaction=transaction,
+                clock=clock,
+                continuity=continuity,
+            ),
+            continuity=continuity,
         )
 
     def _client(self):
@@ -348,14 +421,21 @@ class AuthLifecycleLocalSupabaseIntegrationTests(unittest.TestCase):
     def _has_session(self, session_id: str, subject: str) -> bool:
         verification = Session(self.engine)
         try:
-            return IdentityProviderAdapter(self._client(), verification).has_active_session(session_id=session_id, subject=subject)
+            return IdentityProviderAdapter(
+                self._client(), verification
+            ).has_active_session(session_id=session_id, subject=subject)
         finally:
             verification.rollback()
             verification.close()
 
     @staticmethod
     def _local_provider_credentials() -> tuple[str, str]:
-        result = subprocess.run(["pnpm", "supabase", "status", "--output", "env"], capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            ["pnpm", "supabase", "status", "--output", "env"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
         values = {}
         for line in result.stdout.splitlines():
             key, separator, value = line.removeprefix("export ").partition("=")
@@ -365,15 +445,33 @@ class AuthLifecycleLocalSupabaseIntegrationTests(unittest.TestCase):
 
 
 class _LifecycleFixture:
-    def __init__(self, session, use_cases, account_id, subject, admin_subject, email, password, subjects, test):
+    def __init__(
+        self,
+        session,
+        use_cases,
+        account_id,
+        subject,
+        admin_subject,
+        email,
+        password,
+        subjects,
+        test,
+    ):
         self.session, self.use_cases, self.account_id = session, use_cases, account_id
-        self.subject, self.admin_subject, self.email, self.password = subject, admin_subject, email, password
+        self.subject, self.admin_subject, self.email, self.password = (
+            subject,
+            admin_subject,
+            email,
+            password,
+        )
         self._subjects, self._test = subjects, test
 
     def close(self) -> None:
         self.session.rollback()
         for subject in self._subjects:
-            IdentityProviderAdapter(self._test._client(), self.session).delete_user(subject=subject)
+            IdentityProviderAdapter(self._test._client(), self.session).delete_user(
+                subject=subject
+            )
         self.session.close()
 
 

@@ -163,6 +163,7 @@ class FakeAccessProvisioning:
         self.activated: list[str] = []
         self.deactivated: list[str] = []
         self._would_remove_last = would_remove_last
+        self.asserted_reductions: list[str] = []
 
     def provision_profile(
         self,
@@ -185,8 +186,10 @@ class FakeAccessProvisioning:
     def deactivate_profile(self, *, subject, actor_subject, reason, operation_id):
         self.deactivated.append(subject)
 
-    def would_remove_last_administrator(self, subject: str) -> bool:
-        return self._would_remove_last
+    def assert_reduction_allowed(self, subject: str) -> None:
+        self.asserted_reductions.append(subject)
+        if self._would_remove_last:
+            raise LastSystemAdministratorRequired()
 
 
 class FakeTransaction:
@@ -542,6 +545,10 @@ class TestResetPassword(unittest.TestCase):
         with self.assertRaises(LastSystemAdministratorRequired):
             self.use_case.execute(cmd)
 
+        self.assertEqual(self.account.status, AuthenticationAccountStatus.ACTIVE)
+        self.assertEqual(self.transaction.commits, 0)
+        self.assertEqual(self.provider.events, [])
+
     def test_revokes_provider_sessions(self):
         cmd = ResetPasswordCommand(
             account_id="acc-1",
@@ -684,6 +691,10 @@ class TestDisableAccount(unittest.TestCase):
         )
         with self.assertRaises(LastSystemAdministratorRequired):
             self.use_case.execute(cmd)
+
+        self.assertEqual(self.account.status, AuthenticationAccountStatus.ACTIVE)
+        self.assertEqual(self.transaction.commits, 0)
+        self.assertEqual(self.provider.events, [])
 
 
 class TestEnableAccount(unittest.TestCase):

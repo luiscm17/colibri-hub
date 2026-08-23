@@ -3,7 +3,6 @@
 from auth.application.commands import DisableAccountCommand
 from auth.domain.errors import (
     AccountNotFound,
-    LastSystemAdministratorRequired,
     VersionConflict,
 )
 from auth.ports.access_provisioning import AccessProvisioningPort
@@ -48,9 +47,7 @@ class DisableAccount:
         if not account.check_version(command.expected_version):
             raise VersionConflict()
 
-        # Last-admin check
-        if self._access.would_remove_last_administrator(account.identity_subject):
-            raise LastSystemAdministratorRequired()
+        self._access.assert_reduction_allowed(account.identity_subject)
 
         now = self._clock.now()
         operation_id = self._identity.generate_operation_id()
