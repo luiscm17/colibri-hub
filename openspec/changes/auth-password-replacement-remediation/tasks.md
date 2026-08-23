@@ -48,3 +48,7 @@ Chain strategy: feature-branch-chain
 - [ ] 4.1 RED: Extend `backend/integration_tests/test_auth_lifecycle_local_supabase.py` for correct-current success, old-password failure, replacement-session termination, new-password fresh-login success, account activation only after provider success, and Access resolution only after subsequent authentication.
 - [ ] 4.2 GREEN: Create `backend/src/auth/adapters/identity_provider/password_replacement.py` only for the gate-selected capability, wire it in `backend/src/bootstrap/auth_dependency.py`, and update the frontend to clear authentication state and route to sign-in after successful replacement.
 - [ ] 4.3 Verify `POST /api/v1/auth/password-change` stays empty 204, the prior bearer is rejected, and a fresh new-password sign-in followed by `GET /api/v1/auth/me` returns 200 with `next_step: "load_access"`; run full units and guarded integrations.
+
+### PR 4 Execution Status
+
+Implementation and focused credential-safe lifecycle evidence are complete, but tasks 4.1–4.3 remain unchecked until the full guarded integration discovery is green. The corrected `test_provider_session_persistence` characterization now passes; the remaining failures are the two externally tracked Access integration fixtures. No native state/configuration was altered to settle them.

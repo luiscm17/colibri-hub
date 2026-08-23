@@ -14,5 +14,5 @@ class PasswordReplacementPort(Protocol):
         current_password: str,
         new_password: str,
     ) -> None:
-        """Verify the current password and replace it without replacing the session."""
+        """Verify, replace, then terminate the authenticated provider session."""
         ...

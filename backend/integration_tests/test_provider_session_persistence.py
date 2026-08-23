@@ -7,8 +7,13 @@ from pathlib import Path
 from uuid import uuid4
 
 from auth.adapters.identity_provider.admin_client import IdentityProviderAdapter
+from auth.adapters.identity_provider.password_replacement import (
+    SupabasePasswordReplacementAdapter,
+)
+from auth.domain.errors import CurrentPasswordRejected
 from infra.configuration import ApplicationSettings
 from sqlalchemy.orm import Session
+from supabase_auth.errors import AuthError
 
 from backend.integration_tests.database_test_support import (
     test_engine,
@@ -76,6 +81,74 @@ class IdentityProviderSessionPersistenceIntegrationTests(unittest.TestCase):
             finally:
                 verification_session.rollback()
                 verification_session.close()
+        finally:
+            creation_session.rollback()
+            creation_session.close()
+            if identity is not None:
+                cleanup_session = Session(self.engine)
+                try:
+                    IdentityProviderAdapter(
+                        create_client(self.url, self.service_role_key), cleanup_session
+                    ).delete_user(subject=identity.subject)
+                finally:
+                    cleanup_session.rollback()
+                    cleanup_session.close()
+
+    def test_password_replacement_terminates_original_session_and_requires_fresh_login(
+        self,
+    ) -> None:
+        """Exercise the selected replacement flow with one disposable identity."""
+        email = f"self-service-password-{uuid4().hex}@example.invalid"
+        password = "SyntheticSessionPass1!"
+        replacement = "SyntheticReplacementPass2!"
+        creation_session = Session(self.engine)
+        adapter = IdentityProviderAdapter(
+            create_client(self.url, self.service_role_key), creation_session
+        )
+        identity = None
+
+        try:
+            identity = adapter.create_user(email=email, password=password)
+            authenticated_client = create_client(self.url, self.service_role_key)
+            sign_in = authenticated_client.auth.sign_in_with_password(
+                {"email": email, "password": password}
+            )
+            self.assertIsNotNone(sign_in.session)
+            assert sign_in.session is not None
+            session_id = self._session_id_from_access_token(sign_in.session.access_token)
+            replacement_adapter = SupabasePasswordReplacementAdapter(
+                provider_url=self.url,
+                service_role_key=self.service_role_key,
+                database_session=creation_session,
+            )
+
+            with self.assertRaises(CurrentPasswordRejected):
+                replacement_adapter.replace_required_password(
+                    subject=identity.subject,
+                    session_id=session_id,
+                    current_password="wrong-current",
+                    new_password=replacement,
+                )
+
+            replacement_adapter.replace_required_password(
+                subject=identity.subject,
+                session_id=session_id,
+                current_password=password,
+                new_password=replacement,
+            )
+            creation_session.commit()
+
+            with self.assertRaises(AuthError):
+                authenticated_client.auth.get_user(sign_in.session.access_token)
+            with self.assertRaises(AuthError):
+                authenticated_client.auth.sign_in_with_password(
+                    {"email": email, "password": password}
+                )
+
+            fresh_login = authenticated_client.auth.sign_in_with_password(
+                {"email": email, "password": replacement}
+            )
+            self.assertIsNotNone(fresh_login.session)
         finally:
             creation_session.rollback()
             creation_session.close()

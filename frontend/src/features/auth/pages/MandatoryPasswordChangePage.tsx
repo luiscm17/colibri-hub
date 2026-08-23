@@ -8,7 +8,7 @@ import { ProductLogo } from '@/common/components/ProductLogo'
 import classes from './AuthPages.module.css'
 
 export default function MandatoryPasswordChangePage() {
-  const { revalidate, logout } = useAuth()
+  const { logout } = useAuth()
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -42,7 +42,7 @@ export default function MandatoryPasswordChangePage() {
     try {
       await submitPasswordChange(currentPassword, newPassword)
       clearPasswords()
-      await revalidate()
+      await logout()
     } catch (err) {
       clearPasswords()
 
