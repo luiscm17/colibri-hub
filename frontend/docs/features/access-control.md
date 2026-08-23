@@ -306,6 +306,19 @@ filter results but never change authorization.
 
 ### 5.2 Administration
 
+The general roles collection serves Access administration only. It is not the
+contract for unified Authentication provisioning. Access exposes a separate,
+backend-authorized eligible provisioning-roles projection for that consumer; it
+contains only active assignable roles and no permission payload. Its route and
+shape remain intentionally unspecified until implementation.
+
+Access also owns a separate backend-authorized, account-addressed account-review
+projection for Authentication account detail and re-enablement review. It contains
+Access profile status and assigned-role summaries only. It does not expose provider
+identities or subjects, and its frontend consumer must not join data, resolve
+capabilities, or make authorization decisions from it. Its route and shape remain
+intentionally unspecified until implementation.
+
 | Capability | Method | Path | Success |
 | --- | --- | --- | --- |
 | List users | `GET` | `/api/v1/access/users` | `200` paginated profiles |

@@ -97,7 +97,7 @@ and Access Control must not store or validate passwords.
 6. The System Administrator confirms that the email is organizationally controlled before provisioning.
 7. Colibri Hub does not create, administer, or verify ownership of the associated mailbox.
 8. Each login account is associated with exactly one Access Control profile for the same person.
-9. Provisioning is one administrative flow that establishes the account, access profile, and initial roles.
+9. Provisioning is one administrative flow that establishes the account, access profile, and one or more active Access-eligible initial roles. The general Access roles collection is not the provisioning contract.
 10. Authentication owns the login account; Access Control owns the profile and roles.
 11. Incomplete provisioning must never leave usable access.
 12. The System Administrator defines a provisional password during provisioning.
@@ -119,9 +119,9 @@ and Access Control must not store or validate passwords.
 28. Disabling an account prevents new logins, terminates active sessions, and inactivates its access profile.
 29. Disablement preserves identity, prior assignments, and attributable business and security history.
 30. An established account is not physically deleted.
-31. Re-enabling an account requires a new provisional password and mandatory replacement.
+31. Re-enabling an account requires a new provisional password and mandatory replacement. It may proceed with zero active assigned roles and does not imply any protected capability.
 32. No account or access change, including account disablement, administrative password reset, access-profile inactivation, role replacement, or assignment removal, may leave Colibri Hub without an enabled System Administrator capable of authenticating and governing accounts and access.
-33. Provisioning, enablement, disablement, reset, mandatory password replacement, successful and failed login, logout, expiration, and administrative session termination are traceable by identity, date, and time.
+33. Successful and failed login attempts must remain traceable by identity, date, and time. Security history must identify affected accounts and acting System Administrators for security-sensitive administrative events without exposing passwords or other authentication secrets. Any current limitation in backend-issued evidence or provider-history completeness is explanatory only and does not reduce this requirement.
 34. Passwords and other authentication secrets never appear in audit history, business records, Access Control records, or ordinary messages.
 35. Administrative authentication events identify the acting System Administrator.
 36. The frontend, backend, and application administrators must not calculate or independently configure, restart, extend, rotate, or substitute the identity-provider-configured maximum session duration.
@@ -190,9 +190,9 @@ and Access Control must not store or validate passwords.
 ### Re-enable an account
 
 1. The System Administrator selects a disabled account.
-2. The associated profile and roles are reviewed.
+2. The associated Access state and assigned-role summaries are reviewed through Access Control's backend-authorized account review; the review neither joins frontend data nor makes an authorization decision.
 3. The System Administrator defines a new provisional password.
-4. The account and access profile are enabled only with a valid complete configuration.
+4. The account and access profile may be enabled after Access Control validates its lifecycle invariants, including when the profile has zero active assigned roles.
 5. Protected access remains blocked until the user replaces the provisional password.
 6. The administrative event is recorded.
 
@@ -232,7 +232,7 @@ Re-enabling a Disabled account also moves it to Awaiting Password Change.
 ## Acceptance Criteria
 
 1. Only a System Administrator can provision an account.
-2. Provisioning requires a unique organizational email, an Access Control profile, initial roles, and a provisional password.
+2. Provisioning requires a unique organizational email, an Access Control profile, one or more active Access-eligible roles, and a provisional password; the general Access roles collection is not the provisioning contract.
 3. Duplicate email is rejected case-insensitively.
 4. Provisioning neither creates nor administers an external mailbox.
 5. Failed provisioning leaves no usable partial access.
@@ -246,10 +246,10 @@ Re-enabling a Disabled account also moves it to Awaiting Password Change.
 13. A successful mandatory password replacement terminates the provider session used for replacement; the account becomes Active only after provider success, and Access Control resolves access only after a subsequent sign-in with the established password.
 14. Logout, reset, disablement, and expiration make affected sessions unusable.
 15. Disablement prevents login and inactivates the associated access profile without deleting history.
-16. Re-enablement requires a new provisional password and mandatory replacement.
+16. Re-enablement requires a new provisional password and mandatory replacement, may proceed with zero active assigned roles, and grants no capability by implication.
 17. Disablement, administrative password reset, profile inactivation, role replacement, assignment removal, or any coordinated access change is rejected when it would leave no operational System Administrator.
 18. Login denial does not reveal account existence or state.
-19. Security history identifies affected accounts and acting administrators without exposing secrets.
+19. Authentication History makes successful and failed login attempts traceable by identity, date, and time, and identifies affected accounts and acting System Administrators for security-sensitive administrative events without exposing passwords or other authentication secrets. Any current implementation limitation in backend-issued evidence or provider-history completeness is explanatory only and does not weaken this criterion.
 20. The initial System Administrator is established without self-registration and replaces the provisional password before protected access.
 
 ## Capability Boundaries

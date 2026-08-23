@@ -303,7 +303,7 @@ restart the provider session's eight-hour maximum.
 - List accounts and get account return account and profile summaries.
 - Reset password sets a new provisional password, revokes provider sessions, and moves the account to `awaiting_password_change`.
 - Disable account establishes local denial, deactivates the Access profile, bans provider login, and revokes provider sessions.
-- Enable account sets a new provisional password, validates Access configuration, unbans the provider identity, and moves the account to `awaiting_password_change`.
+- Enable account sets a new provisional password, requests Access lifecycle validation, unbans the provider identity, and moves the account to `awaiting_password_change`. Re-enablement may proceed with zero active assigned roles and grants no capability by implication.
 - List audits returns paginated, redacted evidence.
 
 Administrative operations require an active System Administrator authorized by
@@ -333,13 +333,15 @@ Safe orchestration:
 
 1. Authenticate and authorize the acting System Administrator.
 2. Generate one `operation_id` for the coordinated administrative operation.
-3. Normalize the email and validate local uniqueness, a non-empty set of distinct active `role_codes`, and the applicable invariants.
+3. Normalize the email and validate local uniqueness, a non-empty set of distinct roles supplied by Access's eligible provisioning-roles projection, and the applicable invariants.
 4. Create the provider identity without sending email.
 5. In one PostgreSQL transaction, create the Authentication account in `awaiting_password_change`, invoke the internal Access Control provisioning service with the same `operation_id`, create the Access profile, assign the initial roles, and append the correlated application audits.
 6. Return only non-secret identifiers and summaries.
 
 Provisioning rejects an empty `role_codes` collection, duplicate role codes,
-inactive roles, and roles that violate Access Control assignment rules.
+roles absent from Access's eligible provisioning-roles projection, and roles that
+violate Access Control assignment rules. It does not consume Access's general
+roles collection or permission payloads.
 
 If provider creation succeeds but application persistence fails, the newly
 created, never-established provider identity may be removed as compensation. If
@@ -455,6 +457,14 @@ redacted administrative audit evidence.
 
 Provider subjects, token claims, ban values, password flags, and private
 metadata are not exposed in ordinary administrative responses.
+
+Authentication requires two future Access-owned, backend-authorized semantic
+projections: eligible provisioning roles and account review. The former supplies
+only active assignment-eligible roles for provisioning; the latter supplies Access
+profile status and assigned-role summaries for an addressed account. Neither
+projection transfers provider identities or subjects, resolves capabilities, or
+authorizes a request. Their routes and shapes remain intentionally unspecified
+until a dedicated implementation SDD.
 
 ## 12. Data Model
 
@@ -596,10 +606,10 @@ application-owned evidence and the provider snapshot visible to that request.
 Every item identifies its source. Provider entries are not duplicated into
 `authentication_audits`; coordinated application-owned Authentication and Access
 Control entries are correlated by `operation_id`. It is not a complete forensic
-archive: failed password-login evidence remains unresolved and BR33 is only
-partially met.
+archive and makes no promise of failed-login traceability, provider-history
+completeness, inferred actor or reason, or unavailable metadata.
 
-- Failed-login evidence remains a follow-up requirement and must never reveal account existence to the caller.
+- Any future failed-login evidence must never reveal account existence to the caller.
 - Authorization headers, credential bodies, token responses, and provider secrets are explicitly redacted.
 - Metrics contain no identity or credential values.
 - Administrative provider operations execute only on the backend.
