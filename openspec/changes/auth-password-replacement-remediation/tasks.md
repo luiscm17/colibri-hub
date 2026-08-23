@@ -22,8 +22,8 @@ Chain strategy: feature-branch-chain
 |---|---|---|---|---|---|
 | 1 | F-1 typed weak-password mapping | PR 1 | `uv run --locked --package backend python -m unittest backend.tests.auth.adapters.test_auth_adapter_provider -v` | N/A: fake SDK-shaped errors prove mapping | F-1 adapter/error tests |
 | 2 | F-2 port and no-side-effect rejection | PR 2 | `uv run --locked --package backend python -m unittest backend.tests.auth -v` | N/A: application/API fakes isolate rejection | port, use case, error handler, tests |
-| 3 | F-2/F-3 capability eligibility proof | PR 3 | `TEST_DATABASE_URL=... uv run --locked --package backend python -m unittest backend.integration_tests.test_provider_password_replacement -v` | Disposable local and target-equivalent identities; credential-free evidence | gate harness and evidence only |
-| 4 | Selected capability and lifecycle wiring | PR 4 | `TEST_DATABASE_URL=... uv run --locked --package backend python -m unittest backend.integration_tests.test_auth_lifecycle_local_supabase -v` | Same-bearer 204 → `/auth/me`, continuity only within the original provider session's remaining duration | selected adapter, bootstrap wiring, lifecycle tests |
+| 3 | F-2/F-3 capability eligibility proof | PR 3 | `TEST_DATABASE_URL=... uv run --locked --package backend python -m unittest backend.integration_tests.test_provider_password_replacement -v` | Disposable identities in locally controlled Supabase Auth development; credential-free session-termination and fresh-login evidence | gate harness and evidence only |
+| 4 | Selected capability, sign-out transition, and lifecycle wiring | PR 4 | `TEST_DATABASE_URL=... uv run --locked --package backend python -m unittest backend.integration_tests.test_auth_lifecycle_local_supabase -v` | Empty 204 → terminated bearer → fresh sign-in → `/auth/me`; Access resolves only after fresh authentication | selected adapter, frontend transition, bootstrap wiring, lifecycle tests |
 
 ## Phase 1: F-1 Typed Policy Rejection (PR 1)
 
@@ -39,12 +39,12 @@ Chain strategy: feature-branch-chain
 
 ## Phase 3: Required Capability Gate (PR 3)
 
-- [ ] 3.1 RED: Create `backend/integration_tests/test_provider_password_replacement.py` using disposable identities; fail eligibility for skipped, unavailable, or failed wrong-current, no-side-effect, old-login, new-login, original-provider-session, or continuity-within-remaining-provider-duration assertions. The duration is bounded and configured by the identity provider, begins with the originating login, and is not independently calculated, configured, restarted, extended, rotated, or substituted.
-- [ ] 3.2 GREEN: Implement credential-free local and target-equivalent gate evidence; record classifications/booleans only, never secrets, tokens, session IDs, or raw payloads.
-- [ ] 3.3 Gate PR 4: do not apply slice 4 unless every local and target-equivalent assertion passes; otherwise leave replacement unselected with no prohibited fallback.
+- [x] 3.1 RED: Retain `backend/integration_tests/test_provider_password_replacement.py` as the disposable-identity gate; revise its required assertions to fail eligibility for skipped, unavailable, or failed wrong-current rejection, no-side-effect preservation, old-login failure, fresh new-login success, replacement-session termination, or deferred Access resolution. Record no credentials, tokens, session IDs, or raw provider payloads.
+- [ ] 3.2 GREEN: Implement credential-free gate evidence against locally controlled Supabase Auth development; record classifications/booleans only, never secrets, tokens, session IDs, or raw payloads. No remote or target-equivalent provider configuration is required.
+- [ ] 3.3 Gate PR 4: do not apply slice 4 unless every locally controlled Supabase Auth assertion passes; otherwise leave replacement unselected with no prohibited fallback.
 
 ## Phase 4: F-2/F-3 Selected Capability and Lifecycle (PR 4)
 
-- [ ] 4.1 RED: Extend `backend/integration_tests/test_auth_lifecycle_local_supabase.py` for correct-current success, old-password failure, new-password success, original-provider-session continuity only within its remaining duration, and expiration after the provider-configured bounded maximum duration from the originating login; assert no independent calculation, configuration, restart, extension, rotation, or substitution.
-- [ ] 4.2 GREEN: Create `backend/src/auth/adapters/identity_provider/password_replacement.py` only for the gate-selected capability and wire it in `backend/src/bootstrap/auth_dependency.py`.
-- [ ] 4.3 Verify `POST /api/v1/auth/password-change` stays empty 204 and same-bearer `GET /api/v1/auth/me` returns 200 with `next_step: "load_access"`; run full units and guarded integrations.
+- [ ] 4.1 RED: Extend `backend/integration_tests/test_auth_lifecycle_local_supabase.py` for correct-current success, old-password failure, replacement-session termination, new-password fresh-login success, account activation only after provider success, and Access resolution only after subsequent authentication.
+- [ ] 4.2 GREEN: Create `backend/src/auth/adapters/identity_provider/password_replacement.py` only for the gate-selected capability, wire it in `backend/src/bootstrap/auth_dependency.py`, and update the frontend to clear authentication state and route to sign-in after successful replacement.
+- [ ] 4.3 Verify `POST /api/v1/auth/password-change` stays empty 204, the prior bearer is rejected, and a fresh new-password sign-in followed by `GET /api/v1/auth/me` returns 200 with `next_step: "load_access"`; run full units and guarded integrations.

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define secure mandatory password replacement for F-1, F-2, and F-3 without changing administrative or frontend behavior.
+Define secure mandatory password replacement for F-1, F-2, and F-3 without changing administrative behavior. The frontend change is limited to clearing authentication state and directing the user to sign in after successful replacement.
 
 ## Requirements
 
@@ -26,7 +26,7 @@ The system MUST translate a provider password-policy rejection during mandatory 
 
 ### Requirement: Verified-current-password replacement (F-2)
 
-The system MUST mutate a mandatory-replacement credential only through a provider capability that verifies the submitted current password. It MUST NOT use an administrative reset, enable, recovery, direct provider-database operation, or replacement session as a fallback. On success, it MUST preserve the existing HTTP 204 and frontend revalidation contract.
+The system MUST mutate a mandatory-replacement credential only through a provider capability that verifies the submitted current password. It MUST NOT use an administrative reset, enable, recovery, or direct provider-database operation as a fallback. On provider-confirmed success, it MUST activate the account, terminate the provider session used for replacement, and require a new sign-in before Access Control resolution.
 
 #### Scenario: Wrong current password is rejected without side effects
 
@@ -38,34 +38,35 @@ The system MUST mutate a mandatory-replacement credential only through a provide
 #### Scenario: Capability gate blocks unproven provider behavior
 
 - GIVEN a candidate provider configuration has not passed the controlled capability gate
-- WHEN its current-password verification or session continuity cannot be demonstrated
+- WHEN its current-password verification, session termination, or fresh-sign-in behavior cannot be demonstrated
 - THEN the capability MUST NOT be selected for mandatory replacement
 - AND no administrative fallback is permitted
 
-#### Scenario: Successful replacement retains the client contract
+#### Scenario: Successful replacement requires a new sign-in
 
 - GIVEN a selected capability has passed the controlled capability gate
 - WHEN mandatory replacement succeeds
-- THEN the API returns the existing HTTP 204 response
-- AND the existing frontend revalidation contract remains valid
+- THEN the API returns the existing HTTP 204 response without a replacement session or token
+- AND the session used for replacement is terminated
+- AND a new sign-in with the established password is required before Access Control resolves access
 
-### Requirement: Original session timebox continuity (F-3)
+### Requirement: Session termination and reauthentication (F-3)
 
-After a successful mandatory replacement, the system MUST preserve the original authenticated provider session, whose bounded maximum duration is configured by the identity provider and begins with the originating login. Replacement MAY continue only within that session's remaining duration. The frontend, backend, and application administrators MUST NOT independently calculate, configure, restart, extend, rotate, or substitute that duration or session.
+After a successful mandatory replacement, the system MUST terminate the provider session used for replacement and require a new sign-in with the established password. The account MUST become Active only after provider-confirmed success. Access Control MUST resolve the active profile and effective permissions only after that subsequent authentication.
 
-#### Scenario: Successful replacement preserves the original session
+#### Scenario: Successful replacement terminates the current session
 
-- GIVEN a session whose identity-provider-configured bounded maximum duration began with the originating login
 - WHEN mandatory replacement succeeds with the correct current and acceptable new password
 - THEN the old password fails and the new password succeeds
-- AND the original provider session remains usable only within its remaining duration, without a restarted, extended, rotated, or substituted session
+- AND the session used for replacement is no longer usable
+- AND the user must sign in again with the new password before Access Control resolves access
 
-#### Scenario: Original session expires on its original schedule
+#### Scenario: Provider failure does not activate the account
 
-- GIVEN a successful replacement and the original provider session
-- WHEN the identity-provider-configured bounded maximum duration that began with the originating login has elapsed
-- THEN the original session is no longer usable
-- AND replacement MUST NOT have independently calculated, configured, restarted, extended, rotated, or substituted the session or its duration
+- GIVEN a mandatory replacement request
+- WHEN the provider does not confirm successful replacement
+- THEN the account remains Awaiting Password Change
+- AND no success audit or Access Control resolution is produced
 
 ### Requirement: Secret-safe outcomes and evidence
 
@@ -80,13 +81,13 @@ The system MUST redact passwords, tokens, session identifiers, and raw provider 
 
 ### Requirement: Controlled provider integration proof
 
-The system MUST treat provider support as unproven until a controlled integration run against local and target-equivalent configuration demonstrates wrong-current rejection without side effects, old-password failure, new-password success, original-provider-session usability, and continuity only within the remaining duration of the provider-configured maximum that began with the originating login. The proof MUST use disposable identities and credential-free evidence.
+The system MUST treat provider support as unproven until a controlled integration run against locally controlled Supabase Auth development demonstrates wrong-current rejection without side effects, old-password failure, new-password success after a fresh sign-in, termination of the replacement session, and Access Control resolution only after subsequent authentication. The proof MUST use disposable identities and credential-free evidence. No remote or target-equivalent provider configuration is required.
 
 #### Scenario: Complete capability gate passes
 
-- GIVEN disposable integration identities and an eligible provider configuration
+- GIVEN disposable integration identities in locally controlled Supabase Auth development
 - WHEN the controlled run records every required assertion as passing
-- THEN the configuration is eligible for implementation selection
+- THEN the locally proven capability is eligible for implementation selection
 - AND the recorded evidence contains no credentials or tokens
 
 #### Scenario: Any gate assertion fails or is unavailable
@@ -98,4 +99,4 @@ The system MUST treat provider support as unproven until a controlled integratio
 
 ## Out of Scope
 
-F-4, administrative reset or enable behavior, recovery, voluntary password changes, Access Control, roles, permissions, and frontend changes are excluded.
+F-4, administrative reset or enable behavior, recovery, voluntary password changes, Access Control, roles, permissions, and frontend changes beyond the required post-replacement sign-out transition are excluded.
