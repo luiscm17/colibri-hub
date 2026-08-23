@@ -40,8 +40,8 @@ Chain strategy: feature-branch-chain
 ## Phase 3: Required Capability Gate (PR 3)
 
 - [x] 3.1 RED: Retain `backend/integration_tests/test_provider_password_replacement.py` as the disposable-identity gate; revise its required assertions to fail eligibility for skipped, unavailable, or failed wrong-current rejection, no-side-effect preservation, old-login failure, fresh new-login success, replacement-session termination, or deferred Access resolution. Record no credentials, tokens, session IDs, or raw provider payloads.
-- [ ] 3.2 GREEN: Implement credential-free gate evidence against locally controlled Supabase Auth development; record classifications/booleans only, never secrets, tokens, session IDs, or raw payloads. No remote or target-equivalent provider configuration is required.
-- [ ] 3.3 Gate PR 4: do not apply slice 4 unless every locally controlled Supabase Auth assertion passes; otherwise leave replacement unselected with no prohibited fallback.
+- [x] 3.2 GREEN: Implement credential-free gate evidence against locally controlled Supabase Auth development; record classifications/booleans only, never secrets, tokens, session IDs, or raw payloads. No remote or target-equivalent provider configuration is required.
+- [x] 3.3 Gate PR 4: do not apply slice 4 unless every locally controlled Supabase Auth assertion passes; otherwise leave replacement unselected with no prohibited fallback.
 
 ## Phase 4: F-2/F-3 Selected Capability and Lifecycle (PR 4)
 
