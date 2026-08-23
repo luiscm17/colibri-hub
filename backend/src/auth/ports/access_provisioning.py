@@ -51,9 +51,6 @@ class AccessProvisioningPort(Protocol):
         """Deactivate an Access profile (on account disablement)."""
         ...
 
-    def would_remove_last_administrator(self, subject: str) -> bool:
-        """Check if disabling/resetting this subject would remove the last operational admin.
-
-        Returns True if the operation should be rejected.
-        """
+    def assert_reduction_allowed(self, subject: str) -> None:
+        """Atomically reject a lifecycle reduction below the continuity floor."""
         ...

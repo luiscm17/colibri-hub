@@ -23,7 +23,7 @@ _ERROR_STATUS_MAP: dict[str, int] = {
     "duplicate_access_preset_code": status.HTTP_409_CONFLICT,
     "duplicate_access_scope_code": status.HTTP_409_CONFLICT,
     "access_version_conflict": status.HTTP_409_CONFLICT,
-    "last_system_administrator_required": status.HTTP_409_CONFLICT,
+    "administrator_continuity_required": status.HTTP_409_CONFLICT,
     "inactive_access_role": status.HTTP_409_CONFLICT,
     "inactive_access_scope": status.HTTP_409_CONFLICT,
     # 422
@@ -37,12 +37,12 @@ _ERROR_STATUS_MAP: dict[str, int] = {
 }
 
 
-async def access_error_handler(
-    request: Request, error: AccessError
-) -> JSONResponse:
+async def access_error_handler(request: Request, error: AccessError) -> JSONResponse:
     """Map any AccessError to the shared error envelope."""
     del request
-    status_code = _ERROR_STATUS_MAP.get(error.code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+    status_code = _ERROR_STATUS_MAP.get(
+        error.code, status.HTTP_500_INTERNAL_SERVER_ERROR
+    )
     return error_json_response(
         status_code=status_code,
         code=error.code,

@@ -1,14 +1,15 @@
 """Use case: deactivate an access user profile."""
 
 from access.application.commands import (
-    DeactivateAccessUserCommand,
     AdministrativeProfileLifecycleCommand,
+    DeactivateAccessUserCommand,
 )
-from access.domain.errors import AccessUserNotFound, LastSystemAdministratorRequired
-from access.ports.clock import ClockPort
+from access.domain.errors import AccessUserNotFound
+from access.ports.administrator_continuity import AdministratorContinuityPort
 from access.ports.audit import AccessAuditRepository
-from access.ports.users import AccessUserRepository
+from access.ports.clock import ClockPort
 from access.ports.transaction import TransactionPort
+from access.ports.users import AccessUserRepository
 
 
 class DeactivateAccessUser:
@@ -19,11 +20,13 @@ class DeactivateAccessUser:
         audit_repository: AccessAuditRepository,
         transaction: TransactionPort,
         clock: ClockPort,
+        continuity: AdministratorContinuityPort,
     ) -> None:
         self._users = user_repository
         self._audits = audit_repository
         self._transaction = transaction
         self._clock = clock
+        self._continuity = continuity
 
     def execute(
         self,
@@ -34,12 +37,7 @@ class DeactivateAccessUser:
             if user is None:
                 raise AccessUserNotFound()
 
-            # Last-admin invariant
-            remaining = self._users.count_active_administrators(
-                exclude_user_id=user.user_id, for_update=True
-            )
-            if remaining < 1:
-                raise LastSystemAdministratorRequired()
+            self._continuity.assert_reduction_allowed(user.identity_subject)
 
             before_active = user.is_active
             user.deactivate(at=self._clock.now())

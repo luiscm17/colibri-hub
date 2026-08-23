@@ -35,7 +35,9 @@ class PasswordChangeRequired(AuthenticationError):
     code = "password_change_required"
 
     def __init__(self) -> None:
-        super().__init__("Password change is required before accessing protected capabilities.")
+        super().__init__(
+            "Password change is required before accessing protected capabilities."
+        )
 
 
 class AccountNotFound(AuthenticationError):
@@ -66,13 +68,16 @@ class VersionConflict(AuthenticationError):
         super().__init__("The account has been modified by another operation.")
 
 
-class LastSystemAdministratorRequired(AuthenticationError):
-    """Mutation would remove the last enabled administrator. → 409"""
+class AdministratorContinuityRequired(AuthenticationError):
+    """Mutation would leave fewer than two operational administrators. → 409"""
 
-    code = "last_system_administrator_required"
+    code = "administrator_continuity_required"
 
     def __init__(self) -> None:
-        super().__init__("At least one enabled System Administrator must remain.")
+        super().__init__("At least two operational System Administrators must remain.")
+
+
+LastSystemAdministratorRequired = AdministratorContinuityRequired
 
 
 class AccountStateConflict(AuthenticationError):
@@ -81,9 +86,7 @@ class AccountStateConflict(AuthenticationError):
     code = "authentication_account_state_conflict"
 
     def __init__(self, current_status: str, attempted_action: str) -> None:
-        super().__init__(
-            f"Cannot {attempted_action} from state '{current_status}'."
-        )
+        super().__init__(f"Cannot {attempted_action} from state '{current_status}'.")
         self.current_status = current_status
         self.attempted_action = attempted_action
 

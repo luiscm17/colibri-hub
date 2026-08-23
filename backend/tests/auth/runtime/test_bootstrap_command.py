@@ -73,8 +73,8 @@ class _FakeAccessProvisioning:
     def deactivate_profile(self, **kw):
         pass
 
-    def would_remove_last_administrator(self, subject):
-        return False
+    def assert_reduction_allowed(self, subject):
+        return None
 
 
 class _FakeClock:
