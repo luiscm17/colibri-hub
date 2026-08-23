@@ -99,17 +99,33 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
         with self.engine.connect() as connection:
             transaction = connection.begin()
             try:
-                _create_operational_administrators(connection, 1)
-                with self.assertRaises(Exception) as ctx:
-                    with connection.begin_nested():
+                already_enabled = connection.execute(
+                    text(
+                        "SELECT enforcement_enabled "
+                        "FROM access_administrator_continuity WHERE id = 1"
+                    )
+                ).scalar_one()
+                if already_enabled:
+                    with self.assertRaises(Exception) as ctx, connection.begin_nested():
                         connection.execute(
                             text(
                                 "UPDATE access_administrator_continuity "
-                                "SET enforcement_enabled = true, "
-                                "enforcement_evidence = 'migration test' "
+                                "SET enforcement_evidence = 'migration test' "
                                 "WHERE id = 1"
                             )
                         )
+                    self.assertIn("immutable", str(ctx.exception).lower())
+                    return
+                _create_operational_administrators(connection, 1)
+                with self.assertRaises(Exception) as ctx, connection.begin_nested():
+                    connection.execute(
+                        text(
+                            "UPDATE access_administrator_continuity "
+                            "SET enforcement_enabled = true, "
+                            "enforcement_evidence = 'migration test' "
+                            "WHERE id = 1"
+                        )
+                    )
                 self.assertIn("two operational", str(ctx.exception).lower())
                 state = connection.execute(
                     text(
@@ -126,6 +142,24 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
         with self.engine.connect() as connection:
             transaction = connection.begin()
             try:
+                already_enabled = connection.execute(
+                    text(
+                        "SELECT enforcement_enabled "
+                        "FROM access_administrator_continuity WHERE id = 1"
+                    )
+                ).scalar_one()
+                if already_enabled:
+                    state = connection.execute(
+                        text(
+                            "SELECT enforcement_enabled, enforcement_enabled_at, "
+                            "enforcement_evidence "
+                            "FROM access_administrator_continuity WHERE id = 1"
+                        )
+                    ).one()
+                    self.assertEqual(state[0], True)
+                    self.assertIsNotNone(state[1])
+                    self.assertIsNotNone(state[2])
+                    return
                 _create_operational_administrators(connection, 2)
                 connection.execute(
                     text(

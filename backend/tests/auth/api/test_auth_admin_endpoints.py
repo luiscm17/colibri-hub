@@ -392,5 +392,20 @@ class TestAuditEndpoint(unittest.TestCase):
         )
 
 
+class TestNoRecoveryOrBypassEndpoint(unittest.TestCase):
+    """Recovery remains an external procedure, not an application operation."""
+
+    def test_recovery_and_bypass_paths_are_undocumented_and_return_404(self):
+        client, _ = _build_test_app()
+        paths = client.get("/openapi.json").json()["paths"]
+
+        for path in (
+            "/api/v1/auth/recovery",
+            "/api/v1/auth/administrator-continuity/bypass",
+        ):
+            self.assertNotIn(path, paths)
+            self.assertEqual(client.post(path, json={}).status_code, 404)
+
+
 if __name__ == "__main__":
     unittest.main()
