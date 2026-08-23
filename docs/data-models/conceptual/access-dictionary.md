@@ -115,7 +115,7 @@ Its invariants are:
 - An active holder has all five general actions across every existing and newly introduced business scope.
 - Manage Access and Edit Outside the Operational Window are reserved for the System Administrator and cannot be granted to ordinary roles or presets.
 - More than one active person may hold the reserved role.
-- Every account, profile, role, or assignment change must preserve at least one active System Administrator who can authenticate and govern accounts and access.
+- Every ordinary in-scope account, profile, role, or assignment change must preserve at least two distinct operational System Administrators. Operational means an Active Authentication account, an active Access profile, and a current reserved-role assignment; account deletion is excluded.
 - The initial System Administrator is established through controlled initialization before ordinary provisioning begins.
 
 Global System Administrator authorization is a reserved policy invariant, not a wildcard permission, scope hierarchy, or precedence rule.
