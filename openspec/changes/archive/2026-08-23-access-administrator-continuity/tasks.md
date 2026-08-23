@@ -51,3 +51,4 @@ Chain strategy: feature-branch-chain
 - [x] 3.2 Extend that file with concurrent disjoint reductions: one succeeds or both serialize safely, never fewer than two operational administrators.
 - [x] 3.3 Extend `backend/integration_tests/test_auth_lifecycle_local_supabase.py` for cross-context 3→2, 2→1 rollback, and provider ordering using isolated fixtures.
 - [x] 3.4 Add OpenAPI/HTTP checks in `backend/tests/auth/api/` that recovery/bypass paths return 404; run focused unit and guarded integration suites.
+- [x] 3.5 Add guarded local-Supabase executable drills for ordinary recovery, documented emergency activation, and ordinary unilateral denial without an application recovery operation.

@@ -36,3 +36,17 @@ One custodian may activate recovery only for a documented administrative emergen
 - Do not use recovery for ordinary access administration.
 - Do not create a recovery API, privileged application bypass, shared account, or duplicate reserved role.
 - Do not delete identities or history as part of recovery.
+
+## Executable Recovery Drill
+
+`backend.integration_tests.test_external_administrator_recovery` is a guarded,
+local-Supabase drill for this runbook. It creates only test-owned provider
+identities and applies the controlled provider and database steps directly; it
+does not call a Colibri Hub recovery endpoint or introduce an application
+bypass. The drill verifies the two-custodian ordinary path, the documented
+single-custodian emergency path with notification, revocation, closure, and
+review, and denial of ordinary unilateral activation.
+
+The test-side recovery record is evidence of the drill, not production recovery
+authority. Production custodians must retain the records described above in the
+external evidence location.
