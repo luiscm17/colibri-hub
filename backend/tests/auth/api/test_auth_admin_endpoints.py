@@ -179,7 +179,6 @@ def _build_test_app(
         change_required_password=ChangeRequiredPassword(
             account_repository=repo,
             audit_repository=audits,
-            identity_provider=provider,
             clock=clock,
             identity=identity,
         ),

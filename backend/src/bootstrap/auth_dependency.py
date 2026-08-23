@@ -9,6 +9,9 @@ from typing import Annotated
 
 from auth.adapters.identity_provider.admin_client import IdentityProviderAdapter
 from auth.adapters.identity_provider.jwt_validator import TokenValidatorAdapter
+from auth.adapters.identity_provider.password_replacement import (
+    SupabasePasswordReplacementAdapter,
+)
 from auth.adapters.identity_provider.request_pipeline import RequestPipeline
 from auth.adapters.persistence.account_repository import AuthAccountRepositoryAdapter
 from auth.adapters.persistence.audit_repository import AuthAuditRepositoryAdapter
@@ -150,7 +153,11 @@ def compose_auth(
             change_required_password=ChangeRequiredPassword(
                 account_repository=account_repo,
                 audit_repository=audit_repo,
-                identity_provider=identity_provider,
+                password_replacement=SupabasePasswordReplacementAdapter(
+                    provider_url=provider_settings.url,
+                    service_role_key=service_role_key,
+                    database_session=session,
+                ),
                 clock=clock,
                 identity=identity_gen,
             ),

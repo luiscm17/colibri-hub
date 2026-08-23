@@ -394,6 +394,7 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
 
     def test_role_preset_and_scope_lifecycles_are_audited_and_rolled_back(self):
         actor_id = _uuid()
+        scope_id = _uuid()
         evidence_tag = uuid4().hex
         operation_ids = {
             name: _uuid()
@@ -426,15 +427,24 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
                     "code": f"EVID-{evidence_tag[:12]}",
                 },
             )
-            scope_id, original_scope_version = session.execute(
+            session.execute(
                 text(
-                    "SELECT s.scope_id, s.version FROM access_scopes s "
+                    "INSERT INTO access_scopes "
+                    "(scope_id, definition_key, scope_code, scope_name, owning_context, description) "
+                    "VALUES (:id, 'warehouse.raw_materials', :code, "
+                    "'Lifecycle evidence scope', 'Warehouse', 'test fixture')"
+                ),
+                {"id": scope_id, "code": f"lifecycle-scope-{evidence_tag}"},
+            )
+            scope_id = session.execute(
+                text(
+                    "SELECT s.scope_id FROM access_scopes s "
                     "JOIN access_scope_definitions d "
                     "ON d.definition_key = s.definition_key "
                     "WHERE s.is_active AND 'read' = ANY(d.supported_actions) "
                     "ORDER BY s.scope_code LIMIT 1"
                 )
-            ).one()
+            ).scalar_one()
 
             def session_provider():
                 yield session
@@ -603,14 +613,14 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
                 },
             ).one()
             self.assertEqual(tuple(remaining), (0, 0, 0, 0))
-            restored_scope = verification_connection.execute(
+            remaining_scope_count = verification_connection.execute(
                 text(
-                    "SELECT is_active, version FROM access_scopes "
+                    "SELECT count(*) FROM access_scopes "
                     "WHERE scope_id = :scope_id"
                 ),
                 {"scope_id": scope_id},
-            ).one()
-            self.assertEqual(tuple(restored_scope), (True, original_scope_version))
+            ).scalar_one()
+            self.assertEqual(remaining_scope_count, 0)
 
     def test_audit_repository_reads_absent_and_empty_reasons(self):
         from access.adapters.persistence.audit_repository import (

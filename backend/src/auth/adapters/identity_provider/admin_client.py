@@ -41,6 +41,7 @@ MAX_PROVIDER_AUDIT_ENTRY_BYTES = 4096
 MAX_PROVIDER_AUDIT_RESPONSE_BYTES = 2 + MAX_PROVIDER_AUDIT_ENTRIES * (
     MAX_PROVIDER_AUDIT_ENTRY_BYTES + 1
 )
+_WEAK_PASSWORD_POLICY_CODE = "weak_password"
 
 
 class IdentityProviderAdapter:
@@ -316,7 +317,7 @@ class IdentityProviderAdapter:
                 raise DuplicateEmail() from exc
             raise IdentityConflict() from exc
 
-        if "weak" in error_msg or "password" in error_msg and "short" in error_msg:
+        if isinstance(exc, AuthError) and exc.code == _WEAK_PASSWORD_POLICY_CODE:
             raise WeakPassword() from exc
 
         logger.error(

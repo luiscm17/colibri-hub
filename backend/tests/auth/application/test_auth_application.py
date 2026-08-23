@@ -27,6 +27,7 @@ from auth.domain.errors import (
     AccountNotFound,
     AccountStateConflict,
     AuthenticationRequired,
+    CurrentPasswordRejected,
     DuplicateEmail,
     LastSystemAdministratorRequired,
     ProviderUnavailable,
@@ -135,6 +136,25 @@ class FakeIdentityProvider:
 
     def list_successful_login_audit_evidence(self, *, timestamp_to: str):
         return []
+
+
+class FakePasswordReplacement:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str | None]] = []
+        self.reject_current_password = False
+
+    def replace_required_password(
+        self,
+        *,
+        subject: str,
+        session_id: str | None,
+        current_password: str,
+        new_password: str,
+    ) -> None:
+        del current_password, new_password
+        self.calls.append((subject, session_id))
+        if self.reject_current_password:
+            raise CurrentPasswordRejected()
 
 
 class FakeAccessProvisioning:
@@ -247,12 +267,13 @@ class TestChangeRequiredPassword(unittest.TestCase):
         self.repo = InMemoryAccountRepository()
         self.audits = InMemoryAuditRepository()
         self.provider = FakeIdentityProvider()
+        self.password_replacement = FakePasswordReplacement()
         self.clock = FakeClock()
         self.identity = FakeIdentity()
         self.use_case = ChangeRequiredPassword(
             account_repository=self.repo,
             audit_repository=self.audits,
-            identity_provider=self.provider,
+            password_replacement=self.password_replacement,
             clock=self.clock,
             identity=self.identity,
         )
@@ -300,7 +321,7 @@ class TestChangeRequiredPassword(unittest.TestCase):
         with self.assertRaises(AccountStateConflict):
             self.use_case.execute(cmd)
 
-    def test_updates_provider_password(self):
+    def test_replaces_password_through_self_service_port(self):
         cmd = ChangePasswordCommand(
             current_password="provisional",
             new_password="replacement",
@@ -308,7 +329,42 @@ class TestChangeRequiredPassword(unittest.TestCase):
             session_id=None,
         )
         self.use_case.execute(cmd)
-        self.assertEqual(len(self.provider.password_updates), 1)
+        self.assertEqual(len(self.password_replacement.calls), 1)
+        self.assertEqual(self.provider.password_updates, [])
+
+    def test_rejects_wrong_current_password_without_side_effects(
+        self,
+    ):
+        """Reject wrong current credentials before any local state transition."""
+        initial_version = self.account.version
+        self.password_replacement.reject_current_password = True
+        with self.assertRaises(CurrentPasswordRejected):
+            self.use_case.execute(
+                ChangePasswordCommand(
+                    current_password="wrong-current-password",
+                    new_password="replacement",
+                    actor_subject="sub-1",
+                    session_id="ses-1",
+                )
+            )
+
+        saved = self.repo.find_by_subject("sub-1")
+        assert saved is not None
+        violations: list[str] = []
+        if self.provider.password_updates:
+            violations.append("administrative credential update was invoked")
+        if saved.status != AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE:
+            violations.append(f"account status became {saved.status.value}")
+        if saved.version != initial_version:
+            violations.append(f"account version became {saved.version}")
+        if self.audits.entries:
+            violations.append("successful password-change audit was written")
+
+        self.assertEqual(
+            violations,
+            [],
+            "wrong current password must be rejected without side effects",
+        )
 
     def test_records_audit_without_secrets(self):
         cmd = ChangePasswordCommand(

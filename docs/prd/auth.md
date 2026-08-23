@@ -21,7 +21,7 @@ This capability covers:
 - provisional passwords defined by the System Administrator;
 - mandatory password replacement on first access and after an administrative reset;
 - login and logout;
-- sessions limited to eight hours;
+- sessions limited by a bounded maximum duration configured by the identity provider;
 - administrative password reset;
 - account enablement and disablement;
 - termination of access when an account is disabled;
@@ -57,7 +57,7 @@ Authentication therefore provides a boundary in which:
 - only the System Administrator provisions and administers accounts;
 - provisional credentials cannot become permanent credentials;
 - successful authentication establishes identity but grants no business permission;
-- sessions have a fixed maximum duration;
+- sessions have a bounded maximum duration configured by the identity provider;
 - disabling an account removes access and terminates its sessions;
 - historical identities and actions remain attributable; and
 - credentials never become part of business, access, or audit records.
@@ -104,7 +104,7 @@ and Access Control must not store or validate passwords.
 13. Colibri Hub does not send provisional passwords by email; the System Administrator communicates them outside the system.
 14. The user must replace a provisional password before any protected capability becomes available.
 15. The replacement password must differ from the provisional password.
-16. After replacement, the provisional password must no longer authenticate the user.
+16. After replacement, the provisional password must no longer authenticate the user, the provider session used for replacement is terminated, and the user must sign in with the established password.
 17. Users cannot recover or voluntarily change an established password through Colibri Hub.
 18. An administrative password reset establishes a new provisional password.
 19. A reset terminates active sessions and requires password replacement at the next login.
@@ -113,7 +113,7 @@ and Access Control must not store or validate passwords.
 22. Successful authentication grants no business permission by itself.
 23. Access Control denies protected entry when no associated active profile exists.
 24. Roles and permissions are not stored or evaluated as Authentication account attributes.
-25. A session has a maximum duration of eight hours from login, regardless of activity.
+25. A session has a bounded maximum duration configured by the identity provider, beginning with the originating login regardless of activity.
 26. After the maximum duration, the user must authenticate again.
 27. Logout terminates the current session and prevents its further use.
 28. Disabling an account prevents new logins, terminates active sessions, and inactivates its access profile.
@@ -124,7 +124,7 @@ and Access Control must not store or validate passwords.
 33. Provisioning, enablement, disablement, reset, mandatory password replacement, successful and failed login, logout, expiration, and administrative session termination are traceable by identity, date, and time.
 34. Passwords and other authentication secrets never appear in audit history, business records, Access Control records, or ordinary messages.
 35. Administrative authentication events identify the acting System Administrator.
-36. Session duration is fixed at eight hours; making it administratively configurable is outside this capability.
+36. The frontend, backend, and application administrators must not calculate or independently configure, restart, extend, rotate, or substitute the identity-provider-configured maximum session duration.
 37. Colibri Hub has an initial System Administrator account associated with an active System Administrator profile before ordinary provisioning begins.
 38. The initial System Administrator is established through controlled initialization, not self-registration, and must replace the provisional password before protected access.
 
@@ -153,18 +153,18 @@ and Access Control must not store or validate passwords.
 ### Complete first access
 
 1. The user enters the organizational email and provisional password.
-2. The system validates the credentials and account state and establishes a session whose maximum duration of eight hours begins at that login.
+2. The system validates the credentials and account state and establishes a session whose identity-provider-configured bounded maximum duration begins at that login.
 3. While the account remains in Awaiting Password Change, the session is restricted to inspecting Authentication state, replacing the provisional password, and logging out.
 4. The user replaces the provisional password with a different password, and the provisional password becomes unusable.
-5. Completing the mandatory replacement does not restart or extend the session's original eight-hour maximum.
-6. Access Control resolves the active profile and effective permissions only after the account becomes Active.
+5. A successful mandatory replacement terminates the provider session used for replacement. The account becomes Active only after the provider confirms the replacement, and the user must sign in again with the established password.
+6. Access Control resolves the active profile and effective permissions only after that subsequent authentication.
 7. The user enters an authorized area or is denied when no suitable access exists.
 
 ### Log in
 
 1. The user enters the organizational email and established password.
 2. The system validates the credentials and account state.
-3. A session with a maximum duration of eight hours is established.
+3. A session with the identity-provider-configured bounded maximum duration is established.
 4. Access Control resolves the active profile and effective permissions.
 5. Authentication success does not bypass an Access Control denial.
 
@@ -198,7 +198,7 @@ and Access Control must not store or validate passwords.
 
 ### End a session
 
-1. A session ends on logout, expiration, account disablement, or administrative password reset.
+1. A session ends on logout, expiration, account disablement, administrative password reset, or successful mandatory password replacement.
 2. The ended session cannot be used again.
 3. Access to a protected area requires a new successful login.
 
@@ -226,7 +226,7 @@ Re-enabling a Disabled account also moves it to Awaiting Password Change.
 
 | Condition | Description | Result |
 | --- | --- | --- |
-| Active | Within the eight-hour maximum and not terminated by another rule | The identity may request operations subject to account state and Access Control |
+| Active | Within the identity-provider-configured bounded maximum duration that began with the originating login and not terminated by another rule | The identity may request operations subject to account state and Access Control |
 | Ended | Logged out, expired, disabled, reset, or administratively terminated | The session cannot be reused; a new login is required |
 
 ## Acceptance Criteria
@@ -242,8 +242,8 @@ Re-enabling a Disabled account also moves it to Awaiting Password Change.
 9. No self-registration, self-service recovery, or voluntary password change is available.
 10. Successful Authentication without an active Access Control profile grants no protected access.
 11. Authentication neither assigns nor evaluates roles or business permissions.
-12. A session cannot remain usable beyond eight hours from the login that created it, including a login performed with a provisional password.
-13. Mandatory password replacement does not restart or extend the session's original eight-hour maximum.
+12. A session cannot remain usable beyond the identity-provider-configured bounded maximum duration that began with the login that created it, including a login performed with a provisional password.
+13. A successful mandatory password replacement terminates the provider session used for replacement; the account becomes Active only after provider success, and Access Control resolves access only after a subsequent sign-in with the established password.
 14. Logout, reset, disablement, and expiration make affected sessions unusable.
 15. Disablement prevents login and inactivates the associated access profile without deleting history.
 16. Re-enablement requires a new provisional password and mandatory replacement.
@@ -262,7 +262,7 @@ Authentication does not define:
 - automated delivery of provisional passwords or invitations;
 - self-registration, self-service recovery, or voluntary password change;
 - multifactor authentication;
-- configurable session duration;
+- calculation or independent configuration, restart, extension, rotation, or substitution of the identity-provider-configured maximum session duration by the frontend, backend, or application administrators;
 - physical deletion of established accounts; or
 - providers, schemas, APIs, tokens, libraries, or other implementation design.
 

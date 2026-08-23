@@ -19,6 +19,9 @@ from access.application.create_access_user import CreateAccessUser
 from access.application.deactivate_access_user import DeactivateAccessUser
 from auth.adapters.bootstrap_command import BootstrapInitialAdministrator
 from auth.adapters.identity_provider.admin_client import IdentityProviderAdapter
+from auth.adapters.identity_provider.password_replacement import (
+    SupabasePasswordReplacementAdapter,
+)
 from auth.adapters.persistence.account_repository import AuthAccountRepositoryAdapter
 from auth.adapters.persistence.audit_repository import AuthAuditRepositoryAdapter
 from auth.application.change_required_password import ChangeRequiredPassword
@@ -29,13 +32,16 @@ from auth.application.commands import (
     ResetPasswordCommand,
 )
 from auth.application.disable_account import DisableAccount
+from auth.application.get_current_authentication import GetCurrentAuthentication
 from auth.application.provision_account import ProvisionAccount
 from auth.application.record_logout import RecordLogout
 from auth.application.reset_password import ResetPassword
 from auth.domain.account_status import AuthenticationAccountStatus
+from auth.domain.errors import CurrentPasswordRejected
 from infra.clock import SystemClock
 from infra.identity import SystemIdentity
 from sqlalchemy.orm import Session
+from supabase_auth.errors import AuthError
 
 from backend.integration_tests.database_test_support import (
     test_engine,
@@ -135,7 +141,83 @@ class AuthLifecycleLocalSupabaseIntegrationTests(unittest.TestCase):
         finally:
             fixture.close()
 
+    def test_required_password_replacement_requires_fresh_login_before_access(self) -> None:
+        fixture = self._awaiting_target_fixture()
+        try:
+            original_login = self._sign_in_response(fixture.email, fixture.password)
+            assert original_login.session is not None
+            original_session_id = self._session_id(original_login.session.access_token)
+
+            with self.assertRaises(CurrentPasswordRejected):
+                fixture.use_cases.change_required_password.execute(
+                    ChangePasswordCommand(
+                        current_password="wrong-current-password",
+                        new_password="SyntheticLifecycleReplacement2!",
+                        actor_subject=fixture.subject,
+                        session_id=original_session_id,
+                    )
+                )
+
+            awaiting = AuthAccountRepositoryAdapter(fixture.session).find_by_id(
+                fixture.account_id
+            )
+            assert awaiting is not None
+            self.assertEqual(
+                awaiting.status, AuthenticationAccountStatus.AWAITING_PASSWORD_CHANGE
+            )
+            self.assertTrue(self._can_sign_in(fixture.email, fixture.password))
+
+            replacement_password = "SyntheticLifecycleReplacement2!"
+            fixture.use_cases.change_required_password.execute(
+                ChangePasswordCommand(
+                    current_password=fixture.password,
+                    new_password=replacement_password,
+                    actor_subject=fixture.subject,
+                    session_id=original_session_id,
+                )
+            )
+            fixture.session.commit()
+
+            active = AuthAccountRepositoryAdapter(fixture.session).find_by_id(
+                fixture.account_id
+            )
+            assert active is not None
+            self.assertEqual(active.status, AuthenticationAccountStatus.ACTIVE)
+            self.assertFalse(self._can_sign_in(fixture.email, fixture.password))
+            self.assertTrue(self._prior_bearer_is_rejected(original_login.session.access_token))
+
+            fresh_login = self._sign_in_response(fixture.email, replacement_password)
+            self.assertIsNotNone(fresh_login.session)
+            self.assertIsNotNone(fresh_login.user)
+            assert fresh_login.user is not None
+            self.assertEqual(str(fresh_login.user.id), fixture.subject)
+            self.assertEqual(
+                fixture.use_cases.get_current_authentication.execute(fixture.subject).next_step,
+                "load_access",
+            )
+        finally:
+            fixture.close()
+
     def _active_target_fixture(self):
+        fixture = self._awaiting_target_fixture()
+        try:
+            activation_session = self._sign_in(fixture.email, fixture.password)
+            fixture.use_cases.change_required_password.execute(
+                ChangePasswordCommand(
+                    current_password=fixture.password,
+                    new_password=fixture.password + "Changed",
+                    actor_subject=fixture.subject,
+                    session_id=activation_session,
+                )
+            )
+            fixture.session.commit()
+            fixture.password += "Changed"
+            return fixture
+        except Exception:
+            fixture.close()
+            raise
+
+    def _awaiting_target_fixture(self):
         session = Session(self.engine)
         use_cases = self._use_cases(session)
         token = uuid4().hex
@@ -180,19 +262,9 @@ class AuthLifecycleLocalSupabaseIntegrationTests(unittest.TestCase):
             account = AuthAccountRepositoryAdapter(session).find_by_id(target.account_id)
             assert account is not None
             subjects.append(account.identity_subject)
-            activation_session = self._sign_in(target_email, password)
-            use_cases.change_required_password.execute(
-                ChangePasswordCommand(
-                    current_password=password,
-                    new_password=password + "Changed",
-                    actor_subject=account.identity_subject,
-                    session_id=activation_session,
-                )
-            )
-            session.commit()
             return _LifecycleFixture(
                 session, use_cases, target.account_id, account.identity_subject,
-                admin.identity_subject, target_email, password + "Changed", subjects, self
+                admin.identity_subject, target_email, password, subjects, self
             )
         except Exception:
             session.rollback()
@@ -210,7 +282,18 @@ class AuthLifecycleLocalSupabaseIntegrationTests(unittest.TestCase):
         access = self._access_provisioning(session)
         transaction = TransactionAdapter(session)
         return _LifecycleUseCases(
-            change_required_password=ChangeRequiredPassword(account_repository=accounts, audit_repository=audits, identity_provider=provider, clock=clock, identity=identity),
+            get_current_authentication=GetCurrentAuthentication(accounts),
+            change_required_password=ChangeRequiredPassword(
+                account_repository=accounts,
+                audit_repository=audits,
+                password_replacement=SupabasePasswordReplacementAdapter(
+                    provider_url=self.provider_url,
+                    service_role_key=self.service_role_key,
+                    database_session=session,
+                ),
+                clock=clock,
+                identity=identity,
+            ),
             record_logout=RecordLogout(account_repository=accounts, audit_repository=audits, identity_provider=provider, clock=clock, identity=identity),
             provision_account=ProvisionAccount(account_repository=accounts, audit_repository=audits, identity_provider=provider, access_provisioning=access, clock=clock, identity=identity),
             reset_password=ResetPassword(account_repository=accounts, audit_repository=audits, identity_provider=provider, access_provisioning=access, transaction=transaction, clock=clock, identity=identity),
@@ -233,11 +316,34 @@ class AuthLifecycleLocalSupabaseIntegrationTests(unittest.TestCase):
         return create_client(self.provider_url, self.service_role_key)
 
     def _sign_in(self, email: str, password: str) -> str:
-        response = self._client().auth.sign_in_with_password({"email": email, "password": password})
+        response = self._sign_in_response(email, password)
         assert response.session is not None
-        payload = response.session.access_token.split(".")[1]
+        return self._session_id(response.session.access_token)
+
+    def _sign_in_response(self, email: str, password: str):
+        return self._client().auth.sign_in_with_password(
+            {"email": email, "password": password}
+        )
+
+    @staticmethod
+    def _session_id(access_token: str) -> str:
+        payload = access_token.split(".")[1]
         decoded = base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4))
         return json.loads(decoded)["session_id"]
+
+    def _can_sign_in(self, email: str, password: str) -> bool:
+        try:
+            response = self._sign_in_response(email, password)
+        except AuthError:
+            return False
+        return response.session is not None
+
+    def _prior_bearer_is_rejected(self, bearer: str) -> bool:
+        try:
+            self._client().auth.get_user(bearer)
+        except AuthError:
+            return True
+        return False
 
     def _has_session(self, session_id: str, subject: str) -> bool:
         verification = Session(self.engine)
@@ -275,12 +381,14 @@ class _LifecycleUseCases:
     def __init__(
         self,
         *,
+        get_current_authentication: GetCurrentAuthentication,
         change_required_password: ChangeRequiredPassword,
         record_logout: RecordLogout,
         provision_account: ProvisionAccount,
         reset_password: ResetPassword,
         disable_account: DisableAccount,
     ) -> None:
+        self.get_current_authentication = get_current_authentication
         self.change_required_password = change_required_password
         self.record_logout = record_logout
         self.provision_account = provision_account

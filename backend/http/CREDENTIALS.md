@@ -41,7 +41,12 @@ running):
 
 ### 1. Bootstrap the initial System Administrator
 
+The bootstrap CLI does not load `backend/.env` (only the FastAPI dev entrypoint
+does), so export it first. Run from the repository root:
+
 ```bash
+set -a; source backend/.env; set +a
+
 BOOTSTRAP_EMAIL=admin@colibri.test \
 BOOTSTRAP_PASSWORD=AdminBootstrap123! \
 BOOTSTRAP_USER_CODE=USR-ADM-001 \

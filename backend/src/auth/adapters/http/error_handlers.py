@@ -2,29 +2,14 @@
 
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
-
-from auth.domain.errors import (
-    AccountNotFound,
-    AccountStateConflict,
-    AuthenticationError,
-    AuthenticationFailed,
-    AuthenticationRequired,
-    ChangeReasonRequired,
-    DuplicateEmail,
-    IdentityConflict,
-    LastSystemAdministratorRequired,
-    PasswordChangeRequired,
-    ProviderUnavailable,
-    ReplacementPasswordMustDiffer,
-    VersionConflict,
-    WeakPassword,
-)
 from infra.http.error_envelope import error_json_response
 
+from auth.domain.errors import AuthenticationError
 
 _ERROR_STATUS_MAP: dict[str, int] = {
     "authentication_required": status.HTTP_401_UNAUTHORIZED,
     "authentication_failed": status.HTTP_401_UNAUTHORIZED,
+    "current_password_rejected": status.HTTP_401_UNAUTHORIZED,
     "password_change_required": status.HTTP_403_FORBIDDEN,
     "authentication_account_not_found": status.HTTP_404_NOT_FOUND,
     "duplicate_authentication_email": status.HTTP_409_CONFLICT,
