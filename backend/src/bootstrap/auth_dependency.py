@@ -94,6 +94,9 @@ def compose_auth(
 
         # Build the real Access provisioning adapter sharing this session
         from access.adapters.access_provisioning import AccessProvisioningAdapter
+        from access.adapters.persistence.administrator_continuity import (
+            AdministratorContinuityAdapter,
+        )
         from access.adapters.persistence.assignment_repository import (
             AssignmentRepositoryAdapter,
         )
@@ -118,6 +121,7 @@ def compose_auth(
         access_assignment_repo = AssignmentRepositoryAdapter(session)
         access_audit_repo = AccessAuditRepositoryAdapter(session)
         access_transaction = AccessTransactionAdapter(session)
+        continuity = AdministratorContinuityAdapter(session)
 
         create_access_user = CreateAccessUser(
             user_repository=access_user_repo,
@@ -139,13 +143,14 @@ def compose_auth(
             audit_repository=access_audit_repo,
             transaction=access_transaction,
             clock=clock,
+            continuity=continuity,
         )
 
         access_provisioning = AccessProvisioningAdapter(
             create_user=create_access_user,
             activate_user=activate_access_user,
             deactivate_user=deactivate_access_user,
-            user_repository=access_user_repo,
+            continuity=continuity,
         )
 
         return AuthUseCases(

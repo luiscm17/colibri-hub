@@ -53,35 +53,41 @@ class SupabasePasswordReplacementAdapter:
         if session_id is None:
             raise ProviderUnavailable()
 
-        email = self._email_for_subject(subject)
         verification_client = create_client(self._provider_url, self._service_role_key)
-        self._verify_current_password(
-            verification_client,
-            email=email,
-            subject=subject,
-            current_password=current_password,
-        )
-
         try:
-            verification_client.auth.update_user(
-                {"password": new_password, "current_password": current_password}
+            email = self._email_for_subject(subject)
+            self._verify_current_password(
+                verification_client,
+                email=email,
+                subject=subject,
+                current_password=current_password,
             )
-        except AuthError as exc:
-            if exc.code == _WEAK_PASSWORD_POLICY_CODE:
-                raise WeakPassword() from exc
-            raise ProviderUnavailable() from exc
-        except Exception as exc:
-            raise ProviderUnavailable() from exc
+            try:
+                verification_client.auth.update_user(
+                    {"password": new_password, "current_password": current_password}
+                )
+            except AuthError as exc:
+                if exc.code == _WEAK_PASSWORD_POLICY_CODE:
+                    raise WeakPassword() from exc
+                raise ProviderUnavailable() from exc
+            except Exception as exc:
+                raise ProviderUnavailable() from exc
 
-        try:
-            verification_client.auth.sign_out()
-            original_session_is_active = IdentityProviderAdapter(
-                self._admin_client, self._database_session
-            ).has_active_session(session_id=session_id, subject=subject)
-        except Exception as exc:
-            raise ProviderUnavailable() from exc
-        if original_session_is_active:
-            raise ProviderUnavailable()
+            try:
+                verification_client.auth.sign_out()
+                original_session_is_active = IdentityProviderAdapter(
+                    self._admin_client, self._database_session
+                ).has_active_session(session_id=session_id, subject=subject)
+            except Exception as exc:
+                raise ProviderUnavailable() from exc
+            if original_session_is_active:
+                raise ProviderUnavailable()
+        finally:
+            verification_client.auth.close()
+
+    def close(self) -> None:
+        """Release the service-role HTTP client owned by this adapter."""
+        self._admin_client.auth.close()
 
     def _email_for_subject(self, subject: str) -> str:
         try:

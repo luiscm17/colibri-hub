@@ -8,23 +8,18 @@ Run with: TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:543
           uv run --locked --package backend python -m unittest backend.integration_tests.test_access_control_critical -v
 """
 
-import unittest
 import threading
+import unittest
+from typing import Literal
 from uuid import uuid4
 
+from access.adapters.persistence.administrator_continuity import (
+    AdministratorContinuityAdapter,
+)
+from access.domain.errors import AdministratorContinuityRequired
 from sqlalchemy import text
-from sqlalchemy.orm import Session, sessionmaker
-
-from access.adapters.persistence.assignment_repository import AssignmentRepositoryAdapter
-from access.adapters.persistence.audit_repository import AccessAuditRepositoryAdapter
-from access.adapters.persistence.role_repository import RoleRepositoryAdapter
-from access.adapters.persistence.transaction import TransactionAdapter
-from access.adapters.persistence.user_repository import AccessUserRepositoryAdapter
-from access.application.commands import ReplaceUserRolesCommand
-from access.application.replace_user_roles import ReplaceUserRoles
-from access.domain.errors import LastSystemAdministratorRequired
-from infra.clock import SystemClock
-from infra.identity import SystemIdentity
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import sessionmaker
 
 from backend.integration_tests.database_test_support import (
     test_engine,
@@ -36,106 +31,129 @@ def _uuid() -> str:
     return str(uuid4())
 
 
-class ConcurrentLastAdminRemovalTest(unittest.TestCase):
-    """C3: concurrent last-admin removal rejected under row lock.
-
-    Setup: one system_administrator role, one active user assigned to it.
-    Two concurrent sessions attempt to revoke the assignment through the Access
-    application use case. Both must reject the mutation.
-    """
+class ConcurrentAdministratorReductionTest(unittest.TestCase):
+    """Prove the singleton lock preserves the two-administrator floor."""
 
     @classmethod
     def setUpClass(cls):
         validated_test_database_url()
         cls.engine = test_engine()
 
+    @classmethod
+    def tearDownClass(cls):
+        cls.engine.dispose()
+
     def setUp(self):
-        self.user_id = _uuid()
-        self.assignment_id = _uuid()
+        self.fixture_users = [
+            {"user_id": _uuid(), "subject": _uuid(), "account_id": _uuid()}
+            for _ in range(3)
+        ]
 
         with self.engine.begin() as conn:
             self.role_id = str(conn.execute(text(
                 "SELECT role_id FROM access_roles "
                 "WHERE role_code = 'system_administrator'"
             )).scalar_one())
-            self.existing_active_administrator_ids = [
-                str(user_id)
-                for user_id in conn.execute(text(
-                    "SELECT DISTINCT a.user_id "
-                    "FROM access_user_role_assignments a "
-                    "JOIN access_users u ON u.user_id = a.user_id "
-                    "WHERE a.role_id = :rid AND a.revoked_at IS NULL "
-                    "AND u.is_active = true"
-                ), {"rid": self.role_id}).scalars()
-            ]
-            for user_id in self.existing_active_administrator_ids:
+            for index, user in enumerate(self.fixture_users):
                 conn.execute(text(
-                    "UPDATE access_users SET is_active = false WHERE user_id = :uid"
-                ), {"uid": user_id})
+                    "INSERT INTO authentication_accounts "
+                    "(authentication_account_id, identity_subject, normalized_email, display_name, user_code, status) "
+                    "VALUES (:account_id, :subject, :email, :name, :code, 'active')"
+                ), {
+                    **user,
+                    "email": f"continuity-{user['subject']}@example.invalid",
+                    "name": f"Continuity Administrator {index}",
+                    "code": f"CNT-{user['subject'][:8]}",
+                })
+                conn.execute(text(
+                    "INSERT INTO access_users "
+                    "(user_id, identity_subject, user_code, display_name, is_active) "
+                    "VALUES (:user_id, :subject, :code, :name, true)"
+                ), {
+                    **user,
+                    "code": f"CNT-{user['user_id'][:8]}",
+                    "name": f"Continuity Administrator {index}",
+                })
+                conn.execute(text(
+                    "INSERT INTO access_user_role_assignments "
+                    "(assignment_id, user_id, role_id, assigned_by_user_id) "
+                    "VALUES (:assignment_id, :user_id, :role_id, :user_id)"
+                ), {"assignment_id": _uuid(), "role_id": self.role_id, **user})
 
-            # Create user
-            conn.execute(text(
-                "INSERT INTO access_users (user_id, identity_subject, user_code, display_name, is_active) "
-                "VALUES (:uid, :sub, :code, :name, true)"
-            ), {"uid": self.user_id, "sub": f"sub-{self.user_id[:8]}",
-                "code": f"USR-{self.user_id[:6]}", "name": "Last Admin"})
-
-            # Assign role to user
-            conn.execute(text(
-                "INSERT INTO access_user_role_assignments "
-                "(assignment_id, user_id, role_id, assigned_by_user_id) "
-                "VALUES (:aid, :uid, :rid, :uid)"
-            ), {"aid": self.assignment_id, "uid": self.user_id, "rid": self.role_id})
+            enabled = conn.execute(text(
+                "SELECT enforcement_enabled FROM access_administrator_continuity WHERE id = 1"
+            )).scalar_one()
+            if not enabled:
+                conn.execute(text(
+                    "UPDATE access_administrator_continuity "
+                    "SET enforcement_enabled = true, enforcement_evidence = 'integration continuity proof' "
+                    "WHERE id = 1"
+                ))
 
     def tearDown(self):
         with self.engine.begin() as conn:
             conn.execute(text(
-                "DELETE FROM access_user_role_assignments WHERE user_id = :uid"
-            ), {"uid": self.user_id})
+                "DELETE FROM access_user_role_assignments WHERE user_id = ANY(:user_ids)"
+            ), {"user_ids": [user["user_id"] for user in self.fixture_users]})
             conn.execute(text(
-                "DELETE FROM access_users WHERE user_id = :uid"
-            ), {"uid": self.user_id})
-            for user_id in self.existing_active_administrator_ids:
-                conn.execute(text(
-                    "UPDATE access_users SET is_active = true WHERE user_id = :uid"
-                ), {"uid": user_id})
+                "DELETE FROM access_users WHERE user_id = ANY(:user_ids)"
+            ), {"user_ids": [user["user_id"] for user in self.fixture_users]})
+            conn.execute(text(
+                "DELETE FROM authentication_accounts WHERE authentication_account_id = ANY(:account_ids)"
+            ), {"account_ids": [user["account_id"] for user in self.fixture_users]})
 
-    def test_concurrent_removal_one_blocked(self):
-        """Concurrent role replacement cannot revoke the only administrator."""
+    def test_disjoint_concurrent_reductions_preserve_the_two_administrator_floor(self):
+        """Two concurrent reductions serialize without crossing the global floor."""
         SessionFactory = sessionmaker(bind=self.engine)
-        results = {"session_1": None, "session_2": None}
+        fixture_subjects = {user["subject"] for user in self.fixture_users}
+        results: dict[
+            str, Literal["succeeded"] | AdministratorContinuityRequired | SQLAlchemyError | None
+        ] = {
+            "session_1": None,
+            "session_2": None,
+        }
         barrier = threading.Barrier(2, timeout=5)
 
-        def attempt_removal(session_name):
+        with self.engine.connect() as conn:
+            initial_operational = set(conn.execute(text(
+                "SELECT identity_subject FROM access_operational_administrators_preflight"
+            )).scalars())
+
+        self.assertEqual(initial_operational, fixture_subjects)
+
+        def attempt_reduction(session_name, target):
             session = SessionFactory()
             try:
-                use_case = ReplaceUserRoles(
-                    user_repository=AccessUserRepositoryAdapter(session),
-                    role_repository=RoleRepositoryAdapter(session),
-                    assignment_repository=AssignmentRepositoryAdapter(session),
-                    audit_repository=AccessAuditRepositoryAdapter(session),
-                    transaction=TransactionAdapter(session),
-                    clock=SystemClock(),
-                    identity=SystemIdentity(),
-                )
                 barrier.wait()
-                use_case.execute(
-                    ReplaceUserRolesCommand(
-                        user_id=self.user_id,
-                        role_ids=[],
-                        expected_version=1,
-                        reason="concurrent last-admin removal test",
-                        actor_user_id=self.user_id,
-                        operation_id=_uuid(),
-                    )
+                AdministratorContinuityAdapter(session).assert_reduction_allowed(
+                    target["subject"]
                 )
-            except Exception as exc:
+                session.execute(text(
+                    "UPDATE access_user_role_assignments "
+                    "SET revoked_at = now(), revoked_by_user_id = :actor_id, "
+                    "revoke_reason = 'concurrent continuity proof' "
+                    "WHERE user_id = :user_id AND role_id = :role_id AND revoked_at IS NULL"
+                ), {
+                    "actor_id": target["user_id"],
+                    "user_id": target["user_id"],
+                    "role_id": self.role_id,
+                })
+                session.commit()
+                results[session_name] = "succeeded"
+            except AdministratorContinuityRequired as exc:
+                session.rollback()
+                results[session_name] = exc
+            except SQLAlchemyError as exc:
                 results[session_name] = exc
             finally:
                 session.close()
 
-        t1 = threading.Thread(target=attempt_removal, args=("session_1",))
-        t2 = threading.Thread(target=attempt_removal, args=("session_2",))
+        t1 = threading.Thread(
+            target=attempt_reduction, args=("session_1", self.fixture_users[0])
+        )
+        t2 = threading.Thread(
+            target=attempt_reduction, args=("session_2", self.fixture_users[1])
+        )
 
         t1.start()
         t2.start()
@@ -144,26 +162,24 @@ class ConcurrentLastAdminRemovalTest(unittest.TestCase):
 
         self.assertFalse(t1.is_alive(), "session_1 did not finish")
         self.assertFalse(t2.is_alive(), "session_2 did not finish")
-        for result in results.values():
-            self.assertIsInstance(result, LastSystemAdministratorRequired)
+        self.assertEqual(sum(result == "succeeded" for result in results.values()), 1)
+        self.assertEqual(
+            sum(
+                isinstance(result, AdministratorContinuityRequired)
+                for result in results.values()
+            ),
+            1,
+        )
 
         with self.engine.connect() as conn:
-            current_assignments = conn.execute(text(
-                "SELECT count(*) FROM access_user_role_assignments "
-                "WHERE assignment_id = :aid AND revoked_at IS NULL"
-            ), {"aid": self.assignment_id}).scalar_one()
-            user_state = conn.execute(text(
-                "SELECT authorization_version, version FROM access_users "
-                "WHERE user_id = :uid"
-            ), {"uid": self.user_id}).one()
-            audit_count = conn.execute(text(
-                "SELECT count(*) FROM access_change_audits "
-                "WHERE subject_type = 'user' AND subject_id = :uid"
-            ), {"uid": self.user_id}).scalar_one()
+            operational = set(conn.execute(text(
+                "SELECT identity_subject FROM access_operational_administrators_preflight"
+            )).scalars())
 
-        self.assertEqual(current_assignments, 1)
-        self.assertEqual(user_state, (1, 1))
-        self.assertEqual(audit_count, 0)
+        self.assertTrue(
+            operational.issubset(fixture_subjects)
+        )
+        self.assertEqual(len(operational), 2)
 
 
 class CrossContextRollbackTest(unittest.TestCase):
@@ -175,6 +191,10 @@ class CrossContextRollbackTest(unittest.TestCase):
     def setUpClass(cls):
         validated_test_database_url()
         cls.engine = test_engine()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.engine.dispose()
 
     def test_duplicate_identity_subject_rolls_back(self):
         """If provisioning creates a user with duplicate identity_subject,
@@ -201,7 +221,7 @@ class CrossContextRollbackTest(unittest.TestCase):
             ), {"uid": uid2, "sub": subject, "code": f"USR-{uid2[:6]}", "name": "Second"})
             session.commit()
             self.fail("Expected unique constraint violation")
-        except Exception:
+        except IntegrityError:
             session.rollback()
 
         # Verify no second user exists (rollback successful)

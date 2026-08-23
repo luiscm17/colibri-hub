@@ -3,50 +3,53 @@
 from collections.abc import Callable
 from typing import Annotated
 
-from access.adapters.persistence.audit_repository import (
-    AccessAuditRepositoryAdapter,
+from access.adapters.persistence.administrator_continuity import (
+    AdministratorContinuityAdapter,
 )
 from access.adapters.persistence.assignment_repository import (
     AssignmentRepositoryAdapter,
 )
-from access.adapters.persistence.role_repository import (
-    RoleRepositoryAdapter,
+from access.adapters.persistence.audit_repository import (
+    AccessAuditRepositoryAdapter,
 )
 from access.adapters.persistence.preset_repository import RolePresetRepositoryAdapter
 from access.adapters.persistence.preview_query import RepositoryPreviewQuery
+from access.adapters.persistence.role_repository import (
+    RoleRepositoryAdapter,
+)
 from access.adapters.persistence.scope_repository import (
     ScopeDefinitionRegistryAdapter,
     ScopeRepositoryAdapter,
 )
+from access.adapters.persistence.transaction import TransactionAdapter
 from access.adapters.persistence.user_repository import (
     AccessUserRepositoryAdapter,
 )
-from access.adapters.persistence.transaction import TransactionAdapter
+from access.application.activate_access_user import ActivateAccessUser
 from access.application.activate_role import ActivateRole
 from access.application.activate_scope import ActivateScope
+from access.application.change_role_preset_status import ChangeRolePresetStatus
 from access.application.containers import AdminUseCases
 from access.application.create_role import CreateRole
+from access.application.create_role_from_preset import CreateRoleFromPreset
+from access.application.create_role_preset import CreateRolePreset
+from access.application.deactivate_access_user import DeactivateAccessUser
 from access.application.deactivate_role import DeactivateRole
 from access.application.deactivate_scope import DeactivateScope
 from access.application.get_access_user import GetAccessUser
-from access.application.activate_access_user import ActivateAccessUser
-from access.application.deactivate_access_user import DeactivateAccessUser
+from access.application.get_role_preset import GetRolePreset
 from access.application.list_access_audits import ListAccessAudits
 from access.application.list_access_users import ListAccessUsers
+from access.application.list_role_presets import ListRolePresets
 from access.application.list_roles import ListRoles
 from access.application.list_scope_definitions import ListScopeDefinitions
 from access.application.list_scopes import ListScopes
+from access.application.preview_role_change import PreviewRoleChange
+from access.application.preview_user_role_replacement import PreviewUserRoleReplacement
 from access.application.register_recognized_scope import RegisterRecognizedScope
 from access.application.replace_user_roles import ReplaceUserRoles
 from access.application.update_role import UpdateRole
-from access.application.create_role_preset import CreateRolePreset
 from access.application.update_role_preset import UpdateRolePreset
-from access.application.list_role_presets import ListRolePresets
-from access.application.get_role_preset import GetRolePreset
-from access.application.change_role_preset_status import ChangeRolePresetStatus
-from access.application.create_role_from_preset import CreateRoleFromPreset
-from access.application.preview_role_change import PreviewRoleChange
-from access.application.preview_user_role_replacement import PreviewUserRoleReplacement
 from fastapi import Depends
 from infra.clock import SystemClock
 from infra.identity import SystemIdentity
@@ -74,6 +77,7 @@ def admin_use_case_dependency(
         definition_registry = ScopeDefinitionRegistryAdapter(session)
         audit_repo = AccessAuditRepositoryAdapter(session)
         transaction = TransactionAdapter(session)
+        continuity = AdministratorContinuityAdapter(session)
         preview_query = RepositoryPreviewQuery(
             user_repository=user_repo,
             role_repository=role_repo,
@@ -153,6 +157,7 @@ def admin_use_case_dependency(
                 audit_repository=audit_repo,
                 transaction=transaction,
                 clock=clock,
+                continuity=continuity,
             ),
             replace_user_roles=ReplaceUserRoles(
                 user_repository=user_repo,
@@ -162,6 +167,7 @@ def admin_use_case_dependency(
                 transaction=transaction,
                 clock=clock,
                 identity=identity,
+                continuity=continuity,
             ),
             register_recognized_scope=RegisterRecognizedScope(
                 scope_repository=scope_repo,
@@ -171,14 +177,43 @@ def admin_use_case_dependency(
                 clock=clock,
                 identity=identity,
             ),
-            create_role_preset=CreateRolePreset(preset_repository=preset_repo, scope_repository=scope_repo, scope_definition_registry=definition_registry, audit_repository=audit_repo, transaction=transaction, clock=clock, identity=identity),
-            update_role_preset=UpdateRolePreset(preset_repository=preset_repo, scope_repository=scope_repo, scope_definition_registry=definition_registry, audit_repository=audit_repo, transaction=transaction, clock=clock),
+            create_role_preset=CreateRolePreset(
+                preset_repository=preset_repo,
+                scope_repository=scope_repo,
+                scope_definition_registry=definition_registry,
+                audit_repository=audit_repo,
+                transaction=transaction,
+                clock=clock,
+                identity=identity,
+            ),
+            update_role_preset=UpdateRolePreset(
+                preset_repository=preset_repo,
+                scope_repository=scope_repo,
+                scope_definition_registry=definition_registry,
+                audit_repository=audit_repo,
+                transaction=transaction,
+                clock=clock,
+            ),
             list_role_presets=ListRolePresets(preset_repository=preset_repo),
             get_role_preset=GetRolePreset(preset_repository=preset_repo),
-            change_role_preset_status=ChangeRolePresetStatus(preset_repository=preset_repo, audit_repository=audit_repo, transaction=transaction, clock=clock),
-            create_role_from_preset=CreateRoleFromPreset(preset_repository=preset_repo, role_repository=role_repo, audit_repository=audit_repo, transaction=transaction, clock=clock, identity=identity),
+            change_role_preset_status=ChangeRolePresetStatus(
+                preset_repository=preset_repo,
+                audit_repository=audit_repo,
+                transaction=transaction,
+                clock=clock,
+            ),
+            create_role_from_preset=CreateRoleFromPreset(
+                preset_repository=preset_repo,
+                role_repository=role_repo,
+                audit_repository=audit_repo,
+                transaction=transaction,
+                clock=clock,
+                identity=identity,
+            ),
             preview_role_change=PreviewRoleChange(preview_query=preview_query),
-            preview_user_role_replacement=PreviewUserRoleReplacement(preview_query=preview_query),
+            preview_user_role_replacement=PreviewUserRoleReplacement(
+                preview_query=preview_query
+            ),
             user_repository=user_repo,
             role_repository=role_repo,
             scope_repository=scope_repo,

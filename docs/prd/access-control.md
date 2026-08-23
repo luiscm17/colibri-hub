@@ -132,7 +132,7 @@ Labels such as Shift Summary or Daily Summary describe filtered queries or dashb
 20. Users who share a role across different shifts remain distinct users. Every recorded action must identify the individual who performed it.
 21. The System Administrator has access across the complete system, including newly introduced business scopes.
 22. Manage Access and Edit Outside the Operational Window are reserved for the System Administrator.
-23. The system must retain at least one active System Administrator so access governance cannot be left without an authorized administrator.
+23. Ordinary in-scope changes must retain at least two distinct operational System Administrators. An operational System Administrator has an Active Authentication account, an active Access profile, and a current assignment to the reserved System Administrator role. Access Control owns the reserved-role and profile facts; Authentication owns account state. Account deletion is excluded from this continuity rule.
 24. An inactive user cannot obtain authorization, regardless of assigned roles.
 25. An inactive role grants no effective permission but must remain available for historical traceability.
 26. Deactivation must preserve the user's identity, prior assignments, and access history.
@@ -254,7 +254,7 @@ Authentication state and Access-profile state are evaluated independently:
 20. A user without Edit Outside the Operational Window permission cannot correct a record after its owning business context closes the ordinary correction window.
 21. Only the System Administrator can manage access or authorize an exceptional correction outside the operational window.
 22. The System Administrator can operate across existing and newly introduced business scopes.
-23. The system prevents an access change that would leave no active System Administrator.
+23. The system prevents an in-scope ordinary access change that would leave fewer than two distinct operational System Administrators; account deletion is excluded.
 24. Every role creation, role change, role assignment, role removal, profile activation, and profile inactivation is traceable to the individual who performed it and the date and time of the change.
 25. Authorization does not replace domain validation: an authorized request is still rejected when it violates the owning business context's rules.
 26. Operational audit records identify the individual user rather than only the shared role.

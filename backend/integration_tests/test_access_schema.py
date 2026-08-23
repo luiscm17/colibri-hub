@@ -36,6 +36,57 @@ def _uuid() -> str:
     return str(uuid4())
 
 
+def _create_operational_administrators(connection, count: int) -> None:
+    system_administrator_role_id = connection.execute(
+        text("SELECT role_id FROM access_roles WHERE is_system_administrator = true")
+    ).scalar_one()
+
+    for index in range(count):
+        identity_subject = _uuid()
+        user_id = _uuid()
+        connection.execute(
+            text(
+                "INSERT INTO authentication_accounts "
+                "(authentication_account_id, identity_subject, normalized_email, "
+                "display_name, user_code, status) "
+                "VALUES (:account_id, :identity_subject, :email, :display_name, "
+                ":user_code, 'active')"
+            ),
+            {
+                "account_id": _uuid(),
+                "identity_subject": identity_subject,
+                "email": f"continuity-{identity_subject}@example.test",
+                "display_name": f"Continuity administrator {index}",
+                "user_code": f"CONT-{identity_subject[:8]}",
+            },
+        )
+        connection.execute(
+            text(
+                "INSERT INTO access_users "
+                "(user_id, identity_subject, user_code, display_name) "
+                "VALUES (:user_id, :identity_subject, :user_code, :display_name)"
+            ),
+            {
+                "user_id": user_id,
+                "identity_subject": identity_subject,
+                "user_code": f"CONT-{identity_subject[:8]}",
+                "display_name": f"Continuity administrator {index}",
+            },
+        )
+        connection.execute(
+            text(
+                "INSERT INTO access_user_role_assignments "
+                "(assignment_id, user_id, role_id, assigned_by_user_id) "
+                "VALUES (:assignment_id, :user_id, :role_id, :user_id)"
+            ),
+            {
+                "assignment_id": _uuid(),
+                "user_id": user_id,
+                "role_id": system_administrator_role_id,
+            },
+        )
+
+
 class AccessSchemaConstraintsTest(unittest.TestCase):
     """Verify named constraints and partial unique indexes."""
 
@@ -43,6 +94,93 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
     def setUpClass(cls):
         validated_test_database_url()
         cls.engine = test_engine()
+
+    def test_continuity_enablement_refuses_one_operational_administrator(self):
+        with self.engine.connect() as connection:
+            transaction = connection.begin()
+            try:
+                already_enabled = connection.execute(
+                    text(
+                        "SELECT enforcement_enabled "
+                        "FROM access_administrator_continuity WHERE id = 1"
+                    )
+                ).scalar_one()
+                if already_enabled:
+                    with self.assertRaises(Exception) as ctx, connection.begin_nested():
+                        connection.execute(
+                            text(
+                                "UPDATE access_administrator_continuity "
+                                "SET enforcement_evidence = 'migration test' "
+                                "WHERE id = 1"
+                            )
+                        )
+                    self.assertIn("immutable", str(ctx.exception).lower())
+                    return
+                _create_operational_administrators(connection, 1)
+                with self.assertRaises(Exception) as ctx, connection.begin_nested():
+                    connection.execute(
+                        text(
+                            "UPDATE access_administrator_continuity "
+                            "SET enforcement_enabled = true, "
+                            "enforcement_evidence = 'migration test' "
+                            "WHERE id = 1"
+                        )
+                    )
+                self.assertIn("two operational", str(ctx.exception).lower())
+                state = connection.execute(
+                    text(
+                        "SELECT enforcement_enabled, enforcement_enabled_at, "
+                        "enforcement_evidence "
+                        "FROM access_administrator_continuity WHERE id = 1"
+                    )
+                ).one()
+                self.assertEqual(state, (False, None, None))
+            finally:
+                transaction.rollback()
+
+    def test_continuity_enablement_allows_two_operational_administrators(self):
+        with self.engine.connect() as connection:
+            transaction = connection.begin()
+            try:
+                already_enabled = connection.execute(
+                    text(
+                        "SELECT enforcement_enabled "
+                        "FROM access_administrator_continuity WHERE id = 1"
+                    )
+                ).scalar_one()
+                if already_enabled:
+                    state = connection.execute(
+                        text(
+                            "SELECT enforcement_enabled, enforcement_enabled_at, "
+                            "enforcement_evidence "
+                            "FROM access_administrator_continuity WHERE id = 1"
+                        )
+                    ).one()
+                    self.assertEqual(state[0], True)
+                    self.assertIsNotNone(state[1])
+                    self.assertIsNotNone(state[2])
+                    return
+                _create_operational_administrators(connection, 2)
+                connection.execute(
+                    text(
+                        "UPDATE access_administrator_continuity "
+                        "SET enforcement_enabled = true, "
+                        "enforcement_evidence = 'migration test' "
+                        "WHERE id = 1"
+                    )
+                )
+                state = connection.execute(
+                    text(
+                        "SELECT enforcement_enabled, enforcement_enabled_at, "
+                        "enforcement_evidence "
+                        "FROM access_administrator_continuity WHERE id = 1"
+                    )
+                ).one()
+                self.assertEqual(state[0], True)
+                self.assertIsNotNone(state[1])
+                self.assertEqual(state[2], "migration test")
+            finally:
+                transaction.rollback()
 
     def test_scope_definitions_seeded_with_19_rows(self):
         with self.engine.connect() as conn:
@@ -614,10 +752,7 @@ class AccessSchemaConstraintsTest(unittest.TestCase):
             ).one()
             self.assertEqual(tuple(remaining), (0, 0, 0, 0))
             remaining_scope_count = verification_connection.execute(
-                text(
-                    "SELECT count(*) FROM access_scopes "
-                    "WHERE scope_id = :scope_id"
-                ),
+                text("SELECT count(*) FROM access_scopes WHERE scope_id = :scope_id"),
                 {"scope_id": scope_id},
             ).scalar_one()
             self.assertEqual(remaining_scope_count, 0)
@@ -706,8 +841,7 @@ class AccessSchemaRlsTest(unittest.TestCase):
                 with self.subTest(table=table):
                     result = conn.execute(
                         text(
-                            "SELECT relrowsecurity FROM pg_class "
-                            "WHERE relname = :name"
+                            "SELECT relrowsecurity FROM pg_class WHERE relname = :name"
                         ),
                         {"name": table},
                     ).scalar()

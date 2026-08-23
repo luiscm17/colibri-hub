@@ -126,8 +126,8 @@ class FakeAccessProvisioning:
     def deactivate_profile(self, **kwargs):
         pass
 
-    def would_remove_last_administrator(self, subject):
-        return False
+    def assert_reduction_allowed(self, subject):
+        return None
 
 
 class FakeTransaction:
@@ -313,9 +313,7 @@ class TestDisableEndpoint(unittest.TestCase):
     def test_returns_503_when_provider_unavailable(self):
         account = _make_active_account()
         provider = FakeIdentityProvider(ban_raises=True)
-        client, repo = _build_test_app(
-            accounts={"acc-1": account}, provider=provider
-        )
+        client, repo = _build_test_app(accounts={"acc-1": account}, provider=provider)
 
         response = client.post(
             "/api/v1/auth/accounts/acc-1/disable",
@@ -375,17 +373,38 @@ class TestResetPasswordEndpoint(unittest.TestCase):
 class TestAuditEndpoint(unittest.TestCase):
     def test_rejects_malformed_cursor(self):
         client, _ = _build_test_app()
-        self.assertEqual(client.get("/api/v1/auth/audits?cursor=not-a-cursor").status_code, 422)
+        self.assertEqual(
+            client.get("/api/v1/auth/audits?cursor=not-a-cursor").status_code, 422
+        )
 
     def test_returns_source_tagged_page(self):
         client, _ = _build_test_app()
-        self.assertEqual(client.get("/api/v1/auth/audits").json(), {"entries": [], "cursor": None})
+        self.assertEqual(
+            client.get("/api/v1/auth/audits").json(), {"entries": [], "cursor": None}
+        )
 
     def test_returns_no_partial_page_when_provider_is_unavailable(self):
         client, _ = _build_test_app(provider=FakeIdentityProvider(ban_raises=True))
         response = client.get("/api/v1/auth/audits")
         self.assertEqual(response.status_code, 503)
-        self.assertEqual(response.json()["error"]["code"], "authentication_provider_unavailable")
+        self.assertEqual(
+            response.json()["error"]["code"], "authentication_provider_unavailable"
+        )
+
+
+class TestNoRecoveryOrBypassEndpoint(unittest.TestCase):
+    """Recovery remains an external procedure, not an application operation."""
+
+    def test_recovery_and_bypass_paths_are_undocumented_and_return_404(self):
+        client, _ = _build_test_app()
+        paths = client.get("/openapi.json").json()["paths"]
+
+        for path in (
+            "/api/v1/auth/recovery",
+            "/api/v1/auth/administrator-continuity/bypass",
+        ):
+            self.assertNotIn(path, paths)
+            self.assertEqual(client.post(path, json={}).status_code, 404)
 
 
 if __name__ == "__main__":

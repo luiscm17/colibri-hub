@@ -120,7 +120,7 @@ and Access Control must not store or validate passwords.
 29. Disablement preserves identity, prior assignments, and attributable business and security history.
 30. An established account is not physically deleted.
 31. Re-enabling an account requires a new provisional password and mandatory replacement. It may proceed with zero active assigned roles and does not imply any protected capability.
-32. No account or access change, including account disablement, administrative password reset, access-profile inactivation, role replacement, or assignment removal, may leave Colibri Hub without an enabled System Administrator capable of authenticating and governing accounts and access.
+32. No ordinary in-scope account or access change, including account disablement, administrative password reset, access-profile inactivation, role replacement, or assignment removal, may leave fewer than two distinct operational System Administrators. Operational state requires an Active Authentication account, an active Access profile, and a current reserved-role assignment; Authentication owns account state and Access Control owns the profile and role facts. Account deletion is excluded.
 33. Successful and failed login attempts must remain traceable by identity, date, and time. Security history must identify affected accounts and acting System Administrators for security-sensitive administrative events without exposing passwords or other authentication secrets. Any current limitation in backend-issued evidence or provider-history completeness is explanatory only and does not reduce this requirement.
 34. Passwords and other authentication secrets never appear in audit history, business records, Access Control records, or ordinary messages.
 35. Administrative authentication events identify the acting System Administrator.
@@ -181,7 +181,7 @@ and Access Control must not store or validate passwords.
 ### Disable an account
 
 1. The System Administrator selects the account.
-2. The system checks the last-System-Administrator invariant.
+2. The system checks the two-operational-administrator continuity floor.
 3. The System Administrator confirms the action.
 4. New logins are blocked, active sessions are terminated, and the access profile is inactivated.
 5. Identity, assignments, and historical actions are preserved.
@@ -247,7 +247,7 @@ Re-enabling a Disabled account also moves it to Awaiting Password Change.
 14. Logout, reset, disablement, and expiration make affected sessions unusable.
 15. Disablement prevents login and inactivates the associated access profile without deleting history.
 16. Re-enablement requires a new provisional password and mandatory replacement, may proceed with zero active assigned roles, and grants no capability by implication.
-17. Disablement, administrative password reset, profile inactivation, role replacement, assignment removal, or any coordinated access change is rejected when it would leave no operational System Administrator.
+17. Disablement, administrative password reset, profile inactivation, role replacement, assignment removal, or any coordinated ordinary access change is rejected when it would leave fewer than two distinct operational System Administrators; account deletion is excluded.
 18. Login denial does not reveal account existence or state.
 19. Authentication History makes successful and failed login attempts traceable by identity, date, and time, and identifies affected accounts and acting System Administrators for security-sensitive administrative events without exposing passwords or other authentication secrets. Any current implementation limitation in backend-issued evidence or provider-history completeness is explanatory only and does not weaken this criterion.
 20. The initial System Administrator is established without self-registration and replaces the provisional password before protected access.
