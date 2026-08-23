@@ -104,7 +104,7 @@ and Access Control must not store or validate passwords.
 13. Colibri Hub does not send provisional passwords by email; the System Administrator communicates them outside the system.
 14. The user must replace a provisional password before any protected capability becomes available.
 15. The replacement password must differ from the provisional password.
-16. After replacement, the provisional password must no longer authenticate the user.
+16. After replacement, the provisional password must no longer authenticate the user, the provider session used for replacement is terminated, and the user must sign in with the established password.
 17. Users cannot recover or voluntarily change an established password through Colibri Hub.
 18. An administrative password reset establishes a new provisional password.
 19. A reset terminates active sessions and requires password replacement at the next login.
@@ -156,8 +156,8 @@ and Access Control must not store or validate passwords.
 2. The system validates the credentials and account state and establishes a session whose identity-provider-configured bounded maximum duration begins at that login.
 3. While the account remains in Awaiting Password Change, the session is restricted to inspecting Authentication state, replacing the provisional password, and logging out.
 4. The user replaces the provisional password with a different password, and the provisional password becomes unusable.
-5. Completing the mandatory replacement continues only within the remaining duration of the original provider session; it does not restart, extend, rotate, or substitute that session.
-6. Access Control resolves the active profile and effective permissions only after the account becomes Active.
+5. A successful mandatory replacement terminates the provider session used for replacement. The account becomes Active only after the provider confirms the replacement, and the user must sign in again with the established password.
+6. Access Control resolves the active profile and effective permissions only after that subsequent authentication.
 7. The user enters an authorized area or is denied when no suitable access exists.
 
 ### Log in
@@ -198,7 +198,7 @@ and Access Control must not store or validate passwords.
 
 ### End a session
 
-1. A session ends on logout, expiration, account disablement, or administrative password reset.
+1. A session ends on logout, expiration, account disablement, administrative password reset, or successful mandatory password replacement.
 2. The ended session cannot be used again.
 3. Access to a protected area requires a new successful login.
 
@@ -243,7 +243,7 @@ Re-enabling a Disabled account also moves it to Awaiting Password Change.
 10. Successful Authentication without an active Access Control profile grants no protected access.
 11. Authentication neither assigns nor evaluates roles or business permissions.
 12. A session cannot remain usable beyond the identity-provider-configured bounded maximum duration that began with the login that created it, including a login performed with a provisional password.
-13. Mandatory password replacement continues only within the remaining duration of the original provider session and does not restart, extend, rotate, or substitute it.
+13. A successful mandatory password replacement terminates the provider session used for replacement; the account becomes Active only after provider success, and Access Control resolves access only after a subsequent sign-in with the established password.
 14. Logout, reset, disablement, and expiration make affected sessions unusable.
 15. Disablement prevents login and inactivates the associated access profile without deleting history.
 16. Re-enablement requires a new provisional password and mandatory replacement.
