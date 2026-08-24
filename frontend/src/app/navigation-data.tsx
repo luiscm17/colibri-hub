@@ -38,6 +38,7 @@ export const navData: NavItem[] = [
   ] },
   { label: 'Acceso', icon: <IconSettings size={18} />, children: [
     { label: 'Accounts', path: '/auth/accounts', icon: <IconSettings size={16} /> },
+    { label: 'Authentication history', path: '/auth/history', icon: <IconHistory size={16} /> },
     { label: 'Usuarios', path: '/access/users', icon: <IconSettings size={16} /> },
     { label: 'Roles', path: '/access/roles', icon: <IconSettings size={16} /> },
     { label: 'Presets de rol', path: '/access/presets', icon: <IconSettings size={16} /> },
