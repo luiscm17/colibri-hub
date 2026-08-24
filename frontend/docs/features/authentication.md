@@ -12,15 +12,14 @@ owner: frontend
 > [Access Control](../../../docs/prd/access-control.md)
 >
 > The PRDs are authoritative for business behavior. This specification defines
-> the frontend consequences of those rules and the implemented contracts it
-> consumes.
+> the frontend consequences of those rules and the contracts it consumes.
 
 ## 1. Purpose and boundary
 
 The Authentication frontend establishes an observable application identity from
 a provider-owned browser session, validates the corresponding Colibri Hub
 account, enforces mandatory password replacement, ends local use of sessions,
-and presents account administration. A provider session alone never admits
+and presents Authentication account administration. A provider session alone never admits
 protected content: `GET /api/v1/auth/me` must first validate the application
 account and state the next step.
 
@@ -37,7 +36,7 @@ administrative mutations, audit evidence, and every protected request. The
 frontend neither validates tokens nor treats visibility or navigation as a
 security boundary.
 
-Implementation follows the [Frontend Architecture Overview](../architecture/overview.md).
+The frontend follows the [Frontend Architecture Overview](../architecture/overview.md).
 Technology families are owned by the
 [Technology Baseline](../../../docs/architecture/technology-baseline.md), exact
 dependencies by repository manifests, styling by
@@ -57,15 +56,15 @@ Authentication state is exactly one of:
 | `initializing` | none | Initial provider restoration and account validation are unresolved |
 | `unauthenticated` | reason: `logged-out`, `expired`, or `denied` | No usable application session exists |
 | `password-change-required` | account | The account is validated but only mandatory replacement, state inspection, and logout are available |
-| `authenticated` | account with `next_step=load_access` | Authentication is eligible to hand off to Access |
+| `authenticated` | account | Authentication is eligible to hand off to Access |
 | `unavailable` | retryable | Provider or backend availability prevents a trustworthy result |
 
 The account model contains only the normalized non-secret account identity needed
-for presentation: account identifier, organizational email, display name,
-account status, and next step. Transport fields are validated and normalized at
-the Authentication boundary. Provider users, sessions, tokens, token claims,
-password flags, private metadata, roles, and permissions are not presentation
-state.
+for presentation: account identifier, organizational email, display name, and
+initials. Account status and next step remain transport decisions used to publish
+Authentication state; they are not presentation state. Provider users, sessions,
+tokens, token claims, password flags, private metadata, roles, and permissions
+are not presentation state.
 
 Only `authenticated` may initiate Access bootstrap. `initializing`,
 `password-change-required`, and `unavailable` expose no protected content.
@@ -276,16 +275,14 @@ dirty and confirmation state.
 Ordinary login, browser persistence, refresh, and local sign-out use the provider
 browser boundary; there is no backend login endpoint.
 
-### 6.2 Administration
+### 6.2 Authentication administration
 
 | Capability | Method | Path | Success |
 | --- | --- | --- | --- |
 | List accounts | `GET` | `/api/v1/auth/accounts` | `200` complete account-summary collection |
-| Provision account and Access | `POST` | `/api/v1/auth/accounts` | `201` non-secret account summary |
 | Get account | `GET` | `/api/v1/auth/accounts/{account_id}` | `200` account detail |
 | Reset password | `POST` | `/api/v1/auth/accounts/{account_id}/password-reset` | `204`, no body |
 | Disable account | `POST` | `/api/v1/auth/accounts/{account_id}/disable` | `204`, no body |
-| Enable account | `POST` | `/api/v1/auth/accounts/{account_id}/enable` | `204`, no body |
 | Query Authentication audits | `GET` | `/api/v1/auth/audits` | `200` cursor page |
 
 Exact transport fields, validation, and error envelopes belong to the backend
@@ -303,12 +300,11 @@ authorization remains authoritative.
 
 | Destination | Primary purpose | Observable relationships and transitions |
 | --- | --- | --- |
-| Accounts | Consult Authentication account summaries and start provisioning | Collection to addressable account detail or create; restores collection context on return |
-| Account detail | Consult Authentication and related Access state and initiate lifecycle actions | Detail to reset, disable, or enable confirmation according to current state; Back returns to origin |
-| Provision account | Establish one account, profile, and initial role set | Addressable create interaction; cancel returns to the originating Accounts context |
-| Authentication History | Consult implemented Authentication evidence | Cursor collection; affected account may link to a permitted existing detail, but no audit detail is implied |
+| Accounts | Consult Authentication account summaries | Collection to addressable account detail; restores collection context on return |
+| Account detail | Consult Authentication account state and initiate supported lifecycle actions | Detail to reset or disable confirmation according to current state; Back returns to origin |
+| Authentication History | Consult Authentication evidence | Cursor collection; affected account may link to a permitted existing detail, but no audit detail is implied |
 
-Reset, disable, and enable are reversible review interactions associated with the
+Reset and disable are reversible review interactions associated with the
 current account; this contract does not prescribe whether they occupy a page or
 another presentation surface. Direct entry and refresh resolve the addressed
 account without depending on a mounted collection row.
@@ -322,7 +318,7 @@ different account as current.
 
 ### 7.2 Account collection
 
-The implemented account list returns the complete summary collection and accepts
+The account list returns the complete summary collection and accepts
 no search, status filter, sort, or pagination parameters. The frontend must not
 present server-wide criteria or pagination that the contract does not support.
 Any local search, filter, grouping, or ordering applies only to the loaded
@@ -335,7 +331,7 @@ and collection snapshots; a late pre-mutation response cannot overwrite them.
 
 ### 7.3 Authentication History
 
-History accepts only the backend-issued `cursor`; it has no implemented event,
+History accepts only the backend-issued `cursor`; it has no event,
 outcome, account, source, text, or date filter. The cursor is opaque and is used
 only to request the next page. A changed initial query or refreshed history
 invalidates later-page continuity rather than combining different snapshots.
@@ -353,49 +349,17 @@ duplicate requests. A stale cursor response cannot append to a refreshed chain,
 duplicate an entry, reorder already established continuity, or replace a newer
 result.
 
-### 7.4 Provisioning
+### 7.4 Account detail and lifecycle actions
 
-Provisioning is one atomic backend request containing:
+Detail presents Authentication information only: account identity, organizational
+email, display name, user code, lifecycle status, and version. The frontend does
+not join Access data,
+resolve capabilities, or make authorization decisions from this review. Provider
+subject, private metadata, credentials, password flags, tokens, and credential
+history are never exposed. Email, display name, and user code are not editable
+through this capability.
 
-- organizational email;
-- display name;
-- user code;
-- provisional password and frontend confirmation;
-- one or more active Access role codes; and
-- administrative reason.
-
-The administrator explicitly acknowledges organizational control of the email
-and responsibility for communicating the provisional password outside Colibri
-Hub. The system neither verifies nor administers the mailbox and never emails,
-echoes, or displays the password after success.
-
-Role selection consumes Access's backend-authorized eligible provisioning-roles
-projection, not the general Access roles collection. The projection contains only
-active eligible roles and no permission payload. The selector follows the
-searchable multiple-selection semantics in
-[Frontend Access Control](access-control.md#63-users-and-role-assignment); role
-identity remains unambiguous and the complete non-empty set is submitted once.
-Authentication does not duplicate role or permission semantics.
-
-Incomplete or failed provisioning never presents a usable account or successful
-Access. Recoverable errors preserve safe non-secret account and role input.
-Password and confirmation clear on success, navigation, reload, expiration,
-logout, duplicate-email resolution that changes identity context, and any failure
-where retention is unsafe. Success clears the draft and presents only non-secret
-account identity plus the external-communication reminder.
-
-### 7.5 Account detail and lifecycle actions
-
-Detail presents separate Authentication and Access sections. Authentication may
-show account identity, organizational email, display name, user code, lifecycle
-status, and version. Access supplies an account-addressed review projection with
-profile state and assigned-role summaries under its own backend-authorized contract.
-The frontend does not join Access data, resolve capabilities, or make authorization
-decisions from this review. Provider subject, private metadata, credentials, password
-flags, tokens, and credential history are never exposed. No email, display-name,
-or user-code editing is offered because no implemented mutation supports it.
-
-Every reset, disable, or enable uses `expected_version` from the latest account
+Every reset or disable uses `expected_version` from the latest account
 detail and an administrative reason. Confirmation identifies the account,
 requested transition, current state, consequences, and cancel/confirm actions.
 It remains reversible until submission, exposes progress, and accepts only one
@@ -404,8 +368,7 @@ identical pending mutation.
 | Action | Additional input and confirmation consequence |
 | --- | --- |
 | Reset password | New provisional password and confirmation; active sessions are requested to end, the account becomes awaiting password change, and the credential must be communicated outside the system |
-| Disable | Explain that login is denied, sessions are requested to end, the Access profile is inactivated, and identity and history remain preserved |
-| Enable | Review current Access profile state and assigned-role summaries, provide a new provisional password and confirmation, and explain that re-enablement may proceed with zero active assigned roles, grants no capability by implication, and remains blocked until mandatory replacement |
+| Disable | Explain that login is denied, sessions are requested to end, and identity and history remain preserved |
 
 Password replacement and administrative password update do not by themselves
 prove that every other provider session or already issued access token has been
@@ -466,13 +429,13 @@ caching, rendering, state management, or code splitting.
 
 ### 8.3 Adopted technology consequences
 
-React must receive provider events and asynchronous account validations as one
+React receives provider events and asynchronous account validations as one
 coherent external-session snapshot. Subscription cleanup must prevent abandoned
 listeners from publishing, repeated equivalent events must not duplicate state
 transitions, and stale validations must not publish obsolete identity, navigation,
 or Access bootstrap. Account eligibility, next destination, and other values
 derived from the current Authentication and Access snapshots are not maintained
-as independent competing state. Deferred or transitional rendering may preserve
+as independent competing state. Transitional rendering may preserve
 responsiveness, but never changes which request result is current or correct.
 
 Mantine's higher-level form controls are preferred for ordinary Authentication
@@ -498,12 +461,11 @@ authorization, stale-result rejection, or direct-navigation correctness.
 | `authentication_required` | Consume ended-session behavior and return to sign-in |
 | `password_change_required` | Clear Access and enter mandatory replacement |
 | `access_denied` | Defer to Access without treating a valid Authentication session as ended |
-| Duplicate Authentication email | Associate safe feedback with provisioning email |
 | Missing account | Clear stale detail and return to the nearest valid destination |
 | Authentication version or state conflict | Preserve safe input, clear secrets, reload current detail, and require new confirmation |
 | Last System Administrator invariant | Keep safe context and explain why the action was rejected |
 | Replacement password equals current or password is weak | Associate safe policy feedback without echoing either value |
-| Required administrative reason is absent | Associate feedback with reason |
+| Required reset or disable reason is absent | Associate feedback with reason |
 | Provider, network, or backend unavailable | Preserve safe non-secret state where valid and offer retry without implying success |
 
 Technical provider messages, account-enumeration details, stack traces, SQL, raw
@@ -533,7 +495,7 @@ Viewport constraints may change density, not capability:
 | Sign-in | Destination identity, email, password, generic result, and submit |
 | Mandatory replacement | Restricted-session context, all password fields, policy feedback, logout, and submit |
 | Accounts | Collection heading, account identity, account status, and available primary action |
-| Account detail | Account identity, Authentication status, Access relationship, versioned action, and return path |
+| Account detail | Account identity, Authentication status, versioned action, and return path |
 | Confirmation | Account, requested transition, consequences, reason, secret input when applicable, cancel, and confirm |
 | Authentication History | Event, outcome, occurrence time, source, affected account relationship, and continuation state |
 
@@ -559,14 +521,12 @@ In addition to the transversal [Accessibility Guidelines](../accessibility.md):
   and restore focus to the initiating action when still valid;
 - History exposes semantic relationships among event, outcome, time, source,
   affected account, and operation correlation without fabricating missing data;
-- role selection in provisioning follows the selector accessibility semantics in
-  the sibling Access specification; and
 - secret-safe status announcements never repeat credential values.
 
 ## 11. Observable verification scenarios
 
 Verification follows the [Frontend Testing Strategy](../testing/strategy.md).
-The implementation must prove these observable contracts at justified levels.
+Verification proves these observable contracts at justified levels.
 
 ### Authentication entry and session
 
@@ -601,32 +561,22 @@ The implementation must prove these observable contracts at justified levels.
 
 ### Account administration
 
-- Accounts, addressable detail, provisioning, History, and lifecycle
+- Accounts, addressable detail, History, and supported lifecycle
   confirmations expose the relationships, return behavior, and nearest-valid
   recovery defined in Section 7.
-- Account collection uses the implemented complete-list contract without
+- Account collection uses the complete-list contract without
   promising server filters or pagination; local criteria are labeled, stale
   results are rejected, and empty differs from no local matches.
-- History sends only opaque cursor continuation, exposes only implemented
+- History sends only opaque cursor continuation, exposes only
   metadata and source distinction, preserves cursor-chain continuity, and
   distinguishes empty, loading-more, end, and retry states.
-- Provisioning requires all account fields, confirmation, at least one active
-  Access role, reason, and organizational-control acknowledgement; it submits one
-  atomic request and never echoes or retains the provisional password after
-  success.
-- Recoverable provisioning failure preserves only safe draft data and never
-  implies that partial account or Access configuration is usable.
-- Detail separates Authentication and Access information and exposes no provider
-  subject, private metadata, credential, token, password flag, or unsupported
-  account editing.
-- Reset, disable, and enable present their exact consequences, reason,
+- Detail presents Authentication information only and exposes no provider subject, private metadata,
+  credential, token, password flag, or unsupported account editing.
+- Reset and disable present their exact consequences, reason,
   `expected_version`, progress, duplicate prevention, last-administrator outcome,
   focus recovery, and post-success refresh.
-- Enable requires Access profile-state and assigned-role-summary review plus a
-  new confirmed provisional password; zero active assigned roles do not block
-  re-enablement or imply a capability. Reset and enable result in awaiting
-  password change; disable preserves identity and history while affecting login,
-  sessions, and profile state.
+- Reset results in awaiting password change; disable preserves identity and
+  history while affecting login and sessions.
 - Version and state conflicts keep safe proposals separate, clear secrets, load
   current detail, and require a new confirmation; stale and missing accounts
   never remain current.
@@ -646,13 +596,13 @@ The implementation must prove these observable contracts at justified levels.
 - Narrow viewport presentation retains the primary information and critical
   actions in Section 9.3 without prescribing breakpoints.
 - Password controls, generic denial, expiration, forms, confirmations, account
-  status, History metadata, role selection, announcements, and focus satisfy
+  status, History metadata, announcements, and focus satisfy
   Section 10 and the transversal accessibility contract.
 - No secret or duplicate token state appears in URLs, storage, presentation,
   logs, telemetry, or stale drafts; backend account validation and separate Access
   authority remain mandatory.
 
-## 12. Completion criteria
+## 12. Contract obligations
 
 ### Authentication entry and session
 
@@ -672,17 +622,13 @@ The implementation must prove these observable contracts at justified levels.
 
 ### Account administration
 
-1. Unified administration consumes Authentication account capabilities and the
-   sibling Access role/profile contract without transferring ownership.
-2. Account collection and History expose only implemented list, cursor, metadata,
-   and source capabilities.
-3. Provisioning is one complete request with organizational acknowledgement,
-   write-only provisional credential, and one or more active Access roles.
-4. Detail, reset, disable, and enable satisfy version, confirmation, invariant,
+1. Account collection, detail, reset, disablement, and History expose only their
+   Authentication contracts.
+2. Detail, reset, and disablement satisfy version, confirmation, invariant,
    lifecycle consequence, conflict recovery, focus, and secret-clearing contracts.
-5. Navigation, drafts, async behavior, responsive adaptation, accessibility, and
+3. Navigation, drafts, async behavior, responsive adaptation, accessibility, and
    security satisfy Sections 7 through 10 without depending on a prescribed
    provider topology, component, state-management, form, cache, or verification
-   implementation.
-6. All observable verification scenarios pass against the implemented provider,
-   backend, and Access contracts.
+   mechanism.
+4. Observable verification scenarios conform to the provider, backend, and
+   Access authorization contracts.
