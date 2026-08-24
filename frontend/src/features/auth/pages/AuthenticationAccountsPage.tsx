@@ -1,8 +1,8 @@
-import { Alert, Anchor, Button, Card, Group, Loader, Stack, Table, Text, Title } from '@mantine/core'
+import { Alert, Anchor, Button, Card, Group, Loader, PasswordInput, Stack, Table, Text, TextInput, Textarea, Title } from '@mantine/core'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { isApiError } from '@/api/httpError'
-import { fetchAuthenticationAccount, fetchAuthenticationAccounts } from '../api/authApi'
+import { disableAuthenticationAccount, fetchAuthenticationAccount, fetchAuthenticationAccounts, resetAuthenticationAccountPassword } from '../api/authApi'
 import type { AuthenticationAccountResponse } from '../api/authApi.types'
 
 type LoadState<T> =
@@ -58,7 +58,18 @@ function AuthenticationAccountDetail({ accountId }: { accountId: string }) {
   const navigate = useNavigate()
   const [state, setState] = useState<LoadState<AuthenticationAccountResponse>>({ status: 'loading' })
   const [reload, setReload] = useState(0)
+  const [message, setMessage] = useState<string | null>(null)
+  const [resetPassword, setResetPassword] = useState('')
+  const [resetConfirmation, setResetConfirmation] = useState('')
+  const [resetReason, setResetReason] = useState('')
+  const [disableReason, setDisableReason] = useState('')
+  const [disableConfirmation, setDisableConfirmation] = useState('')
+  const [disableConfirmed, setDisableConfirmed] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [pending, setPending] = useState(false)
   const generation = useRef(0)
+  const inFlight = useRef(false)
+  const messageRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let active = true
@@ -73,6 +84,75 @@ function AuthenticationAccountDetail({ accountId }: { accountId: string }) {
       })
     return () => { active = false }
   }, [accountId, reload])
+
+  useEffect(() => { if (message) messageRef.current?.focus() }, [message])
+
+  const refreshAuthoritativeDetail = async (): Promise<boolean> => {
+    setState({ status: 'loading' })
+    try {
+      const account = await fetchAuthenticationAccount(accountId)
+      setState({ status: 'ready', value: account })
+      return true
+    } catch (error) {
+      setState(isApiError(error) && error.status === 404 ? { status: 'missing' } : { status: 'failed' })
+      return false
+    }
+  }
+
+  const clearResetSecrets = () => { setResetPassword(''); setResetConfirmation('') }
+
+  const handleReset = async () => {
+    if (state.status !== 'ready' || state.value.status !== 'active' || inFlight.current) return
+    const nextErrors: Record<string, string> = {}
+    if (!resetPassword) nextErrors.resetPassword = 'A provisional password is required.'
+    if (resetPassword !== resetConfirmation) nextErrors.resetConfirmation = 'Passwords must match.'
+    if (!resetReason.trim()) nextErrors.resetReason = 'A reason is required.'
+    if (Object.keys(nextErrors).length) { setErrors(nextErrors); clearResetSecrets(); return }
+    inFlight.current = true; setPending(true); setErrors({}); setMessage(null)
+    try {
+      await resetAuthenticationAccountPassword(accountId, { provisional_password: resetPassword, reason: resetReason.trim(), expected_version: state.value.version })
+      const refreshed = await refreshAuthoritativeDetail()
+      setMessage(refreshed ? 'Password reset completed. The account detail has been refreshed.' : 'Password reset was accepted, but the current account state could not be verified. Refresh the detail before another action.')
+      setResetReason('')
+    } catch (error) {
+      if (isApiError(error) && [404, 409, 503].includes(error.status ?? 0)) {
+        await refreshAuthoritativeDetail()
+        setMessage(error.status === 503
+          ? 'Password reset verification is pending. The provider outcome is unknown; refresh the detail before taking another action.'
+          : 'Password reset was not completed with the submitted version or account state. The account detail has been refreshed.')
+      } else {
+        setMessage('Password reset could not be confirmed. The account state may have changed; refresh the detail before retrying.')
+      }
+    } finally {
+      clearResetSecrets(); inFlight.current = false; setPending(false)
+    }
+  }
+
+  const handleDisable = async () => {
+    if (state.status !== 'ready' || state.value.status === 'disabled' || inFlight.current) return
+    const nextErrors: Record<string, string> = {}
+    if (!disableReason.trim()) nextErrors.disableReason = 'A reason is required.'
+    if (!disableConfirmed) nextErrors.disableConfirmed = 'Confirm that this reversible action should be submitted.'
+    if (Object.keys(nextErrors).length) { setErrors(nextErrors); return }
+    inFlight.current = true; setPending(true); setErrors({}); setMessage(null)
+    try {
+      await disableAuthenticationAccount(accountId, { reason: disableReason.trim(), expected_version: state.value.version })
+      const refreshed = await refreshAuthoritativeDetail()
+      setMessage(refreshed ? 'Account disabled. The account detail has been refreshed.' : 'Disablement was accepted, but the current account state could not be verified. Refresh the detail before another action.')
+      setDisableReason(''); setDisableConfirmed(false)
+    } catch (error) {
+      if (isApiError(error) && [404, 409, 503].includes(error.status ?? 0)) {
+        await refreshAuthoritativeDetail()
+        setMessage(error.status === 503
+          ? 'Disablement verification is pending. The provider outcome is unknown; refresh the detail before taking another action.'
+          : 'Disablement was not completed with the submitted version or account state. The account detail has been refreshed.')
+      } else {
+        setMessage('Disablement could not be confirmed. The account state may have changed; refresh the detail before retrying.')
+      }
+    } finally {
+      inFlight.current = false; setPending(false)
+    }
+  }
 
   if (state.status === 'loading') return <LoadingAccounts />
   if (state.status === 'missing') return <RetryState message="This authentication account no longer exists." onRetry={() => { setState({ status: 'loading' }); setReload((value) => value + 1) }} back={() => navigate('/auth/accounts')} />
@@ -89,6 +169,28 @@ function AuthenticationAccountDetail({ accountId }: { accountId: string }) {
         <AccountFact label="User code" value={account.user_code} />
         <AccountFact label="Status" value={account.status} />
         <AccountFact label="Version" value={String(account.version)} />
+      </Stack>
+    </Card>
+    {message ? <Alert ref={messageRef} tabIndex={-1} role="status">{message}</Alert> : null}
+    <Card withBorder>
+      <Stack gap="sm">
+        <Title order={2}>Reset password</Title>
+        {account.status === 'active' ? <>
+          <PasswordInput label="New provisional password" value={resetPassword} error={errors.resetPassword} disabled={pending} onChange={(event) => setResetPassword(event.currentTarget.value)} />
+          <PasswordInput label="Confirm provisional password" value={resetConfirmation} error={errors.resetConfirmation} disabled={pending} onChange={(event) => setResetConfirmation(event.currentTarget.value)} />
+          <Textarea label="Reason for password reset" value={resetReason} error={errors.resetReason} required disabled={pending} onChange={(event) => setResetReason(event.currentTarget.value)} />
+          <Button onClick={() => void handleReset()} disabled={pending}>Reset password</Button>
+        </> : <Text c="dimmed">Password reset is available only while this account is active.</Text>}
+      </Stack>
+    </Card>
+    <Card withBorder>
+      <Stack gap="sm">
+        <Title order={2}>Disable account</Title>
+        {account.status !== 'disabled' ? <>
+          <Textarea label="Reason for disabling account" value={disableReason} error={errors.disableReason} required disabled={pending} onChange={(event) => setDisableReason(event.currentTarget.value)} />
+          <TextInput label="Confirmation" description="Type DISABLE to confirm this reversible action." value={disableConfirmation} error={errors.disableConfirmed} disabled={pending} onChange={(event) => { setDisableConfirmation(event.currentTarget.value); setDisableConfirmed(event.currentTarget.value === 'DISABLE') }} />
+          <Button color="red" onClick={() => void handleDisable()} disabled={pending}>Disable account</Button>
+        </> : <Text c="dimmed">This account is already disabled.</Text>}
       </Stack>
     </Card>
   </Stack>
