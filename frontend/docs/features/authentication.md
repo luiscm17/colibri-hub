@@ -86,8 +86,8 @@ Only `authenticated` may initiate Access bootstrap. `initializing`,
 | Provider or backend is unavailable after a validated state | Do not publish a different account or an unvalidated state; present non-destructive retry only where the existing state remains trustworthy, otherwise enter `unavailable` |
 | Retry from `unavailable` with a current provider session | Revalidate `/auth/me`; publish only the latest matching result |
 | Retry from `unavailable` without a provider session | Enter `unauthenticated/logged-out` |
-| Password replacement returns `204` | Clear password fields and revalidate `/auth/me` using the existing session |
-| Revalidation after replacement returns `load_access` | Enter `authenticated`; preserve the original session time-box and hand off once to Access |
+| Password replacement returns `204` | Clear password fields, terminate the provider/browser session and all session-dependent local state, then enter `unauthenticated/logged-out` |
+| Sign-in after replacement | Validate the new provider session through `/auth/me`; only a `load_access` result may enter `authenticated` and hand off once to Access |
 | Provider invalidates the session during replacement | Clear all session-dependent state and enter `unauthenticated/expired` |
 | Logout is requested from any session-bearing state | Perform the termination sequence in Section 3.4, then enter `unauthenticated/logged-out` |
 
@@ -150,8 +150,9 @@ result, so one person's details never flash as another person's.
 The session has a fixed maximum of eight hours from the login that created it.
 Provider persistence and refresh own browser continuity; backend validation is
 authoritative for whether a protected request remains usable. The frontend does
-not calculate, restart, or extend the maximum. Mandatory password replacement
-continues the original session for only its remaining time.
+not calculate, restart, or extend the maximum. Successful mandatory password
+replacement terminates the session; the required subsequent sign-in starts its
+own provider-configured session time-box.
 
 An Authentication `401` or equivalent ended-session outcome clears session-bound
 state and returns to sign-in. A mutation is never automatically replayed after
@@ -241,9 +242,11 @@ hidden state.
 
 The frontend submits current and new passwords to
 `POST /api/v1/auth/password-change`. A `204 No Content` success is consumed as
-completion without parsing a body. It then clears all password values and
-revalidates `/auth/me` with the existing provider session. Access starts only
-after that response reports `next_step=load_access`.
+completion without parsing a body. It then clears all password values, terminates
+the provider/browser session and session-dependent local state, and enters
+`unauthenticated/logged-out`. It does not revalidate `/auth/me` or start Access.
+The user must sign in with the established password; only that subsequent
+authentication may validate `/auth/me` and hand off to Access.
 
 The frontend never starts a replacement session or extends the original
 eight-hour maximum. If the provider session is no longer valid, the outcome is
@@ -584,9 +587,10 @@ The implementation must prove these observable contracts at justified levels.
   denial with correct focus and announcement.
 - Mandatory replacement isolates all protected content, validates confirmation
   and password difference, clears secrets safely, consumes `204` without a body,
-  revalidates `/auth/me`, and preserves the original session maximum.
+  terminates the provider/browser and local session, reaches logged-out state,
+  and requires fresh sign-in before Access resolution.
 - Provider invalidation during replacement returns to sign-in rather than
-  implying a renewed session.
+  implying a renewed session or Access handoff.
 - Dirty replacement departure is reversible and no password survives navigation,
   reload, expiration, logout, success, or unsafe failure.
 - Logout attempts the backend request while authenticated, always signs out and
@@ -661,8 +665,8 @@ The implementation must prove these observable contracts at justified levels.
 4. Race and deduplication rules prevent stale publication, duplicate Access
    bootstrap, and repeated navigation.
 5. Login and mandatory replacement satisfy their return-intent, draft, focus,
-   generic-denial, secret lifecycle, `204` revalidation, and fixed time-box
-   contracts.
+   generic-denial, secret lifecycle, `204` session-termination, fresh-sign-in,
+   and provider-configured time-box contracts.
 6. Logout always completes provider-local termination and frontend clearing while
    making no unsupported backend token-revocation guarantee.
 
