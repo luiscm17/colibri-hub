@@ -37,6 +37,7 @@ export const ACCESS_CATALOG: Readonly<Record<string, AccessRequirement>> = {
   '/access/scopes': { action: 'manage_access', scope: 'access_control' },
   '/access/history': { action: 'manage_access', scope: 'access_control' },
   '/auth/accounts': { action: 'manage_access', scope: 'access_control' },
+  '/auth/history': { action: 'manage_access', scope: 'access_control' },
 }
 
 export const CORRECTION_REQUIREMENTS = {

@@ -5,6 +5,7 @@ import {
   enableAuthenticationAccount,
   fetchAuthenticationAccount,
   fetchAuthenticationAccounts,
+  fetchAuthenticationAudits,
   fetchCurrentAuthentication,
   mapToAccountSummary,
   provisionAuthenticationAccount,
@@ -59,6 +60,13 @@ describe('Authentication administration API', () => {
     status: 'active',
     version: 3,
   }
+  const auditPage = {
+    entries: [{
+      audit_id: 'audit-1', operation_id: null, event_type: 'account_disabled', outcome: 'succeeded',
+      affected_account_id: 'account-1', occurred_at: '2026-08-24T12:00:00Z', source: 'application',
+    }],
+    cursor: null,
+  }
 
   function mockJsonResponse(payload: unknown, status = 200): ReturnType<typeof vi.fn> {
     return vi.fn().mockResolvedValue(new Response(JSON.stringify(payload), {
@@ -80,6 +88,22 @@ describe('Authentication administration API', () => {
 
     await expect(fetchAuthenticationAccounts()).resolves.toEqual([account])
     expectRequest(fetchMock, '/auth/accounts')
+  })
+
+  it('lists validated authentication audits without a cursor', async () => {
+    const fetchMock = mockJsonResponse(auditPage)
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchAuthenticationAudits()).resolves.toEqual(auditPage)
+    expectRequest(fetchMock, '/auth/audits')
+  })
+
+  it('encodes the opaque authentication audit cursor', async () => {
+    const fetchMock = mockJsonResponse(auditPage)
+    vi.stubGlobal('fetch', fetchMock)
+
+    await fetchAuthenticationAudits('next/page?value')
+    expectRequest(fetchMock, '/auth/audits?cursor=next%2Fpage%3Fvalue')
   })
 
   it('gets a validated account response using an encoded account ID', async () => {
@@ -145,6 +169,12 @@ describe('Authentication administration API', () => {
     vi.stubGlobal('fetch', mockJsonResponse({ ...account, version: '3' }))
 
     await expect(fetchAuthenticationAccount('account-1')).rejects.toMatchObject({ kind: 'invalid_response' } satisfies Partial<ApiError>)
+  })
+
+  it('rejects malformed authentication audit payloads at the adapter boundary', async () => {
+    vi.stubGlobal('fetch', mockJsonResponse({ ...auditPage, entries: [{ ...auditPage.entries[0], source: 7 }] }))
+
+    await expect(fetchAuthenticationAudits()).rejects.toMatchObject({ kind: 'invalid_response' } satisfies Partial<ApiError>)
   })
 
   it('rejects a non-empty lifecycle mutation response', async () => {

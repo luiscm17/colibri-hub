@@ -8,7 +8,7 @@ import { RouteErrorBoundary } from './RouteErrorBoundary'
 import { ComingSoon } from '@/common/components/ComingSoon'
 import { ACCESS_CATALOG } from '@/features/access-control'
 import { ProtectedRoute } from './protected-route'
-import { AccessAdministrationCollectionRecovery, AccessAdministrationEditPage, AccessAdministrationPage, AuthenticationAccountsPage, BaleDeliveryPage, BaleManagementPage, BaleReceptionPage, BaleStockPage, LoginPage, LotsPage, MandatoryPasswordChangePage, NotFoundPage, ProfilePage, SpinningPage } from './lazy-pages'
+import { AccessAdministrationCollectionRecovery, AccessAdministrationEditPage, AccessAdministrationPage, AuthenticationAccountsPage, AuthenticationHistoryPage, BaleDeliveryPage, BaleManagementPage, BaleReceptionPage, BaleStockPage, LoginPage, LotsPage, MandatoryPasswordChangePage, NotFoundPage, ProfilePage, SpinningPage } from './lazy-pages'
 
 const protectAdministration = (path: keyof typeof ACCESS_CATALOG, page: React.ReactNode) => <ProtectedRoute requirement={ACCESS_CATALOG[path]}>{page}</ProtectedRoute>
 
@@ -39,6 +39,7 @@ const router = createBrowserRouter([
       ...['lots', 'lots/queue', 'lots/detail', 'lots/inventory', 'lots/dyeing', 'lots/drying', 'lots/winding', 'lots/bagging', 'lots/quality'].map((path) => ({ path, element: <ProtectedRoute requirement={ACCESS_CATALOG[`/${path}`]}><LotsPage /></ProtectedRoute> })),
       { path: 'auth/accounts', element: protectAdministration('/auth/accounts', <AuthenticationAccountsPage />) },
       { path: 'auth/accounts/:accountId', element: protectAdministration('/auth/accounts', <AuthenticationAccountsPage />) },
+      { path: 'auth/history', element: protectAdministration('/auth/history', <AuthenticationHistoryPage />) },
       { path: 'access/users', element: protectAdministration('/access/users', <AccessAdministrationPage family="users" />) },
       { path: 'access/users/:subjectId', element: protectAdministration('/access/users', <AccessAdministrationPage family="users" />) },
       { path: 'access/roles', element: protectAdministration('/access/roles', <AccessAdministrationPage family="roles" />) },

@@ -2,6 +2,8 @@ import { httpJson } from '@/api/httpClient'
 import { ApiError } from '@/api/httpError'
 import type {
   AuthMeResponse,
+  AuthenticationAuditEntry,
+  AuthenticationAuditPage,
   AuthenticationAccountResponse,
   DisableAccountRequest,
   EnableAccountRequest,
@@ -44,6 +46,15 @@ export async function terminateSession(): Promise<void> {
 export async function fetchAuthenticationAccounts(): Promise<AuthenticationAccountResponse[]> {
   const response = await httpJson<unknown>('/auth/accounts')
   if (!Array.isArray(response) || !response.every(isAuthenticationAccountResponse)) {
+    throw invalidAuthenticationResponse()
+  }
+  return response
+}
+
+export async function fetchAuthenticationAudits(cursor?: string): Promise<AuthenticationAuditPage> {
+  const query = cursor === undefined ? '' : `?cursor=${encodeURIComponent(cursor)}`
+  const response = await httpJson<unknown>(`/auth/audits${query}`)
+  if (!isAuthenticationAuditPage(response)) {
     throw invalidAuthenticationResponse()
   }
   return response
@@ -121,6 +132,24 @@ function isAuthenticationAccountResponse(value: unknown): value is Authenticatio
     && isNonNegativeInteger(value.version)
 }
 
+function isAuthenticationAuditPage(value: unknown): value is AuthenticationAuditPage {
+  return isRecord(value)
+    && Array.isArray(value.entries)
+    && value.entries.every(isAuthenticationAuditEntry)
+    && isNullableString(value.cursor)
+}
+
+function isAuthenticationAuditEntry(value: unknown): value is AuthenticationAuditEntry {
+  return isRecord(value)
+    && isString(value.audit_id)
+    && isNullableString(value.operation_id)
+    && isString(value.event_type)
+    && isString(value.outcome)
+    && isNullableString(value.affected_account_id)
+    && isString(value.occurred_at)
+    && isString(value.source)
+}
+
 async function expectNoContent(path: string, body: unknown): Promise<void> {
   const response = await httpJson<unknown>(path, { method: 'POST', body })
   if (response !== undefined) {
@@ -141,6 +170,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isString(value: unknown): value is string {
   return typeof value === 'string'
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || isString(value)
 }
 
 function isNonNegativeInteger(value: unknown): value is number {

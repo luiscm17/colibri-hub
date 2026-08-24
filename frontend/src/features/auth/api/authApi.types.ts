@@ -22,6 +22,21 @@ export interface AuthenticationAccountResponse {
   version: number
 }
 
+export interface AuthenticationAuditEntry {
+  audit_id: string
+  operation_id: string | null
+  event_type: string
+  outcome: string
+  affected_account_id: string | null
+  occurred_at: string
+  source: string
+}
+
+export interface AuthenticationAuditPage {
+  entries: AuthenticationAuditEntry[]
+  cursor: string | null
+}
+
 export interface ProvisionAccountRequest {
   email: string
   provisional_password: string
