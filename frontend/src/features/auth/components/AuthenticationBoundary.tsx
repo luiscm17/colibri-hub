@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router'
+import { Navigate, useLocation } from 'react-router'
 import { Center, Loader, Stack, Text, Button } from '@mantine/core'
 import { useAuth } from '../context/auth-context'
 
@@ -8,6 +8,7 @@ interface AuthenticationBoundaryProps {
 
 export function AuthenticationBoundary({ children }: AuthenticationBoundaryProps) {
   const { authState, revalidate } = useAuth()
+  const location = useLocation()
 
   switch (authState.status) {
     case 'initializing':
@@ -17,8 +18,10 @@ export function AuthenticationBoundary({ children }: AuthenticationBoundaryProps
         </Center>
       )
 
-    case 'unauthenticated':
-      return <Navigate to="/login" replace />
+    case 'unauthenticated': {
+      const returnTo = `${location.pathname}${location.search}${location.hash}`
+      return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />
+    }
 
     case 'unavailable':
       return (

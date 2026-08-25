@@ -45,4 +45,26 @@ describe('MandatoryPasswordChangePage', () => {
     expect((screen.getByLabelText('Confirm new password') as HTMLInputElement).value).toBe('')
     expect(revalidate).not.toHaveBeenCalled()
   })
+
+  it('rejects equal replacement passwords before calling the API', () => {
+    render(<MantineProvider><MandatoryPasswordChangePage /></MantineProvider>)
+    fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'same-secret' } })
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'same-secret' } })
+    fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'same-secret' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Change password' }))
+    expect(screen.getByText('The new password must be different from the current one.')).toBeTruthy()
+    expect(submitPasswordChange).not.toHaveBeenCalled()
+  })
+
+  it('confirms dirty sign-out and clears all secrets when discarded', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    logout.mockResolvedValue(undefined)
+    render(<MantineProvider><MandatoryPasswordChangePage /></MantineProvider>)
+    fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'provisional-password' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out instead' }))
+    await waitFor(() => expect(logout).toHaveBeenCalledTimes(1))
+    expect(confirm).toHaveBeenCalled()
+    expect((screen.getByLabelText('Current password') as HTMLInputElement).value).toBe('')
+    confirm.mockRestore()
+  })
 })

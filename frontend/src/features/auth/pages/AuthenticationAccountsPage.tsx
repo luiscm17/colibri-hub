@@ -142,6 +142,7 @@ function AuthenticationAccountDetail({ accountId }: { accountId: string }) {
       setDisableReason(''); setDisableConfirmed(false)
     } catch (error) {
       if (isApiError(error) && [404, 409, 503].includes(error.status ?? 0)) {
+        setDisableConfirmation(''); setDisableConfirmed(false)
         await refreshAuthoritativeDetail()
         setMessage(error.status === 503
           ? 'Disablement verification is pending. The provider outcome is unknown; refresh the detail before taking another action.'

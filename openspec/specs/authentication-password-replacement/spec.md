@@ -68,6 +68,13 @@ After a successful mandatory replacement, the system MUST terminate the provider
 - THEN the account remains Awaiting Password Change
 - AND no success audit or Access Control resolution is produced
 
+The frontend MUST restrict to state inspection, replacement, and logout; validate differing confirmed passwords; consume bodyless `204`, clear secrets and local state, and enter logged-out. Dirty departure SHALL confirm discard; provider invalidation MUST expire without reauthentication or Access handoff.
+
+#### Scenario: Dirty replacement departure
+- GIVEN unsubmitted replacement passwords
+- WHEN discard is confirmed
+- THEN every password clears without retention
+
 ### Requirement: Secret-safe outcomes and evidence
 
 The system MUST redact passwords, tokens, session identifiers, and raw provider error payloads from API responses, success audits, logs, and controlled-integration evidence. It MAY retain safe error classifications and boolean/assertion results.

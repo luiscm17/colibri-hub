@@ -34,29 +34,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authState, dispatch] = useReducer(reducer, INITIAL_STATE)
   const mountedRef = useRef(true)
   const logoutInitiatedRef = useRef(false)
-  const validationEpochRef = useRef(0)
+  const eventEpochRef = useRef(0)
+  const sessionKeyRef = useRef<string | null>(null)
+  const handoffRef = useRef<{ sessionKey: string | null; handoffId: string } | null>(null)
+  const terminationRef = useRef<Promise<void> | null>(null)
 
   const endLocalSession = useCallback((reason: 'logged-out' | 'expired' | 'denied'): void => {
-    validationEpochRef.current += 1
+    eventEpochRef.current += 1
+    sessionKeyRef.current = null
+    handoffRef.current = null
     clearTokenAccessor()
     if (mountedRef.current) dispatch({ type: 'UNAUTHENTICATED', reason })
   }, [])
 
-  const validateAccount = useCallback(async (): Promise<void> => {
-    const validationEpoch = validationEpochRef.current
+  const validateAccount = useCallback(async (eventEpoch = eventEpochRef.current, sessionKey = sessionKeyRef.current): Promise<void> => {
     try {
       const response = await fetchCurrentAuthentication()
       const account = mapToAccountSummary(response)
 
-      if (!mountedRef.current || validationEpoch !== validationEpochRef.current) return
+      if (!mountedRef.current || eventEpoch !== eventEpochRef.current || sessionKey !== sessionKeyRef.current) return
 
       if (response.next_step === 'change_password') {
+        handoffRef.current = null
         dispatch({ type: 'PASSWORD_CHANGE_REQUIRED', account })
       } else {
-        dispatch({ type: 'SESSION_RESTORED', account, handoffId: crypto.randomUUID() })
+        const handoffId = handoffRef.current?.sessionKey === sessionKey
+          ? handoffRef.current.handoffId
+          : crypto.randomUUID()
+        handoffRef.current = { sessionKey, handoffId }
+        dispatch({ type: 'SESSION_RESTORED', account, handoffId })
       }
     } catch (error) {
-      if (!mountedRef.current || validationEpoch !== validationEpochRef.current) return
+      if (!mountedRef.current || eventEpoch !== eventEpochRef.current || sessionKey !== sessionKeyRef.current) return
 
       if (isApiError(error)) {
         if (error.status === 401 || error.status === 403) {
@@ -105,20 +114,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      await validateAccount()
+      const sessionKey = await providerSession.getAccessToken()
+      if (!mountedRef.current) return
+      sessionKeyRef.current = sessionKey
+      await validateAccount(eventEpochRef.current, sessionKey)
     }
 
     initialize()
 
-    const subscription = providerSession.onAuthStateChange((event) => {
+    const subscription = providerSession.onAuthStateChange((event, session) => {
       if (!mountedRef.current) return
 
       if (event === 'SIGNED_OUT') {
         const reason = logoutInitiatedRef.current ? 'logged-out' : 'expired'
         logoutInitiatedRef.current = false
         endLocalSession(reason)
-      } else if (event === 'TOKEN_REFRESHED') {
-        // Token accessor already returns fresh token — no action needed
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        const sessionKey = providerSession.getSessionKey(session)
+        if (sessionKey === sessionKeyRef.current && handoffRef.current?.sessionKey === sessionKey) return
+        const eventEpoch = ++eventEpochRef.current
+        sessionKeyRef.current = sessionKey
+        void validateAccount(eventEpoch, sessionKey)
       }
     })
 
@@ -139,18 +155,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [validateAccount])
 
   const logout = useCallback(async (): Promise<void> => {
-    logoutInitiatedRef.current = true
-    try {
-      await terminateSession()
-    } catch {
-      // Best-effort backend notification — proceed with local cleanup
-    }
-    endLocalSession('logged-out')
-    try {
-      await providerSession.signOut()
-    } catch {
-      // Provider cleanup is best-effort after local session termination.
-    }
+    if (terminationRef.current) return terminationRef.current
+    terminationRef.current = (async () => {
+      logoutInitiatedRef.current = true
+      try {
+        await terminateSession()
+      } catch {
+        // Best-effort backend notification — proceed with local cleanup
+      }
+      endLocalSession('logged-out')
+      try {
+        await providerSession.signOut()
+      } catch {
+        // Provider cleanup is best-effort after local session termination.
+      }
+    })().finally(() => { terminationRef.current = null })
+    return terminationRef.current
   }, [endLocalSession])
 
   const revalidate = useCallback(async (): Promise<void> => {

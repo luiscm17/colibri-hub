@@ -5,6 +5,12 @@ export type AuthStateChangeCallback = (
   session: unknown,
 ) => void
 
+export function getSessionKey(session: unknown): string | null {
+  if (!session || typeof session !== 'object') return null
+  const accessToken = (session as { access_token?: unknown }).access_token
+  return typeof accessToken === 'string' && accessToken.length > 0 ? accessToken : null
+}
+
 export async function signIn(
   email: string,
   password: string,
