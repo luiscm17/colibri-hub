@@ -13,6 +13,8 @@
 - [x] 3.2 Authentication-only account mutation recovery and renewed confirmation
 - [x] 3.3 RED History cursor, duplicate, retry, refresh, and stale-result tests
 - [x] 3.4 Opaque cursor-chain deduplication and accessible History states
+- [x] 4.1 Automated frontend verification
+- [x] 4.2 Manual UI validation
 
 ## Work Unit Evidence
 
@@ -33,6 +35,14 @@
 | WU3 runtime harness | The same focused Vitest jsdom command exercised reset/disable mutation recovery, conflict reload with renewed confirmation, opaque cursor continuation, retry, refresh, and stale-continuation rejection. Exit 0, 2 files and 18 tests passed. |
 | WU3 quality commands | `pnpm lint` exited 0. `pnpm build` exited 0; Vite emitted its existing chunk-size warning for `index-DIdCAsJb.js` at 664.89 kB. |
 | WU3 rollback boundary | Revert `frontend/src/features/auth/pages/AuthenticationAccountsPage.tsx`, `AuthenticationAccountsPage.test.tsx`, `AuthenticationHistoryPage.tsx`, and `AuthenticationHistoryPage.test.tsx`. This removes only conflict reconfirmation and History duplicate filtering, retaining WU1/WU2 session and entry behavior. |
+| WU4.1 focused test command | `pnpm vitest run --reporter=verbose` exited 0: 31 files and 140 tests passed. This includes Auth provider race/handoff, login return-intent, replacement discard/logout, account conflict recovery, and History cursor/stale-continuation coverage. The existing missing-account test emitted a React Router mock-exhaustion stderr trace, but the suite passed. |
+| WU4.1 runtime harness | The complete Vitest jsdom suite exercised the automated Auth→Access route/provider path and all executable verification scenarios. Exit 0: 31 files and 140 tests passed. Manual browser behavior remains task 4.2 and was not performed. |
+| WU4.1 quality commands | `pnpm lint` exited 0. `pnpm build` exited 0; Vite emitted its chunk-size warning for `index-DIdCAsJb.js` at 664.89 kB (193.55 kB gzip). |
+| WU4.1 rollback boundary | Revert only the 4.1 checkbox and WU4.1 evidence in `openspec/changes/frontend-authentication-completion/tasks.md` and `apply-progress.md`. The untracked `.frontend-auth-manual/authentication-completion-manual-verification.md` guide can be removed independently; no application source or test behavior changed. |
+| WU4.2 focused test command | N/A — evidence registration only; no command was run in this task. The user-supplied manual verification outcome records all required scenarios as passed. |
+| WU4.2 runtime harness | User-supplied Playwright browser run passed: protected direct entry, failed logout local clearing, both dirty-replacement stay/discard branches, administrative conflict recovery, stale History continuation, and secret-safety inspection. The corrected interception patterns targeting `/api/v1/...` were confirmed; no retest was needed. |
+| WU4.2 quality commands | N/A — this task registers supplied manual outcomes only and does not rerun automated quality commands. |
+| WU4.2 rollback boundary | Revert only the 4.2 checkbox and WU4.2 evidence in `openspec/changes/frontend-authentication-completion/tasks.md` and `apply-progress.md`. No product source, manual guide, or manual results were changed. |
 
 ## Delivery Boundary
 
@@ -44,7 +54,13 @@
 - WU2 runtime attempt: `sha256:b8ac17b80389a7bdaf54a84106b46e7332cc923f393ff33533b9c8ca3343475b` used once.
 - Reconciliation runtime attempt: `sha256:4ae610ce83eda2bc6d77b28765b913b8e317efbc0614892791cc204c6925d691` used once.
 - WU3 runtime attempt: `sha256:626c8b953fc073c609bdf6c8360003e54117c5549634cb1461fb4ea0384f354b` used once.
+- WU4.1 runtime attempt: `sha256:c1116ddbced264fa9f0779ea9f991e65e240d8c4589e7645f839590c3876b645` used once.
+- WU4.2 runtime attempt: `sha256:e0b0eb516cb0781a4e600a525a8f8d2fbfda9a0d13b32446d43b94352971bf4b` acquired once.
 
 ## Remaining Tasks
 
-- [ ] 4.1–4.2 Full verification
+None.
+
+## Scope Notes
+
+- Empty-role provisioning returns HTTP 500 and is tracked separately in GitHub issue #109; it is outside this frontend verification task.

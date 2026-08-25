@@ -46,5 +46,5 @@ Chain strategy: feature-branch-chain
 
 ## Phase 4: Verification
 
-- [ ] 4.1 Run from `frontend/`: `pnpm vitest run --reporter=verbose`, `pnpm lint`, and `pnpm build`; record focused race, route, replacement, mutation, and History results.
-- [ ] 4.2 Manually exercise protected direct entry, failed logout, dirty replacement discard, conflict recovery, and stale History response; confirm no secrets enter URLs, storage, or announcements.
+- [x] 4.1 Run from `frontend/`: `pnpm vitest run --reporter=verbose`, `pnpm lint`, and `pnpm build`; record focused race, route, replacement, mutation, and History results.
+- [x] 4.2 Manually exercise protected direct entry, failed logout, dirty replacement discard, conflict recovery, and stale History response; confirm no secrets enter URLs, storage, or announcements.

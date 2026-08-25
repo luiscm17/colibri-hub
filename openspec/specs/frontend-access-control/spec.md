@@ -33,6 +33,19 @@ Only backend-authorized System Administrators SHALL access administration. Defau
 
 ## MODIFIED Requirements
 
+### Requirement: Authentication Semantic Consumption
+Access MUST consume Authentication conditions without owning sessions or credentials. It SHALL not request while unresolved, ended, replacement-required, or unavailable; it MAY bootstrap only after current `authenticated`. Access MUST resolve return intent without duplicate bootstrap or navigation.
+
+#### Scenario: Eligible handoff
+- GIVEN current `load_access` handoff
+- WHEN Access initializes
+- THEN it bootstraps once and resolves a permitted destination
+
+#### Scenario: Ineligible transition
+- GIVEN Authentication becomes unavailable or replacement-required
+- WHEN Access receives the condition
+- THEN it clears prior Access and makes no bootstrap request
+
 ### Requirement: Addressable Administration
 Administrators MUST reach matrix-supported stable states. Entry captures origin (family, criteria, page, subject); dirty Back/Cancel/departure SHALL confirm discard. Confirm clears/restores; decline preserves URL/draft. Missing, denied, stale, invalid, aborted, empty-page results MUST recover to nearest permitted state. Refresh is latest-only; abandoned requests silent; pages reconcile without loops.
 (Previously: all families broadly supported detail/create/edit.)
