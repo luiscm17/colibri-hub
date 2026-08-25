@@ -1,20 +1,27 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Paper, TextInput, PasswordInput, Button, Text, Alert } from '@mantine/core'
 import { IconAlertCircle } from '@tabler/icons-react'
 import { useAuth } from '../context/auth-context'
+import { useLocation, useNavigate } from 'react-router'
+import { getSafeReturnIntent } from './returnIntent'
 import { ProductLogo } from '@/common/components/ProductLogo'
 import classes from './AuthPages.module.css'
 
 export default function LoginPage() {
   const { login } = useAuth()
+  const { search } = useLocation()
+  const navigate = useNavigate()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const submissionRef = useRef(0)
+  const errorRef = useRef<HTMLDivElement>(null)
 
   const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
+    const submission = ++submissionRef.current
     setError(null)
 
     if (!email.trim() || !password.trim()) {
@@ -25,11 +32,14 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login(email.trim(), password)
+      if (submission === submissionRef.current) navigate(getSafeReturnIntent(new URLSearchParams(search).get('returnTo')) ?? '/', { replace: true })
     } catch {
+      if (submission !== submissionRef.current) return
       setPassword('')
       setError('Invalid email or password. Please try again.')
+      queueMicrotask(() => errorRef.current?.focus())
     } finally {
-      setLoading(false)
+      if (submission === submissionRef.current) setLoading(false)
     }
   }
 
@@ -45,7 +55,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit}>
           {error && (
-            <Alert
+            <Alert ref={errorRef} tabIndex={-1}
               icon={<IconAlertCircle size={16} />}
               color="red"
               variant="light"
