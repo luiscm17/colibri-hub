@@ -10,6 +10,11 @@ type HistoryState =
 
 const unavailableMessage = 'Authentication history is unavailable.'
 
+function appendUniqueAudits(current: readonly AuthenticationAuditEntry[], next: readonly AuthenticationAuditEntry[]) {
+  const auditIds = new Set(current.map((entry) => entry.audit_id))
+  return [...current, ...next.filter((entry) => !auditIds.has(entry.audit_id))]
+}
+
 export default function AuthenticationHistoryPage() {
   const [state, setState] = useState<HistoryState>({ status: 'loading-initial' })
   const generation = useRef(0)
@@ -53,7 +58,7 @@ export default function AuthenticationHistoryPage() {
     setState((previous) => previous.status === 'ready' ? { ...previous, loadingMore: true, continuationFailed: false } : previous)
     void fetchAuthenticationAudits(cursor).then((response) => {
       if (generation.current !== requestGeneration || continuation.current !== request || page.current?.cursor !== cursor) return
-      page.current = { entries: [...page.current.entries, ...response.entries], cursor: response.cursor }
+      page.current = { entries: appendUniqueAudits(page.current.entries, response.entries), cursor: response.cursor }
       setState({ status: 'ready', entries: page.current.entries, cursor: response.cursor, loadingMore: false, continuationFailed: false })
     }).catch(() => {
       if (generation.current === requestGeneration && continuation.current === request && page.current?.cursor === cursor) {

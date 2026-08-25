@@ -9,6 +9,10 @@
 - [x] 2.2 Safe return intent, latest-only generic login denial, secret clearing, and focus
 - [x] 2.3 RED replacement validation and dirty-discard tests
 - [x] 2.4 Restricted route recovery and shared failure-safe termination behavior
+- [x] 3.1 RED administration mutation, conflict, and recovery tests
+- [x] 3.2 Authentication-only account mutation recovery and renewed confirmation
+- [x] 3.3 RED History cursor, duplicate, retry, refresh, and stale-result tests
+- [x] 3.4 Opaque cursor-chain deduplication and accessible History states
 
 ## Work Unit Evidence
 
@@ -24,18 +28,23 @@
 | WU2 runtime harness | The focused Vitest jsdom harness submitted overlapping login attempts, discarded a dirty replacement draft, and exercised replacement success through the shared logout mock. Exit 0, 17 tests passed. |
 | WU2 quality commands | `pnpm lint` exited 0. `pnpm build` exited 0; Vite emitted its existing chunk-size warning for `index-BxdFqHdG.js` at 664.89 kB. |
 | WU2 rollback boundary | Revert `frontend/src/features/auth/pages/returnIntent.ts`, `LoginPage.tsx`, `LoginPage.test.tsx`, `MandatoryPasswordChangePage.tsx`, `MandatoryPasswordChangePage.test.tsx`, and `AuthenticationBoundary.tsx`. This removes only entry/replacement behavior, leaving WU1 session handoff intact. |
+| WU3 RED test command | `pnpm vitest run src/features/auth/pages/AuthenticationAccountsPage.test.tsx src/features/auth/pages/AuthenticationHistoryPage.test.tsx --reporter=verbose` exited 1: 2 files, 16 passed and 2 failed. The new assertions proved duplicate audit rows and retained disable confirmation after `409` conflict. |
+| WU3 focused test command | `pnpm vitest run src/features/auth/pages/AuthenticationAccountsPage.test.tsx src/features/auth/pages/AuthenticationHistoryPage.test.tsx --reporter=verbose` exited 0: 2 files, 18 tests passed. The existing missing-detail test emitted a React Router mock-exhaustion stderr trace after safe back navigation, but the command passed. |
+| WU3 runtime harness | The same focused Vitest jsdom command exercised reset/disable mutation recovery, conflict reload with renewed confirmation, opaque cursor continuation, retry, refresh, and stale-continuation rejection. Exit 0, 2 files and 18 tests passed. |
+| WU3 quality commands | `pnpm lint` exited 0. `pnpm build` exited 0; Vite emitted its existing chunk-size warning for `index-DIdCAsJb.js` at 664.89 kB. |
+| WU3 rollback boundary | Revert `frontend/src/features/auth/pages/AuthenticationAccountsPage.tsx`, `AuthenticationAccountsPage.test.tsx`, `AuthenticationHistoryPage.tsx`, and `AuthenticationHistoryPage.test.tsx`. This removes only conflict reconfirmation and History duplicate filtering, retaining WU1/WU2 session and entry behavior. |
 
 ## Delivery Boundary
 
 - Strategy: `auto-chain`, `feature-branch-chain`.
-- Completed slice: Work Unit 1 / child PR #1 targeting `front/auth-spec-completion`.
-- Current slice: Work Unit 2 / child PR #2 targeting `front/auth-session-handoff`.
-- WU2 authored frontend diff: 111 additions + deletions, under the 400-line limit.
+- Completed slices: Work Unit 1 / child PR #1 and Work Unit 2 / child PR #2, both merged into tracker `front/auth-spec-completion`.
+- Current slice: Work Unit 3 / final child PR targeting `front/auth-spec-completion`.
+- WU3 authored frontend diff: 35 additions + 1 deletion, under the 400-line limit.
 - WU1 runtime attempt: `sha256:df04fc62ea7e16ae6943559a15b0586efb2665006fdfe16519594506bb181e44` used once.
 - WU2 runtime attempt: `sha256:b8ac17b80389a7bdaf54a84106b46e7332cc923f393ff33533b9c8ca3343475b` used once.
 - Reconciliation runtime attempt: `sha256:4ae610ce83eda2bc6d77b28765b913b8e317efbc0614892791cc204c6925d691` used once.
+- WU3 runtime attempt: `sha256:626c8b953fc073c609bdf6c8360003e54117c5549634cb1461fb4ea0384f354b` used once.
 
 ## Remaining Tasks
 
-- [ ] 3.1–3.4 Authentication administration and History
 - [ ] 4.1–4.2 Full verification

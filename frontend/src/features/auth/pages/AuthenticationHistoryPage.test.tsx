@@ -50,6 +50,16 @@ describe('AuthenticationHistoryPage', () => {
     expect(screen.getByText('End of authentication history.')).toBeTruthy()
   })
 
+  it('keeps one row per audit when an opaque cursor continuation overlaps the current page', async () => {
+    listAudits.mockResolvedValueOnce({ entries: [entry('audit-1')], cursor: 'opaque-cursor' }).mockResolvedValueOnce({ entries: [entry('audit-1'), entry('audit-2')], cursor: null })
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Load more' }))
+    expect(await screen.findByText('audit-2')).toBeTruthy()
+    expect(screen.getAllByText('audit-1')).toHaveLength(1)
+    expect(listAudits).toHaveBeenNthCalledWith(2, 'opaque-cursor')
+  })
+
   it('prevents repeated load-more clicks while a continuation is pending', async () => {
     const next = deferred<{ entries: ReturnType<typeof entry>[]; cursor: string | null }>()
     listAudits.mockResolvedValueOnce({ entries: [entry('audit-1')], cursor: 'cursor-2' }).mockReturnValueOnce(next.promise)

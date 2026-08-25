@@ -22,7 +22,7 @@ Chain strategy: feature-branch-chain
 |---|---|---|---|---|---|
 | 1 | Session state and one Access handoff | PR #1 (base: feature/tracker branch) | `pnpm vitest run --reporter=verbose` | Provider-event race then one permitted bootstrap | Auth context, provider adapter, Access controller, route tests |
 | 2 | Entry, replacement, and logout | PR #2 (base: PR #1 branch) | `pnpm vitest run --reporter=verbose` | Sign in → replacement/logout | Login/replacement pages, routes, layout, tests |
-| 3 | Admin/History recovery | PR #3 (base: PR #2 branch) | `pnpm vitest run --reporter=verbose` | Reset/disable conflict and stale History continuation | Accounts/History pages and tests |
+| 3 | Admin/History recovery | PR #3 (base: feature/tracker branch after PR #1 and #2 merged) | `pnpm vitest run --reporter=verbose` | Reset/disable conflict and stale History continuation | Accounts/History pages and tests |
 
 ## Phase 1: Session and Access Foundation
 
@@ -39,10 +39,10 @@ Chain strategy: feature-branch-chain
 
 ## Phase 3: Authentication Administration and History
 
-- [ ] 3.1 RED: Extend `AuthenticationAccountsPage.test.tsx` for latest `expected_version`, one pending reset/disable, `204` invalidation/refresh, conflict secret clearing/reload/reconfirmation, and missing-detail nearest-destination recovery.
-- [ ] 3.2 Update `AuthenticationAccountsPage.tsx` with Authentication-only detail, reasoned reversible confirmations, safe draft/focus recovery, current-account generations, and no Access review or re-enable behavior.
-- [ ] 3.3 RED: Create `AuthenticationHistoryPage.test.tsx` for opaque-cursor-only continuation, duplicate prevention, refresh invalidation, stale-page rejection, retry, and accessible loading/empty/end states.
-- [ ] 3.4 Update `AuthenticationHistoryPage.tsx` to preserve cursor-chain generation and accessible, non-fabricated Authentication evidence states.
+- [x] 3.1 RED: Extend `AuthenticationAccountsPage.test.tsx` for latest `expected_version`, one pending reset/disable, `204` invalidation/refresh, conflict secret clearing/reload/reconfirmation, and missing-detail nearest-destination recovery.
+- [x] 3.2 Update `AuthenticationAccountsPage.tsx` with Authentication-only detail, reasoned reversible confirmations, safe draft/focus recovery, current-account generations, and no Access review or re-enable behavior.
+- [x] 3.3 RED: Create `AuthenticationHistoryPage.test.tsx` for opaque-cursor-only continuation, duplicate prevention, refresh invalidation, stale-page rejection, retry, and accessible loading/empty/end states.
+- [x] 3.4 Update `AuthenticationHistoryPage.tsx` to preserve cursor-chain generation and accessible, non-fabricated Authentication evidence states.
 
 ## Phase 4: Verification
 
