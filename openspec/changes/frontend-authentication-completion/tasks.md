@@ -32,10 +32,10 @@ Chain strategy: feature-branch-chain
 
 ## Phase 2: Entry, Replacement, and Logout
 
-- [ ] 2.1 RED: Create `LoginPage.test.tsx` route-intent cases for normalized in-app acceptance; absolute, protocol-relative, auth-loop, malformed, and unpermitted rejection; assert one Access fallback navigation.
-- [ ] 2.2 Update `LoginPage.tsx` and `routes/index.tsx` with latest-only submission, generic secret-safe denial, password clearing, associated feedback/focus, and validated non-secret return intent.
-- [ ] 2.3 RED: Create `MandatoryPasswordChangePage.test.tsx` for mismatch/different-password validation, dirty leave stay/discard, invalidation, bodyless `204` termination, secret clearing, and no Access handoff.
-- [ ] 2.4 Update `MandatoryPasswordChangePage.tsx`, `AuthContext.tsx`, and `AppLayout.tsx` for restricted routing, shared idempotent logout, failure-safe local sign-out, draft clearing, and one sign-in navigation.
+- [x] 2.1 RED: Create `LoginPage.test.tsx` route-intent cases for normalized in-app acceptance; absolute, protocol-relative, auth-loop, malformed, and unpermitted rejection; assert one Access fallback navigation.
+- [x] 2.2 Update `LoginPage.tsx` and `routes/index.tsx` with latest-only submission, generic secret-safe denial, password clearing, associated feedback/focus, and validated non-secret return intent.
+- [x] 2.3 RED: Create `MandatoryPasswordChangePage.test.tsx` for mismatch/different-password validation, dirty leave stay/discard, invalidation, bodyless `204` termination, secret clearing, and no Access handoff.
+- [x] 2.4 Update `MandatoryPasswordChangePage.tsx`, `AuthContext.tsx`, and `AppLayout.tsx` for restricted routing, shared idempotent logout, failure-safe local sign-out, draft clearing, and one sign-in navigation.
 
 ## Phase 3: Authentication Administration and History
 

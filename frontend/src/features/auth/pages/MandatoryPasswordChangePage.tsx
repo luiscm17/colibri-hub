@@ -37,6 +37,10 @@ export default function MandatoryPasswordChangePage() {
       setFieldErrors({ confirmPassword: 'Passwords do not match.' })
       return
     }
+    if (currentPassword === newPassword) {
+      setFieldErrors({ newPassword: 'The new password must be different from the current one.' })
+      return
+    }
 
     setLoading(true)
     try {
@@ -66,6 +70,13 @@ export default function MandatoryPasswordChangePage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSignOut = () => {
+    const isDirty = currentPassword || newPassword || confirmPassword
+    if (isDirty && !window.confirm('Discard the password changes and sign out?')) return
+    clearPasswords()
+    void logout()
   }
 
   return (
@@ -131,7 +142,7 @@ export default function MandatoryPasswordChangePage() {
             color="gray"
             fullWidth
             mt="xs"
-            onClick={() => void logout()}
+            onClick={handleSignOut}
             disabled={loading}
           >
             Sign out instead
