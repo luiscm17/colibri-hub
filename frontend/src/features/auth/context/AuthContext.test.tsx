@@ -7,6 +7,11 @@ import { AuthProvider } from './AuthContext'
 
 const providerSession = vi.hoisted(() => ({
   getAccessToken: vi.fn(),
+  getSessionKey: vi.fn((session: unknown) => (
+    typeof (session as { access_token?: unknown } | null)?.access_token === 'string'
+      ? (session as { access_token: string }).access_token
+      : null
+  )),
   hasSession: vi.fn(),
   onAuthStateChange: vi.fn(),
   signIn: vi.fn(),
@@ -33,6 +38,14 @@ const response = (body: unknown) => new Response(JSON.stringify(body), {
   status: 200,
   headers: { 'Content-Type': 'application/json' },
 })
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}
 
 describe('AuthProvider access handoff', () => {
   beforeEach(() => {
@@ -113,6 +126,44 @@ describe('AuthProvider access handoff', () => {
 
     expect(await screen.findByText('unauthenticated:expired:waiting-for-authentication')).toBeTruthy()
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('publishes only the latest provider session validation and one Access bootstrap', async () => {
+    providerSession.hasSession.mockResolvedValue(false)
+    const first = deferred<Response>()
+    const second = deferred<Response>()
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (String(input).endsWith('/auth/me')) {
+        return fetchMock.mock.calls.filter(([request]) => String(request).endsWith('/auth/me')).length === 1
+          ? first.promise
+          : second.promise
+      }
+      if (String(input).endsWith('/access/me')) return Promise.resolve(response({
+        user_id: 'user-1', user_code: 'ADA-1', display_name: 'Ada Lovelace', is_active: true,
+        authorization: { version: 1, is_global: true, actions: ['read'], permissions: [] },
+      }))
+      throw new Error(`Unexpected request: ${String(input)}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderProviders()
+    await screen.findByText('unauthenticated:undefined:waiting-for-authentication')
+    const onAuthStateChange = (providerSession.onAuthStateChange as unknown as {
+      mock: { calls: Array<[(event: string, session: unknown) => void]> }
+    }).mock.calls[0]?.[0]
+    if (!onAuthStateChange) throw new Error('Expected an auth state callback')
+    onAuthStateChange('SIGNED_IN', { access_token: 'first-token' })
+    onAuthStateChange('TOKEN_REFRESHED', { access_token: 'second-token' })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+
+    second.resolve(response({
+      account_id: 'account-2', email: 'grace@example.com', display_name: 'Grace Hopper', status: 'active', next_step: 'load_access',
+    }))
+    await waitFor(() => expect(screen.getByText('authenticated::ready')).toBeTruthy())
+    first.resolve(response({
+      account_id: 'account-1', email: 'ada@example.com', display_name: 'Ada Lovelace', status: 'active', next_step: 'load_access',
+    }))
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/access/me'))).toHaveLength(1))
   })
 
   it('finishes local logout when provider sign-out fails and clears the token accessor', async () => {
