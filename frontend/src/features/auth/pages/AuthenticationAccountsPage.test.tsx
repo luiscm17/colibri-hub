@@ -125,6 +125,24 @@ describe('AuthenticationAccountsPage', () => {
     expect((screen.getByLabelText('New provisional password') as HTMLInputElement).value).toBe('')
   })
 
+  it('clears disable confirmation after a conflict, reloads the detail, and requires reconfirmation', async () => {
+    getAccount.mockResolvedValueOnce(account).mockResolvedValueOnce({ ...account, version: 4 })
+    disableAccount.mockRejectedValue(new ApiError({ kind: 'http', status: 409, message: 'Conflict' }))
+    renderPage('/auth/accounts/account-1')
+
+    fireEvent.change(await screen.findByLabelText(/Reason for disabling account/), { target: { value: 'Policy breach' } })
+    fireEvent.change(screen.getByLabelText('Confirmation'), { target: { value: 'DISABLE' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Disable account' }))
+
+    expect(await screen.findByText(/account detail has been refreshed/)).toBeTruthy()
+    expect(getAccount).toHaveBeenCalledTimes(2)
+    expect((screen.getByLabelText('Confirmation') as HTMLInputElement).value).toBe('')
+    expect(document.activeElement).toBe(screen.getByRole('status'))
+    fireEvent.click(screen.getByRole('button', { name: 'Disable account' }))
+    expect(disableAccount).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText(/Confirm that this reversible action/)).toBeTruthy()
+  })
+
   it('does not expose incompatible actions', async () => {
     getAccount.mockResolvedValue({ ...account, status: 'disabled' })
     renderPage('/auth/accounts/account-1')
