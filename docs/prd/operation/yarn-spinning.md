@@ -77,15 +77,15 @@ Material flows through five sections in fixed order. Each section keeps its Span
 
 | # | Section | Machine types | Production record | Progress record | Production unit |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Preparación (Preparation) | PSJ-type machines (Pasaje) and FIN-type machines (Finisor), e.g. FIN-A | Production discharge — FIN-type machines only | Yes — PSJ-type machines only | Net weight in kilograms; roving count where captured |
-| 2 | Continuas (Ring Spinning) | Spinning frames, e.g. CONT-0A | Production discharge | Yes | Net weight; operative spindle count |
+| 1 | Preparación (Preparation) | PSJ-type machines (Pasaje) and FIN-type machines (Finisor) | Production discharge — FIN-type machines only | Yes — PSJ-type machines only | Net weight in kilograms; roving count where captured |
+| 2 | Continuas (Ring Spinning) | Spinning frames | Production discharge | Yes | Net weight; operative spindle count |
 | 3 | Bobinados (Bobbin Winding) | Winders | Production discharge | No | Net weight; operative spindle count |
 | 4 | Retorcido (Twisting) | Twisters | Production discharge | Yes | Net weight; operative spindle count |
 | 5 | Madejeras (Skeining) | Skeining machines | Skeining production | No | Skein count and estimated total weight |
 
 Machine facts:
 
-- Preparation hosts PSJ-type machines that only record progress and FIN-type machines that produce. Machine codes such as CONT-0A and FIN-A are business identifiers that plant operators recognize.
+- Preparation hosts PSJ-type machines that only record progress and FIN-type machines that produce. Machine codes are business identifiers drawn from the machine catalog (shared reference data); no specific code is fixed in this capability.
 - Machines hold between roughly 20 and 200 spindles depending on section and machine type. Weighing each spindle individually is impractical, which is why the operative spindle count and per-spindle tare drive the weight calculations in [§5](#5-production-records) and [§6](#6-progress-tracking-rules).
 
 **Capture context.** Production physically occurs throughout the shift, but digital capture happens at shift close in batch sessions. Every record distinguishes three time references: the business date and shift entered by the recorder, and the system capture timestamp registered automatically. The shift belongs to the record's capture context; assignment of people to shifts follows staff rotation administered outside this capability.
@@ -124,8 +124,8 @@ Conventions common to every family:
 | Shift | catalog value (A, B, C) | Yes | Turn of the record's capture context |
 | Supervisor | catalog value (employees) | Yes | Supervisor of the shift |
 | Recorded by | attribution from the authenticated session | Yes | Person performing the capture; attributed automatically from the authenticated session |
-| Yarn count | catalog value (título) | Yes | Yarn count in effect for this discharge, e.g. 2/18, 2/32 |
-| Yarn count variant | text, short code such as HB, N, CH | No | Variety of the yarn count produced |
+| Yarn count | catalog value (título) | Yes | Yarn count in effect for this discharge, maintained as shared reference data; no count value or notation form is fixed in this capability |
+| Yarn count variant | text, short code (yarn-count-variant catalog) | No | Variety of the yarn count produced; the variant set is maintained as shared reference data, no value fixed in this capability |
 | Gross weight | numeric (decimal precision), in kilograms | Yes | Weight of the full cart or container holding the discharge |
 | Operative spindle count | whole number | Yes | Number of operative spindles that produced the discharge |
 | Spindle tare weight | numeric (decimal precision), in grams | Yes | Package weight per spindle used in the net-weight calculation |
@@ -161,7 +161,7 @@ Conventions common to every family:
 | Supervisor | catalog value (employees) | Yes | Supervisor of the shift |
 | Recorded by | attribution from the authenticated session | Yes | Person performing the capture; attributed automatically from the authenticated session |
 | Yarn count | catalog value (título) | Yes | Yarn count of the skeins produced |
-| Yarn count variant | text, short code such as HB, N | No | Variety of the yarn count produced |
+| Yarn count variant | text, short code (yarn-count-variant catalog) | No | Variety of the yarn count produced; the variant set is maintained as shared reference data, no value fixed in this capability |
 | Skein count | whole number | Yes | Number of skeins produced |
 | Estimated unit weight | numeric (decimal precision), in grams | Yes | Weight per skein entered at capture for this record; reflects the physical presentation produced (see SKN-03) |
 | Estimated total weight | numeric (decimal precision), in kilograms | Calculated | Skein count × estimated unit weight, system-calculated |
@@ -228,9 +228,9 @@ Progress applies to Preparation (PSJ-type machines only), Ring Spinning, and Twi
 | Business date | calendar date (no time component) | Yes | Date of the control |
 | Shift | catalog value (A, B, C) | Yes | Turn of the record's capture context |
 | Yarn count | catalog value (título) | Conditional | Yarn count evaluated, when the test targets one |
-| Yarn count variant | text, short code such as HB, N, CH | Conditional | Variety of the evaluated yarn count |
+| Yarn count variant | text, short code (yarn-count-variant catalog) | Conditional | Variety of the evaluated yarn count; the variant set is maintained as shared reference data, no value fixed in this capability |
 | Inspector | catalog value (employees) | Yes | Employee performing the control |
-| Method | one of: Sample, Machine register, Random | Yes | Control method bound to the section (see [§7](#7-process-quality-methods)) |
+| Method | catalog value (control method) | Yes | Control method bound to the section; the method set is maintained as shared reference data, no method fixed in this capability (see [§7](#7-process-quality-methods)) |
 | Sample count | whole number | Sample method | Number of samples taken, following the sampling configuration for the section (see QUA-03) |
 | Individual sample values | numeric measurements | Sample method | Value measured on each sample |
 | Measured properties | numeric results | Sample method | Consistency (CV%), tenacity, and elongation as calculated properties of the samples |
