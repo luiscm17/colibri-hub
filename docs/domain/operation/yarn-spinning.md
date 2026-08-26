@@ -1,7 +1,6 @@
 ---
 document_type: domain
 status: active
-implementation: not-started
 scope: operation/yarn-spinning
 authority: normative
 owner: architecture

@@ -8,7 +8,6 @@
 ---
 document_type: prd
 status: draft
-implementation: not-started
 scope: <context/capability, e.g. "warehouse/bales">
 authority: normative
 owner: product
@@ -66,10 +65,7 @@ replaces: null
 1. <!-- Criterion -->
 2. <!-- Criterion -->
 
-## Open Items and Pending Decisions
+<!-- Unresolved business decisions do not belong in this document.
+     Record them in docs/backlog.md instead.
+     See docs/dev-guide/documentation-principles.md (Temporal Content Policy). -->
 
-<!-- Business decisions that remain unresolved. Each item should identify what needs to be decided, who owns the decision, and what the impact of deferral is. -->
-
-| Item | Owner | Impact | Status |
-|------|-------|--------|--------|
-| <!-- Decision needed --> | <!-- Who decides --> | <!-- What is blocked --> | <!-- open/resolved --> |
