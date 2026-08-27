@@ -95,7 +95,7 @@ First-time capture of a record after its shift has closed is allowed only within
 Three guarantees bind every capture session:
 
 - **Session integrity.** A capture session persists completely or not at all across every record family it touches; partial persistence never occurs ([DIS-07](#51-production-discharge-dis)).
-- **Deterministic outcomes.** A completed capture session leaves no machine in scope undetermined: a machine without production is recorded with an affirmative zero outcome, distinguishable from a machine whose shift was never captured ([DIS-08](#51-production-discharge-dis)).
+- **Deterministic outcomes.** A completed capture session accounts for every in-scope machine: a machine with no production contributes zero to calculations (an omitted or zero-valued row is treated as zero), and the capture UI requires each in-scope machine to be acknowledged before submission. No machine in scope is left undetermined ([DIS-08](#51-production-discharge-dis)).
 - **Optimistic concurrency.** When two capture attempts target the same continuity key, the first save prevails and the second is rejected together with the current stored state for review; silent overwriting never occurs.
 
 ---
@@ -113,7 +113,7 @@ Conventions common to every family:
 
 ### 5.1 Production Discharge (DIS)
 
-**Nature of the record.** A production discharge is the granular record of one machine-level output event within a shift. Recording is granular per discharge: one machine can have several discharges in one shift — of the same or different yarn count — or none. Although discharges occur across the shift, all of them for a shift are captured together at shift close; the system still preserves each discharge's own capture moment as metadata.
+**Nature of the record.** A production discharge is the granular record of one machine-level output event within a shift. Within a shift its identity is the machine together with the yarn count (and material type) produced, so a single machine contributes one discharge row per (yarn count, material type) rather than a single per-machine row. Recording is granular per discharge: one machine can have several discharges in one shift — of the same or different yarn count — or none. Although discharges occur across the shift, all of them for a shift are captured together at shift close; the system still preserves each discharge's own capture moment as metadata.
 
 #### Attributes
 
@@ -123,9 +123,10 @@ Conventions common to every family:
 | Business date | calendar date (no time component) | Yes | Production date entered by the recorder |
 | Shift | catalog value (A, B, C) | Yes | Turn of the record's capture context |
 | Supervisor | catalog value (employees) | Yes | Supervisor of the shift |
+| Foreman | catalog value (employees) | Yes | Foreman (encargado) of the shift, captured from the employee catalog |
 | Recorded by | attribution from the authenticated session | Yes | Person performing the capture; attributed automatically from the authenticated session |
-| Yarn count | catalog value (título) | Yes | Yarn count in effect for this discharge, maintained as shared reference data; no count value or notation form is fixed in this capability |
-| Yarn count variant | text, short code (yarn-count-variant catalog) | No | Variety of the yarn count produced; the variant set is maintained as shared reference data, no value fixed in this capability |
+| Yarn count | catalog value (título) | Yes | Yarn count in effect for this discharge, maintained as shared reference data; its characteristics (material type, process-specific notations) belong to the yarn count identity, not to this record |
+| Material type | text, short code | No | Material type of the referenced yarn count (e.g., HB/N/Fantasía/OTRO); an attribute of the yarn count identity, not a separate catalog |
 | Gross weight | numeric (decimal precision), in kilograms | Yes | Weight of the full cart or container holding the discharge |
 | Operative spindle count | whole number | Yes | Number of operative spindles that produced the discharge |
 | Spindle tare weight | numeric (decimal precision), in grams | Yes | Package weight per spindle used in the net-weight calculation |
@@ -138,14 +139,15 @@ Conventions common to every family:
 
 | ID | Rule |
 | --- | --- |
-| DIS-01 | A production discharge associates exactly one machine, one business date, one shift, and one yarn count, with its variant when applicable. |
+| DIS-01 | A production discharge associates exactly one machine, one business date, one shift, and one yarn count, with its material type when applicable. |
 | DIS-02 | Net weight is always system-calculated: gross cart weight minus total spindle tares minus cart weight. Direct net-weight entry is rejected. |
 | DIS-03 | Only FIN-type machines record production discharges in Preparation; a discharge for a PSJ-type machine is invalid. |
 | DIS-04 | A machine may have several discharges per shift — of the same or different yarn count — or none; zero discharges is a valid recorded outcome. |
-| DIS-05 | Yarn count and variant may change during a shift; each discharge carries the values in effect for that discharge. |
+| DIS-05 | Yarn count and material type may change during a shift; each discharge carries the values in effect for that discharge. |
 | DIS-06 | Spindle tare weight is recorded in grams; the system converts it consistently when calculating net weight. All cart and weight values use kilograms. |
 | DIS-07 | A shift-close capture session persists completely or not at all, across every record family included in the session; partial persistence never occurs. |
-| DIS-08 | A completed capture session records an explicit zero outcome for every in-scope machine that produced nothing; the absence of discharge records alone never represents a declared zero. |
+| DIS-08 | A completed capture session accounts for every in-scope machine. A machine that produced nothing is represented by a zero-valued row (or omitted and treated as zero); its production is never left undetermined. The capture UI requires each in-scope machine to be acknowledged before submission. |
+| DIS-09 | Supervisor and Foreman are shift-level capture attributes: they are entered once per capture at the shift/section header and applied to every discharge row in that capture. They are not repeated per discharge row in the capture payload, although stored per record. |
 
 ### 5.2 Skeining Production (SKN)
 
@@ -160,8 +162,8 @@ Conventions common to every family:
 | Shift | catalog value (A, B, C) | Yes | Turn of the record's capture context |
 | Supervisor | catalog value (employees) | Yes | Supervisor of the shift |
 | Recorded by | attribution from the authenticated session | Yes | Person performing the capture; attributed automatically from the authenticated session |
-| Yarn count | catalog value (título) | Yes | Yarn count of the skeins produced |
-| Yarn count variant | text, short code (yarn-count-variant catalog) | No | Variety of the yarn count produced; the variant set is maintained as shared reference data, no value fixed in this capability |
+| Yarn count | catalog value (título) | Yes | Yarn count of the skeins produced; its characteristics belong to the yarn count identity |
+| Material type | text, short code | No | Material type of the referenced yarn count (e.g., HB/N/Fantasía/OTRO); an attribute of the yarn count identity, not a separate catalog |
 | Skein count | whole number | Yes | Number of skeins produced |
 | Estimated unit weight | numeric (decimal precision), in grams | Yes | Weight per skein entered at capture for this record; reflects the physical presentation produced (see SKN-03) |
 | Estimated total weight | numeric (decimal precision), in kilograms | Calculated | Skein count × estimated unit weight, system-calculated |
@@ -193,7 +195,7 @@ Progress applies to Preparation (PSJ-type machines only), Ring Spinning, and Twi
 | Shift | catalog value (A, B, C) | Yes | Turn of the record's capture context |
 | Supervisor | catalog value (employees) | Yes | Supervisor of the shift |
 | Recorded by | attribution from the authenticated session | Yes | Person performing the capture; attributed automatically from the authenticated session |
-| Yarn count | catalog value (título) | Yes | Yarn count of the summarized work |
+| Yarn count | catalog value (título) | Yes | Yarn count of the summarized work; its characteristics belong to the yarn count identity |
 | Input weight | numeric (decimal precision), in kilograms | Yes | Material entering the machine; equals the previous shift's registered output (PRG-04) |
 | Sample gross weight | numeric (decimal precision), in grams | Conditional | Gross weight of one sample spindle or package, where spindle sampling applies |
 | Sample tare weight | numeric (decimal precision), in grams | Conditional | Tare of that sample spindle or package |
@@ -227,12 +229,12 @@ Progress applies to Preparation (PSJ-type machines only), Ring Spinning, and Twi
 | Machine | catalog value (section machines) | Conditional | Machine evaluated; optional for section-level random checks |
 | Business date | calendar date (no time component) | Yes | Date of the control |
 | Shift | catalog value (A, B, C) | Yes | Turn of the record's capture context |
-| Yarn count | catalog value (título) | Conditional | Yarn count evaluated, when the test targets one |
-| Yarn count variant | text, short code (yarn-count-variant catalog) | Conditional | Variety of the evaluated yarn count; the variant set is maintained as shared reference data, no value fixed in this capability |
+| Yarn count | catalog value (título) | Conditional | Yarn count evaluated, when the test targets one; its characteristics belong to the yarn count identity |
+| Material type | text, short code | Conditional | Material type of the referenced yarn count (e.g., HB/N/Fantasía/OTRO); an attribute of the yarn count identity, not a separate catalog |
 | Inspector | catalog value (employees) | Yes | Employee performing the control |
 | Method | catalog value (control method) | Yes | Control method bound to the section; the method set is maintained as shared reference data, no method fixed in this capability (see [§7](#7-process-quality-methods)) |
 | Sample count | whole number | Sample method | Number of samples taken, following the sampling configuration for the section (see QUA-03) |
-| Individual sample values | numeric measurements | Sample method | Value measured on each sample |
+| Individual sample values | numeric measurements | Sample method | Value measured on each sample; retained as recorded so the measured properties are derived from them |
 | Measured properties | numeric results | Sample method | Consistency (CV%), tenacity, and elongation as calculated properties of the samples |
 | Body | numeric result | Machine register method | Imperfections per unit of length reported by the machine |
 | Kilometers | numeric result | Machine register method | Kilometers processed by the machine |
@@ -281,7 +283,7 @@ Progress applies to Preparation (PSJ-type machines only), Ring Spinning, and Twi
 
 ### 5.6 Corrections (COR)
 
-**Nature of the record.** Every record family admits controlled correction when a data-entry error exists. Corrections never modify records in place: each correction appends an entry to a separate, append-only correction history, leaving the sequence of prior entries intact. The policy governing when correction is allowed is defined in [§9](#9-corrections-policy).
+**Nature of the record.** Every record family admits controlled correction when a data-entry error exists. A correction updates the record's current values in place so the record reflects the latest corrected state, and in the same operation appends an immutable entry to a separate, append-only correction history that preserves the complete before-and-after values and the original capture timestamp. The correction history is never overwritten or deleted ([COR-02](#56-corrections-cor)); the original capture timestamp is never altered ([COR-06](#56-corrections-cor)). Each correctable record belongs to exactly one family (production discharge, skeining production, progress, process quality, or waste) and is addressed for correction by its family and record id. The policy governing when correction is allowed is defined in [§9](#9-corrections-policy).
 
 #### Rules
 
@@ -362,7 +364,7 @@ Operational records may be corrected when a data-entry error exists, under a uni
 
 The policy rests on four pillars:
 
-1. **Append-only evidence.** A correction appends a complete evidence entry — actor, timestamp, reason, and full before-and-after values — and never erases history ([COR-01](#56-corrections-cor), [COR-02](#56-corrections-cor)).
+1. **Append-only evidence.** A correction updates the record's current values in place and appends a complete evidence entry — actor, timestamp, reason, and full before-and-after values — to an immutable correction history; the history is never erased or overwritten ([COR-01](#56-corrections-cor), [COR-02](#56-corrections-cor)), and the original capture timestamp is preserved ([COR-06](#56-corrections-cor)).
 2. **Administrative window.** Operational roles may correct records only within an administrative window that opens at capture and closes after a duration defined by an operational parameter maintained through the application by holders of the corresponding access-policy permission. No duration value is fixed in this capability.
 3. **Override authority.** Beyond the window, correction is reserved to a designated administrative override role. That authority exists only as configured through access policy; it is never implied by a person's organizational position, and no position name is fixed for it in this document.
 4. **Permission-gated execution.** Within or beyond the window, a correction executes only when the user holds the effective permission for the record family and section scope ([COR-05](#56-corrections-cor)).
@@ -430,9 +432,9 @@ The recorded families feed section dashboards and the supervisory consolidated v
 | AC-DIS-02 | Net weight always equals gross cart weight minus total spindle tares minus cart weight, and direct net-weight entry is rejected. |
 | AC-DIS-03 | A production discharge for a PSJ-type machine in Preparation is rejected. |
 | AC-DIS-04 | Multiple discharges for one machine in one shift coexist, including discharges with different yarn counts, and a shift with zero discharges is valid. |
-| AC-DIS-05 | GIVEN a machine changes yarn count during a shift, WHEN each discharge is recorded, THEN each discharge carries the yarn count and variant in effect for that discharge. |
+| AC-DIS-05 | GIVEN a machine changes yarn count during a shift, WHEN each discharge is recorded, THEN each discharge carries the yarn count and material type in effect for that discharge. |
 | AC-DIS-06 | A shift-close capture session persists completely or not at all; a failed validation leaves no partial records. |
-| AC-DIS-07 | A completed capture session distinguishes a machine that produced nothing, recorded as an affirmative zero outcome, from a machine whose shift was never captured. |
+| AC-DIS-07 | A completed capture session accounts for every in-scope machine; a machine that produced nothing is represented by a zero-valued row (or treated as zero), and the capture UI requires its acknowledgement before submission. |
 
 ### 12.2 Skeining Production
 

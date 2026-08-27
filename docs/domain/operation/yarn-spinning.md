@@ -58,7 +58,7 @@ This is the record of each discharge made by a machine. Applies to sections that
 | Shift | A, B, or C |
 | Date | Production date |
 | Yarn count | Yarn count, maintained as shared reference data; no value or notation form is fixed in this capability |
-| Type | Variety of the count, from the yarn-count-variant catalog (shared reference data) |
+| Material type | Variety of the count, an attribute of the yarn count identity (shared reference data) |
 | Supervisor | Shift supervisor |
 | Recorded by | Attribution from the authenticated session |
 | Gross weight | Weight of the full cart/tub with product (kg) |
@@ -85,7 +85,7 @@ This is the production record for Skeining (Madejeras). It does not use spindles
 | Shift | A, B, or C |
 | Date | Production date |
 | Yarn count | Yarn count |
-| Type | Variety of the count, from the yarn-count-variant catalog (shared reference data) |
+| Material type | Variety of the count, an attribute of the yarn count identity (shared reference data) |
 | Supervisor | Shift supervisor |
 | Recorded by | Attribution from the authenticated session |
 | No. of skeins | Quantity of skeins produced |
@@ -113,7 +113,7 @@ This is a per-machine summary at shift end. It consolidates the shift's work: ma
 | Shift | A, B, or C |
 | Date | Date |
 | Yarn count | Yarn count |
-| Type | Variety of the count |
+| Material type | Variety of the count |
 | Supervisor | Shift supervisor |
 | Recorded by | Attribution from the authenticated session |
 | Sample gross weight | Gross weight of a sample cop/spindle at shift start (grams) |
@@ -147,7 +147,7 @@ Process quality control applies to every section. The method varies by section.
 | Shift | Shift |
 | Date | Date |
 | Yarn count | Yarn count evaluated |
-| Type | Variety of the evaluated yarn count, from the yarn-count-variant catalog (shared reference data) |
+| Material type | Variety of the evaluated yarn count, an attribute of the yarn count identity (shared reference data) |
 | Inspector | Employee performing the control |
 | Method | Control method from the method catalog (shared reference data); bound to the section per the quality-method matrix |
 
