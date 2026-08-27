@@ -28,10 +28,10 @@ Represents a shared yarn count/title identity and its stable business characteri
 | Field | Why it exists | Optional / challenge later |
 | --- | --- | --- |
 | `yarn_count_id` | Technical identifier referenced by operational records. | No. |
-| `yarn_count_code` | Visible business designation, such as `2/18` or `2/32`. | No; exact formatting rules may be defined later. |
+| `notation_spinning` | Yarn Spinning designation shown in the Hilatura UI/context, such as `1/4`. | No; exact formatting rules may be defined later. |
 | `material_type` | Material characteristic of the yarn count identity. | No; keep as simple text until fixed material choices are proven necessary. |
 | `dtex` | Technical linear-density characteristic when known or needed. | Yes. |
-| `business_label` | Optional user-facing label when the business needs wording beyond the count code. | Yes; do not add multiple label tables yet. |
+| `notation_lot` | Lot Processing designation for the same identity, such as `2/4`. | Yes; absent when Lot Processing has no separate notation. |
 | `is_active` | Allows disabling selection for new records without deleting history. | No. |
 | `created_at`, `updated_at` | System capture and last update timestamps. | Created no; updated yes. |
 
