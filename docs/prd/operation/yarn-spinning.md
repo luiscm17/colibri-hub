@@ -18,21 +18,21 @@ replaces: null
 
 ## 1. Business Scope
 
-Yarn Spinning (Hilatura) is the Operation capability that transforms raw material received from Warehouse into yarn of a specific yarn count (título) through five productive sections arranged in continuous sequential flow. Its recorded output is skein production, which Lot Processing consumes to assemble the physical lot.
+Yarn Spinning (Hilatura) is the Operation capability that transforms raw material received from Warehouse into yarn of a specific yarn count (título) through five productive sections arranged in continuous sequential flow. Its recorded output is skein production. Lot Processing independently records physical lot assembly.
 
 The capability sits between two contexts:
 
 - **Upstream — Warehouse.** Raw-material deliveries arrive authorized from Warehouse. A delivery does not create any association between bales and lots, products, or identities.
-- **Downstream — Lot Processing.** The capability hands off skein output so Lot Processing can assemble the physical lot under an existing production identity. Skeins produced in Yarn Spinning carry no lot attribution.
+- **Lot Processing.** Lot Processing independently records physical lot assembly. Skeins produced in Yarn Spinning carry no lot attribution.
 
 | Capability or Context | Relationship |
 | --- | --- |
 | Warehouse (upstream) | Delivers authorized raw material and the information needed to process it. Delivery does not link bales to lots, products, or production identities. |
-| Lot Processing (downstream) | Receives skein output for physical lot assembly under an existing production identity and lot code. |
+| Lot Processing | Independently records physical lot assembly, lot-stage history, final lot quality evaluation, and finished-product handoff. |
 | Access Control | Governs who may record, correct, and consult through configurable actions and scopes. |
 | Shared Reference Data | Supplies shared catalogs consumed read-only: employees, shifts, yarn counts, sections, machines, and machine groups. |
 
-**Identity boundary.** Inside Yarn Spinning there is no lot, no lot code, no production identity, and no production run. Continuity of records is built from section × machine × business date × shift × yarn count. Physical lot assembly, lot-stage history, final lot quality evaluation, and the finished-product handoff are outside this capability and belong to Lot Processing. Raw-material custody and supplies remain Warehouse capabilities.
+**Identity and context boundary.** Inside Yarn Spinning there is no lot, no lot code, no production identity, and no production run. Continuity of records is built from section × machine × business date × shift × yarn count. Physical lot assembly, lot-stage history, final lot quality evaluation, and the finished-product handoff are outside this capability and belong to Lot Processing. Yarn Spinning and Lot Processing record independent business facts: neither context writes, reserves, consumes, or reconciles the other context's source records. Their real-world process relationship creates no transactional availability, allocation, reservation, consumption, or double-use-prevention rule in Yarn Spinning. Raw-material custody and supplies remain Warehouse capabilities.
 
 The capability covers five record concerns: production discharges, skeining production, progress, process quality, and waste, plus the correction policy that governs all of them.
 
@@ -110,10 +110,11 @@ Conventions common to every family:
 - **Shift** — one of the three-turn rotation A / B / C; part of the record's capture context.
 - **System capture timestamp** — registered automatically by the system; never entered by users.
 - **Shared catalogs** — employees, shifts, yarn counts, sections, machines, and machine groups are consumed read-only from shared reference data.
+- **Numerical operational data** — when a numerical value applies to a record, it is captured or calculated as a non-negative known value; it is never null, blank, or unknown. Zero represents a known zero quantity, never an absent capture.
 
 ### 5.1 Production Discharge (DIS)
 
-**Nature of the record.** A production discharge is the granular record of one machine-level output event within a shift. Within a shift its identity is the machine together with the yarn count (and material type) produced, so a single machine contributes one discharge row per (yarn count, material type) rather than a single per-machine row. Recording is granular per discharge: one machine can have several discharges in one shift — of the same or different yarn count — or none. Although discharges occur across the shift, all of them for a shift are captured together at shift close; the system still preserves each discharge's own capture moment as metadata.
+**Nature of the record.** A production discharge is an individually recorded machine-level output event within a shift. Machine, business date, shift, yarn count, and material type classify the event but do not uniquely identify it: repeated discharges with equal dimensions remain distinct business facts. Recording is granular per discharge: one machine can have several discharges in one shift — of the same or different yarn count — or none. Although discharges occur across the shift, all of them for a shift are captured together at shift close; the system still preserves each discharge's own capture moment as metadata.
 
 #### Attributes
 
@@ -178,11 +179,11 @@ Conventions common to every family:
 | SKN-02 | Estimated total weight always equals skein count × estimated unit weight, converted to kilograms by the system; it is never entered directly. |
 | SKN-03 | The estimated unit weight is entered at capture for each skeining record. It reflects the physical presentation produced in the shift — single skein or bundled basis — which belongs to floor practice and varies independently of the yarn count; it is neither a fixed value nor an application-maintained parameter. |
 | SKN-04 | The operator name is an informative free-text reference. It asserts no employment identity and references no employee catalog entry. |
-| SKN-05 | Madejeras does not assemble lots inside Yarn Spinning; it produces skeins of a defined weight for the downstream assembly performed by Lot Processing. |
+| SKN-05 | Madejeras does not assemble lots inside Yarn Spinning; it records skein production independently of the physical lot assembly recorded by Lot Processing. A skeining record creates no availability, allocation, reservation, consumption, or double-use-prevention rule in Yarn Spinning. |
 
 ### 5.3 Progress (PRG)
 
-**Nature of the record.** The progress record is a per-machine summary registered at shift close. It consolidates in one record what entered the machine, what was discharged, what remains in the machine, and what continues to the next shift or section. Unlike production (granular per discharge), progress is one record per continuity key.
+**Nature of the record.** The progress record is a per-machine summary registered at shift close. It consolidates in one record what entered the machine, what was discharged, and the closing quantity physically remaining on the machine. That closing output becomes the following shift's opening input. Unlike production (granular per discharge), progress is one record per continuity key.
 
 Progress applies to Preparation (PSJ-type machines only), Ring Spinning, and Twisting. Bobbin Winding and Madejeras have no progress record.
 
@@ -196,13 +197,12 @@ Progress applies to Preparation (PSJ-type machines only), Ring Spinning, and Twi
 | Supervisor | catalog value (employees) | Yes | Supervisor of the shift |
 | Recorded by | attribution from the authenticated session | Yes | Person performing the capture; attributed automatically from the authenticated session |
 | Yarn count | catalog value (título) | Yes | Yarn count of the summarized work; its characteristics belong to the yarn count identity |
-| Input weight | numeric (decimal precision), in kilograms | Yes | Material entering the machine; equals the previous shift's registered output (PRG-04) |
+| Input weight | numeric (decimal precision), in kilograms | Yes | Opening material on the machine; determined from continuity, or zero when no predecessor exists (PRG-04) |
 | Sample gross weight | numeric (decimal precision), in grams | Conditional | Gross weight of one sample spindle or package, where spindle sampling applies |
 | Sample tare weight | numeric (decimal precision), in grams | Conditional | Tare of that sample spindle or package |
 | Operative spindle count | whole number | Conditional | Total operative spindles, where spindle sampling applies |
-| In-machine weight | numeric (decimal precision), in kilograms | Conditional | Material still on the machine, estimated by material balance; mainly Ring Spinning and Twisting |
-| Discharged weight | numeric (decimal precision), in kilograms | Calculated | Sum of net weights of the shift's production discharges; zero when there are none (PRG-03) |
-| Output weight | numeric (decimal precision), in kilograms | Yes | Material remaining on the machine at shift close that continues forward; becomes the next shift's input |
+| Discharged weight | numeric (decimal precision), in kilograms | Calculated | Sum of authoritative net weights of the shift's production discharges; zero when there are none (PRG-03) |
+| Output weight | numeric (decimal precision), in kilograms | Yes | Sole closing quantity physically remaining on the machine at shift close; becomes the following shift's opening input when continuity applies |
 | Worked hours | numeric, in hours | No | Hours the machine operated; supports productivity metrics |
 | Consistency notes | free text | No | Reconciliation remarks or operational exceptions |
 
@@ -212,14 +212,15 @@ Progress applies to Preparation (PSJ-type machines only), Ring Spinning, and Twi
 | --- | --- |
 | PRG-01 | One progress record exists per machine × shift × business date × yarn count; a duplicate for the same key is rejected. |
 | PRG-02 | Only Preparation, Ring Spinning, and Twisting have progress records; no progress record exists for Bobbin Winding or Madejeras. |
-| PRG-03 | Discharged weight equals the sum of net weights of that machine's production discharges in the shift, and is zero when the shift has none. |
-| PRG-04 | Input weight equals the output weight registered by the preceding shift for the same machine. |
-| PRG-05 | In-machine and output weights are estimated by spindle sampling wherever sampling applies (see [§6](#6-progress-tracking-rules)). |
+| PRG-03 | Discharged weight equals the sum of authoritative net weights of that machine's production discharges in the shift, and is zero when the shift has none. |
+| PRG-04 | Input weight equals the output weight registered by the preceding shift for the same machine and yarn-count stream when that predecessor exists. When no predecessor exists, input weight is zero. A physical restart and a new yarn-count stream are explicit examples that may result in no predecessor; they are not the only causes. |
+| PRG-05 | Output weight is the sole closing quantity physically remaining on the machine and is estimated by spindle sampling wherever sampling applies (see [§6](#6-progress-tracking-rules)). |
 | PRG-06 | The discharged weight consolidated in a progress record must reconcile with the shift's recorded discharge totals. A difference within the configured reconciliation tolerance is accepted with a mandatory consistency note; a difference beyond the tolerance rejects the record. The tolerance is an operational parameter maintained through the application by holders of the corresponding access-policy permission. |
+| PRG-07 | Net process production equals output weight plus discharged weight minus input weight. Input weight minus output weight is not waste; waste is recorded independently under the WST family. |
 
 ### 5.4 Process Quality (QUA)
 
-**Nature of the record.** The process quality record captures in-process quality control for a section and machine within a shift. The measured values depend on the method bound to the section (matrix in [§7](#7-process-quality-methods)).
+**Nature of the record.** The process quality record captures in-process quality control for a section and, when the method uses machine-level controls, a selected machine within a shift. The measured values depend on the method bound to the section (matrix in [§7](#7-process-quality-methods)).
 
 #### Attributes
 
@@ -233,9 +234,9 @@ Progress applies to Preparation (PSJ-type machines only), Ring Spinning, and Twi
 | Material type | text, short code | Conditional | Material type of the referenced yarn count (e.g., HB/N/Fantasía/OTRO); an attribute of the yarn count identity, not a separate catalog |
 | Inspector | catalog value (employees) | Yes | Employee performing the control |
 | Method | catalog value (control method) | Yes | Control method bound to the section; the method set is maintained as shared reference data, no method fixed in this capability (see [§7](#7-process-quality-methods)) |
-| Sample count | whole number | Sample method | Number of samples taken, following the sampling configuration for the section (see QUA-03) |
+| Sample count | whole number | Sample method | Exactly ten measurements captured for a Sample-method control (see QUA-03) |
 | Individual sample values | numeric measurements | Sample method | Value measured on each sample; retained as recorded so the measured properties are derived from them |
-| Measured properties | numeric results | Sample method | Consistency (CV%), tenacity, and elongation as calculated properties of the samples |
+| Measured properties | numeric results | Sample method | Properties designated for the applicable section and method, calculated automatically from the recorded measurements (see [§7](#7-process-quality-methods)) |
 | Body | numeric result | Machine register method | Imperfections per unit of length reported by the machine |
 | Kilometers | numeric result | Machine register method | Kilometers processed by the machine |
 | Cuts per bobbin | numeric result | Machine register method | Cut frequency per bobbin reported by the machine |
@@ -247,16 +248,16 @@ Progress applies to Preparation (PSJ-type machines only), Ring Spinning, and Twi
 
 | ID | Rule |
 | --- | --- |
-| QUA-01 | Process quality evaluates every section and machine of Yarn Spinning, without exception. |
+| QUA-01 | Process quality covers every section of Yarn Spinning. It does not require a control record for every machine; where a section method uses machine-level controls, machines are selected randomly or flexibly from the relevant section. |
 | QUA-02 | Controls use exactly one of the three methods, and the method is bound to the section per the matrix in [§7](#7-process-quality-methods). |
-| QUA-03 | Sample-method controls take the sample count defined by the sampling configuration maintained through the application by holders of the corresponding access-policy permission; no sample count is embedded in capture behavior. |
+| QUA-03 | A Sample-method control captures exactly ten measurements. The system automatically calculates only the measured properties designated for that section and method from those measurements; it does not require a uniform property set across sections. |
 | QUA-04 | Process quality in Yarn Spinning is distinct from lot quality; final lot evaluation belongs to Lot Processing. |
 | QUA-05 | Machine-register controls in Bobbin Winding are captured at the machine-shift cut; a different capture cut requires an explicit revision of this capability. |
 | QUA-06 | Tolerance limits for measured properties are configured reference data maintained through the application by holders of the corresponding access-policy permission; no limit value is embedded in capture behavior. |
 
 ### 5.5 Waste (WST)
 
-**Nature of the record.** The waste record captures real waste for a section, weighed by machine group rather than by individual machine. Waste classification semantics are defined in [§8](#8-waste-classification).
+**Nature of the record.** The waste record captures real waste for a section, weighed by machine group rather than by individual machine. Real-waste semantics are defined in [§8](#8-real-waste).
 
 #### Attributes
 
@@ -266,7 +267,6 @@ Progress applies to Preparation (PSJ-type machines only), Ring Spinning, and Twi
 | Machine group | catalog value (machine groups) | Yes | Group of machines weighed together |
 | Business date | calendar date (no time component) | Yes | Date entered by the recorder |
 | Shift | catalog value (A, B, C) | Yes | Turn of the record's capture context |
-| Waste type | one of: real, accumulated | Yes | Classification per [§8](#8-waste-classification) |
 | Waste weight | numeric (decimal precision), in kilograms | Yes | Weight recorded for the machine group |
 | Recorded by | attribution from the authenticated session | Yes | Person performing the capture; attributed automatically from the authenticated session |
 | Observations | free text | No | Context or exceptions, including Madejeras reprocessing notes |
@@ -276,10 +276,9 @@ Progress applies to Preparation (PSJ-type machines only), Ring Spinning, and Twi
 | ID | Rule |
 | --- | --- |
 | WST-01 | Waste is weighed and recorded by machine group; individual machines are never weighed separately for waste. |
-| WST-02 | Waste is classified as real or accumulated; both classes follow the classification semantics of [§8](#8-waste-classification). |
-| WST-03 | Theoretical waste always equals real waste plus accumulated waste and is calculated by the system, never stored as a direct input. |
-| WST-04 | Out-of-specification skeins in Madejeras are reprocessing material returned to an earlier stage; they are never recorded as waste. |
-| WST-05 | Waste corrections follow the same correction policy as every other record family (see [§9](#9-corrections-policy)). |
+| WST-02 | Each waste record represents real waste independently weighed for its machine group and shift. |
+| WST-03 | Out-of-specification skeins in Madejeras are reprocessing material returned to an earlier stage; they are never recorded as waste. |
+| WST-04 | Waste corrections follow the same correction policy as every other record family (see [§9](#9-corrections-policy)). |
 
 ### 5.6 Corrections (COR)
 
@@ -289,13 +288,15 @@ Progress applies to Preparation (PSJ-type machines only), Ring Spinning, and Twi
 
 | ID | Rule |
 | --- | --- |
-| COR-01 | Every correction stores the correcting actor, the correction timestamp, a mandatory reason, and the complete before-and-after values. |
+| COR-01 | Every correction stores, for each changed business record, the correcting actor, the correction timestamp, a mandatory reason, and the complete before-and-after values. Audit evidence is per changed business record, not per interface field or generic multi-record event. |
 | COR-02 | The correction history is append-only; existing entries are never overwritten or deleted. |
-| COR-03 | Operational-role corrections are allowed only within the administrative window defined in [§9](#9-corrections-policy). |
-| COR-04 | Outside that window, correction is reserved to the designated administrative override role configured through access policy. |
-| COR-05 | Every correction requires the effective permission for the record family and section scope; organizational position grants nothing by itself. |
+| COR-03 | Yarn Spinning validates the correction reason and evidence and enforces its administrative correction window. Within that window, a correction requires Access Control's general `Edit` action in the applicable business scope. |
+| COR-04 | Outside that window, a correction requires Access Control's general `Edit Outside the Operational Window` action in the applicable business scope. |
+| COR-05 | Production discharge, skeining production, and progress corrections use their applicable section scope. Process Quality and Waste corrections use their own transversal scopes, not section scopes. Organizational position grants no correction authority by itself. |
 | COR-06 | Corrections never alter the original capture timestamp of the corrected record. |
 | COR-07 | The correction policy applies uniformly to production discharge, skeining production, progress, process quality, and waste records. |
+| COR-08 | Correcting a progress input or output never automatically changes a later record. The system warns when continuity records may be affected; any later correction is manual and independently traceable under this policy. |
+| COR-09 | A correction affecting more than one business record may be applied atomically; each changed record retains its own correction evidence under COR-01. |
 
 ---
 
@@ -307,15 +308,15 @@ Because weighing every spindle is impractical ([§4](#4-the-five-productive-sect
 
 1. One spindle or package is weighed as a sample: its gross weight minus its tare gives the sample's net content.
 2. All spindles are assumed to carry the same content weight.
-3. The sample net weight is multiplied by the machine's total operative spindle count to estimate the machine-level quantity (material in the machine or continuing as output).
+3. The sample net weight is multiplied by the machine's total operative spindle count to estimate the closing output weight remaining on the machine.
 
 Three continuity rules bind progress to the rest of the record system:
 
-1. **Input continuity.** The input weight of a shift is the output weight registered by the preceding shift for the same machine ([PRG-04](#53-progress-prg)). The chain of input-to-output values forms the continuous material thread across shifts.
+1. **Input continuity.** Input weight is the output weight registered by the preceding shift for the same machine and yarn-count stream when that predecessor exists. When no predecessor exists, opening input is zero. A physical restart and a new yarn-count stream are explicit examples that may result in no predecessor; they are not the only causes ([PRG-04](#53-progress-prg)). The chain of input-to-output values forms the continuous material thread across shifts.
 2. **Discharge reconciliation.** The discharged weight consolidated in the progress record must coincide with the sum of the net weights of that machine's production discharges in the shift ([PRG-03](#53-progress-prg), [PRG-06](#53-progress-prg)). A shift with zero discharges reconciles at zero.
-3. **Loss visibility.** The difference between input weight and output weight exposes the material lost in the section, and worked hours convert production into productivity (kilograms per hour).
+3. **Production measurement.** Output weight is the sole closing in-machine quantity. Net process production equals closing output weight plus discharged weight minus opening input weight. The difference between input weight and output weight is not waste; independently weighed real waste remains the WST-family fact. Worked hours convert net process production into productivity (kilograms per hour).
 
-Progress therefore serves four purposes: cross-validation of discharge detail, waste estimation per section, productivity measurement per machine, and visibility of each section's in-process status.
+Progress therefore serves four purposes: cross-validation of discharge detail, net process production measurement, productivity measurement per machine, and visibility of each section's in-process status.
 
 ---
 
@@ -326,35 +327,28 @@ Process quality control operates in all five sections. Frequency and method vary
 | Section | Method | What is measured |
 | --- | --- | --- |
 | Preparación (Preparation) | Sample | Samples evaluate consistency of preparation output |
-| Continuas (Ring Spinning) | Sample | Sampling per the configured sampling plan; consistency (CV%), tenacity, elongation |
+| Continuas (Ring Spinning) | Sample | Exactly ten measurements; consistency (CV%), tenacity, and elongation are calculated from them |
 | Bobinados (Bobbin Winding) | Machine register | No samples; the machine reports body (imperfections per unit of length), kilometers processed, and cuts per bobbin |
 | Retorcido (Twisting) | Random | Random tests at lower frequency than Preparation and Ring Spinning |
 | Madejeras (Skeining) | Random | Random tests; systematic in-process evaluation happens at lot level downstream |
 
 Method facts:
 
-- **Sample** produces individual sample values plus the measured properties: CV% (coefficient of variation, a consistency measure), tenacity, and elongation.
+- **Sample** captures exactly ten measurements and automatically calculates the properties designated for its section from them. Preparation designates consistency (CV%, a consistency measure); Ring Spinning designates consistency, tenacity, and elongation. No metrology formula, additional field, unit, or uniform property set is defined here.
 - **Machine register** records counter data reported by winding machines rather than laboratory samples.
 - **Random** records the results of whichever test the control applies; results vary per test.
+
+For section methods that use machine-level controls, the selected machines are random or flexible within the relevant section. Process quality therefore covers every section without requiring a record for every machine.
 
 One exclusion sentence bounds this section's reach: special nomenclatures such as -AT, -FT, -VARR, and -D belong to Lot Processing stages, never to machines or to Yarn Spinning records; process quality here only records the findings that may later inform those stage-level designations.
 
 ---
 
-## 8. Waste Classification
+## 8. Real Waste
 
-Waste in Yarn Spinning follows a two-component classification:
+Waste in Yarn Spinning means only real material loss, independently weighed and recorded by section, machine group, and shift ([WST-01](#55-waste-wst), [WST-02](#55-waste-wst)). Machines are weighed together in machine groups; the record identifies the group, not the individual machine.
 
-1. **Real waste** is material loss captured during the process, per section and shift, weighed by machine group ([WST-01](#55-waste-wst), [WST-02](#55-waste-wst)).
-2. **Accumulated waste** is material retained for management under current plant policy; it does not enter the routine per-shift weighing capture.
-
-From both components the system derives one aggregate:
-
-3. **Theoretical waste equals real waste plus accumulated waste.** It is always calculated by the system and never stored as a direct input ([WST-03](#55-waste-wst)).
-
-Weighing practice: machines are weighed together in machine groups; the record identifies the group, not the individual machine.
-
-Reprocessing boundary: skeins outside specification in Madejeras are reprocessing material. They return to an earlier stage of the process and are never recorded as waste ([WST-04](#55-waste-wst)). This keeps the waste metric faithful to true material loss and protects the downstream reprocessing path.
+Reprocessing boundary: skeins outside specification in Madejeras are reprocessing material. They return to an earlier stage of the process and are never recorded as waste ([WST-03](#55-waste-wst)). This keeps the waste metric faithful to true material loss and protects the downstream reprocessing path.
 
 ---
 
@@ -364,12 +358,14 @@ Operational records may be corrected when a data-entry error exists, under a uni
 
 The policy rests on four pillars:
 
-1. **Append-only evidence.** A correction updates the record's current values in place and appends a complete evidence entry — actor, timestamp, reason, and full before-and-after values — to an immutable correction history; the history is never erased or overwritten ([COR-01](#56-corrections-cor), [COR-02](#56-corrections-cor)), and the original capture timestamp is preserved ([COR-06](#56-corrections-cor)).
-2. **Administrative window.** Operational roles may correct records only within an administrative window that opens at capture and closes after a duration defined by an operational parameter maintained through the application by holders of the corresponding access-policy permission. No duration value is fixed in this capability.
-3. **Override authority.** Beyond the window, correction is reserved to a designated administrative override role. That authority exists only as configured through access policy; it is never implied by a person's organizational position, and no position name is fixed for it in this document.
-4. **Permission-gated execution.** Within or beyond the window, a correction executes only when the user holds the effective permission for the record family and section scope ([COR-05](#56-corrections-cor)).
+1. **Append-only evidence.** A correction updates the affected operational record's current values in place and appends complete evidence — actor, timestamp, reason, and full before-and-after values — for each changed business record to an immutable correction history. Audit evidence is not attached to individual interface fields or treated as a generic whole-grid event. The history is never erased or overwritten ([COR-01](#56-corrections-cor), [COR-02](#56-corrections-cor)), and the original capture timestamp is preserved ([COR-06](#56-corrections-cor)). A multi-record correction may be atomic, while retaining evidence for each changed record ([COR-09](#56-corrections-cor)).
+2. **Administrative window.** Yarn Spinning owns validation of correction validity and evidence and enforces an administrative window that opens at capture and closes after a duration defined by an operational parameter maintained through the application by holders of the corresponding access-policy permission. No duration value is fixed in this capability.
+3. **Access Control authorization.** Within the window, correction requires Access Control's general `Edit` action in the applicable business scope. Beyond the window, it requires Access Control's general `Edit Outside the Operational Window` action in that scope. This PRD does not define roles or an RBAC catalog.
+4. **Applicable business scope.** Production discharge, skeining production, and progress corrections use their applicable section scope. Process Quality and Waste use their own transversal scopes, not section scopes. Organizational position does not confer correction authority ([COR-05](#56-corrections-cor)).
 
 Original capture timestamps survive every correction ([COR-06](#56-corrections-cor)): the system preserves when a fact was first recorded independently of when it was last corrected.
+
+**Continuity after correction.** Correcting a progress input or output does not automatically change later records. The system warns about continuity records that may be affected; any later correction remains manual and independently traceable ([COR-08](#56-corrections-cor)).
 
 ---
 
@@ -389,9 +385,8 @@ The recorded families feed section dashboards and the supervisory consolidated v
 
 | Metric | Unit | Definition |
 | --- | --- | --- |
-| Productivity | kg/h | Discharged weight divided by worked hours, per machine and section |
-| Progress waste | kg | Input weight minus output weight; material loss in the section |
-| Relative waste | % | Progress waste divided by input weight |
+| Net process production | kg | Closing output weight plus discharged weight minus opening input weight |
+| Productivity | kg/h | Net process production divided by worked hours, per machine and section |
 | Effective hours | h | Worked hours recorded per machine in the shift |
 
 ### Quality metrics
@@ -424,7 +419,11 @@ The recorded families feed section dashboards and the supervisory consolidated v
 
 ## 11. Acceptance Criteria
 
-### 12.1 Production Discharge
+| ID | Criterion |
+| --- | --- |
+| AC-NUM-01 | Every applicable required numerical operational value is a non-negative known value. Zero is accepted only as a known zero quantity and never as a missing, blank, null, or unknown value. |
+
+### 11.1 Production Discharge
 
 | ID | Criterion |
 | --- | --- |
@@ -435,8 +434,9 @@ The recorded families feed section dashboards and the supervisory consolidated v
 | AC-DIS-05 | GIVEN a machine changes yarn count during a shift, WHEN each discharge is recorded, THEN each discharge carries the yarn count and material type in effect for that discharge. |
 | AC-DIS-06 | A shift-close capture session persists completely or not at all; a failed validation leaves no partial records. |
 | AC-DIS-07 | A completed capture session accounts for every in-scope machine; a machine that produced nothing is represented by a zero-valued row (or treated as zero), and the capture UI requires its acknowledgement before submission. |
+| AC-DIS-08 | GIVEN two production discharges have the same machine, business date, shift, yarn count, and material type, WHEN both output events are recorded, THEN both remain distinct business facts. |
 
-### 12.2 Skeining Production
+### 11.2 Skeining Production
 
 | ID | Criterion |
 | --- | --- |
@@ -444,45 +444,49 @@ The recorded families feed section dashboards and the supervisory consolidated v
 | AC-SKN-02 | Estimated total weight always equals skein count × estimated unit weight, calculated by the system. |
 | AC-SKN-03 | The operator name is stored as an informative free-text reference and creates no association with an employee catalog identity. |
 | AC-SKN-04 | A skeining record stores the estimated unit weight entered at capture, and its estimated total weight always equals skein count × that unit weight, calculated by the system. |
+| AC-SKN-05 | A skeining record remains independent of physical lot assembly: it creates no availability, allocation, reservation, consumption, or double-use-prevention rule in Yarn Spinning. |
 
-### 12.3 Progress
+### 11.3 Progress
 
 | ID | Criterion |
 | --- | --- |
 | AC-PRG-01 | One progress record exists per machine, shift, business date, and yarn count; a duplicate for the same key is rejected. |
 | AC-PRG-02 | Progress can be recorded only for Preparation, Ring Spinning, and Twisting. |
-| AC-PRG-03 | Discharged weight equals the sum of the machine's discharge net weights in the shift and is zero when there are none. |
-| AC-PRG-04 | Input weight equals the output weight registered by the preceding shift for the same machine. |
-| AC-PRG-05 | The output estimate derives from one weighed sample spindle applied to the full operative spindle count. |
+| AC-PRG-03 | Discharged weight equals the sum of the machine's authoritative discharge net weights in the shift and is zero when there are none. |
+| AC-PRG-04 | Input weight equals the output weight of the preceding shift for the same machine and yarn-count stream when that predecessor exists; when no predecessor exists, input weight is zero. A physical restart and a new yarn-count stream are examples, not the exclusive causes. |
+| AC-PRG-05 | Output weight is the sole closing quantity physically remaining on the machine; where spindle sampling applies, its estimate derives from one weighed sample spindle applied to the full operative spindle count. |
 | AC-PRG-06 | A progress record whose discharged weight differs from recorded discharge totals within the configured reconciliation tolerance is accepted only with a mandatory consistency note; a difference beyond the tolerance is rejected. |
+| AC-PRG-07 | Net process production equals closing output weight plus discharged weight minus opening input weight. Input weight minus output weight is not recorded or reported as waste; waste remains an independently weighed WST-family fact. |
 
-### 12.4 Process Quality
+### 11.4 Process Quality
 
 | ID | Criterion |
 | --- | --- |
-| AC-QUA-01 | Process quality controls can be recorded for every section and machine in Yarn Spinning. |
-| AC-QUA-02 | Sample-method controls capture individual sample values and the measured properties: consistency (CV%), tenacity, and elongation. |
+| AC-QUA-01 | Process quality controls cover every Yarn Spinning section without requiring a record for every machine; where a method uses machine-level controls, machines may be selected randomly or flexibly from the relevant section. |
+| AC-QUA-02 | A Sample-method control captures exactly ten measurements and automatically calculates only the measured properties designated for its section and method. |
 | AC-QUA-03 | Machine-register controls in Bobbin Winding capture body, kilometers, and cuts per bobbin. |
 | AC-QUA-04 | Random-method controls capture the results of the tests performed as a free summary. |
 | AC-QUA-05 | No nomenclature assignment exists among Yarn Spinning quality records. |
 
-### 12.5 Waste
+### 11.5 Waste
 
 | ID | Criterion |
 | --- | --- |
-| AC-WST-01 | A waste record captures section, machine group, business date, shift, weight, and waste type. |
-| AC-WST-02 | Theoretical waste always equals real waste plus accumulated waste and is never stored as a direct input. |
-| AC-WST-03 | An out-of-specification skein outcome in Madejeras cannot be recorded as waste. |
+| AC-WST-01 | A waste record captures real waste independently weighed by section, machine group, business date, and shift. |
+| AC-WST-02 | An out-of-specification skein outcome in Madejeras cannot be recorded as waste. |
 
-### 12.6 Corrections
+### 11.6 Corrections
 
 | ID | Criterion |
 | --- | --- |
 | AC-COR-01 | Every correction stores the correcting actor, correction timestamp, mandatory reason, and complete before-and-after values. |
 | AC-COR-02 | Correction history is append-only; no entry is ever overwritten or removed. |
-| AC-COR-03 | A correction by an operational role outside the administrative window is rejected unless executed under the designated administrative override authority. |
+| AC-COR-03 | A correction within the administrative window requires Access Control's general `Edit` action in the applicable business scope; outside the window, it requires `Edit Outside the Operational Window` in that scope. |
 | AC-COR-04 | Corrections never alter the original capture timestamp of the corrected record. |
 | AC-COR-05 | GIVEN a correction is attempted, WHEN the user lacks the effective permission for the record family and scope, THEN the correction is rejected regardless of the user's organizational position. |
+| AC-COR-06 | A correction updates the affected operational record in place and preserves append-only audit evidence for each changed business record, rather than for an interface field or generic multi-record event. |
+| AC-COR-07 | GIVEN a progress input or output is corrected, WHEN later continuity records may be affected, THEN the system warns of those records and does not change them automatically; each later correction is manual and independently traceable. |
+| AC-COR-08 | Process Quality and Waste corrections are authorized in their own transversal scopes, not section scopes. |
 
 ---
 
