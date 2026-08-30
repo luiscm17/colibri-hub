@@ -29,7 +29,7 @@ The capability sits between two contexts:
 | --- | --- |
 | Warehouse (upstream) | Delivers authorized raw material and the information needed to process it. Delivery does not link bales to lots, products, or production identities. |
 | Lot Processing | Independently records physical lot assembly, lot-stage history, final lot quality evaluation, and finished-product handoff. |
-| Access Control | Governs who may record, correct, and consult through configurable actions and scopes. |
+| Access Control | Governs who may administer profiles, record, correct, and consult through configurable actions and scopes; it does not own Quality physical parameters, units, methods, calculations, or tolerances. |
 | Shared Reference Data | Supplies shared catalogs consumed read-only: employees, shifts, yarn counts, sections, machines, and machine groups. |
 
 **Identity and context boundary.** Inside Yarn Spinning there is no lot, no lot code, no production identity, and no production run. Continuity of records is built from section × machine × business date × shift × yarn count. Physical lot assembly, lot-stage history, final lot quality evaluation, and the finished-product handoff are outside this capability and belong to Lot Processing. Yarn Spinning and Lot Processing record independent business facts: neither context writes, reserves, consumes, or reconciles the other context's source records. Their real-world process relationship creates no transactional availability, allocation, reservation, consumption, or double-use-prevention rule in Yarn Spinning. Raw-material custody and supplies remain Warehouse capabilities.
@@ -56,6 +56,7 @@ The business needs a single record system that captures production per machine, 
 | Actor | Role | Interaction |
 | --- | --- | --- |
 | Shift Supervisor | Operational supervisor | Supervises shift production, verifies data coherence, and consults consolidated shift information across sections. |
+| Foreman / recorder | Authenticated capture actor | Submits an authorized capture or correction; the system attributes that act to the authenticated session. |
 | Quality Control | Process-quality executor | Performs process-quality tests across all sections. |
 | Inventory | Material-flow function | Tracks material flow between sections and records material movements between them. |
 | System | Automated | Calculates derived weights, enforces constraints, attributes capture timestamps, and maintains the append-only correction history. |
@@ -67,7 +68,7 @@ Two further clarifications bound the actor model:
 - Machine operators manipulate production equipment and are not direct system users.
 - Packaging and dyeing personnel do not participate in Yarn Spinning; their involvement begins in Lot Processing.
 - Material-flow views held by the inventory function derive from the production records of this capability; this capability never maintains a parallel duplicate capture of the same production facts.
-- Each record attributes its capture to the authenticated session and names the shift supervisor; no additional responsibility slots exist.
+- Each record names the operational shift supervisor selected for the capture header and attributes the capture to the authenticated foreman / recorder session. The foreman / recorder attribution is derived by the system, not selected or sent by the client; it is an audit attribution, not an additional operational responsibility slot.
 
 ---
 
@@ -96,7 +97,7 @@ Three guarantees bind every capture session:
 
 - **Session integrity.** A capture session persists completely or not at all across every record family it touches; partial persistence never occurs ([DIS-07](#51-production-discharge-dis)).
 - **Deterministic outcomes.** A completed capture session accounts for every in-scope machine: a machine with no production contributes zero to calculations (an omitted or zero-valued row is treated as zero), and the capture UI requires each in-scope machine to be acknowledged before submission. No machine in scope is left undetermined ([DIS-08](#51-production-discharge-dis)).
-- **Optimistic concurrency.** When two capture attempts target the same continuity key, the first save prevails and the second is rejected together with the current stored state for review; silent overwriting never occurs.
+- **Optimistic concurrency.** When two capture attempts target the same continuity key, the first save prevails and the competing attempt receives `409`; the current stored record is available for review through the authorized current-record read. Silent overwriting never occurs.
 
 ---
 
@@ -124,8 +125,7 @@ Conventions common to every family:
 | Business date | calendar date (no time component) | Yes | Production date entered by the recorder |
 | Shift | catalog value (A, B, C) | Yes | Turn of the record's capture context |
 | Supervisor | catalog value (employees) | Yes | Supervisor of the shift |
-| Foreman | catalog value (employees) | Yes | Foreman (encargado) of the shift, captured from the employee catalog |
-| Recorded by | attribution from the authenticated session | Yes | Person performing the capture; attributed automatically from the authenticated session |
+| Foreman / recorder attribution | authenticated session | Yes | Foreman (encargado) submitting the capture. The system derives this attribution automatically from the authenticated session; it is never selected or sent by the client. |
 | Yarn count | catalog value (título) | Yes | Yarn count in effect for this discharge, maintained as shared reference data; its characteristics (material type, process-specific notations) belong to the yarn count identity, not to this record |
 | Material type | text, short code | No | Material type of the referenced yarn count (e.g., HB/N/Fantasía/OTRO); an attribute of the yarn count identity, not a separate catalog |
 | Gross weight | numeric (decimal precision), in kilograms | Yes | Weight of the full cart or container holding the discharge |
@@ -148,7 +148,7 @@ Conventions common to every family:
 | DIS-06 | Spindle tare weight is recorded in grams; the system converts it consistently when calculating net weight. All cart and weight values use kilograms. |
 | DIS-07 | A shift-close capture session persists completely or not at all, across every record family included in the session; partial persistence never occurs. |
 | DIS-08 | A completed capture session accounts for every in-scope machine. A machine that produced nothing is represented by a zero-valued row (or omitted and treated as zero); its production is never left undetermined. The capture UI requires each in-scope machine to be acknowledged before submission. |
-| DIS-09 | Supervisor and Foreman are shift-level capture attributes: they are entered once per capture at the shift/section header and applied to every discharge row in that capture. They are not repeated per discharge row in the capture payload, although stored per record. |
+| DIS-09 | The operational shift supervisor is entered once at the shift/section header and applied to every discharge row in that capture. Foreman / recorder attribution is derived once from the authenticated session and applied by the system to every discharge row; neither identity is repeated per discharge row, and the client never sends the foreman identity. |
 
 ### 5.2 Skeining Production (SKN)
 
@@ -213,14 +213,14 @@ Progress applies to Preparation (PSJ-type machines only), Ring Spinning, and Twi
 | PRG-01 | One progress record exists per machine × shift × business date × yarn count; a duplicate for the same key is rejected. |
 | PRG-02 | Only Preparation, Ring Spinning, and Twisting have progress records; no progress record exists for Bobbin Winding or Madejeras. |
 | PRG-03 | Discharged weight equals the sum of authoritative net weights of that machine's production discharges in the shift, and is zero when the shift has none. |
-| PRG-04 | Input weight equals the output weight registered by the preceding shift for the same machine and yarn-count stream when that predecessor exists. When no predecessor exists, input weight is zero. A physical restart and a new yarn-count stream are explicit examples that may result in no predecessor; they are not the only causes. |
+| PRG-04 | Input weight equals the output weight registered by the immediately preceding logical shift for the same section, machine, and yarn-count identity. Logical shifts progress A → B → C → next-business-day A. A different yarn-count identity is a new stream with no predecessor, so its derived input is zero; this is normal continuity derivation, not a user-entered override. |
 | PRG-05 | Output weight is the sole closing quantity physically remaining on the machine and is estimated by spindle sampling wherever sampling applies (see [§6](#6-progress-tracking-rules)). |
 | PRG-06 | The discharged weight consolidated in a progress record must reconcile with the shift's recorded discharge totals. A difference within the configured reconciliation tolerance is accepted with a mandatory consistency note; a difference beyond the tolerance rejects the record. The tolerance is an operational parameter maintained through the application by holders of the corresponding access-policy permission. |
 | PRG-07 | Net process production equals output weight plus discharged weight minus input weight. Input weight minus output weight is not waste; waste is recorded independently under the WST family. |
 
 ### 5.4 Process Quality (QUA)
 
-**Nature of the record.** The process quality record captures in-process quality control for a section and, when the method uses machine-level controls, a selected machine within a shift. The measured values depend on the method bound to the section (matrix in [§7](#7-process-quality-methods)).
+**Nature of the record.** The process quality record captures in-process quality control under one active Yarn Spinning Process Quality measurement-profile version. The profile defines the applicable method, physical parameters, units, capture mode, approved calculations, derived results, and tolerances for the selected section, machine where applicable, and yarn count where applicable.
 
 #### Attributes
 
@@ -233,27 +233,27 @@ Progress applies to Preparation (PSJ-type machines only), Ring Spinning, and Twi
 | Yarn count | catalog value (título) | Conditional | Yarn count evaluated, when the test targets one; its characteristics belong to the yarn count identity |
 | Material type | text, short code | Conditional | Material type of the referenced yarn count (e.g., HB/N/Fantasía/OTRO); an attribute of the yarn count identity, not a separate catalog |
 | Inspector | catalog value (employees) | Yes | Employee performing the control |
-| Method | catalog value (control method) | Yes | Control method bound to the section; the method set is maintained as shared reference data, no method fixed in this capability (see [§7](#7-process-quality-methods)) |
-| Sample count | whole number | Sample method | Exactly ten measurements captured for a Sample-method control (see QUA-03) |
-| Individual sample values | numeric measurements | Sample method | Value measured on each sample; retained as recorded so the measured properties are derived from them |
-| Measured properties | numeric results | Sample method | Properties designated for the applicable section and method, calculated automatically from the recorded measurements (see [§7](#7-process-quality-methods)) |
-| Body | numeric result | Machine register method | Imperfections per unit of length reported by the machine |
-| Kilometers | numeric result | Machine register method | Kilometers processed by the machine |
-| Cuts per bobbin | numeric result | Machine register method | Cut frequency per bobbin reported by the machine |
-| Result summary | free text | Random method | Results of the tests performed; varies with the test |
-| Out-of-tolerance indicator | yes/no | No | Quick review flag when results exceed the configured tolerance limits (see QUA-06) |
+| Measurement profile and version | Yarn Spinning profile identity | Yes | Active profile version applied to the control |
+| Method and capture mode | profile-defined | Yes | Applicable Quality method and how its values are captured (see [§7](#7-process-quality-measurement-profiles-and-methods)) |
+| Raw parameter values | profile-defined measurements | Yes | Values in the profile-defined parameters, units, and ordering; retained exactly as captured |
+| Sample count | whole number | Sample method | Profile-configured number of ordered measurements, from 10 through 15 inclusive |
+| Derived results | profile-defined results | As configured | Results calculated only through the profile's approved operations from retained raw values |
+| Tolerance outcome | profile-defined | As configured | Applicable tolerance limits and the resulting review outcome |
 | Observations | free text | No | Quality context or exceptions |
 
 #### Rules
 
 | ID | Rule |
 | --- | --- |
-| QUA-01 | Process quality covers every section of Yarn Spinning. It does not require a control record for every machine; where a section method uses machine-level controls, machines are selected randomly or flexibly from the relevant section. |
-| QUA-02 | Controls use exactly one of the three methods, and the method is bound to the section per the matrix in [§7](#7-process-quality-methods). |
-| QUA-03 | A Sample-method control captures exactly ten measurements. The system automatically calculates only the measured properties designated for that section and method from those measurements; it does not require a uniform property set across sections. |
-| QUA-04 | Process quality in Yarn Spinning is distinct from lot quality; final lot evaluation belongs to Lot Processing. |
-| QUA-05 | Machine-register controls in Bobbin Winding are captured at the machine-shift cut; a different capture cut requires an explicit revision of this capability. |
-| QUA-06 | Tolerance limits for measured properties are configured reference data maintained through the application by holders of the corresponding access-policy permission; no limit value is embedded in capture behavior. |
+| QUA-01 | Process Quality measurement profiles belong to Yarn Spinning. Access Control only authorizes profile administration, activation, capture, and correction; it does not define profile content. |
+| QUA-02 | A profile version declares its section applicability and may further restrict machines and yarn counts. It defines parameter labels, physical units, capture mode, approved calculation operations, derived results, and tolerances. A profile may reference shared units, sections, machines, yarn counts, and employees without becoming Shared Reference Data. |
+| QUA-03 | A control uses exactly one active, applicable profile version. A retired version blocks new capture but its records remain readable. Profile changes create a new effective version and never reinterpret an existing control. |
+| QUA-04 | Sample profiles retain the configured ordered measurements. Their sample count is from 10 through 15 inclusive. Preparation normally uses 10 samples and exposes readonly `x_average` and `x_percentage_error` results. |
+| QUA-05 | The initial approved Preparation operation for `x_percentage_error` is relative standard error: sample standard deviation divided by the square root of sample count, divided by sample average, expressed as a percentage. When the sample average is zero, the outcome is safely defined as unavailable rather than an invented numeric value. |
+| QUA-06 | Profile administrators select only backend-approved calculation operations through the application; arbitrary formula expressions are not permitted. Capture preview is informative; the system validates and recalculates the authoritative results and tolerances. |
+| QUA-07 | Process quality in Yarn Spinning is distinct from lot quality; final lot evaluation belongs to Lot Processing. |
+| QUA-08 | Bobbin Winding Machine Register remains captured at the machine-shift cut. Random controls preserve their method applicability. Both are profile-driven, including their parameters, units, calculations, and tolerances. |
+| QUA-09 | Correcting a Quality record retains its original profile version and recalculates only under that version; it never substitutes a newer active profile. |
 
 ### 5.5 Waste (WST)
 
@@ -288,7 +288,7 @@ Progress applies to Preparation (PSJ-type machines only), Ring Spinning, and Twi
 
 | ID | Rule |
 | --- | --- |
-| COR-01 | Every correction stores, for each changed business record, the correcting actor, the correction timestamp, a mandatory reason, and the complete before-and-after values. Audit evidence is per changed business record, not per interface field or generic multi-record event. |
+| COR-01 | Every correction stores, for each changed business record, the authenticated correcting actor, the correction timestamp, a mandatory reason, and the complete before-and-after values. Audit evidence is per changed business record, not per interface field or generic multi-record event. |
 | COR-02 | The correction history is append-only; existing entries are never overwritten or deleted. |
 | COR-03 | Yarn Spinning validates the correction reason and evidence and enforces its administrative correction window. Within that window, a correction requires Access Control's general `Edit` action in the applicable business scope. |
 | COR-04 | Outside that window, a correction requires Access Control's general `Edit Outside the Operational Window` action in the applicable business scope. |
@@ -312,7 +312,7 @@ Because weighing every spindle is impractical ([§4](#4-the-five-productive-sect
 
 Three continuity rules bind progress to the rest of the record system:
 
-1. **Input continuity.** Input weight is the output weight registered by the preceding shift for the same machine and yarn-count stream when that predecessor exists. When no predecessor exists, opening input is zero. A physical restart and a new yarn-count stream are explicit examples that may result in no predecessor; they are not the only causes ([PRG-04](#53-progress-prg)). The chain of input-to-output values forms the continuous material thread across shifts.
+1. **Input continuity.** The predecessor is the immediately preceding logical shift in the A → B → C → next-business-day A sequence for the same section, machine, and yarn-count identity. Its output weight becomes input weight. A different yarn-count identity starts a new stream with no predecessor, so its derived opening input is zero; this is normal continuity derivation, not a user-entered override ([PRG-04](#53-progress-prg)). The chain of input-to-output values forms the continuous material thread across shifts.
 2. **Discharge reconciliation.** The discharged weight consolidated in the progress record must coincide with the sum of the net weights of that machine's production discharges in the shift ([PRG-03](#53-progress-prg), [PRG-06](#53-progress-prg)). A shift with zero discharges reconciles at zero.
 3. **Production measurement.** Output weight is the sole closing in-machine quantity. Net process production equals closing output weight plus discharged weight minus opening input weight. The difference between input weight and output weight is not waste; independently weighed real waste remains the WST-family fact. Worked hours convert net process production into productivity (kilograms per hour).
 
@@ -320,23 +320,23 @@ Progress therefore serves four purposes: cross-validation of discharge detail, n
 
 ---
 
-## 7. Process Quality Methods
+## 7. Process Quality Measurement Profiles and Methods
 
-Process quality control operates in all five sections. Frequency and method vary by section; systematic sampling alternates with random testing and machine-reported counters:
+Process quality control operates in all five sections. A Yarn Spinning measurement-profile version configures each applicable control without imposing one fixed record schema across sections.
 
 | Section | Method | What is measured |
 | --- | --- | --- |
-| Preparación (Preparation) | Sample | Samples evaluate consistency of preparation output |
-| Continuas (Ring Spinning) | Sample | Exactly ten measurements; consistency (CV%), tenacity, and elongation are calculated from them |
-| Bobinados (Bobbin Winding) | Machine register | No samples; the machine reports body (imperfections per unit of length), kilometers processed, and cuts per bobbin |
+| Preparación (Preparation) | Sample | Ordered profile-defined measurements; `x_average` and `x_percentage_error` are readonly derived displays |
+| Continuas (Ring Spinning) | Sample | Active profile defines all parameters, units, capture mode, calculations, results, and tolerances; CV%, tenacity, and elongation are not mandatory columns |
+| Bobinados (Bobbin Winding) | Machine register | Profile-driven machine-register parameters at the machine-shift cut |
 | Retorcido (Twisting) | Random | Random tests at lower frequency than Preparation and Ring Spinning |
 | Madejeras (Skeining) | Random | Random tests; systematic in-process evaluation happens at lot level downstream |
 
 Method facts:
 
-- **Sample** captures exactly ten measurements and automatically calculates the properties designated for its section from them. Preparation designates consistency (CV%, a consistency measure); Ring Spinning designates consistency, tenacity, and elongation. No metrology formula, additional field, unit, or uniform property set is defined here.
-- **Machine register** records counter data reported by winding machines rather than laboratory samples.
-- **Random** records the results of whichever test the control applies; results vary per test.
+- **Profile lifecycle.** Authorized Yarn Spinning profile administrators create and activate effective versions. A version retains its complete definition for historical interpretation. Retirement prevents new capture only.
+- **Sample.** The profile defines ordered raw measurements and results. Preparation retains 10–15 configured samples and the approved derived displays described in QUA-04 and QUA-05.
+- **Machine register and Random.** Their existing applicability remains intact, while each profile defines the captured parameters and results rather than a fixed global set.
 
 For section methods that use machine-level controls, the selected machines are random or flexible within the relevant section. Process quality therefore covers every section without requiring a record for every machine.
 
@@ -358,7 +358,7 @@ Operational records may be corrected when a data-entry error exists, under a uni
 
 The policy rests on four pillars:
 
-1. **Append-only evidence.** A correction updates the affected operational record's current values in place and appends complete evidence — actor, timestamp, reason, and full before-and-after values — for each changed business record to an immutable correction history. Audit evidence is not attached to individual interface fields or treated as a generic whole-grid event. The history is never erased or overwritten ([COR-01](#56-corrections-cor), [COR-02](#56-corrections-cor)), and the original capture timestamp is preserved ([COR-06](#56-corrections-cor)). A multi-record correction may be atomic, while retaining evidence for each changed record ([COR-09](#56-corrections-cor)).
+1. **Append-only evidence.** A correction updates the affected operational record's current values in place and appends complete evidence — authenticated correcting actor, timestamp, reason, and full before-and-after values — for each changed business record to an immutable correction history. Audit evidence is not attached to individual interface fields or treated as a generic whole-grid event. The history is never erased or overwritten ([COR-01](#56-corrections-cor), [COR-02](#56-corrections-cor)), and the original capture timestamp is preserved ([COR-06](#56-corrections-cor)). A multi-record correction may be atomic, while retaining evidence for each changed record ([COR-09](#56-corrections-cor)).
 2. **Administrative window.** Yarn Spinning owns validation of correction validity and evidence and enforces an administrative window that opens at capture and closes after a duration defined by an operational parameter maintained through the application by holders of the corresponding access-policy permission. No duration value is fixed in this capability.
 3. **Access Control authorization.** Within the window, correction requires Access Control's general `Edit` action in the applicable business scope. Beyond the window, it requires Access Control's general `Edit Outside the Operational Window` action in that scope. This PRD does not define roles or an RBAC catalog.
 4. **Applicable business scope.** Production discharge, skeining production, and progress corrections use their applicable section scope. Process Quality and Waste use their own transversal scopes, not section scopes. Organizational position does not confer correction authority ([COR-05](#56-corrections-cor)).
@@ -393,10 +393,8 @@ The recorded families feed section dashboards and the supervisory consolidated v
 
 | Metric | Unit | Definition |
 | --- | --- | --- |
-| Average consistency | CV% | Mean coefficient of variation across sample tests |
-| Samples outside tolerance | % | Share of samples exceeding the configured tolerance limits |
-| Average body | result | Mean imperfection level reported in Bobbin Winding |
-| Cuts per bobbin | result | Cut frequency reported in Bobbin Winding |
+| Profile-defined result | profile-defined unit | Authorized aggregation of a named result, only where the applied profile supports it |
+| Controls outside tolerance | count or % | Profile-aware count or share of controls whose retained tolerance outcome is outside tolerance |
 
 ### Waste metrics
 
@@ -427,7 +425,7 @@ The recorded families feed section dashboards and the supervisory consolidated v
 
 | ID | Criterion |
 | --- | --- |
-| AC-DIS-01 | A production discharge can be recorded with machine, business date, shift, supervisor, yarn count, gross weight, operative spindle count, spindle tare weight, and cart weight completed. |
+| AC-DIS-01 | A production discharge can be recorded with machine, business date, shift, operational shift supervisor, yarn count, gross weight, operative spindle count, spindle tare weight, and cart weight completed; the system attributes the capture to the authenticated foreman / recorder without accepting that identity from the client. |
 | AC-DIS-02 | Net weight always equals gross cart weight minus total spindle tares minus cart weight, and direct net-weight entry is rejected. |
 | AC-DIS-03 | A production discharge for a PSJ-type machine in Preparation is rejected. |
 | AC-DIS-04 | Multiple discharges for one machine in one shift coexist, including discharges with different yarn counts, and a shift with zero discharges is valid. |
@@ -453,7 +451,7 @@ The recorded families feed section dashboards and the supervisory consolidated v
 | AC-PRG-01 | One progress record exists per machine, shift, business date, and yarn count; a duplicate for the same key is rejected. |
 | AC-PRG-02 | Progress can be recorded only for Preparation, Ring Spinning, and Twisting. |
 | AC-PRG-03 | Discharged weight equals the sum of the machine's authoritative discharge net weights in the shift and is zero when there are none. |
-| AC-PRG-04 | Input weight equals the output weight of the preceding shift for the same machine and yarn-count stream when that predecessor exists; when no predecessor exists, input weight is zero. A physical restart and a new yarn-count stream are examples, not the exclusive causes. |
+| AC-PRG-04 | Input weight equals the output weight of the immediately preceding logical shift in the A → B → C → next-business-day A sequence for the same section, machine, and yarn-count identity. A different yarn-count identity has no predecessor and therefore derives input weight as zero; this is not a user-entered override. |
 | AC-PRG-05 | Output weight is the sole closing quantity physically remaining on the machine; where spindle sampling applies, its estimate derives from one weighed sample spindle applied to the full operative spindle count. |
 | AC-PRG-06 | A progress record whose discharged weight differs from recorded discharge totals within the configured reconciliation tolerance is accepted only with a mandatory consistency note; a difference beyond the tolerance is rejected. |
 | AC-PRG-07 | Net process production equals closing output weight plus discharged weight minus opening input weight. Input weight minus output weight is not recorded or reported as waste; waste remains an independently weighed WST-family fact. |
@@ -463,10 +461,12 @@ The recorded families feed section dashboards and the supervisory consolidated v
 | ID | Criterion |
 | --- | --- |
 | AC-QUA-01 | Process quality controls cover every Yarn Spinning section without requiring a record for every machine; where a method uses machine-level controls, machines may be selected randomly or flexibly from the relevant section. |
-| AC-QUA-02 | A Sample-method control captures exactly ten measurements and automatically calculates only the measured properties designated for its section and method. |
-| AC-QUA-03 | Machine-register controls in Bobbin Winding capture body, kilometers, and cuts per bobbin. |
-| AC-QUA-04 | Random-method controls capture the results of the tests performed as a free summary. |
-| AC-QUA-05 | No nomenclature assignment exists among Yarn Spinning quality records. |
+| AC-QUA-02 | A Sample-method control captures the configured number of ordered measurements for its applicable profile version, from 10 through 15 inclusive, and calculates only that version's designated results. |
+| AC-QUA-03 | A Quality capture retains the applied profile and version, its raw values, derived results, units, and tolerances; later profile changes do not reinterpret it, and a correction recalculates under its original version. |
+| AC-QUA-04 | A Preparation sample capture retains its ordered 10–15 measurements and shows readonly `x_average` and `x_percentage_error`; when its average is zero, percentage error is safely unavailable rather than numeric. |
+| AC-QUA-05 | Ring Spinning, Bobbin Winding Machine Register, and Random controls render and validate only their active profile definitions; Ring Spinning does not require CV%, tenacity, or elongation columns. |
+| AC-QUA-06 | Profile administration offers only backend-approved calculation operations; arbitrary formula entry is rejected, and the authoritative service recalculates results. |
+| AC-QUA-07 | No nomenclature assignment exists among Yarn Spinning quality records. |
 
 ### 11.5 Waste
 
@@ -479,7 +479,7 @@ The recorded families feed section dashboards and the supervisory consolidated v
 
 | ID | Criterion |
 | --- | --- |
-| AC-COR-01 | Every correction stores the correcting actor, correction timestamp, mandatory reason, and complete before-and-after values. |
+| AC-COR-01 | Every correction stores the authenticated correcting actor, correction timestamp, mandatory reason, and complete before-and-after values. |
 | AC-COR-02 | Correction history is append-only; no entry is ever overwritten or removed. |
 | AC-COR-03 | A correction within the administrative window requires Access Control's general `Edit` action in the applicable business scope; outside the window, it requires `Edit Outside the Operational Window` in that scope. |
 | AC-COR-04 | Corrections never alter the original capture timestamp of the corrected record. |
