@@ -2,74 +2,75 @@
 
 ## Technical Approach
 
-Replace the single title page with a capability-owned route surface under `features/spinning`. The app shell continues to choose destinations and wrap them with existing `ProtectedRoute`; spinning owns workflow composition, drafts, presentation states, and a typed future-integration port. Every server-dependent operation initially resolves to `unavailable`, preserving entered work and never synthesizing records, metrics, calculations, or authorization decisions.
+Keep the app shell as route/protection composer and `features/spinning` as capability owner. Replace generic section textareas with controlled `react-data-grid` capture models following the existing Warehouse grid idiom: immutable row IDs, pure row/paste/validation functions, `DataGridShell`, and workspace-owned drafts. Production Discharge, Progress, Skeining, Waste, and Quality Sample remain distinct models and grids. All aggregation, continuity, tolerance, metrics, and outcomes come from the server; until APIs exist, the gateway returns only `unavailable` and drafts remain local.
 
 ## Architecture Decisions
 
 | Decision | Alternatives considered | Choice and rationale |
 |---|---|---|
-| Public boundary | Shell imports internal pages; one generic page | Export route components and route descriptors from `features/spinning/index.ts`; this keeps app-to-capability direction explicit and internals replaceable. |
-| Responsibility areas | One workflow module; global technical folders | Keep `sections`, `quality`, `waste`, `reporting`, and `corrections` independently owned beneath spinning because their submissions, state, and delivery lifecycles differ. |
-| Draft authority | URL/global store/adapter-owned state | Each route workspace owns its draft; child editors receive values/events. URL search parameters own shareable reporting/read filters. Server projections remain adapter results, preventing duplicate authority. |
-| Backend seam | Call planned endpoints now; mock successful data | Define a capability-local `SpinningGateway` and discriminated remote states, with an unavailable implementation. Future `httpJson` adapters may implement it without changing UI ownership. |
-| Delivery | Single large PR | Use an auto-chained feature branch series because complete scope will exceed 400 authored lines; each slice is independently verifiable and reversible. |
+| Grid ownership | Generic form/grid schema; global shared model | Capability-local models per business grid; row identity and lifecycle differ, while only the existing technical `DataGridShell` is shared. |
+| Section composition | User-selected Progress applicability | Declarative section configuration: Preparation FIN discharge/PSJ Progress, Ring Spinning and Twisting both grids, Bobbin Winding discharge only; prevents client-created applicability. |
+| Server authority | Client totals/previews | Store raw strings and row status only; DTOs contain server projections as readonly fields. No browser aggregation or calculation. |
+| Integration | Speculative HTTP/mock success | Extend `SpinningGateway` behind cancellable typed operations while `unavailableGateway` implements every seam without HTTP or fabricated data. |
+| Delivery | Prior seven broad PRs | Ten narrower feature-chain slices, each targeted below 400 changed lines with its own tests and rollback boundary. |
 
 ## Data Flow
 
 ```text
-App routes -> spinning public route component -> responsibility workspace
-                                                   |-> local draft
-                                                   |-> SpinningGateway -> unavailable outcome
-URL search params -> reporting/read filters --------|                    (future httpJson)
+Protected route -> spinning workspace -> section configuration -> independent grid models
+                                      -> local raw-row drafts -> gateway -> unavailable
+Server response (future) -> request-key check -> readonly projection/status -> grid
+URL filters -> reporting gateway -> loading/empty/populated/stale/failure/unavailable
 ```
 
-Changing Progress identity aborts the obsolete gateway request and associates results with an immutable request key. Conflict recovery retains the correction draft, requires an explicit current-record refresh, and never retries automatically.
+Repeated discharge rows retain distinct IDs. Progress is keyed uniquely by machine+yarn count; identity changes abort/invalidate continuity reads. Skeining, Waste, and Quality drafts never enter section Production/Progress submission state.
 
 ## File Changes
 
 | File | Action | Description |
 |---|---|---|
-| `frontend/src/features/spinning/index.ts` | Create | Narrow public route contract. |
-| `frontend/src/features/spinning/routes.tsx` | Create | Capability route components and section identity mapping. |
-| `frontend/src/features/spinning/{sections,quality,waste,reporting,corrections}/**/*` | Create | Independently owned workspaces, drafts, and presentations. |
-| `frontend/src/features/spinning/integration/{contracts,unavailableGateway}.ts` | Create | Stable gateway and explicit unavailable implementation. |
-| `frontend/src/features/spinning/components/IntegrationState.tsx` | Create | Accessible loading/empty/stale/failure/unavailable status UI. |
-| `frontend/src/app/routes/{index.tsx,lazy-pages.ts}` | Modify | Compose exported pages inside existing route protection. |
-| `frontend/src/features/spinning/pages/SpinningPage.tsx` | Delete | Retire title-only authority. |
-| `frontend/docs/features/yarn-spinning.md` | Modify | Record delivered boundaries and verification. |
+| `frontend/src/features/spinning/sections/{configuration,dischargeModel,progressModel}.ts` | Create | Applicability, raw rows, paste, validation, request keys, snapshots. |
+| `frontend/src/features/spinning/sections/{ProductionDischargeGrid,ProgressGrid,SectionWorkspace,SkeiningGrid}.tsx` | Create/Modify | Controlled independent grids; remove textarea and Progress checkbox. |
+| `frontend/src/features/spinning/{quality,waste,reporting,corrections}/**/*` | Create | Independent profile/grid, weighed-waste, read, and recovery owners. |
+| `frontend/src/features/spinning/integration/{contracts,unavailableGateway}.ts` | Modify | Typed operations and unavailable implementations. |
+| `frontend/src/features/spinning/{routes.tsx,routes.test.tsx}` | Modify | Compose and verify workspace-specific grids. |
+| `frontend/src/app/routes/{index.tsx,lazy-pages.ts}` | Retain | Existing protected composition; no RBAC change. |
+| `frontend/docs/features/yarn-spinning.md` | Retain | Dependency only; replanning does not edit it. |
 
 ## Interfaces / Contracts
 
-`SpinningGateway` exposes cancellable queries/commands for section context and continuity, Quality profiles/capture, Waste, records/history, metrics, and corrections. Results use `loading | unavailable | failure | empty | populated | stale | conflict`; server payloads remain opaque contract DTOs at the adapter edge. The unavailable gateway performs no HTTP request and returns a reason plus retry capability only when meaningful.
+```ts
+type GridRowState = 'pending' | 'invalid' | 'complete' | 'acknowledged-no-production'
+type SectionGridConfig = { discharge: 'fin-only' | 'all' | 'none'; progress: boolean; skeining: boolean }
+type RemoteState<T> = Loading | Unavailable | Failure | Empty | Populated<T> | Stale<T> | Conflict
+```
 
-## Accessibility and Responsive Strategy
-
-Semantic headings, labels, field errors, `role="status"`/`aria-live`, visible focus, and focus transfer to outcomes are workspace requirements. Context and primary actions remain reachable on narrow screens; forms stack, tables/grids use labelled controlled overflow, and state is never conveyed by color alone. Keyboard draft, retry, review, and conflict-recovery paths receive component tests.
+Discharge snapshots preserve every populated event row. Progress snapshots enforce unique machine+yarn-count identities but never derive values. Sample profiles supply ordered measurement IDs, units, validation metadata, readonly server results, and tolerance statuses. Waste snapshots contain only entered real weighed waste.
 
 ## Testing Strategy
 
 | Layer | What to Test | Approach |
 |---|---|---|
-| Unit | Draft reducers, request-key stale rejection, state mapping | Vitest pure tests. |
-| Component/integration | Route identity, retained drafts/filters, unavailable and conflict states, keyboard/focus, responsive reachability | Testing Library with Mantine/router providers and gateway fakes. |
-| E2E | Protected destination smoke paths | Manual acceptance until an E2E runner is configured; run `pnpm vitest run`, `pnpm lint`, and `pnpm build`. |
+| Unit | Row identity, paste shapes, status, applicability, Progress uniqueness/stale rejection | Vitest pure model tests; assert no totals/calculations. |
+| Component | Keyboard editing, repeated discharge rows, FIN/PSJ split, absent Progress, ordered Sample, independent Skeining/Waste, retained drafts/unavailable/conflict | Testing Library with gateway fakes. |
+| Acceptance | Protected routes, narrow overflow, focus/status announcements | Manual viewport/keyboard smoke; run `pnpm vitest run`, `pnpm lint`, `pnpm build`. |
 
 ## Threat Matrix
 
-Routing composition changes, so the required matrix was assessed; no shell/process boundary is introduced.
+Routing is retained but workspace composition changes; no execution/VCS boundary exists.
 
 | Boundary | Minimum adversarial cases | Applicability | Design response | Planned RED tests |
 |---|---|---|---|---|
-| Documentation-like paths | Executable-looking docs | N/A: routes do not classify files | None | None |
-| Git repository selection | Relative/absolute repository selectors | N/A: no VCS execution | None | None |
-| Commit state | Staged/index variants | N/A: no commit automation | None | None |
+| Documentation-like paths | Executable-looking docs | N/A: no file classification | None | None |
+| Git repository selection | Relative/absolute selectors | N/A: no VCS execution | None | None |
+| Commit state | Index variants | N/A: no commit automation | None | None |
 | Push state | Tracking/refspec variants | N/A: no push automation | None | None |
-| PR commands | Head/environment/composed commands | N/A: design plans slices but executes no PR commands | None | None |
+| PR commands | Head/environment/composed commands | N/A: planning only | None | None |
 
 ## Migration / Rollout
 
-Auto-chain order: (1) public boundary, route foundation, unavailable states; (2) sections and Progress/Skeining; (3) Quality; (4) Waste; (5) reporting/records; (6) corrections/recovery; (7) accessibility/responsive hardening and docs. Each targets ≤400 changed lines where practical, includes its tests, depends on its predecessor, and can roll back by restoring the prior route export. No data migration or RBAC change is required.
+Feature-chain order: PR1 foundation (complete); PR2 corrective discharge/configuration grid; PR3 Progress/continuity; PR4 Skeining; PR5 Quality profile/configuration; PR6 ordered Sample grid; PR7 Waste; PR8 reporting/records; PR9 corrections/recovery; PR10 accessibility/responsive verification. PR2 rewrites the current uncommitted child-branch `sections/**`, route tests, and gateway additions: its textarea, user-controlled Progress checkbox, and generic five-section model are rejected work-in-progress, not a baseline to preserve. Each child targets its immediate predecessor, must show a clean ≤400-line diff, and carries focused tests; split again before review if measured lines exceed 400. No data, backend, PRD/documentation, or RBAC migration.
 
 ## Open Questions
 
-None blocking; live gateway implementation waits for backend delivery.
+None blocking; concrete HTTP DTO mapping remains deferred until backend contracts exist.

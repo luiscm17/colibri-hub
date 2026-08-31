@@ -1,16 +1,7 @@
 # Tasks: Complete Frontend Yarn Spinning
 
 ## Review Workload Forecast
-
-| Field | Value |
-|---|---|
-| Estimated changed lines | 1,400–2,100 |
-| 400-line budget risk | High |
-| Chained PRs recommended | Yes |
-| Suggested split | PR 1 → PR 2 → PR 3 → PR 4 → PR 5 → PR 6 → PR 7 |
-| Delivery strategy | auto-chain |
-| Chain strategy | feature-branch-chain |
-
+Estimate: 1,800–2,600. Strategy: auto-chain. Split: PR 1 → PR 10.
 Decision needed before apply: No
 Chained PRs recommended: Yes
 Chain strategy: feature-branch-chain
@@ -18,42 +9,47 @@ Chain strategy: feature-branch-chain
 
 ### Suggested Work Units
 
-| Unit | Goal | Likely PR | Focused test command | Runtime harness | Rollback boundary |
+| Unit | Goal / base | Test | Harness | Rollback |
 |---|---|---|---|---|---|
-| 1 | Boundary/routes/seam | PR 1 | `pnpm vitest run` | Protected route → unavailable | exports, routes, seam |
-| 2 | Sections/Progress/Skeining | PR 2 | `pnpm vitest run` | Change Progress identity | `sections/**` |
-| 3 | Quality | PR 3 | `pnpm vitest run` | Draft with unavailable profile | `quality/**` |
-| 4 | Waste | PR 4 | `pnpm vitest run` | Unavailable capture/review | `waste/**` |
-| 5 | Reporting/records | PR 5 | `pnpm vitest run` | Filters and empty/unavailable | `reporting/**` |
-| 6 | Corrections/recovery | PR 6 | `pnpm vitest run` | Conflict then explicit refresh | `corrections/**` |
-| 7 | Accessibility/docs | PR 7 | `pnpm vitest run && pnpm lint && pnpm build` | Keyboard/narrow viewport | tests and docs |
+| 1 | Boundary/tracker | `pnpm vitest run` | protected → unavailable | exports/routes |
+| 2 | Corrective discharge, PR1 | `pnpm vitest run routes.test.tsx` | repeated FIN event | `sections/**`/tests |
+| 3 | Progress, PR2 | `pnpm vitest run` | change pending identity | progress grid |
+| 4 | Skeining, PR3 | `pnpm vitest run` | Skeining-only | Skeining grid |
+| 5 | Quality/PR4 | `pnpm vitest run` | unavailable profile | `quality/**` |
+| 6 | Sample grid, PR5 | `pnpm vitest run` | ordered rows | Sample grid |
+| 7 | Waste, PR6 | `pnpm vitest run` | edit weighed row | `waste/**` |
+| 8 | Reporting, PR7 | `pnpm vitest run` | filters/empty | `reporting/**` |
+| 9 | Corrections, PR8 | `pnpm vitest run` | conflict/refresh | `corrections/**` |
+| 10 | A11y/handoff, PR9 | `pnpm vitest run && pnpm lint && pnpm build` | keyboard/narrow | a11y tests |
 
-## Phase 1: Foundation, Routes, and Unavailable Seam (PR 1)
+## Phase 1: Foundation (PR 1)
+- [x] 1.1 Establish `features/spinning/{index,routes,integration}/**`; retain protected composition and RBAC.
 
-All capability paths below are under `frontend/src/features/spinning/`.
+## Phase 2: Corrective Production Discharge (PR 2)
+- [ ] 2.1 RED: replace `sections/**` tests; prove repeated events/invalid paste stay separate and Preparation discharge is FIN-only.
+- [ ] 2.2 GREEN: replace uncommitted textarea, Progress checkbox, generic code with `configuration`, `dischargeModel`, `ProductionDischargeGrid`, `SectionWorkspace`.
 
-- [x] 1.1 Create `{index.ts,routes.tsx}`; compose exports in `frontend/src/app/routes/{index.tsx,lazy-pages.ts}` inside `ProtectedRoute`.
-- [x] 1.2 Create `integration/{contracts.ts,unavailableGateway.ts}` and `components/IntegrationState.tsx`; no HTTP, calculation, record, or access decision.
-- [x] 1.3 RED/GREEN: test route identity/unavailable status without fabricated success; then delete `pages/SpinningPage.tsx`.
+## Phase 3: Applicable Progress (PR 3)
+- [ ] 3.1 RED/GREEN: add `progressModel`/`ProgressGrid` unique machine+yarn-count rows only for PSJ/Ring/Twisting; reject stale reads and aggregation.
 
-## Phase 2: Sections, Progress, and Skeining (PR 2)
+## Phase 4: Skeining (PR 4)
+- [ ] 4.1 RED/GREEN: create `SkeiningGrid` as independent production; assert no Progress or Lot Processing controls.
 
-- [ ] 2.1 RED: test five routes retain date/shift/drafts; Skeining identifies Yarn Spinning and excludes Lot Processing.
-- [ ] 2.2 Create `sections/**` section-close workspaces with one production/applicable-Progress intent and unavailable reads/submits.
-- [ ] 2.3 RED/GREEN: test continuity unavailable retains draft and an older request-key response cannot replace changed Progress identity.
+## Phase 5: Quality Profiles (PR 5)
+- [ ] 5.1 RED/GREEN: create `quality/**` configuration/capture; unavailable profiles invent no fields/results and retain drafts.
 
-## Phase 3: Quality and Waste (PR 3–4)
+## Phase 6: Quality Sample Grid (PR 6)
+- [ ] 6.1 RED/GREEN: render 10–15 ordered Sample measurements in React Data Grid with units, validation, readonly results, tolerance status.
 
-- [ ] 3.1 RED/GREEN: create `quality/**`; unavailable profiles invent no fields/results; recoverable failure retains draft/context.
-- [ ] 3.2 RED/GREEN: create `waste/**` by machine group/shift; unavailable state confirms no calculated or fabricated waste.
+## Phase 7: Waste (PR 7)
+- [ ] 7.1 RED/GREEN: create independent `waste/**` weighed machine-group/shift grid; prohibit production/Progress coupling and calculated waste.
 
-## Phase 4: Reporting, Records, Corrections, and Recovery (PR 5–6)
+## Phase 8: Reporting (PR 8)
+- [ ] 8.1 RED/GREEN: create `reporting/**`; retain URL filters and distinguish loading/empty/populated/stale/failure/unavailable without zero substitution.
 
-- [ ] 4.1 RED/GREEN: create `reporting/**`; retain URL filters and distinguish unavailable/loading/empty/stale/failure/populated without zero substitution.
-- [ ] 4.2 RED/GREEN: create `corrections/**`; retain draft, require explicit refresh, and prohibit automatic retry/downstream change.
+## Phase 9: Corrections (PR 9)
+- [ ] 9.1 RED/GREEN: create `corrections/**`; retain conflict drafts, require current-record read, and prohibit automatic retry.
 
-## Phase 5: Accessibility, Responsive Verification, and Documentation (PR 7)
-
-- [ ] 5.1 RED/GREEN: add keyboard/focus and `aria-live` tests for unavailable, retry, review, and conflict states.
-- [ ] 5.2 Test narrow viewport stacking and labelled controlled overflow keep context/actions reachable; run `pnpm vitest run`, `pnpm lint`, and `pnpm build` in `frontend/`.
-- [ ] 5.3 Update `frontend/docs/features/yarn-spinning.md` with the boundary, unavailable-only integration, rollback, and manual smoke evidence.
+## Phase 10: Accessibility/Handoff (PR 10)
+- [ ] 10.1 RED/GREEN: test keyboard editing, focus, live status, narrow overflow.
+- [ ] 10.2 User-run handoff (not assistant-run): start frontend and authenticated backend; use an account permitted by existing routes; visit `/spinning/preparation`, `/ring-spinning`, `/twisting`, `/bobbin-winding`, `/skeining`, `/quality`, `/waste`, `/consolidated`. Enter/paste repeated rows, tab controls, narrow viewport, attempt unavailable submit. Expect distinct discharges; Progress only PSJ/Ring/Twisting; independent Skeining/Waste; ordered Sample; focus/status; retained draft/no success. On failure capture URL, screenshot, console/network response, entered values. Backend continuity/submits/tolerance/records/corrections/authorization need APIs; unproven.
