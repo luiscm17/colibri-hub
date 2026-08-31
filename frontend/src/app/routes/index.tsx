@@ -7,10 +7,12 @@ import { AuthenticatedOnly } from '@/features/auth/components/AuthenticatedOnly'
 import { RouteErrorBoundary } from './RouteErrorBoundary'
 import { ComingSoon } from '@/common/components/ComingSoon'
 import { ACCESS_CATALOG } from '@/features/access-control'
+import type { SpinningWorkspace } from '@/features/spinning'
 import { ProtectedRoute } from './protected-route'
 import { AccessAdministrationCollectionRecovery, AccessAdministrationEditPage, AccessAdministrationPage, AuthenticationAccountsPage, AuthenticationHistoryPage, BaleDeliveryPage, BaleManagementPage, BaleReceptionPage, BaleStockPage, LoginPage, LotsPage, MandatoryPasswordChangePage, NotFoundPage, ProfilePage, SpinningPage } from './lazy-pages'
 
 const protectAdministration = (path: keyof typeof ACCESS_CATALOG, page: React.ReactNode) => <ProtectedRoute requirement={ACCESS_CATALOG[path]}>{page}</ProtectedRoute>
+const spinningPage = (workspace: SpinningWorkspace) => <SpinningPage workspace={workspace} />
 
 const router = createBrowserRouter([
   { path: '/login', element: <UnauthenticatedOnly><LoginPage /></UnauthenticatedOnly>, errorElement: <RouteErrorBoundary /> },
@@ -28,14 +30,14 @@ const router = createBrowserRouter([
       { path: 'warehouse/identity', element: <ProtectedRoute requirement={ACCESS_CATALOG['/warehouse/identity']}><ComingSoon feature="Identidad de producción" /></ProtectedRoute> },
       { path: 'warehouse/finished-product', element: <ProtectedRoute requirement={ACCESS_CATALOG['/warehouse/finished-product']}><ComingSoon feature="Producto terminado" /></ProtectedRoute> },
       { path: 'warehouse/supplies', element: <ProtectedRoute requirement={ACCESS_CATALOG['/warehouse/supplies']}><ComingSoon feature="Insumos" /></ProtectedRoute> },
-      { path: 'spinning/preparation', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/preparation']}><SpinningPage /></ProtectedRoute> },
-      { path: 'spinning/ring-spinning', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/ring-spinning']}><SpinningPage /></ProtectedRoute> },
-      { path: 'spinning/bobbin-winding', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/bobbin-winding']}><SpinningPage /></ProtectedRoute> },
-      { path: 'spinning/twisting', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/twisting']}><SpinningPage /></ProtectedRoute> },
-      { path: 'spinning/skeining', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/skeining']}><SpinningPage /></ProtectedRoute> },
-      { path: 'spinning/quality', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/quality']}><SpinningPage /></ProtectedRoute> },
-      { path: 'spinning/waste', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/waste']}><SpinningPage /></ProtectedRoute> },
-      { path: 'spinning/consolidated', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/consolidated']}><SpinningPage /></ProtectedRoute> },
+      { path: 'spinning/preparation', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/preparation']}>{spinningPage('preparation')}</ProtectedRoute> },
+      { path: 'spinning/ring-spinning', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/ring-spinning']}>{spinningPage('ringSpinning')}</ProtectedRoute> },
+      { path: 'spinning/bobbin-winding', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/bobbin-winding']}>{spinningPage('bobbinWinding')}</ProtectedRoute> },
+      { path: 'spinning/twisting', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/twisting']}>{spinningPage('twisting')}</ProtectedRoute> },
+      { path: 'spinning/skeining', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/skeining']}>{spinningPage('skeining')}</ProtectedRoute> },
+      { path: 'spinning/quality', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/quality']}>{spinningPage('quality')}</ProtectedRoute> },
+      { path: 'spinning/waste', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/waste']}>{spinningPage('waste')}</ProtectedRoute> },
+      { path: 'spinning/consolidated', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/consolidated']}>{spinningPage('consolidated')}</ProtectedRoute> },
       ...['lots', 'lots/queue', 'lots/detail', 'lots/inventory', 'lots/dyeing', 'lots/drying', 'lots/winding', 'lots/bagging', 'lots/quality'].map((path) => ({ path, element: <ProtectedRoute requirement={ACCESS_CATALOG[`/${path}`]}><LotsPage /></ProtectedRoute> })),
       { path: 'auth/accounts', element: protectAdministration('/auth/accounts', <AuthenticationAccountsPage />) },
       { path: 'auth/accounts/:accountId', element: protectAdministration('/auth/accounts', <AuthenticationAccountsPage />) },
