@@ -26,8 +26,8 @@ Chain strategy: feature-branch-chain
 - [x] 1.1 Establish `features/spinning/{index,routes,integration}/**`; retain protected composition and RBAC.
 
 ## Phase 2: Corrective Production Discharge (PR 2)
-- [ ] 2.1 RED: replace `sections/**` tests; prove repeated events/invalid paste stay separate and Preparation discharge is FIN-only.
-- [ ] 2.2 GREEN: replace uncommitted textarea, Progress checkbox, generic code with `configuration`, `dischargeModel`, `ProductionDischargeGrid`, `SectionWorkspace`.
+- [x] 2.1 RED: prove repeated events/invalid paste stay separate; required catalog-backed machine/yarn-count, gross kg, operative spindle count, spindle tare g, cart kg, optional roving/observations, and unavailable selections behave correctly; direct net-weight input is absent.
+- [x] 2.2 GREEN: use `configuration`, `dischargeModel`, `ProductionDischargeGrid`, `SectionWorkspace`, and a capability-local read-only catalog gateway without frontend FIN policy; retain raw drafts and render net weight only as unavailable pending server confirmation.
 
 ## Phase 3: Applicable Progress (PR 3)
 - [ ] 3.1 RED/GREEN: add `progressModel`/`ProgressGrid` unique machine+yarn-count rows only for PSJ/Ring/Twisting; reject stale reads and aggregation.

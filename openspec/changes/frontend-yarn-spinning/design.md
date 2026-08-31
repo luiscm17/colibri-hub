@@ -2,16 +2,16 @@
 
 ## Technical Approach
 
-Keep the app shell as route/protection composer and `features/spinning` as capability owner. Replace generic section textareas with controlled `react-data-grid` capture models following the existing Warehouse grid idiom: immutable row IDs, pure row/paste/validation functions, `DataGridShell`, and workspace-owned drafts. Production Discharge, Progress, Skeining, Waste, and Quality Sample remain distinct models and grids. All aggregation, continuity, tolerance, metrics, and outcomes come from the server; until APIs exist, the gateway returns only `unavailable` and drafts remain local.
+Keep the app shell as route/protection composer and `features/spinning` as capability owner. Replace generic section textareas with controlled `react-data-grid` capture models following the existing Warehouse grid idiom: immutable row IDs, pure row/paste/validation functions, `DataGridShell`, and workspace-owned drafts. Production Discharge, Progress, Skeining, Waste, and Quality Sample remain distinct models and grids. Machine and yarn-count selections come from a capability-local, read-only reference-data gateway; applicability is supplied by that catalog, not frontend identifiers or prefixes. All aggregation, continuity, tolerance, metrics, and outcomes come from the server; until APIs exist, the gateway returns only `unavailable` and drafts remain local.
 
 ## Architecture Decisions
 
 | Decision | Alternatives considered | Choice and rationale |
 |---|---|---|
 | Grid ownership | Generic form/grid schema; global shared model | Capability-local models per business grid; row identity and lifecycle differ, while only the existing technical `DataGridShell` is shared. |
-| Section composition | User-selected Progress applicability | Declarative section configuration: Preparation FIN discharge/PSJ Progress, Ring Spinning and Twisting both grids, Bobbin Winding discharge only; prevents client-created applicability. |
+| Section composition | User-selected applicability | Section configuration only composes grids; the reference-data gateway supplies machine applicability, including Preparation's allowed discharge machines, so the frontend invents no catalog policy. |
 | Server authority | Client totals/previews | Store raw strings and row status only; DTOs contain server projections as readonly fields. No browser aggregation or calculation. |
-| Integration | Speculative HTTP/mock success | Extend `SpinningGateway` behind cancellable typed operations while `unavailableGateway` implements every seam without HTTP or fabricated data. |
+| Integration | Speculative HTTP/mock success | Extend `SpinningGateway` with a typed read-only Production Discharge catalog while `unavailableGateway` returns no operational values and no fabricated data. |
 | Delivery | Prior seven broad PRs | Ten narrower feature-chain slices, each targeted below 400 changed lines with its own tests and rollback boundary. |
 
 ## Data Flow
@@ -41,7 +41,7 @@ Repeated discharge rows retain distinct IDs. Progress is keyed uniquely by machi
 
 ```ts
 type GridRowState = 'pending' | 'invalid' | 'complete' | 'acknowledged-no-production'
-type SectionGridConfig = { discharge: 'fin-only' | 'all' | 'none'; progress: boolean; skeining: boolean }
+type ProductionDischargeCatalog = { machines: ReferenceOption[]; applicableMachineIds: string[]; yarnCounts: ReferenceOption[] }
 type RemoteState<T> = Loading | Unavailable | Failure | Empty | Populated<T> | Stale<T> | Conflict
 ```
 
@@ -52,7 +52,7 @@ Discharge snapshots preserve every populated event row. Progress snapshots enfor
 | Layer | What to Test | Approach |
 |---|---|---|
 | Unit | Row identity, paste shapes, status, applicability, Progress uniqueness/stale rejection | Vitest pure model tests; assert no totals/calculations. |
-| Component | Keyboard editing, repeated discharge rows, FIN/PSJ split, absent Progress, ordered Sample, independent Skeining/Waste, retained drafts/unavailable/conflict | Testing Library with gateway fakes. |
+| Component | Keyboard editing, repeated discharge rows, catalog-backed Preparation applicability, unavailable non-actionable selections, absent Progress, ordered Sample, independent Skeining/Waste, retained drafts/unavailable/conflict | Testing Library with gateway fakes. |
 | Acceptance | Protected routes, narrow overflow, focus/status announcements | Manual viewport/keyboard smoke; run `pnpm vitest run`, `pnpm lint`, `pnpm build`. |
 
 ## Threat Matrix
