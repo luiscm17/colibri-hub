@@ -17,6 +17,9 @@ Product Requirements Documents (PRDs) define business rules, acceptance criteria
 ## Operation
 
 - [Operation Overview](operation/overview.md)
+- [Yarn Spinning](operation/yarn-spinning.md)
+- [Lot Processing](operation/lot-processing.md)
+- [Lot Processing Records](operation/lot-processing-records.md)
 
 ## Access Control
 

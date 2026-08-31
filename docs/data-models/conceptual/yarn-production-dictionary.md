@@ -17,7 +17,7 @@ This dictionary is a concise review aid for the current Yarn Production DBML. Th
 - Continuity is by section, machine, shift, business date, and `yarn_count_id`.
 - Production before Madejeras is recorded as discharges; Madejeras is recorded separately as skein output.
 - Progress, process quality, and waste stay as their own record families.
-- Yarn count characteristics such as material type, dtex, and business labels belong to Catalogs, not to every Yarn Production record.
+- Yarn count characteristics such as material type, dtex, and the two process notations (`notation_spinning` / `notation_lot`) belong to Catalogs, not to every Yarn Production record.
 - Current business records can be corrected, but correction history is stored separately.
 - No SQL, indexing, ORM mapping, or reporting aggregate is defined here.
 
@@ -46,13 +46,13 @@ Represents one production discharge for Preparation FIN machines, Ring Spinning,
 | `section`, `machine_id`                                                           | Locate the producing section and machine.                        | No; validate Preparation only allows FIN machines. |
 | `business_date`, `shift_code`                                                     | Preserve operational time separate from system capture.          | No.                                                |
 | `supervisor_user_id`                                                              | Shift supervision reference.                                     | No.                                                |
+| `foreman_user_id`                                                                | Plant floor supervision reference (encargado), capture-level (DIS-09). | No.                                                |
 | `yarn_count_id`                                                                   | References the shared Catalogs yarn count identity produced.      | No.                                                |
-| `discharged_at`                                                                   | Physical discharge time when captured.                           | Yes.                                               |
-| `gross_weight_kg`, `spindle_tare_kg`, `operative_spindle_count`, `cart_weight_kg` | Inputs for the discharge weight calculation.                     | No for sections using spindle/cart calculation.    |
+| `gross_weight_kg`, `spindle_tare_weight_g`, `operative_spindle_count`, `cart_weight_kg` | Inputs for the discharge weight calculation.                     | No for sections using spindle/cart calculation.    |
 | `net_weight_kg`                                                                   | Calculated production result preserved for reporting and review. | No.                                                |
 | `roving_count`                                                                    | Preparation-specific mecha count when captured.                  | Yes.                                               |
 | `registered_by_user_id`, `registered_role`                                        | Who recorded it and under which operational role.                | No.                                                |
-| `notes`                                                                           | Operational context or exceptions.                               | Yes.                                               |
+| `observations`                                                                 | Operational context or exceptions.                               | Yes.                                               |
 | `created_at`, `updated_at`                                                        | System capture and last update timestamps.                       | Created no; updated yes.                           |
 
 ### `skein_records`
@@ -67,11 +67,10 @@ Represents Madejeras/Skeining production output. It is a business record of skei
 | `supervisor_user_id`                       | Shift supervision reference.                                     | No.                                                      |
 | `yarn_count_id`                            | References the shared Catalogs yarn count identity produced.      | No.                                                      |
 | `skein_count`                              | Primary Madejeras production quantity.                           | No.                                                      |
-| `unit_skein_weight_kg`                     | Estimated unit weight used for this record's calculation.        | No; wording may need refinement for monio-based capture. |
+| `unit_skein_weight_g`                     | Estimated unit weight in grams used for this record's calculation. | No; wording may need refinement for monio-based capture. |
 | `estimated_weight_kg`                      | Calculated total estimated weight.                               | No.                                                      |
-| `weight_requirement_note`                  | Explains title-specific weight differences such as 500g vs 600g. | Yes.                                                     |
 | `registered_by_user_id`, `registered_role` | Who recorded it and under which operational role.                | No.                                                      |
-| `notes`                                    | Operational context or exceptions.                               | Yes.                                                     |
+| `observations`                                                                 | Operational context or exceptions.                               | Yes.                                                     |
 | `created_at`, `updated_at`                 | System capture and last update timestamps.                       | Created no; updated yes.                                 |
 
 ### `progress_records`
@@ -85,12 +84,13 @@ Represents the section progress summary for Preparation, Ring Spinning, and Twis
 | `business_date`, `shift_code`, `yarn_count_id` | Continuity key used to reconcile with production discharges. | No.                                                              |
 | `input_weight_kg`                           | Material entering the machine/section.                       | No.                                                              |
 | `in_machine_net_weight_kg`                  | Material still in the machine when captured.                 | Yes; mainly Ring Spinning and Twisting.                          |
-| `discharged_weight_kg`                      | Summary amount expected to reconcile with discharge totals.  | No.                                                              |
+| `discharged_weight_kg`                      | Server-reconciled summary amount (not client input) expected to reconcile with discharge totals.  | No.                                                              |
 | `output_weight_kg`                          | Material leaving the section.                                | No.                                                              |
 | `operative_spindle_count`                   | Supports spindle-sampling calculations where applicable.     | Yes.                                                             |
+| `sample_gross_weight_g`, `sample_tare_weight_g` | Raw spindle-sampling weights (grams); inputs for quality calculations. | Yes; conditional on spindle sampling.                 |
 | `worked_hours`                              | Supports productivity metrics.                               | Yes.                                                             |
 | `registered_by_user_id`, `registered_role`  | Who recorded it and under which operational role.            | No.                                                              |
-| `consistency_notes`                         | Reconciliation or operational notes.                         | Yes.                                                             |
+| `reconciliation_note`                         | Reconciliation or operational notes (mandatory within tolerance with a diff, PRG-06).                         | Yes.                                                             |
 | `created_at`, `updated_at`                  | System capture and last update timestamps.                   | Created no; updated yes.                                         |
 
 ### `process_quality_records`
@@ -105,7 +105,8 @@ Represents process quality checks across all Yarn Production sections.
 | `yarn_count_id`                               | Yarn count identity or sample context when relevant.         | Yes.                                                     |
 | `quality_method`                              | Distinguishes samples, machine counters, and random checks. | No.                                                      |
 | `sample_type`, `sample_count`                 | Sample-based quality context.                               | Yes.                                                     |
-| `cv_percent`, `tenacity`, `elongation`        | Sample result values used in Preparation/Ring Spinning.     | Yes.                                                     |
+| `cv_percent`, `tenacity`, `elongation`        | Sample result values used in Preparation/Ring Spinning.     | Yes.                                                             |
+| `sample_values`                             | Raw sample values (JSON array of decimals); server computes the aggregates above. | Yes; when method is sample.                                    |
 | `body_value`, `kilometers`, `cuts_per_bobbin` | Bobbin Winding machine-counter values.                      | Yes.                                                     |
 | `result_summary`                              | Flexible summary for variable random checks.                | Yes; replace with structured fields only when stable.    |
 | `is_out_of_tolerance`                         | Quick review flag.                                          | Yes.                                                     |
@@ -121,7 +122,7 @@ Represents real or accumulated waste recorded by section and shift.
 | ------------------------------------------ | -------------------------------------------------- | ------------------------------------------------------------- |
 | `waste_record_id`                          | Technical identifier for the waste record.         | No.                                                           |
 | `section`                                  | Section where the waste belongs.                   | No.                                                           |
-| `machine_group_name`                       | Snapshot of the group weighed together.            | Yes for Madejeras; challenge if groups become a real catalog. |
+| `machine_group_id`                         | Catalog id of the machine group weighed together.          | Yes for Madejeras; FK to machine group catalog.                 |
 | `business_date`, `shift_code`              | Operational time.                                  | No.                                                           |
 | `waste_type`                               | Real vs accumulated waste.                         | No.                                                           |
 | `weight_kg`                                | Waste quantity.                                    | No.                                                           |

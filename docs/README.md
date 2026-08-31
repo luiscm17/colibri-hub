@@ -16,7 +16,6 @@ Business capabilities, rules, and acceptance criteria.
 - **Operation**
   - [Operation Overview](./prd/operation/overview.md) — Area scope, actors, capabilities
   - [Yarn Spinning](./prd/operation/yarn-spinning.md) — Spinning process requirements
-  - [Yarn Spinning Records](./prd/operation/yarn-spinning-records.md) — Spinning record-keeping
   - [Lot Processing](./prd/operation/lot-processing.md) — Lot processing requirements
   - [Lot Processing Records](./prd/operation/lot-processing-records.md) — Lot record-keeping
 - [Access Control](./prd/access-control.md) — Authorization policy and RBAC

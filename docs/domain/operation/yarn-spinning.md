@@ -1,11 +1,10 @@
 ---
 document_type: domain
 status: active
-implementation: not-started
 scope: operation/yarn-spinning
 authority: normative
 owner: architecture
-last_reviewed: 2026-07-27
+last_reviewed: 2026-08-26
 ---
 
 # Domain Model: Yarn Spinning
@@ -18,15 +17,13 @@ last_reviewed: 2026-07-27
 
 ## 1. Bounded Context
 
-Yarn Spinning is a subdomain within **Operation**. Transforma fardos de MP en
-hilado de un título específico a través de 5 secciones en flujo continuo.
+Yarn Spinning is a subdomain within **Operation**. It transforms raw material bales into yarn of a specific count through 5 sections in a continuous flow.
 
-La MP sale de Warehouse y la recibe Inventario en Hilandería. El producto
-final (madejas) sale de Hilandería hacia Lot Processing.
+Raw material leaves Warehouse and is received by Inventory in the Spinning Plant. The final product (skeins) leaves the Spinning Plant toward Lot Processing.
 
 ```mermaid
 flowchart LR
-    W["MP desde Warehouse"] --> P["Preparación"]
+    W["Raw material from Warehouse"] --> P["Preparación"]
     P --> C["Continuas"]
     C --> B["Bobinados"]
     B --> R["Retorcido"]
@@ -43,204 +40,203 @@ flowchart LR
     end
 ```
 
-Los registros por sección son Producción (descarga), Avance (control de
-proceso), Calidad de proceso y Desperdicio. Ver [Sección 2](#2-lo-que-se-registra)
-y [Sección 3](#3-qué-se-registra-en-cada-sección).
+The per-section records are Production (discharge), Advance (process control), Process Quality, and Waste. See [Section 2](#2-what-is-recorded) and [Section 3](#3-what-is-recorded-per-section).
 
 ---
 
-## 2. Lo que se registra
+## 2. What Is Recorded
 
 ### 2.1 Production Discharge (Descarga de Producción)
 
-Es el registro de cada descarga que hace una máquina. Aplica a las secciones
-que trabajan con **husos**: Preparación (solo FIN), Continuas, Bobinados y
-Retorcido.
+This is the record of each discharge made by a machine. Applies to sections that work with **spindles**: Preparación (FIN only), Continuas, Bobinados, and Retorcido.
 
-**Qué se registra por cada descarga:**
+**What is recorded per discharge:**
 
-| Dato | Descripción |
+| Field | Description |
 |---|---|
-| Máquina | Qué máquina produjo la descarga |
-| Turno | A, B o C |
-| Fecha | Fecha de producción |
-| Título | Título del hilado (ej. 2/18, 2/32, 2/13, 2/24, 4/9, etc.) |
-| Tipo | Variedad del título: HB, N, CH, etc. |
-| Supervisor | Supervisor del turno |
-| Encargado | Quién registra (Calidad o Inventario según la sección) |
-| Peso Bruto | Peso del carro/tacho completo con el producto (kg) |
-| No. Husos | Cantidad de husos operativos que produjeron esta descarga |
-| Tara por Huso | Peso del cañete/bobina por huso (gramos) |
-| Peso Carro | Peso del carro/tacho vacío (kg) |
-| Peso Neto | Calculado: Bruto − (TaraHuso × Husos / 1000) − PesoCarro |
-| Observaciones | Texto libre |
+| Machine | Which machine produced the discharge |
+| Shift | A, B, or C |
+| Date | Production date |
+| Yarn count | Yarn count, maintained as shared reference data; no value or notation form is fixed in this capability |
+| Material type | Variety of the count, an attribute of the yarn count identity (shared reference data) |
+| Supervisor | Shift supervisor |
+| Recorded by | Attribution from the authenticated session |
+| Gross weight | Weight of the full cart/tub with product (kg) |
+| No. of spindles | Number of operational spindles that produced this discharge |
+| Tare per spindle | Weight of the bobbin/cop per spindle (grams) |
+| Cart weight | Weight of the empty cart/tub (kg) |
+| Net weight | Calculated: Gross − (SpindleTare × Spindles / 1000) − CartWeight |
+| Observations | Free text |
 
-**Reglas:**
-- Una máquina puede tener varias descargas en un turno (del mismo o distinto título)
-- Puede no tener ninguna descarga en un turno
-- El peso neto lo calcula el sistema, no se ingresa manualmente
+**Rules:**
+- A machine may have several discharges in a shift (same or different count)
+- It may have no discharge in a shift
+- Net weight is calculated by the system, not entered manually
 
 ### 2.2 Skeining Production (Producción de Madejeras)
 
-Es el registro de producción de Madejeras. No usa husos, usa **madejas**.
+This is the production record for Skeining (Madejeras). It does not use spindles; it uses **skeins**.
 
-**Qué se registra por cada descarga:**
+**What is recorded per discharge:**
 
-| Dato | Descripción |
+| Field | Description |
 |---|---|
-| Máquina | Máquina que produjo las madejas |
-| Turno | A, B o C |
-| Fecha | Fecha de producción |
-| Título | Título del hilado |
-| Tipo | Variedad del título (HB, N, etc.) |
-| Supervisor | Supervisor del turno |
-| Encargado | Quién registra (Inventario) |
-| No. Madejas | Cantidad de madejas producidas |
-| Peso Unitario | Peso estimado por madeja (gramos). Generalmente ~500g, pero varía según el título (ej. 600g) |
-| Peso Neto | Calculado: No. Madejas × PesoUnitario / 1000 |
-| Operario | Nombre del operador (texto libre, no es una referencia a empleado) |
-| Observaciones | Texto libre |
+| Machine | Machine that produced the skeins |
+| Shift | A, B, or C |
+| Date | Production date |
+| Yarn count | Yarn count |
+| Material type | Variety of the count, an attribute of the yarn count identity (shared reference data) |
+| Supervisor | Shift supervisor |
+| Recorded by | Attribution from the authenticated session |
+| No. of skeins | Quantity of skeins produced |
+| Unit weight | Weight per skein entered at capture for this record; reflects the physical presentation produced and is neither a fixed value nor an application-maintained parameter (see PRD SKN-03) |
+| Net weight | Calculated: No. of skeins × UnitWeight / 1000 |
+| Operator | Operator name (free text, not an employee reference) |
+| Observations | Free text |
 
-**Reglas:**
-- No usa husos, tara por huso, ni peso carro
-- El operario es informativo — la producción es operario-dependiente, no ciclo-máquina
+**Rules:**
+- No spindles, spindle tare, or cart weight
+- The operator is informational — production is operator-dependent, not machine-cycle-dependent
 
 ### 2.3 Advance Tracking (Registro de Avance)
 
-Es un resumen por máquina al finalizar el turno. Consolida el trabajo del
-turno: el material que entró (heredado del turno anterior), el material
-existente en la máquina (calculado por muestreo de un huso), el material
-que sale, y la descarga neta acumulada del turno.
+This is a per-machine summary at shift end. It consolidates the shift's work: material that entered (inherited from the previous shift), material present in the machine (calculated by sampling one spindle), material that leaves, and the accumulated net discharge of the shift.
 
-**Aplica a:** Preparación (solo PSJ), Continuas, Retorcido.
-**No aplica a:** Bobinados, Madejeras.
+**Applies to:** Preparación (PSJ only), Continuas, Retorcido.
+**Does not apply to:** Bobinados, Madejeras.
 
-**Qué se registra por cada avance:**
+**What is recorded per advance:**
 
-| Dato | Descripción |
+| Field | Description |
 |---|---|
-| Máquina | Máquina que se está controlando |
-| Turno | A, B o C |
-| Fecha | Fecha |
-| Título | Título del hilado |
-| Tipo | Variedad del título |
-| Supervisor | Supervisor del turno |
-| Encargado | Quién registra |
-| Peso Muestra Bruto | Peso bruto de una canilla/huso de muestra al inicio del turno (gramos) |
-| Peso Muestra Tara | Tara de esa canilla/huso de muestra (gramos) |
-| No. Husos | Total de husos operativos de la máquina |
-| Peso de Entrada | Material que entró a la sección (lo que dejó el turno anterior como salida, kg) |
-| Peso de Salida | Material existente en la máquina calculado por balance de materia (kg) |
-| Peso Descargado | Suma de pesos netos de todas las descargas de producción del turno (kg) |
-| Horas Trabajadas | Horas que operó la máquina |
+| Machine | Machine being controlled |
+| Shift | A, B, or C |
+| Date | Date |
+| Yarn count | Yarn count |
+| Material type | Variety of the count |
+| Supervisor | Shift supervisor |
+| Recorded by | Attribution from the authenticated session |
+| Sample gross weight | Gross weight of a sample cop/spindle at shift start (grams) |
+| Sample tare | Tare of that sample cop/spindle (grams) |
+| No. of spindles | Total operational spindles of the machine |
+| Input weight | Material that entered the section (what the previous shift left as output, kg) |
+| Output weight | Material present in the machine calculated by material balance (kg) |
+| Discharged weight | Sum of net weights of all production discharges in the shift (kg) |
+| Hours worked | Hours the machine operated |
 
-**Relación con Production Discharge:**
-- `Peso Descargado` es la suma de los `Peso Neto` de todas las descargas de producción de esa máquina/turno
-- Si no hay descargas en el turno, el `Peso Descargado` es cero
-- El `Peso de Entrada` de un turno es el `Peso de Salida` registrado por el turno anterior para esa máquina
+**Relationship with Production Discharge:**
+- `Discharged weight` is the sum of `Net weight` of all production discharges of that machine/shift
+- If there are no discharges in the shift, `Discharged weight` is zero
+- The `Input weight` of a shift is the `Output weight` recorded by the previous shift for that machine
 
-**Propósito:**
-- Validar que la suma de descargas sea coherente con el control de proceso
-- Calcular merma: Entrada vs Salida
-- Medir productividad: kg/hora por máquina
+**Purpose:**
+- Validate that the sum of discharges is coherent with process control
+- Calculate yield loss: Input vs Output
+- Measure productivity: kg/hour per machine
 
-### 2.4 Quality Control (Control de Calidad de Proceso)
+### 2.4 Process Quality Control (Control de Calidad de Proceso)
 
-Calidad evalúa todas las secciones. El método varía según la sección.
+Process quality control applies to every section. The method varies by section.
 
-**Qué se registra en cada control:**
+**What is recorded per control:**
 
-| Dato | Descripción |
+| Field | Description |
 |---|---|
-| Sección | Sección evaluada |
-| Máquina | Máquina evaluada |
-| Turno | Turno |
-| Fecha | Fecha |
-| Título | Título evaluado |
-| Tipo | HB, N, CH, etc. |
-| Inspector | Empleado de Calidad |
-| Método | Sample, MachineRegister o Random |
+| Section | Section evaluated |
+| Machine | Machine evaluated |
+| Shift | Shift |
+| Date | Date |
+| Yarn count | Yarn count evaluated |
+| Material type | Variety of the evaluated yarn count, an attribute of the yarn count identity (shared reference data) |
+| Inspector | Employee performing the control |
+| Method | Control method from the method catalog (shared reference data); bound to the section per the quality-method matrix |
 
-**Según el método, se registran datos distintos:**
+**Depending on the method, different data is recorded:**
 
-*Método Sample (Preparación, Continuas)*
-- Número de muestras tomadas (generalmente 12 por máquina/tipo)
-- Valores individuales de cada muestra
-- CV%, tenacidad, elongación (calculados)
+*Sample method (Preparación, Continuas)*
+- Number of samples taken, following the configured sampling plan for the section (see PRD QUA-03; no fixed count embedded in capture)
+- Individual values of each sample
+- CV%, tenacity, elongation (calculated)
 
-*Método MachineRegister (Bobinados)*
-- Body (imperfecciones por unidad de longitud)
-- Kilómetros procesados
-- Cortes por cono
+*MachineRegister method (Bobinados)*
+- Body (imperfections per unit length)
+- Kilometers processed
+- Cuts per cone
 
-*Método Random (Retorcido, Madejeras)*
-- Resultados variables según la prueba
+*Random method (Retorcido, Madejeras)*
+- Variable results depending on the test
 
-**Nota:** Las nomenclaturas especiales (-AT, -FT, -VARR, -D, etc.) se asignan
-al lote en Lot Processing, no a la máquina en Yarn Spinning.
+**Note:** The special nomenclatures (-AT, -FT, -VARR, -D, etc.) are assigned to the lot in Lot Processing, not to the machine in Yarn Spinning.
 
 ### 2.5 Waste Record (Registro de Desperdicio)
 
-Inventario registra el desperdicio de todas las secciones. Se pesa por
-**grupo de máquinas**, no por máquina individual.
+Waste is recorded for all sections. It is weighed by **machine group**, not by individual machine.
 
-**Qué se registra en cada control de desperdicio:**
+**What is recorded per waste control:**
 
-| Dato | Descripción |
+| Field | Description |
 |---|---|
-| Sección | Sección donde se generó |
-| Grupo de Máquinas | Grupo de máquinas que se pesaron juntas |
-| Turno | Turno |
-| Fecha | Fecha |
-| Peso | Peso del desperdicio (kg) |
-| Tipo | Real (registrado por Inventario) o Acumulado (gestionado por Producción) |
-| Quién registra | Empleado de Inventario |
+| Section | Section where it was generated |
+| Machine group | Group of machines weighed together |
+| Shift | Shift |
+| Date | Date |
+| Weight | Waste weight (kg) |
+| Type | Real (material-loss capture) or Accumulated (retained under plant policy) |
+| Recorded by | Attribution from the authenticated session |
 
-**Reglas:**
-- El desperdicio teórico es Real + Acumulado (no se almacena, se calcula)
-- Madejeras: las madejas fuera de especificación NO se registran como desperdicio — vuelven a una etapa anterior para reproceso
+**Rules:**
+- Theoretical waste is Real + Accumulated (not stored, calculated)
+- Skeining: skeins out of specification are NOT recorded as waste — they return to an earlier stage for reprocessing
 
 ---
 
-## 3. Qué se registra en cada sección
+## 3. What Is Recorded per Section
 
-| Sección | Production Discharge | Skeining Production | Advance Tracking | Quality Control | Waste Record |
+| Section | Production Discharge | Skeining Production | Advance Tracking | Process Quality | Waste Record |
 |---|---|---|---|---|---|
-| **Preparación** | FIN (Calidad) | — | PSJ (Calidad) | Calidad | Inventario |
-| **Continuas** | Calidad | — | Calidad | Calidad | Inventario |
-| **Bobinados** | TBD | — | — | Calidad | Inventario |
-| **Retorcido** | Inventario | — | Inventario | Calidad | Inventario |
-| **Madejeras** | — | Inventario | — | Calidad | Inventario |
+| **Preparación** | FIN only | — | PSJ only | ✓ | ✓ |
+| **Continuas** | ✓ | — | ✓ | ✓ | ✓ |
+| **Bobinados** | ✓ | — | — | ✓ | ✓ |
+| **Retorcido** | ✓ | — | ✓ | ✓ | ✓ |
+| **Madejeras** | — | ✓ | — | ✓ | ✓ |
+
+*Capture responsibility for every family is determined by Access Control policy; this model records only which families apply per section.*
 
 ---
 
 ## 4. Shared Catalogs
 
-Son datos maestros compartidos con otros contextos de Operation:
+Master data shared with other Operation contexts:
 
-| Catálogo | Descripción |
+| Catalog | Description |
 |---|---|
-| **Employee** | Empleados de la planta. Cada uno tiene un rol (Supervisor, Calidad, Inventario) |
-| **Shift** | Turnos fijos: A (mañana), B (tarde), C (noche) |
-| **YarnCount** | Títulos de hilado (2/18, 2/32, 4/9, 2/13, 2/24, 2/40, 3/11, Fantasía, Otro, etc.) |
-| **Section** | Las 5 secciones de hilandería: Preparación, Continuas, Bobinados, Retorcido, Madejeras |
-| **Machine** | Máquinas de cada sección con su código (CONT-0A, FIN-A, RET-1B, etc.) y tipo (PSJ, FIN) |
-| **MachineGroup** | Agrupación de máquinas para pesaje de desperdicio |
+| **Employee** | Plant employees referenced by capture attribution; functional responsibilities are assigned via Access Control. |
+| **Shift** | Fixed shifts: A (morning), B (afternoon), C (night) |
+| **YarnCount** | Yarn counts maintained as shared reference data. Notation is context-specific and may use ply variants (e.g. 1/N, 2/N, 3/N and beyond); this capability fixes no count values or notation forms. Each context applies its own label to the same underlying yarn. |
+| **Section** | The 5 spinning sections: Preparación, Continuas, Bobinados, Retorcido, Madejeras |
+| **Machine** | Machines per section, identified by codes from the machine catalog (shared reference data); types include PSJ and FIN |
+| **MachineGroup** | Grouping of machines for waste weighing |
 
 ---
 
 ## 5. Business Rules
 
-1. **Solo FIN producen en Preparación.** PSJ solo registra avance.
-2. **Bobinados no tiene responsable fijo de registro.** El Supervisor asigna según el turno (TBD).
-3. **Producción es granular por descarga.** Varias descargas por máquina/turno son válidas. Cero también.
-4. **Título y tipo pueden cambiar dentro de un turno.** Cada descarga lleva el suyo.
-5. **Peso neto siempre calculado por el sistema.** Nunca se ingresa directamente.
-6. **Avance valida producción.** El peso descargado en avance debe coincidir con la suma de descargas.
-7. **Madejeras es estructuralmente distinto.** No usa husos, tara, ni carro. Usa cantidad de madejas y peso unitario.
-8. **Desperdicio por grupo de máquinas.** No por máquina individual.
-9. **Madejeras fuera de especificación NO es desperdicio.** Vuelve a etapa anterior para reproceso.
+1. **Only FIN produces in Preparación.** PSJ only records advance.
+2. **Bobbin Winding records production discharge.** Its quality control uses the Machine register method; capture responsibility follows Access Control policy.
+3. **Production is granular per discharge.** Multiple discharges per machine/shift are valid. Zero too.
+4. **Count and type may change within a shift.** Each discharge carries its own.
+5. **Net weight is always system-calculated.** Never entered directly.
+6. **Advance validates production.** The discharged weight in advance must match the sum of discharges.
+7. **Skeining is structurally different.** No spindles, tare, or cart. Uses skein count and unit weight.
+8. **Waste by machine group.** Not by individual machine.
+9. **Skeins out of specification are NOT waste.** They return to an earlier stage for reprocessing.
 10. **Records are editable under policy.** Corrections within the operational window preserve actor, timestamp, reason, and before/after values. The correction history is append-only.
+11. **Capture-session integrity.** A shift-close capture session persists completely or not at all across every record family it touches (PRD DIS-07).
+12. **Affirmative zero.** A completed capture session records an explicit zero outcome for every in-scope machine that produced nothing; absence of records never represents a declared zero (PRD DIS-08).
+13. **Optimistic concurrency.** When two capture attempts target the same continuity key, the first save prevails and the second is rejected with the current stored state; silent overwriting never occurs (PRD §4).
+14. **Late-capture window.** First-time capture after shift close is allowed only within an administrative window whose duration is an operational parameter; capture beyond it follows the override authority (PRD §4, §9).
+15. **Configurable reconciliation tolerance.** Progress discharged weight reconciles with discharge totals within a configured tolerance; inside it is accepted with a mandatory consistency note, outside it is rejected. The tolerance is an operational parameter (PRD PRG-06).
+16. **Configured tolerance limits.** Measured-property tolerance limits are configured reference data, not embedded in capture; an out-of-tolerance result is flagged (PRD QUA-06).
 
 ---
 

@@ -61,7 +61,7 @@ configurable Access Control role.
 | Actor | Reports to | Business responsibility |
 | --- | --- | --- |
 | **Supervisor** | Production Manager | Coordinates raw-material processing during the shift and consolidates operational records. Does not become a direct registrar unless enabled by access policy. |
-| **Quality Control** | Supervisor | Performs quality work across plant sections, documents the lot quality state, and currently performs the release for reception and responds to handoff issues when assigned by policy. Currently also registers production and progress for Preparation and Ring Spinning. |
+| **Quality Control** | Supervisor | Performs quality work across plant sections, documents the lot quality state, and currently performs the release for reception and responds to handoff issues when assigned by policy. Currently also registers production for Preparation, Ring Spinning, and Bobbin Winding, and progress for Preparation and Ring Spinning. |
 | **Inventory** | Supervisor | Resolves the Warehouse requirement in Operation, assembles the physical lot under the corresponding Production Identity, and tracks it through delivery. Currently registers production and progress for Twisting and Skeining, records real waste across sections, and receives daily raw material from Warehouse. |
 | **Dyeing Personnel** | Supervisor | Performs and records the dyeing and drying work within the lot lifecycle. |
 | **Packaging** | Supervisor | Coordinates and records winding, ball winding, and bagging operations. |
@@ -254,6 +254,7 @@ hardcoding current job titles as permissions.
 | Subdomain | PRD | Status |
 | --- | --- | --- |
 | Yarn Spinning - five sections | [yarn-spinning.md](./yarn-spinning.md) | Active |
+| Yarn Spinning functional records | [yarn-spinning.md](./yarn-spinning.md) | Active |
 | Lot Processing - six stages and lifecycle | [lot-processing.md](./lot-processing.md) | Active |
 | Lot Processing functional records | [lot-processing-records.md](./lot-processing-records.md) | Active |
 | Process Quality | Included in yarn-spinning.md | Active |
