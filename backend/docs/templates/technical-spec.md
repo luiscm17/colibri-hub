@@ -1,6 +1,6 @@
 # Backend Capability Technical Specification
 
-> Use this template for a durable, explanatory specification owned by one backend bounded context. Link the PRD that is authoritative for business rules; describe stable semantics and boundaries, not delivery history or a catalog of technical artifacts.
+> Use this template for a durable specification of one backend bounded context. It describes public behavior, ownership, and observable guarantees. It does not record delivery history, current implementation state, source structure, storage design, or migration details.
 
 ```yaml
 ---
@@ -18,59 +18,64 @@ replaces: <path|null>
 
 <!-- State the business purpose, owned language and invariants, and what belongs outside this bounded context. -->
 
-## Authorities
+## Authorities and Precedence
 
-<!-- Link the governing PRD and other authoritative policy. Explain precedence when they differ. -->
+<!-- Link the governing PRD and shared policy authorities. State which authority prevails for business rules, authorization, API conventions, and errors. -->
 
 ## Architectural References
 
-<!-- Required. Link these durable authorities; do not duplicate them. -->
+<!-- Link durable shared authorities rather than copying their rules. -->
 
 - [Backend Architecture Overview](../architecture/overview.md)
 - [Technology Baseline](../../../docs/architecture/technology-baseline.md)
 - [API Conventions](../api/conventions.md)
 - [Error Contract](../api/errors.md)
-- [Migration Strategy](../database/migrations.md)
 - [Testing Strategy](../testing/strategy.md)
-
-<!-- These documents own framework and platform conventions, HTTP conventions, error envelopes, migration policy, and verification levels. This specification adds only capability-specific consequences. -->
 
 ## Responsibilities and Exclusions
 
-<!-- Define the business responsibilities this context owns and the adjacent responsibilities it deliberately does not own. -->
-
-## Dependency Direction
-
-<!-- Explain which business policies remain independent and how dependencies point toward them. Identify meaningful boundary crossings. -->
+<!-- Define what this context owns, consumes, and deliberately does not own. -->
 
 ## Semantic Operations and Outcomes
 
-<!-- Describe the business operations, preconditions, invariant-preserving outcomes, and meaningful failures without copying transport payloads. -->
+<!-- Describe each business operation, its preconditions, authoritative outcomes, and meaningful failures. Do not repeat the PRD's business-rule rationale. -->
+
+## Public API Contract
+
+<!-- Document all public routes, methods, request and response schemas, field names, types, units, validation, calculated values, pagination, and error semantics required by consumers. -->
+
+### Route Catalog
+
+<!-- Use a table with operation, method, path, authorization, and purpose. -->
+
+### Request and Response Schemas
+
+<!-- Use JSON examples and/or field tables. Mark intentionally incomplete portions as "Contract detail pending" without implying an implementation state. -->
+
+### Contractual Errors
+
+<!-- Link the shared error envelope and state capability-specific observable error outcomes. -->
 
 ## Cross-Context Contracts
 
-<!-- Describe semantic commitments exchanged with other contexts, including ownership, timing, and compatibility expectations. -->
+<!-- Describe ownership, read-only reference data, timing, compatibility expectations, and consumer references. -->
 
 ## Authorization Integration
 
-<!-- Reference Access Control as the authority. State when authorization is required and what business outcome follows a denial. -->
+<!-- Reference Access Control as the authority. State server-derived authorization requirements and denial outcomes without redefining its policy. -->
 
-## Consistency, Transactions, Concurrency, and Failure Guarantees
+## Consistency, Concurrency, and Correction Guarantees
 
-<!-- State guarantees, boundaries, recovery behavior, and what callers may rely on when concurrent work or failures occur. -->
+<!-- State atomicity, concurrency, correction evidence, recovery behavior, and caller-visible guarantees. Keep unresolved policy deliberately unresolved. -->
 
 ## Security and Observability
 
-<!-- Describe security-relevant boundaries and the signals needed to understand outcomes without exposing protected information. -->
+<!-- Describe protected boundaries, data-disclosure limits, and outcome signals without exposing internal mechanisms. -->
 
 ## Observable Verification
 
-<!-- List behavior that can demonstrate the stated semantics, guarantees, and collaboration boundaries. -->
-
-## Optional: Material Architectural Decisions
-
-<!-- Include only decisions that materially affect domain ownership, dependency direction, or cross-context guarantees. -->
+<!-- List externally demonstrable behaviors that prove the contract and collaboration boundaries. -->
 
 ## Out of Scope
 
-<!-- State adjacent responsibilities and future work this bounded context intentionally does not own. -->
+<!-- State adjacent responsibilities and intentionally deferred work. -->
