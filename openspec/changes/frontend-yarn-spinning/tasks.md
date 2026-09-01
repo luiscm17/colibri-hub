@@ -29,8 +29,10 @@ Chain strategy: feature-branch-chain
 - [x] 2.1 RED: prove repeated events/invalid paste stay separate; required catalog-backed machine/yarn-count, gross kg, operative spindle count, spindle tare g, cart kg, optional roving/observations, and unavailable selections behave correctly; direct net-weight input is absent.
 - [x] 2.2 GREEN: use `configuration`, `dischargeModel`, `ProductionDischargeGrid`, `SectionWorkspace`, and a capability-local read-only catalog gateway without frontend FIN policy; retain raw drafts and render net weight only as unavailable pending server confirmation.
 
+Corrective scope for the already discharged tasks 2.1/2.2: the optional roving-title input is rendered only when the read-only catalog authorizes it for an applicable discharge machine; no section identifier determines that policy. The section capture context visibly identifies the operational supervisor without fabricating an identity or submission outcome, and its shift selector uses `A`, `B`, and `C`. This does not complete any future phase.
+
 ## Phase 3: Applicable Progress (PR 3)
-- [ ] 3.1 RED/GREEN: add `progressModel`/`ProgressGrid` unique machine+yarn-count rows only for PSJ/Ring/Twisting; reject stale reads and aggregation.
+- [x] 3.1 RED/GREEN: add `progressModel`/`ProgressGrid` unique machine+yarn-count rows only for PSJ/Ring/Twisting; reject stale reads and aggregation.
 
 ## Phase 4: Skeining (PR 4)
 - [ ] 4.1 RED/GREEN: create `SkeiningGrid` as independent production; assert no Progress or Lot Processing controls.
