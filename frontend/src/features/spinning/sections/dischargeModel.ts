@@ -2,9 +2,9 @@ export const DISCHARGE_EDITABLE_COLUMNS = [
   'machine', 'yarnCount', 'grossWeightKg', 'operativeSpindleCount', 'spindleTareWeightG', 'cartWeightKg', 'rovingCount', 'observations',
 ] as const
 export const DISCHARGE_COLUMN_LABELS = {
-  machine: 'Machine', yarnCount: 'Yarn count', grossWeightKg: 'Gross weight (kg)', operativeSpindleCount: 'Operative spindle count',
-  spindleTareWeightG: 'Spindle tare weight (g)', cartWeightKg: 'Cart weight (kg)', rovingCount: 'Roving count (optional)', observations: 'Observations (optional)',
-  netWeight: 'Net weight (kg)',
+  machine: 'Máquina', yarnCount: 'Título del hilo', grossWeightKg: 'Peso bruto (kg)', operativeSpindleCount: 'Cantidad de husos operativos',
+  spindleTareWeightG: 'Peso de tara del huso (g)', cartWeightKg: 'Peso del carro (kg)', rovingCount: 'Título de mecha (opcional)', observations: 'Observaciones (opcional)',
+  netWeight: 'Peso neto (kg)',
 } as const
 
 export type DischargeColumn = (typeof DISCHARGE_EDITABLE_COLUMNS)[number]
@@ -71,17 +71,17 @@ export function dischargeRowFeedback(row: ProductionDischargeRow): DischargeRowF
   }
   if (!Object.values(values).some(Boolean)) return { state: 'pending', errors: {} }
   const errors: Partial<Record<DischargeColumn, string>> = {}
-  if (!values.machine) errors.machine = 'Machine is required.'
-  if (!values.yarnCount) errors.yarnCount = 'Yarn count is required.'
-  if (!values.grossWeightKg) errors.grossWeightKg = 'Gross weight is required.'
-  if (!values.operativeSpindleCount) errors.operativeSpindleCount = 'Operative spindle count is required.'
-  if (!values.spindleTareWeightG) errors.spindleTareWeightG = 'Spindle tare weight is required.'
-  if (!values.cartWeightKg) errors.cartWeightKg = 'Cart weight is required.'
+  if (!values.machine) errors.machine = 'La máquina es obligatoria.'
+  if (!values.yarnCount) errors.yarnCount = 'El título del hilo es obligatorio.'
+  if (!values.grossWeightKg) errors.grossWeightKg = 'El peso bruto es obligatorio.'
+  if (!values.operativeSpindleCount) errors.operativeSpindleCount = 'La cantidad de husos operativos es obligatoria.'
+  if (!values.spindleTareWeightG) errors.spindleTareWeightG = 'El peso de tara del huso es obligatorio.'
+  if (!values.cartWeightKg) errors.cartWeightKg = 'El peso del carro es obligatorio.'
   for (const field of ['grossWeightKg', 'spindleTareWeightG', 'cartWeightKg'] as const) {
-    if (values[field] && !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(values[field])) errors[field] = 'Enter a non-negative decimal value.'
+    if (values[field] && !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(values[field])) errors[field] = 'Ingrese un valor decimal no negativo.'
   }
   for (const field of ['operativeSpindleCount', 'rovingCount'] as const) {
-    if (values[field] && !/^(?:0|[1-9]\d*)$/.test(values[field])) errors[field] = 'Enter a non-negative whole number.'
+    if (values[field] && !/^(?:0|[1-9]\d*)$/.test(values[field])) errors[field] = 'Ingrese un número entero no negativo.'
   }
   if (Object.keys(errors).length) return { state: 'invalid', errors }
   return { state: values.grossWeightKg === '0' ? 'acknowledged-no-production' : 'complete', errors }

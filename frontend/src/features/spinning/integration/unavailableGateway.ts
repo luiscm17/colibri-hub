@@ -2,7 +2,7 @@ import type { RemoteState, SpinningGateway } from './contracts'
 
 export const unavailableIntegrationState: Extract<RemoteState<never>, { status: 'unavailable' }> = {
   status: 'unavailable',
-  message: 'The Yarn Spinning integration is unavailable.',
+  message: 'La integración de Hilatura no está disponible.',
   retryable: false,
 }
 

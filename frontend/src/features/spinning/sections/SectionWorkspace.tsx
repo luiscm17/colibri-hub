@@ -29,13 +29,13 @@ export function SectionWorkspace({ workspace, gateway = unavailableSpinningGatew
   return <Stack gap="lg">
     <div>
       <Title order={1}>{spinningWorkspaces[workspace]}</Title>
-      <Text>Yarn Spinning section-close workspace</Text>
+      <Text>Área de trabajo de cierre de sección de Hilatura</Text>
     </div>
-    <TextInput label="Business date" type="date" value={businessDate} onChange={(event) => setBusinessDate(event.currentTarget.value)} />
-    <NativeSelect label="Shift" data={[{ value: '', label: 'Choose a shift' }, { value: 'first', label: 'First shift' }, { value: 'second', label: 'Second shift' }, { value: 'third', label: 'Third shift' }]} value={shift} onChange={(event) => setShift(event.currentTarget.value)} />
-    {config.discharge ? <ProductionDischargeGrid catalog={catalog} draft={draft} onRowsChange={rows => setDraft(current => replaceDischargeRows(current, rows))} onAddRow={() => setDraft(appendDischargeRow)} onPaste={(rowId, column, text) => setDraft(current => pasteDischargeRows(current, rowId, column, text))} /> : <Text>Production Discharge is not configured for this section.</Text>}
+    <TextInput label="Fecha operativa" type="date" value={businessDate} onChange={(event) => setBusinessDate(event.currentTarget.value)} />
+    <NativeSelect label="Turno" data={[{ value: '', label: 'Seleccione un turno' }, { value: 'first', label: 'Primer turno' }, { value: 'second', label: 'Segundo turno' }, { value: 'third', label: 'Tercer turno' }]} value={shift} onChange={(event) => setShift(event.currentTarget.value)} />
+    {config.discharge ? <ProductionDischargeGrid catalog={catalog} draft={draft} onRowsChange={rows => setDraft(current => replaceDischargeRows(current, rows))} onAddRow={() => setDraft(appendDischargeRow)} onPaste={(rowId, column, text) => setDraft(current => pasteDischargeRows(current, rowId, column, text))} /> : <Text>La descarga de producción no está configurada para esta sección.</Text>}
     {config.progress && <ProgressGrid identity={{ section: workspace, businessDate, shift }} catalog={catalog} draft={progressDraft} gateway={gateway} onDraftChange={setProgressDraft} />}
-    <Text>Production drafts remain local; submission is unavailable until the service is delivered.</Text>
+    <Text>Los borradores de producción permanecen locales; el envío no está disponible hasta que el servicio esté disponible.</Text>
     <IntegrationState state={unavailableIntegrationState} />
   </Stack>
 }

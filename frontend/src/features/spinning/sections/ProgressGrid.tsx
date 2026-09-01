@@ -44,14 +44,14 @@ export function ProgressGrid({ identity, catalog, draft, gateway, onDraftChange 
 
   const canSelect = references !== undefined
   const columns = useMemo<readonly Column<ProgressRow>[]>(() => [
-    { key: 'machineId', name: 'Machine', width: 170, editable: canSelect, renderEditCell: canSelect ? props => <SelectCellEditor {...props} data={machineOptions} /> : undefined, renderCell: cell => <Text component="span">{machineOptions.find(option => option.value === cell.row.machineId)?.label ?? '—'}</Text> },
-    { key: 'yarnCountId', name: 'Yarn count', width: 150, editable: canSelect, renderEditCell: canSelect ? props => <SelectCellEditor {...props} data={yarnCountOptions} /> : undefined, renderCell: cell => <Text component="span">{yarnCountOptions.find(option => option.value === cell.row.yarnCountId)?.label ?? '—'}</Text> },
-    { key: 'continuity', name: 'Server-derived continuity', width: 290, renderCell: cell => <Text component="span">{continuityLabel(continuity[cell.row.rowId])}</Text> },
+    { key: 'machineId', name: 'Máquina', width: 170, editable: canSelect, renderEditCell: canSelect ? props => <SelectCellEditor {...props} data={machineOptions} /> : undefined, renderCell: cell => <Text component="span">{machineOptions.find(option => option.value === cell.row.machineId)?.label ?? '—'}</Text> },
+    { key: 'yarnCountId', name: 'Título del hilo', width: 150, editable: canSelect, renderEditCell: canSelect ? props => <SelectCellEditor {...props} data={yarnCountOptions} /> : undefined, renderCell: cell => <Text component="span">{yarnCountOptions.find(option => option.value === cell.row.yarnCountId)?.label ?? '—'}</Text> },
+    { key: 'continuity', name: 'Continuidad derivada del servidor', width: 290, renderCell: cell => <Text component="span">{continuityLabel(continuity[cell.row.rowId])}</Text> },
   ], [canSelect, continuity, machineOptions, yarnCountOptions])
 
   return <DataGridShell
-    toolbar={<Group justify="space-between" mb="sm"><Text fw={600}>Applicable Progress</Text><Button size="xs" disabled={!canSelect} onClick={() => onDraftChange(appendProgressRow(draft))}>Add Progress identity</Button></Group>}
-    statusBar={<Alert role="status" aria-live="polite" color="blue">{canSelect ? 'Continuity is shown only when confirmed by the server.' : 'Progress identities are unavailable until reference data is available.'}</Alert>}
+    toolbar={<Group justify="space-between" mb="sm"><Text fw={600}>Avance aplicable</Text><Button size="xs" disabled={!canSelect} onClick={() => onDraftChange(appendProgressRow(draft))}>Agregar identidad de avance</Button></Group>}
+    statusBar={<Alert role="status" aria-live="polite" color="blue">{canSelect ? 'La continuidad se muestra solo cuando está confirmada por el servidor.' : 'Las identidades de avance no están disponibles hasta que los datos de referencia estén disponibles.'}</Alert>}
     aria-label="Progress summary grid"
     columns={columns}
     rows={draft.rows}
@@ -63,8 +63,8 @@ export function ProgressGrid({ identity, catalog, draft, gateway, onDraftChange 
 }
 
 function continuityLabel(state: RemoteState<ProgressContinuity> | undefined): string {
-  if (!state || state.status === 'loading') return 'Waiting for a complete identity.'
-  if (state.status === 'unavailable') return 'Unavailable until the continuity service is available.'
-  if (state.status !== 'populated') return 'No continuity projection is available.'
-  return ({ predecessor: 'Server-confirmed predecessor available.', 'no-predecessor': 'Server-confirmed no predecessor.', 'stale-configuration': 'Server-confirmed stale configuration.' })[state.data.kind]
+  if (!state || state.status === 'loading') return 'Esperando una identidad completa.'
+  if (state.status === 'unavailable') return 'No disponible hasta que el servicio de continuidad esté disponible.'
+  if (state.status !== 'populated') return 'No hay proyección de continuidad disponible.'
+  return ({ predecessor: 'Predecesor confirmado por el servidor disponible.', 'no-predecessor': 'No hay predecesor confirmado por el servidor.', 'stale-configuration': 'Configuración desactualizada confirmada por el servidor.' })[state.data.kind]
 }

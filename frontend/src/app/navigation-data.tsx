@@ -24,7 +24,7 @@ export const navData: NavItem[] = [
   ] },
   { label: 'Hilatura', icon: <IconSpiral size={18} />, children: [
     { label: 'Preparación', path: '/spinning/preparation', icon: <IconDashboard size={16} /> },
-    { label: 'Ring spinning', path: '/spinning/ring-spinning', icon: <IconDashboard size={16} /> },
+    { label: 'Hilatura de anillos', path: '/spinning/ring-spinning', icon: <IconDashboard size={16} /> },
     { label: 'Bobinado', path: '/spinning/bobbin-winding', icon: <IconDashboard size={16} /> },
     { label: 'Retorcido', path: '/spinning/twisting', icon: <IconDashboard size={16} /> },
     { label: 'Madejas', path: '/spinning/skeining', icon: <IconDashboard size={16} /> },

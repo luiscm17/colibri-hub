@@ -38,16 +38,16 @@ export function ProductionDischargeGrid({ catalog, draft, onRowsChange, onAddRow
     { key: 'cartWeightKg', name: DISCHARGE_COLUMN_LABELS.cartWeightKg, width: 150, editable: true, renderEditCell: renderTextEditor, renderCell: cell => <Cell row={cell.row} column="cartWeightKg" /> },
     { key: 'rovingCount', name: DISCHARGE_COLUMN_LABELS.rovingCount, width: 180, editable: true, renderEditCell: renderTextEditor, renderCell: cell => <Cell row={cell.row} column="rovingCount" /> },
     { key: 'observations', name: DISCHARGE_COLUMN_LABELS.observations, width: 220, editable: true, renderEditCell: renderTextEditor, renderCell: cell => <Cell row={cell.row} column="observations" /> },
-    { key: 'netWeight', name: DISCHARGE_COLUMN_LABELS.netWeight, width: 180, renderCell: () => <Text component="span">Unavailable until server confirmation</Text> },
-    { key: 'state', name: 'State', width: 210, renderCell: cell => <Text component="span">{label(feedback.get(cell.row.rowId)?.state)}</Text> },
+    { key: 'netWeight', name: DISCHARGE_COLUMN_LABELS.netWeight, width: 180, renderCell: () => <Text component="span">No disponible hasta la confirmación del servidor</Text> },
+    { key: 'state', name: 'Estado', width: 210, renderCell: cell => <Text component="span">{label(feedback.get(cell.row.rowId)?.state)}</Text> },
   ], [canSelect, feedback, machineOptions, yarnCountOptions])
   const feedbackBar = <Alert id="production-discharge-feedback" color={invalidCount ? 'red' : 'blue'} role={invalidCount ? 'alert' : 'status'}>
-    {invalidCount ? `${invalidCount} row${invalidCount === 1 ? '' : 's'} requires correction.` : canSelect ? 'Draft rows stay local until the production service is available.' : 'Machine and yarn-count selections are unavailable until reference data is available.'}
+    {invalidCount ? `${invalidCount} fila${invalidCount === 1 ? '' : 's'} requiere corrección.` : canSelect ? 'Las filas del borrador permanecen locales hasta que el servicio de producción esté disponible.' : 'Las selecciones de máquina y título de hilo no están disponibles hasta que los datos de referencia estén disponibles.'}
   </Alert>
   return <>
     {canSelect && <Text size="sm" c="dimmed" aria-label="Available reference selections">{machineOptions.map(option => option.label).join(', ')} · {yarnCountOptions.map(option => option.label).join(', ')}</Text>}
     <DataGridShell
-    toolbar={<Group justify="space-between" mb="sm"><Text fw={600}>Production Discharge</Text><Button size="xs" onClick={onAddRow} disabled={!canSelect} aria-describedby={!canSelect ? 'production-discharge-feedback' : undefined}>Add discharge</Button></Group>}
+    toolbar={<Group justify="space-between" mb="sm"><Text fw={600}>Descarga de producción</Text><Button size="xs" onClick={onAddRow} disabled={!canSelect} aria-describedby={!canSelect ? 'production-discharge-feedback' : undefined}>Agregar descarga</Button></Group>}
     statusBar={feedbackBar}
     aria-label="Production Discharge grid"
     aria-describedby="production-discharge-feedback"
@@ -70,5 +70,5 @@ function Cell({ row, column }: { readonly row: ProductionDischargeRow; readonly 
 function isDischargeColumn(value: string): value is DischargeColumn { return DISCHARGE_EDITABLE_COLUMNS.some(column => column === value) }
 
 function label(state: ReturnType<typeof dischargeRowFeedback>['state'] | undefined): string {
-  return ({ pending: 'Pending', invalid: 'Invalid', complete: 'Complete', 'acknowledged-no-production': 'Acknowledged no production' })[state ?? 'pending']
+  return ({ pending: 'Pendiente', invalid: 'No válido', complete: 'Completo', 'acknowledged-no-production': 'Sin producción confirmada' })[state ?? 'pending']
 }
