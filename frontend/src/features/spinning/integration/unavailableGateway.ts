@@ -8,4 +8,7 @@ export const unavailableIntegrationState: Extract<RemoteState<never>, { status: 
 
 export const unavailableSpinningGateway: SpinningGateway = {
   getIntegrationState: async () => unavailableIntegrationState,
+  getSectionContext: async () => unavailableIntegrationState,
+  getProductionDischargeCatalog: async () => unavailableIntegrationState,
+  getProgressContinuity: async () => unavailableIntegrationState,
 }

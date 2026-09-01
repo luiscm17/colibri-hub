@@ -35,9 +35,10 @@ Yarn Spinning follows the [Frontend Architecture Overview](../architecture/overv
 
 ## User-Visible Capabilities
 
-- Section workspaces establish a business-date and shift context and support applicable production
-  and progress capture as one shift-close outcome. Their header/capture context provides one
-  operational supervisor selection, applied to every applicable record submitted from that capture.
+- Section workspaces establish a business-date and shift context and compose the applicable
+  coordinated operational grids into one shift-close outcome. Their header/capture context provides
+  one operational supervisor selection, applied to every applicable record submitted from that
+  capture.
 - Process Quality and Waste provide separate server-authorized capture and review experiences.
 - Section and consolidated dashboards provide read-only operational results in a retained reporting
   context.
@@ -50,6 +51,21 @@ Shared Reference Data supplies read-only choices for capture and reporting conte
 neither duplicates nor administers them. Authoritative services validate requests, preserve records,
 calculate results, and decide request outcomes. Other frontend capabilities use intentional
 user-facing integration points rather than this capability's internals.
+
+## Section Workspace Composition
+
+A section workspace composes coordinated operational grids; it is not one generic form. Where
+applicable, Production Discharge is an editable, spreadsheet-style grid. Each discharge row is a
+distinct event, so repeated discharges with the same machine and yarn count remain separate rows and
+are submitted as separate events.
+
+Progress is a distinct per-machine-and-yarn-count summary grid only for Preparation PSJ machines,
+Ring Spinning, and Twisting. It does not apply to Bobbin Winding or Skeining. Within Preparation,
+Production Discharge applies only to FIN machines.
+
+Skeining has its own production grid and remains separate from Lot Processing. Any aggregated
+discharged weight presented in the workspace is a backend-confirmed value: the frontend neither
+calculates nor confirms it.
 
 ## Interaction States and Outcomes
 

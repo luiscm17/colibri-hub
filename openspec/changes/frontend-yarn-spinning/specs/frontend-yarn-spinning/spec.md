@@ -2,107 +2,89 @@
 
 ## Purpose
 
-Provide accessible, responsive Yarn Spinning workflows while preserving the planned backend contract as a future integration. The frontend MUST NOT implement business calculations, persistence, API behavior, or access-control policy.
+Provide accessible Yarn Spinning capture, review, correction, and reporting workflows. The frontend MUST preserve server authority for outcomes, calculations, persistence, and authorization.
 
 ## Requirements
 
-### Requirement: Section Workspaces
+### Requirement: Section Production Discharge Grids
 
-The system MUST provide five route-composed section workspaces, including Skeining. Each workspace SHALL preserve visible business-date, shift, and capture context, separate Skeining from Lot Processing, and present production and applicable Progress as one section-close submission intent. Until its real API exists, every server-dependent read or submit MUST show an explicit unavailable-integration state and MUST NOT fabricate an outcome.
+The system MUST compose applicable section production as repeatable spreadsheet-style Production Discharge grids, not a generic form. Each row SHALL represent one distinct discharge event, including repeated machine-and-yarn-count discharges. Grids MUST support keyboard entry, appropriate paste, inline validation, and visible pending, invalid, complete, and acknowledged-no-production row states. In Preparation, Production Discharge MUST apply only to FIN machines.
 
-#### Scenario: Open a section workspace
-- GIVEN a user reaches a Yarn Spinning section destination
-- WHEN the workspace renders
-- THEN it shows its capture context and unavailable-integration state
-- AND it does not show a locally confirmed record or calculation
+#### Scenario: Capture repeated discharges
+- GIVEN an applicable section grid is open
+- WHEN a user enters two discharges with the same machine and yarn count
+- THEN both rows remain separate events with their own validation state
 
-#### Scenario: Identify Skeining
+#### Scenario: Paste invalid production data
+- GIVEN a user pastes values into production rows
+- WHEN a pasted value is incomplete or malformed
+- THEN the affected row shows inline validation without confirming an outcome
+
+### Requirement: Applicable Progress Summary Grid
+
+The system MUST provide one distinct unique per-machine-and-yarn-count Progress summary grid only for Preparation PSJ, Ring Spinning, and Twisting. It MUST NOT expose Progress for Bobbin Winding or Skeining, calculate or aggregate Progress locally, or treat Progress as a discharge-event grid. The grid SHALL show only server-derived continuity and editable predecessor suggestions.
+
+#### Scenario: Render applicable Progress
+- GIVEN a user opens Ring Spinning
+- WHEN the section workspace renders
+- THEN one Progress summary grid is available beside applicable production capture
+
+#### Scenario: Change Progress identity
+- GIVEN a continuity request is pending
+- WHEN the machine or yarn count changes
+- THEN an obsolete response MUST NOT replace the current grid context
+
+### Requirement: Skeining Production Boundary
+
+The system MUST provide Skeining as a separate Yarn-Spinning production grid. It MUST NOT expose Progress or Lot Processing behavior.
+
+#### Scenario: Open Skeining
 - GIVEN a user opens the Skeining workspace
-- WHEN its capture experience is displayed
-- THEN it identifies Skeining as a Yarn Spinning workflow
-- AND it does not expose Lot Processing behavior
+- WHEN its capture surface renders
+- THEN it shows only Skeining production and no Progress or Lot Processing controls
 
-### Requirement: Progress Continuity Presentation
+### Requirement: Independent Waste Grid
 
-The system MUST reserve a Progress continuity presentation for the planned backend response. It SHALL identify predecessor-derived input, editable predecessor suggestions, no-predecessor zero, stale configuration, and read failure without deriving continuity locally.
+The system MUST provide Waste as an independent editable grid for real weighed waste by machine group and shift. It MUST NOT calculate waste or classify theoretical, accumulated, or reprocessing values as waste.
 
-#### Scenario: Display unavailable continuity
-- GIVEN a user begins applicable Progress capture
-- WHEN continuity integration is unavailable
-- THEN the draft remains available
-- AND the interface explains that continuity cannot be retrieved
+#### Scenario: Edit Waste independently
+- GIVEN a section capture is in progress
+- WHEN a user enters Waste rows
+- THEN those rows remain independent from production and Progress capture
 
-#### Scenario: Prevent stale continuity display
-- GIVEN the Progress identity changes during a pending continuity read
-- WHEN an older response would arrive
-- THEN it MUST NOT replace the newer identity context
+### Requirement: Profile-Driven Process Quality
 
-### Requirement: Process Quality Experiences
+The system MUST provide independent Process Quality configuration and capture. A Sample profile SHALL render its configured ordered 10–15 measurements in a React Data Grid with units, validation, readonly results, and tolerance status from the server contract. Other Quality methods MUST remain profile-driven and MUST NOT be represented as grids unless their profile requires it.
 
-The system MUST provide independent Process Quality profile configuration and capture surfaces. It SHALL present profile version, configured fields or ordered samples, units, readonly results, and tolerance status only from the future server contract; it MUST NOT provide arbitrary formulas or locally confirm results.
+#### Scenario: Capture a Sample profile
+- GIVEN an authorized Sample profile provides 10–15 measurements
+- WHEN Quality capture renders
+- THEN the measurements appear in their supplied order in a React Data Grid
 
-#### Scenario: Open Quality capture
-- GIVEN a user enters Process Quality capture
-- WHEN the profile API is unavailable
-- THEN the interface shows an explicit unavailable-integration state
-- AND no profile fields or result values are invented
+#### Scenario: Open unavailable Quality
+- GIVEN the profile integration is unavailable
+- WHEN a user enters Quality capture
+- THEN the interface shows unavailability without inventing fields or results
 
-#### Scenario: Preserve a Quality draft
-- GIVEN a user has entered raw Quality values
-- WHEN a recoverable integration failure occurs
-- THEN entered values and profile context remain available
+### Requirement: Server-Confirmed and Recoverable States
 
-### Requirement: Waste Experience
+The system MUST show explicit unavailable-integration states for unavailable server-dependent reads and submits, preserving drafts where recoverable. It MUST NOT fabricate successful records, continuity, calculations, metrics, or authorization outcomes. Dashboards and record reads SHALL retain filters and distinguish loading, empty, populated, stale, failure, and unavailable states; correction conflicts MUST retain local work and require a current-record read before retry.
 
-The system MUST provide an independent Waste capture and review experience for real weighed waste by machine group and shift. It MUST NOT classify theoretical, accumulated, or reprocessing values as waste, calculate waste, or confirm a record without the backend.
+#### Scenario: Submit while integration is unavailable
+- GIVEN a user has a valid local capture draft
+- WHEN its submit integration is unavailable
+- THEN the draft remains available and no success is displayed
 
-#### Scenario: Open Waste capture
-- GIVEN a user opens Waste capture
-- WHEN its integration is unavailable
-- THEN the interface explains the unavailable state
-- AND it does not display a fabricated waste result
+#### Scenario: Render empty reporting
+- GIVEN a record read returns no records
+- WHEN the result is displayed
+- THEN it shows an empty state and not a zero metric
 
-### Requirement: Reporting and Record Reads
+### Requirement: Accessible Responsive Operation
 
-The system MUST provide section and consolidated dashboard and current-record read surfaces with retained reporting filters. It SHALL distinguish loading, empty, populated, stale, failure, and unavailable integration states, and MUST show only future backend-returned metric values, units, and availability.
+The system MUST make grid editing, validation, status, unavailable, and recovery states keyboard-operable, visibly focused, and programmatically announced. It SHALL preserve essential context and reachable grid controls through controlled overflow on constrained viewports.
 
-#### Scenario: View a dashboard without an API
-- GIVEN a user selects reporting context
-- WHEN the dashboard API is unavailable
-- THEN selected filters remain visible
-- AND the dashboard states that current results are unavailable
-
-#### Scenario: Read records with no results
-- GIVEN a record-read response contains no records
-- WHEN the result is rendered
-- THEN the interface shows an empty state
-- AND it does not present absence as zero
-
-### Requirement: Correction, History, and Recovery
-
-The system MUST provide correction and history review surfaces that preserve local drafts through recoverable failures and conflicts. A conflict SHALL retain local work and require a future current-record read before any retry; the UI MUST NOT overwrite information silently or make downstream changes automatically.
-
-#### Scenario: Recover a correction conflict
-- GIVEN a correction draft encounters a conflict
-- WHEN the conflict state is displayed
-- THEN the draft remains available with recovery guidance
-- AND no retry or downstream change occurs automatically
-
-#### Scenario: View history without an API
-- GIVEN a user opens record history
-- WHEN the history integration is unavailable
-- THEN the interface shows an explicit unavailable-integration state
-
-### Requirement: Accessible Responsive Interaction
-
-The system MUST make draft, validation, status, unavailable, and recovery states keyboard-operable and programmatically announced. It SHALL retain essential context, inputs, completion status, and review actions on constrained viewports through reachable controls and controlled overflow.
-
-#### Scenario: Operate an unavailable state by keyboard
-- GIVEN a keyboard user reaches an unavailable server-dependent action
-- WHEN focus moves to its state and recovery control
-- THEN focus is visible and status is announced
-
-#### Scenario: Use a constrained viewport
-- GIVEN a section workspace is displayed on a small viewport
-- WHEN capture or review content overflows
-- THEN essential context and controls remain reachable
+#### Scenario: Operate a narrow grid by keyboard
+- GIVEN a keyboard user views a constrained workspace
+- WHEN capture columns overflow
+- THEN inputs, validation, status, and recovery controls remain reachable
