@@ -19,7 +19,7 @@ describe('SpinningRoutePage', () => {
     expect(screen.queryByText(/confirmed|calculated/i)).toBeNull()
   })
 
-  it('uses catalog applicability for Preparation machine and yarn-count selections', async () => {
+  it('uses catalog-backed identities and shows Progress for Preparation', async () => {
     render(<MantineProvider><SectionWorkspace workspace="preparation" gateway={catalogGateway} /></MantineProvider>)
 
     const selections = await screen.findByLabelText('Available reference selections')
@@ -27,7 +27,14 @@ describe('SpinningRoutePage', () => {
     expect(selections.textContent).not.toContain('PSJ-01')
     expect(selections.textContent).toContain('30/1')
     expect(screen.getByLabelText('Production Discharge grid')).toBeTruthy()
-    expect(screen.queryByText('Applicable Progress')).toBeNull()
+    expect(screen.getByLabelText('Progress summary grid')).toBeTruthy()
+  })
+
+  it('does not show Progress for Bobbin Winding', async () => {
+    render(<MantineProvider><SectionWorkspace workspace="bobbinWinding" gateway={catalogGateway} /></MantineProvider>)
+
+    expect(await screen.findByLabelText('Production Discharge grid')).toBeTruthy()
+    expect(screen.queryByLabelText('Progress summary grid')).toBeNull()
   })
 
   it('keeps catalog-dependent selections unavailable when production reference data is unavailable', async () => {
