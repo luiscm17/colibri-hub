@@ -4,9 +4,9 @@
 
 - Strategy: `auto-chain`
 - Chain strategy: `feature-branch-chain`
-- Current work unit: `pr4-skeining-production-grid`
-- PR boundary: independent Skeining production grid on `front/yarn-spinning-skeining`, targeting `front/yarn-spinning-implentation`. No commit or PR was created.
-- Review budget: 197 changed lines, within the 400-line budget (203 lines remaining).
+- Current work unit: `pr5-quality-profile-configuration-capture`
+- PR boundary: profile-driven Quality configuration and capture on `front/yarn-spinning-quality-profiles`, targeting `front/yarn-spinning-implentation`. No commit or PR was created.
+- Review budget: pending final native settlement; the scoped implementation remains below the 400-line limit.
 
 ## Completed Tasks
 
@@ -19,6 +19,7 @@
 - [x] 3.1 RED/GREEN: add `progressModel`/`ProgressGrid` unique machine+yarn-count rows only for PSJ/Ring/Twisting; reject stale reads and aggregation.
 - [x] Corrective scope for 2.1/2.2: derive the optional roving-title input from the read-only catalog's applicable-machine configuration; show the operational supervisor capture context and use shift values `A`/`B`/`C`. No future-phase task was completed.
 - [x] 4.1 RED/GREEN: create `SkeiningGrid` as independent production; assert no Progress or Lot Processing controls.
+- [x] 5.1 RED/GREEN: create `quality/**` configuration/capture; unavailable profiles invent no fields/results and retain drafts.
 
 ## Work Unit Evidence
 
@@ -29,6 +30,7 @@
 | PR 3 — applicable Progress summaries | RED: `pnpm exec vitest run src/features/spinning/sections/progressModel.test.ts` — exit 1; `progressModel` did not exist. GREEN: `pnpm exec vitest run src/features/spinning/sections/progressModel.test.ts src/features/spinning/routes.test.tsx` — exit 0; 2 files, 6 tests passed. Full: `pnpm exec vitest run` — exit 0; 34 files, 150 tests passed. `pnpm lint` — exit 0. `pnpm build` — exit 0; existing >500 kB chunk warning only. `git diff --check` — exit 0. | N/A — no runtime/server boundary exists: the continuity gateway remains unavailable and no HTTP request or fabricated response was introduced. The focused component scenario proves Progress is rendered for Preparation and absent for Bobbin Winding. | Revert `frontend/src/features/spinning/sections/{progressModel.ts,progressModel.test.ts,ProgressGrid.tsx}`, the PR3 edits in `SectionWorkspace.tsx`, `configuration.ts`, `integration/contracts.ts`, and `routes.test.tsx`. Production Discharge and all later phases remain intact. |
 | Phase 2 corrective discharge behavior | `pnpm exec vitest run src/features/spinning/routes.test.tsx src/features/spinning/sections/dischargeModel.test.ts` — exit 0; 2 files, 11 tests passed. The focused component cases prove FIN-authorized catalog configuration enables the optional roving-title input, while Continuas, Bobinados, and Retorcedoras catalogs without that authorization do not; they also prove the visible operational-supervisor context and `A`/`B`/`C` shift values. `pnpm lint` — exit 0. `pnpm build` — exit 0; existing >500 kB chunk warning only. `git diff --check -- frontend/src/features/spinning` — exit 0. | N/A — no server runtime boundary exists. The supervisor context is visible but disabled until a server-owned authorized selection contract exists; the gateway remains unavailable and this correction introduces no HTTP, submit, calculation, or fabricated result. | Revert the corrective edits to `frontend/src/features/spinning/{integration/contracts.ts,routes.test.tsx,sections/ProductionDischargeGrid.tsx,sections/SectionWorkspace.tsx,sections/configuration.ts,sections/dischargeModel.test.ts}` and the matching Phase 2 artifact notes. Previously delivered Progress and all future grid scopes remain intact. |
 | PR 4 — independent Skeining production | RED: `pnpm exec vitest run src/features/spinning/sections/SkeiningGrid.test.tsx` — exit 1; the Skeining production grid was absent. GREEN: `pnpm exec vitest run src/features/spinning/sections/SkeiningGrid.test.tsx src/features/spinning/routes.test.tsx` — exit 0; 2 files, 8 tests passed. Full: `pnpm exec vitest run` — exit 0; 35 files, 154 tests passed. `pnpm lint` — exit 0. `pnpm build` — exit 0; existing >500 kB chunk warning only. `git diff --check -- frontend/src/features/spinning openspec/changes/frontend-yarn-spinning` — exit 0. | N/A — no runtime/server boundary exists: the reference gateway remains read-only and no HTTP call, submission, total calculation, or fabricated server result was introduced. The focused component scenario exercises populated catalog selections, the seven-column Skeining grid, server-confirmed-total status, and absence of Progress and Lot Processing controls. | Revert `frontend/src/features/spinning/sections/{SkeiningGrid.tsx,SkeiningWorkspace.tsx,skeiningModel.ts,SkeiningGrid.test.tsx}` and the Skeining-only changes in `frontend/src/features/spinning/{routes.tsx,routes.test.tsx}`. Existing section Production Discharge and Progress grids remain intact. |
+| PR 5 — Quality profile configuration/capture | `pnpm exec vitest run src/features/spinning/quality/QualityWorkspace.test.tsx src/features/spinning/routes.test.tsx` — exit 0; 2 files, 9 tests passed. Full: `pnpm exec vitest run` — exit 0; 36 files, 156 tests passed. `pnpm lint` — exit 0. `pnpm build` — exit 0; existing >500 kB chunk warning only. `git diff --check -- frontend/src/features/spinning openspec/changes/frontend-yarn-spinning` — exit 0. | N/A — no server runtime boundary exists: the gateway supplies only server-authorized profile configuration, while the default is unavailable; no HTTP call, submit, formula, result, tolerance, or correction behavior was introduced. Focused scenarios prove only authorized fields render and unavailable profiles expose no fields/results while local draft state remains owned by Quality. | Revert `frontend/src/features/spinning/quality/**` plus the Quality-only changes in `frontend/src/features/spinning/{routes.tsx,integration/contracts.ts,integration/unavailableGateway.ts,routes.test.tsx,sections/SkeiningGrid.test.tsx}`. Existing section and Skeining workflows remain intact. |
 
 ## Verification
 
@@ -39,6 +41,7 @@
 - PR3: `pnpm exec vitest run src/features/spinning/sections/progressModel.test.ts src/features/spinning/routes.test.tsx` — exit 0; 2 files, 6 tests passed; `pnpm exec vitest run` — exit 0; 34 files, 150 tests passed; `pnpm lint` and `pnpm build` — exit 0; `git diff --check` — exit 0.
 - Phase 2 correction: `pnpm exec vitest run src/features/spinning/routes.test.tsx src/features/spinning/sections/dischargeModel.test.ts` — exit 0; 2 files, 11 tests passed. `pnpm lint` — exit 0. `pnpm build` — exit 0 with the existing >500 kB chunk warning. `git diff --check -- frontend/src/features/spinning` — exit 0.
 - PR4: `pnpm exec vitest run src/features/spinning/sections/SkeiningGrid.test.tsx src/features/spinning/routes.test.tsx` — exit 0; 2 files, 8 tests passed. `pnpm exec vitest run` — exit 0; 35 files, 154 tests passed. `pnpm lint` — exit 0. `pnpm build` — exit 0 with the existing >500 kB chunk warning. `git diff --check -- frontend/src/features/spinning openspec/changes/frontend-yarn-spinning` — exit 0.
+- PR5: `pnpm exec vitest run src/features/spinning/quality/QualityWorkspace.test.tsx src/features/spinning/routes.test.tsx` — exit 0; 2 files, 9 tests passed. `pnpm exec vitest run` — exit 0; 36 files, 156 tests passed. `pnpm lint` — exit 0. `pnpm build` — exit 0 with the existing >500 kB chunk warning. `git diff --check -- frontend/src/features/spinning openspec/changes/frontend-yarn-spinning` — exit 0.
 
 ## Native Attempt
 
@@ -48,6 +51,8 @@
 - Result: `complete` / passed; evidence revision `phase2-corrective-108-changed-lines` covers the bounded corrective source, tests, and Phase 2 artifact notes.
 - Token `sha256:9548c7bd971686dbe724e1b944c148ff21931002a28d49cae1d3e9d147b1b16c` settled once with request ID `pr4-skeining-grid-settle-20260901-1000`.
 - Result: `complete` / passed; evidence revision `sha256:f3a6a7419bd062afa0283bdd29b875544956780097a2f31f988e6b95d2a1cfe8` covers the bounded PR4 source, tests, and OpenSpec task/progress artifacts.
+- Token `sha256:ac6cbc7b70a1bed4791d0d16133398bb603f7eac1af7c2300d63f86bcb7871c5` acquired for PR5 with request ID `pr5-quality-profiles-acquire-20260901`.
+- Settlement remains pending: the native runtime rejected the selected new `quality/**` files with `untracked inventory changed` after the required `gentle-ai review status --agent opencode --next-transition` preflight. All focused/full frontend evidence passed; do not treat the native attempt as settled until the current untracked inventory is accepted.
 
 ## Constraints Honored
 
@@ -60,4 +65,4 @@
 
 ## Remaining Tasks
 
-- [ ] Phase 5 through Phase 10 (tasks 5.1–10.2).
+- [ ] Phase 6 through Phase 10 (tasks 6.1–10.2).
