@@ -41,10 +41,10 @@ Corrective scope for the already discharged tasks 2.1/2.2: the optional roving-t
 - [x] 5.1 RED/GREEN: create `quality/**` configuration/capture; unavailable profiles invent no fields/results and retain drafts.
 
 ## Phase 6: Quality Sample Grid (PR 6)
-- [ ] 6.1 RED/GREEN: render 10–15 ordered Sample measurements in React Data Grid with units, validation, readonly results, tolerance status.
+- [x] 6.1 RED/GREEN: render 10–15 ordered Sample measurements in React Data Grid with units, validation, readonly results, tolerance status.
 
 ## Phase 7: Waste (PR 7)
-- [ ] 7.1 RED/GREEN: create independent `waste/**` weighed machine-group/shift grid; prohibit production/Progress coupling and calculated waste.
+- [x] 7.1 RED/GREEN: create independent `waste/**` weighed machine-group/shift grid; prohibit production/Progress coupling and calculated waste.
 
 ## Phase 8: Reporting (PR 8)
 - [ ] 8.1 RED/GREEN: create `reporting/**`; retain URL filters and distinguish loading/empty/populated/stale/failure/unavailable without zero substitution.
