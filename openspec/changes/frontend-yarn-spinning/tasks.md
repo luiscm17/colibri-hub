@@ -38,7 +38,7 @@ Corrective scope for the already discharged tasks 2.1/2.2: the optional roving-t
 - [x] 4.1 RED/GREEN: create `SkeiningGrid` as independent production; assert no Progress or Lot Processing controls.
 
 ## Phase 5: Quality Profiles (PR 5)
-- [ ] 5.1 RED/GREEN: create `quality/**` configuration/capture; unavailable profiles invent no fields/results and retain drafts.
+- [x] 5.1 RED/GREEN: create `quality/**` configuration/capture; unavailable profiles invent no fields/results and retain drafts.
 
 ## Phase 6: Quality Sample Grid (PR 6)
 - [ ] 6.1 RED/GREEN: render 10–15 ordered Sample measurements in React Data Grid with units, validation, readonly results, tolerance status.
