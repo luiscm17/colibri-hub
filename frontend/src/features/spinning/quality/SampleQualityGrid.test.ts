@@ -1,23 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { sampleMeasurementValidationError, sampleQualityRows } from './qualityModel'
-import type { QualityMeasurement } from '../integration/contracts'
+import { updateSampleRecord } from './qualityModel'
+import type { QualitySampleRecord } from '../integration/contracts'
 
 describe('SampleQualityGrid model', () => {
-  const measurements: readonly QualityMeasurement[] = [
-    { id: 'first', label: 'First', unit: 'u', required: true, validation: 'decimal', serverResult: '1,2', toleranceStatus: 'within-tolerance' },
-    { id: 'second', label: 'Second', unit: 'u', required: false, validation: 'integer', serverResult: null, toleranceStatus: 'pending' },
+  const records: readonly QualitySampleRecord[] = [
+    { id: 'first', number: 1, section: 'Preparación A', machine: 'PSJ-0A', type: 'HB', yarnTitle: '2/40', samples: ['22,45'], projections: { average: null } },
   ]
 
-  it('preserves profile order and server projections without deriving results', () => {
-    expect(sampleQualityRows(measurements, { second: '2', first: '1,5' })).toMatchObject([
-      { id: 'first', value: '1,5', serverResult: '1,2', toleranceStatus: 'within-tolerance' },
-      { id: 'second', value: '2', serverResult: null, toleranceStatus: 'pending' },
-    ])
-  })
-
-  it('validates only configured input formats and required values', () => {
-    expect(sampleMeasurementValidationError({ required: true, validation: 'decimal', value: '' })).toContain('obligatoria')
-    expect(sampleMeasurementValidationError({ required: false, validation: 'integer', value: '1,2' })).toContain('entero')
-    expect(sampleMeasurementValidationError({ required: true, validation: 'decimal', value: '1,2' })).toBeUndefined()
+  it('updates only the selected sample cell without deriving server projections', () => {
+    expect(updateSampleRecord(records, 'first', 2, '22,58')).toEqual([{
+      ...records[0],
+      samples: ['22,45', '', '22,58'],
+    }])
   })
 })

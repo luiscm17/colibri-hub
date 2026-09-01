@@ -3,56 +3,42 @@ import { useMemo } from 'react'
 import { renderTextEditor, type Column } from 'react-data-grid'
 import 'react-data-grid/lib/styles.css'
 import { DataGridShell } from '@/common/grid/DataGridShell'
-import type { QualityMeasurement } from '../integration/contracts'
-import { sampleMeasurementValidationError, sampleQualityRows, type SampleQualityRow } from './qualityModel'
+import type { QualitySampleProfile, QualitySampleRecord } from '../integration/contracts'
 
 interface SampleQualityGridProps {
-  readonly measurements: readonly QualityMeasurement[]
-  readonly values: Readonly<Record<string, string>>
-  readonly onValueChange: (measurementId: string, value: string) => void
+  readonly profile: QualitySampleProfile
+  readonly records: readonly QualitySampleRecord[]
+  readonly onRecordsChange: (records: readonly QualitySampleRecord[]) => void
 }
 
-export function SampleQualityGrid({ measurements, values, onValueChange }: SampleQualityGridProps) {
-  const rows = useMemo<readonly SampleQualityRow[]>(
-    () => sampleQualityRows(measurements, values),
-    [measurements, values],
-  )
-  const invalidCount = rows.filter(row => sampleMeasurementValidationError(row) !== undefined).length
-  const columns = useMemo<readonly Column<SampleQualityRow>[]>(() => [
-    { key: 'label', name: 'Medición', width: 240, frozen: 'start' },
-    { key: 'unit', name: 'Unidad', width: 110 },
-    { key: 'value', name: 'Valor de muestra', width: 170, editable: true, renderEditCell: renderTextEditor, renderCell: cell => <ValueCell row={cell.row} /> },
-    { key: 'serverResult', name: 'Resultado del servidor', width: 210, renderCell: cell => <Text component="span">{cell.row.serverResult ?? 'Pendiente de confirmación del servidor'}</Text> },
-    { key: 'toleranceStatus', name: 'Tolerancia', width: 190, renderCell: cell => <ToleranceCell status={cell.row.toleranceStatus} /> },
-  ], [])
+export function SampleQualityGrid({ profile, records, onRecordsChange }: SampleQualityGridProps) {
+  const columns = useMemo<readonly Column<QualitySampleRecord>[]>(() => [
+    { key: 'number', name: 'No', width: 70, frozen: 'start' },
+    { key: 'section', name: 'Sección', width: 180, frozen: 'start' },
+    { key: 'machine', name: 'Máquina', width: 140, frozen: 'start' },
+    { key: 'type', name: 'Tipo', width: 100, frozen: 'start' },
+    { key: 'yarnTitle', name: 'Título', width: 110, frozen: 'start' },
+    ...Array.from({ length: profile.sampleCount }, (_, index): Column<QualitySampleRecord> => ({ key: `sample-${index}`, name: `Muestra ${index + 1}`, width: 120, editable: true, renderEditCell: renderTextEditor, renderCell: cell => <Text component="span">{cell.row.samples[index] || '—'}</Text> })),
+    ...profile.resultColumns.map((column): Column<QualitySampleRecord> => ({ key: `projection-${column.id}`, name: column.label, width: 135, renderCell: cell => <Text component="span">{cell.row.projections[column.id] ?? 'Pendiente'}</Text> })),
+    ...(profile.supportsObservations ? [{ key: 'observations', name: 'Observaciones', width: 220, editable: true, renderEditCell: renderTextEditor, renderCell: (cell: { row: QualitySampleRecord }) => <Text component="span">{cell.row.observations || '—'}</Text> }] : []),
+  ], [profile])
 
   return <DataGridShell
-    toolbar={<Group justify="space-between" mb="sm"><Text fw={600}>Muestra: {measurements.length} mediciones configuradas</Text></Group>}
-    statusBar={<Alert id="sample-quality-grid-feedback" color={invalidCount ? 'red' : 'blue'} role={invalidCount ? 'alert' : 'status'}>{invalidCount ? `${invalidCount} medición${invalidCount === 1 ? '' : 'es'} requiere corrección.` : 'Los resultados y la tolerancia son confirmados únicamente por el servidor.'}</Alert>}
+    toolbar={<Group justify="space-between" mb="sm"><Text fw={600}>Registros de muestra: {records.length}</Text></Group>}
+    statusBar={<Alert id="sample-quality-grid-feedback" color="blue" role="status">Las proyecciones son confirmadas únicamente por el servidor.</Alert>}
     aria-label="Planilla de muestra de calidad"
     aria-describedby="sample-quality-grid-feedback"
     columns={columns}
-    rows={rows}
+    rows={records}
     rowKeyGetter={row => row.id}
-    onRowsChange={nextRows => nextRows.forEach(row => {
-      if ((values[row.id] ?? '') !== row.value) onValueChange(row.id, row.value)
-    })}
+    onRowsChange={nextRows => onRecordsChange(nextRows.map(row => ({
+      ...row,
+      samples: Array.from({ length: profile.sampleCount }, (_, index) => {
+        const editedValue = (row as Record<string, unknown>)[`sample-${index}`]
+        return typeof editedValue === 'string' ? editedValue : row.samples[index] ?? ''
+      }),
+    })))}
     defaultColumnOptions={{ resizable: true }}
-    style={{ minWidth: 920 }}
+    style={{ minWidth: 2100 }}
   />
-}
-
-function ValueCell({ row }: { readonly row: SampleQualityRow }) {
-  const error = sampleMeasurementValidationError(row)
-  return <Text component="span" c={error ? 'red' : undefined} title={error} aria-label={error ? `Error: ${error}` : undefined}>{row.value || '—'}{error ? ' · Error' : ''}</Text>
-}
-
-function ToleranceCell({ status }: { readonly status: QualityMeasurement['toleranceStatus'] }) {
-  const detail = {
-    pending: { label: 'Pendiente', color: 'dimmed' },
-    'within-tolerance': { label: 'Dentro de tolerancia', color: 'green' },
-    'out-of-tolerance': { label: 'Fuera de tolerancia', color: 'red' },
-    unavailable: { label: 'No disponible', color: 'dimmed' },
-  }[status]
-  return <Text component="span" c={detail.color}>{detail.label}</Text>
 }

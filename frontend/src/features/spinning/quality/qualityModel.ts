@@ -1,4 +1,4 @@
-import type { QualityMeasurement, QualityProfile } from '../integration/contracts'
+import type { QualityProfile, QualitySampleRecord } from '../integration/contracts'
 
 export type QualityDraft = Readonly<{
   profileId: string
@@ -21,16 +21,9 @@ export function selectedQualityProfile(profiles: readonly QualityProfile[], draf
   return profiles.find(profile => profile.id === draft.profileId)
 }
 
-export type SampleQualityRow = QualityMeasurement & Readonly<{ value: string }>
-
-export function sampleQualityRows(measurements: readonly QualityMeasurement[], values: Readonly<Record<string, string>>): readonly SampleQualityRow[] {
-  return measurements.map(measurement => ({ ...measurement, value: values[measurement.id] ?? '' }))
-}
-
-export function sampleMeasurementValidationError(row: Pick<SampleQualityRow, 'required' | 'validation' | 'value'>): string | undefined {
-  const value = row.value.trim()
-  if (!value) return row.required ? 'La medición es obligatoria.' : undefined
-  if (row.validation === 'decimal' && !/^-?(?:0|[1-9]\d*)(?:[.,]\d+)?$/.test(value)) return 'Ingrese un valor decimal válido.'
-  if (row.validation === 'integer' && !/^-?(?:0|[1-9]\d*)$/.test(value)) return 'Ingrese un número entero válido.'
-  return undefined
+export function updateSampleRecord(records: readonly QualitySampleRecord[], recordId: string, sampleIndex: number, value: string): readonly QualitySampleRecord[] {
+  return records.map(record => record.id !== recordId ? record : {
+    ...record,
+    samples: Array.from({ length: Math.max(record.samples.length, sampleIndex + 1) }, (_, index) => index === sampleIndex ? value : record.samples[index] ?? ''),
+  })
 }

@@ -1,4 +1,4 @@
-import type { ProductionDischargeCatalog, QualityCaptureCatalog, QualityMeasurement, QualityProfile, RemoteState, SpinningGateway } from './contracts'
+import type { ProductionDischargeCatalog, QualityCaptureCatalog, QualityProfile, QualitySampleRecord, RemoteState, SpinningGateway } from './contracts'
 import { unavailableIntegrationState } from './unavailableGateway'
 
 const catalog: ProductionDischargeCatalog = {
@@ -16,39 +16,34 @@ const catalog: ProductionDischargeCatalog = {
   ],
 }
 
-const sampleMeasurements: readonly QualityMeasurement[] = [
-  { id: 'title', label: 'Título', unit: 'Ne', required: true, validation: 'decimal', serverResult: null, toleranceStatus: 'pending' },
-  { id: 'strength', label: 'Resistencia', unit: 'cN/tex', required: true, validation: 'decimal', serverResult: null, toleranceStatus: 'pending' },
-  { id: 'elongation', label: 'Elongación', unit: '%', required: true, validation: 'decimal', serverResult: null, toleranceStatus: 'pending' },
-  { id: 'evenness', label: 'Regularidad', unit: 'CVm %', required: true, validation: 'decimal', serverResult: null, toleranceStatus: 'pending' },
-  { id: 'thin-places', label: 'Imperfecciones finas', unit: '−', required: false, validation: 'integer', serverResult: null, toleranceStatus: 'pending' },
-  { id: 'thick-places', label: 'Imperfecciones gruesas', unit: '−', required: false, validation: 'integer', serverResult: null, toleranceStatus: 'pending' },
-  { id: 'neps', label: 'Neps', unit: '−', required: false, validation: 'integer', serverResult: null, toleranceStatus: 'pending' },
-  { id: 'hairiness', label: 'Vellosidad', unit: 'H', required: true, validation: 'decimal', serverResult: null, toleranceStatus: 'pending' },
-  { id: 'twist', label: 'Torsión', unit: 'vueltas/m', required: true, validation: 'integer', serverResult: null, toleranceStatus: 'pending' },
-  { id: 'humidity', label: 'Humedad', unit: '%', required: true, validation: 'decimal', serverResult: null, toleranceStatus: 'pending' },
-  { id: 'mass', label: 'Masa', unit: 'g', required: false, validation: 'decimal', serverResult: null, toleranceStatus: 'pending' },
-  { id: 'color', label: 'Color', unit: 'grado', required: false, validation: 'text', serverResult: null, toleranceStatus: 'unavailable' },
-]
-
 const qualityProfiles: RemoteState<readonly QualityProfile[]> = {
   status: 'populated',
-  data: [{ id: 'authorized-sample', label: 'Muestra autorizada', method: 'sample', captureContext: { machine: 'required', applicableMachineIds: ['FIN-01', 'FIN-02'], yarnCount: 'optional', applicableYarnCountIds: ['20-1', '30-1', '40-1'] }, measurements: sampleMeasurements }],
+  data: [{ id: 'authorized-sample', label: 'Muestra autorizada', method: 'sample', sampleCount: 12, resultColumns: [{ id: 'average', label: 'Promedio' }, { id: 'std-error', label: 'Error STD' }, { id: 'body', label: 'Cuerpo' }, { id: 'km', label: 'km' }, { id: 'cuts', label: 'No Cortes' }, { id: 'percentage', label: 'Porcentaje %' }, { id: 'cp', label: 'CP' }, { id: 'splices', label: 'Empalmes' }], supportsObservations: true }],
 }
 
+const sampleRecords: readonly QualitySampleRecord[] = [
+  { id: 'quality-1', number: 1, section: 'Preparación A', machine: 'PSJ-0A', type: 'HB', yarnTitle: '2/40', samples: ['22,45', '22,35', '22,58', '22,03', '21,80', '21,78', '22,06', '22,80', '22,90', '21,45', '22,59', '22,23'], projections: { average: null, 'std-error': null, body: null, km: null, cuts: null, percentage: null, cp: null, splices: null }, observations: '' },
+  { id: 'quality-2', number: 2, section: 'Preparación A', machine: 'PSJ-2A', type: 'HB', yarnTitle: '2/24', samples: [], projections: { average: null, 'std-error': null, body: null, km: null, cuts: null, percentage: null, cp: null, splices: null }, observations: '' },
+]
+
 const qualityCaptureCatalog: QualityCaptureCatalog = {
-  sections: [{ id: 'ring-spinning', label: 'Continuas' }, { id: 'skeining', label: 'Madejeras' }],
   shifts: [{ id: 'A', label: 'Turno A' }, { id: 'B', label: 'Turno B' }],
-  inspectors: [{ id: 'inspector-1', label: 'Inspector 1' }],
-  machines: catalog.machines,
-  yarnCounts: catalog.yarnCounts,
+  supervisors: [{ id: 'junior', label: 'JUNIOR' }],
+  analysts: [{ id: 'pablo', label: 'PABLO' }],
 }
 
 export const developmentSpinningGateway: SpinningGateway = {
+  defaultQualityCaptureContext: {
+    businessDate: '2026-09-01',
+    shiftId: 'A',
+    supervisorId: 'junior',
+    analystId: 'pablo',
+  },
   getIntegrationState: async () => unavailableIntegrationState,
   getSectionContext: async () => unavailableIntegrationState,
   getProductionDischargeCatalog: async () => ({ status: 'populated', data: catalog }),
   getProgressContinuity: async () => unavailableIntegrationState,
   getQualityCaptureCatalog: async () => ({ status: 'populated', data: qualityCaptureCatalog }),
-  getQualityProfiles: async (context) => context.sectionId === 'ring-spinning' && context.businessDate && context.shiftId && context.inspectorId ? qualityProfiles : { status: 'empty' },
+  getQualityProfiles: async (context) => context.businessDate && context.shiftId && context.supervisorId && context.analystId ? qualityProfiles : { status: 'empty' },
+  getQualitySampleRecords: async (profileId) => profileId === 'authorized-sample' ? { status: 'populated', data: sampleRecords } : { status: 'empty' },
 }

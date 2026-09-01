@@ -32,37 +32,33 @@ export type QualityCaptureField = Readonly<{
 }>
 
 export type QualityCaptureContext = Readonly<{
-  sectionId: string
   businessDate: string
   shiftId: string
-  inspectorId: string
-  machineId: string
-  yarnCountId: string
+  supervisorId: string
+  analystId: string
 }>
 
 export type QualityCaptureCatalog = Readonly<{
-  sections: readonly ReferenceOption[]
   shifts: readonly ReferenceOption[]
-  inspectors: readonly ReferenceOption[]
-  machines: readonly ReferenceOption[]
-  yarnCounts: readonly ReferenceOption[]
+  supervisors: readonly ReferenceOption[]
+  analysts: readonly ReferenceOption[]
 }>
 
-export type QualityProfileContext = Readonly<{
-  machine: 'hidden' | 'optional' | 'required'
-  applicableMachineIds: readonly string[]
-  yarnCount: 'hidden' | 'optional' | 'required'
-  applicableYarnCountIds: readonly string[]
-}>
-
-export type QualityMeasurement = Readonly<{
+export type QualitySampleProjectionColumn = Readonly<{
   id: string
   label: string
-  unit: string
-  required: boolean
-  validation: 'decimal' | 'integer' | 'text'
-  serverResult: string | null
-  toleranceStatus: 'pending' | 'within-tolerance' | 'out-of-tolerance' | 'unavailable'
+}>
+
+export type QualitySampleRecord = Readonly<{
+  id: string
+  number: number
+  section: string
+  machine: string
+  type: string
+  yarnTitle: string
+  samples: readonly string[]
+  projections: Readonly<Record<string, string | null>>
+  observations?: string
 }>
 
 export type QualityObservationProfile = Readonly<{
@@ -70,22 +66,26 @@ export type QualityObservationProfile = Readonly<{
   label: string
   method: 'observation'
   captureFields: readonly QualityCaptureField[]
-}> & Readonly<{ captureContext: QualityProfileContext }>
+}>
 
 export type QualitySampleProfile = Readonly<{
   id: string
   label: string
   method: 'sample'
-  measurements: readonly QualityMeasurement[]
-}> & Readonly<{ captureContext: QualityProfileContext }>
+  sampleCount: number
+  resultColumns: readonly QualitySampleProjectionColumn[]
+  supportsObservations: boolean
+}>
 
 export type QualityProfile = QualityObservationProfile | QualitySampleProfile
 
 export interface SpinningGateway {
+  defaultQualityCaptureContext?: QualityCaptureContext
   getIntegrationState(signal?: AbortSignal): Promise<RemoteState<never>>
   getSectionContext(identity: SectionIdentity, signal?: AbortSignal): Promise<RemoteState<never>>
   getProductionDischargeCatalog(identity: SectionIdentity, signal?: AbortSignal): Promise<RemoteState<ProductionDischargeCatalog>>
   getProgressContinuity(identity: ProgressIdentity, signal?: AbortSignal): Promise<RemoteState<ProgressContinuity>>
   getQualityCaptureCatalog(signal?: AbortSignal): Promise<RemoteState<QualityCaptureCatalog>>
   getQualityProfiles(context: QualityCaptureContext, signal?: AbortSignal): Promise<RemoteState<readonly QualityProfile[]>>
+  getQualitySampleRecords(profileId: string, context: QualityCaptureContext, signal?: AbortSignal): Promise<RemoteState<readonly QualitySampleRecord[]>>
 }

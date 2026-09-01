@@ -1,16 +1,19 @@
-import { Alert, Select, Stack, Text, TextInput, Title } from '@mantine/core'
+import { Alert, Select, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core'
 import { useEffect, useState } from 'react'
-import type { QualityCaptureCatalog, QualityCaptureContext, QualityProfile, RemoteState, SpinningGateway } from '../integration/contracts'
+import type { QualityCaptureCatalog, QualityCaptureContext, QualityProfile, QualitySampleRecord, RemoteState, SpinningGateway } from '../integration/contracts'
 import { developmentSpinningGateway } from '../integration/developmentGateway'
 import { createQualityDraft, selectQualityProfile, selectedQualityProfile, updateQualityDraft } from './qualityModel'
 import { SampleQualityGrid } from './SampleQualityGrid'
 
+const emptyQualityCaptureContext: QualityCaptureContext = { businessDate: '', shiftId: '', supervisorId: '', analystId: '' }
+
 export function QualityWorkspace({ gateway = developmentSpinningGateway }: { gateway?: SpinningGateway }) {
   const [draft, setDraft] = useState(createQualityDraft)
-  const [context, setContext] = useState<QualityCaptureContext>({ sectionId: '', businessDate: '', shiftId: '', inspectorId: '', machineId: '', yarnCountId: '' })
+  const [context, setContext] = useState<QualityCaptureContext>(() => gateway.defaultQualityCaptureContext ?? emptyQualityCaptureContext)
   const [catalog, setCatalog] = useState<RemoteState<QualityCaptureCatalog>>({ status: 'loading' })
   const [profiles, setProfiles] = useState<RemoteState<readonly QualityProfile[]>>({ status: 'loading' })
-  const hasProfileContext = Boolean(context.sectionId && context.businessDate && context.shiftId && context.inspectorId)
+  const [sampleRecords, setSampleRecords] = useState<RemoteState<readonly QualitySampleRecord[]>>({ status: 'loading' })
+  const hasProfileContext = Boolean(context.businessDate && context.shiftId && context.supervisorId && context.analystId)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -31,9 +34,19 @@ export function QualityWorkspace({ gateway = developmentSpinningGateway }: { gat
 
   const availableProfiles = hasProfileContext && profiles.status === 'populated' ? profiles.data : []
   const profile = selectedQualityProfile(availableProfiles, draft) ?? availableProfiles[0]
+
+  useEffect(() => {
+    if (!profile || profile.method !== 'sample') return
+    const controller = new AbortController()
+    void gateway.getQualitySampleRecords(profile.id, context, controller.signal).then(result => {
+      if (!controller.signal.aborted) setSampleRecords(result)
+    })
+    return () => controller.abort()
+  }, [context, gateway, profile])
+
   const updateContext = (field: keyof QualityCaptureContext, value: string) => {
     setContext(current => ({ ...current, [field]: value }))
-    if (field === 'sectionId' || field === 'businessDate' || field === 'shiftId' || field === 'inspectorId') setDraft(createQualityDraft())
+    setDraft(createQualityDraft())
   }
 
   return <Stack gap="lg">
@@ -48,33 +61,27 @@ export function QualityWorkspace({ gateway = developmentSpinningGateway }: { gat
       disabled={!hasProfileContext || profiles.status !== 'populated'}
     />
     {catalog.status === 'unavailable' || profiles.status === 'unavailable' ? <UnavailableQualityState /> : null}
-    {profile ? <QualityProfileContextFields catalog={catalog} profile={profile} context={context} onChange={updateContext} /> : null}
-    {profile ? <QualityCapture profile={profile} draft={draft} onValueChange={(fieldId, value) => setDraft(current => updateQualityDraft(current, fieldId, value))} /> : null}
+    {profile ? <QualityCapture profile={profile} draft={draft} sampleRecords={sampleRecords} onRecordsChange={records => setSampleRecords({ status: 'populated', data: records })} onValueChange={(fieldId, value) => setDraft(current => updateQualityDraft(current, fieldId, value))} /> : null}
   </Stack>
 }
 
 function QualityCaptureContextFields({ catalog, context, onChange }: { catalog: RemoteState<QualityCaptureCatalog>; context: QualityCaptureContext; onChange: (field: keyof QualityCaptureContext, value: string) => void }) {
   const options = catalog.status === 'populated' ? catalog.data : undefined
   const selectData = (items: readonly { id: string; label: string }[]) => items.map(item => ({ value: item.id, label: item.label }))
-  return <Stack gap="sm" aria-label="Contexto de captura de calidad">
-    <Select label="Sección" data={selectData(options?.sections ?? [])} value={context.sectionId || null} onChange={value => onChange('sectionId', value ?? '')} disabled={!options} />
-    <TextInput label="Fecha operativa" type="date" value={context.businessDate} onChange={event => onChange('businessDate', event.currentTarget.value)} disabled={!options} />
+  return <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="sm" aria-label="Contexto de captura de calidad">
     <Select label="Turno" data={selectData(options?.shifts ?? [])} value={context.shiftId || null} onChange={value => onChange('shiftId', value ?? '')} disabled={!options} />
-    <Select label="Inspector" data={selectData(options?.inspectors ?? [])} value={context.inspectorId || null} onChange={value => onChange('inspectorId', value ?? '')} disabled={!options} />
-  </Stack>
+    <Select label="Supervisor" data={selectData(options?.supervisors ?? [])} value={context.supervisorId || null} onChange={value => onChange('supervisorId', value ?? '')} disabled={!options} />
+    <TextInput label="Fecha" type="date" value={context.businessDate} onChange={event => onChange('businessDate', event.currentTarget.value)} disabled={!options} />
+    <Select label="Analista" data={selectData(options?.analysts ?? [])} value={context.analystId || null} onChange={value => onChange('analystId', value ?? '')} disabled={!options} />
+  </SimpleGrid>
 }
 
-function QualityProfileContextFields({ catalog, profile, context, onChange }: { catalog: RemoteState<QualityCaptureCatalog>; profile: QualityProfile; context: QualityCaptureContext; onChange: (field: keyof QualityCaptureContext, value: string) => void }) {
-  if (catalog.status !== 'populated') return null
-  const selectOptions = (options: readonly { id: string; label: string }[], allowedIds: readonly string[]) => options.filter(option => allowedIds.includes(option.id)).map(option => ({ value: option.id, label: option.label }))
-  return <Stack gap="sm" aria-label="Contexto de perfil de calidad">
-    {profile.captureContext.machine === 'hidden' ? null : <Select label="Máquina" required={profile.captureContext.machine === 'required'} data={selectOptions(catalog.data.machines, profile.captureContext.applicableMachineIds)} value={context.machineId || null} onChange={value => onChange('machineId', value ?? '')} />}
-    {profile.captureContext.yarnCount === 'hidden' ? null : <Select label="Título de hilo" required={profile.captureContext.yarnCount === 'required'} data={selectOptions(catalog.data.yarnCounts, profile.captureContext.applicableYarnCountIds)} value={context.yarnCountId || null} onChange={value => onChange('yarnCountId', value ?? '')} />}
-  </Stack>
-}
-
-function QualityCapture({ profile, draft, onValueChange }: { profile: QualityProfile; draft: ReturnType<typeof createQualityDraft>; onValueChange: (fieldId: string, value: string) => void }) {
-  if (profile.method === 'sample') return <SampleQualityGrid measurements={profile.measurements} values={draft.values} onValueChange={onValueChange} />
+function QualityCapture({ profile, draft, sampleRecords, onRecordsChange, onValueChange }: { profile: QualityProfile; draft: ReturnType<typeof createQualityDraft>; sampleRecords: RemoteState<readonly QualitySampleRecord[]>; onRecordsChange: (records: readonly QualitySampleRecord[]) => void; onValueChange: (fieldId: string, value: string) => void }) {
+  if (profile.method === 'sample') {
+    if (sampleRecords.status === 'populated') return <SampleQualityGrid profile={profile} records={sampleRecords.data} onRecordsChange={onRecordsChange} />
+    if (sampleRecords.status === 'unavailable' || sampleRecords.status === 'failure') return <Alert role="status" title="Registros no disponibles">Los registros de muestra no están disponibles hasta que el servicio los autorice.</Alert>
+    return <Text role="status">Cargando registros de muestra…</Text>
+  }
 
   return <Stack gap="sm" aria-label="Captura de calidad">
     <Text fw={600}>Captura: {profile.label}</Text>
