@@ -35,7 +35,7 @@ Corrective scope for the already discharged tasks 2.1/2.2: the optional roving-t
 - [x] 3.1 RED/GREEN: add `progressModel`/`ProgressGrid` unique machine+yarn-count rows only for PSJ/Ring/Twisting; reject stale reads and aggregation.
 
 ## Phase 4: Skeining (PR 4)
-- [ ] 4.1 RED/GREEN: create `SkeiningGrid` as independent production; assert no Progress or Lot Processing controls.
+- [x] 4.1 RED/GREEN: create `SkeiningGrid` as independent production; assert no Progress or Lot Processing controls.
 
 ## Phase 5: Quality Profiles (PR 5)
 - [ ] 5.1 RED/GREEN: create `quality/**` configuration/capture; unavailable profiles invent no fields/results and retain drafts.

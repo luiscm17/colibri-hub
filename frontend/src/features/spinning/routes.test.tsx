@@ -11,13 +11,13 @@ Object.defineProperty(window, 'matchMedia', { writable: true, value: () => ({ ma
 afterEach(cleanup)
 
 describe('SpinningRoutePage', () => {
-  it('identifies the selected Yarn Spinning workspace and its unavailable integration', () => {
+  it('identifies the selected Skeining workspace without Progress or Lot Processing', () => {
     render(<MantineProvider><SpinningRoutePage workspace="skeining" /></MantineProvider>)
 
     expect(screen.getByRole('heading', { name: 'Madejeras' })).toBeTruthy()
-    expect(screen.getByRole('status').textContent).toContain('integración de Hilatura no está disponible')
+    expect(screen.getByLabelText('Skeining production grid')).toBeTruthy()
     expect(screen.queryByText('Procesamiento de lotes')).toBeNull()
-    expect(screen.queryByText(/confirmado|calculado/i)).toBeNull()
+    expect(screen.queryByLabelText('Progress summary grid')).toBeNull()
   })
 
   it('uses catalog-backed identities and shows Progress for Preparation', async () => {

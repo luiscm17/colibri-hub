@@ -4,9 +4,9 @@
 
 - Strategy: `auto-chain`
 - Chain strategy: `feature-branch-chain`
-- Current work unit: `phase2-discharge-correction`
-- PR boundary: catalog-derived roving-title eligibility plus visible non-actionable operational-supervisor context and `A`/`B`/`C` shifts on `front/yarn-spinning-progress`. This corrective slice remains on the current feature-chain branch; no commit or PR was created.
-- Review budget: 108 changed lines, within the 400-line budget (292 lines remaining).
+- Current work unit: `pr4-skeining-production-grid`
+- PR boundary: independent Skeining production grid on `front/yarn-spinning-skeining`, targeting `front/yarn-spinning-implentation`. No commit or PR was created.
+- Review budget: 197 changed lines, within the 400-line budget (203 lines remaining).
 
 ## Completed Tasks
 
@@ -18,6 +18,7 @@
 - [x] 2.3 Test continuity unavailable retains draft and an older request-key response cannot replace changed Progress identity.
 - [x] 3.1 RED/GREEN: add `progressModel`/`ProgressGrid` unique machine+yarn-count rows only for PSJ/Ring/Twisting; reject stale reads and aggregation.
 - [x] Corrective scope for 2.1/2.2: derive the optional roving-title input from the read-only catalog's applicable-machine configuration; show the operational supervisor capture context and use shift values `A`/`B`/`C`. No future-phase task was completed.
+- [x] 4.1 RED/GREEN: create `SkeiningGrid` as independent production; assert no Progress or Lot Processing controls.
 
 ## Work Unit Evidence
 
@@ -27,6 +28,7 @@
 | PR 2 — sections/Progress/Skeining | `pnpm exec vitest run src/features/spinning/routes.test.tsx` — exit 0; 1 test file and 8 tests passed. RED first failed because `sections/continuity` did not exist; GREEN passed after implementation. | `pnpm exec vitest run src/features/spinning/routes.test.tsx` — exit 0; scenario covered each section’s date/shift/capture draft and the applicable-Progress continuity-unavailable path retaining its draft while rejecting an older request key. | Revert `frontend/src/features/spinning/sections/**` and the PR 2 edits to `routes.tsx`, `integration/contracts.ts`, `integration/unavailableGateway.ts`, and `routes.test.tsx`; route protection and non-section workspaces remain intact. |
 | PR 3 — applicable Progress summaries | RED: `pnpm exec vitest run src/features/spinning/sections/progressModel.test.ts` — exit 1; `progressModel` did not exist. GREEN: `pnpm exec vitest run src/features/spinning/sections/progressModel.test.ts src/features/spinning/routes.test.tsx` — exit 0; 2 files, 6 tests passed. Full: `pnpm exec vitest run` — exit 0; 34 files, 150 tests passed. `pnpm lint` — exit 0. `pnpm build` — exit 0; existing >500 kB chunk warning only. `git diff --check` — exit 0. | N/A — no runtime/server boundary exists: the continuity gateway remains unavailable and no HTTP request or fabricated response was introduced. The focused component scenario proves Progress is rendered for Preparation and absent for Bobbin Winding. | Revert `frontend/src/features/spinning/sections/{progressModel.ts,progressModel.test.ts,ProgressGrid.tsx}`, the PR3 edits in `SectionWorkspace.tsx`, `configuration.ts`, `integration/contracts.ts`, and `routes.test.tsx`. Production Discharge and all later phases remain intact. |
 | Phase 2 corrective discharge behavior | `pnpm exec vitest run src/features/spinning/routes.test.tsx src/features/spinning/sections/dischargeModel.test.ts` — exit 0; 2 files, 11 tests passed. The focused component cases prove FIN-authorized catalog configuration enables the optional roving-title input, while Continuas, Bobinados, and Retorcedoras catalogs without that authorization do not; they also prove the visible operational-supervisor context and `A`/`B`/`C` shift values. `pnpm lint` — exit 0. `pnpm build` — exit 0; existing >500 kB chunk warning only. `git diff --check -- frontend/src/features/spinning` — exit 0. | N/A — no server runtime boundary exists. The supervisor context is visible but disabled until a server-owned authorized selection contract exists; the gateway remains unavailable and this correction introduces no HTTP, submit, calculation, or fabricated result. | Revert the corrective edits to `frontend/src/features/spinning/{integration/contracts.ts,routes.test.tsx,sections/ProductionDischargeGrid.tsx,sections/SectionWorkspace.tsx,sections/configuration.ts,sections/dischargeModel.test.ts}` and the matching Phase 2 artifact notes. Previously delivered Progress and all future grid scopes remain intact. |
+| PR 4 — independent Skeining production | RED: `pnpm exec vitest run src/features/spinning/sections/SkeiningGrid.test.tsx` — exit 1; the Skeining production grid was absent. GREEN: `pnpm exec vitest run src/features/spinning/sections/SkeiningGrid.test.tsx src/features/spinning/routes.test.tsx` — exit 0; 2 files, 8 tests passed. Full: `pnpm exec vitest run` — exit 0; 35 files, 154 tests passed. `pnpm lint` — exit 0. `pnpm build` — exit 0; existing >500 kB chunk warning only. `git diff --check -- frontend/src/features/spinning openspec/changes/frontend-yarn-spinning` — exit 0. | N/A — no runtime/server boundary exists: the reference gateway remains read-only and no HTTP call, submission, total calculation, or fabricated server result was introduced. The focused component scenario exercises populated catalog selections, the seven-column Skeining grid, server-confirmed-total status, and absence of Progress and Lot Processing controls. | Revert `frontend/src/features/spinning/sections/{SkeiningGrid.tsx,SkeiningWorkspace.tsx,skeiningModel.ts,SkeiningGrid.test.tsx}` and the Skeining-only changes in `frontend/src/features/spinning/{routes.tsx,routes.test.tsx}`. Existing section Production Discharge and Progress grids remain intact. |
 
 ## Verification
 
@@ -36,6 +38,7 @@
 - `git diff --check` — exit 0.
 - PR3: `pnpm exec vitest run src/features/spinning/sections/progressModel.test.ts src/features/spinning/routes.test.tsx` — exit 0; 2 files, 6 tests passed; `pnpm exec vitest run` — exit 0; 34 files, 150 tests passed; `pnpm lint` and `pnpm build` — exit 0; `git diff --check` — exit 0.
 - Phase 2 correction: `pnpm exec vitest run src/features/spinning/routes.test.tsx src/features/spinning/sections/dischargeModel.test.ts` — exit 0; 2 files, 11 tests passed. `pnpm lint` — exit 0. `pnpm build` — exit 0 with the existing >500 kB chunk warning. `git diff --check -- frontend/src/features/spinning` — exit 0.
+- PR4: `pnpm exec vitest run src/features/spinning/sections/SkeiningGrid.test.tsx src/features/spinning/routes.test.tsx` — exit 0; 2 files, 8 tests passed. `pnpm exec vitest run` — exit 0; 35 files, 154 tests passed. `pnpm lint` — exit 0. `pnpm build` — exit 0 with the existing >500 kB chunk warning. `git diff --check -- frontend/src/features/spinning openspec/changes/frontend-yarn-spinning` — exit 0.
 
 ## Native Attempt
 
@@ -43,6 +46,8 @@
 - Result: `complete` / passed; evidence revision `sha256:b16f62b74a14a7e91d55cc76531034e0055ebaab0d8c7ef57aaa9a192442fa6c` covers the bounded PR 2 source and test files.
 - Token `sha256:674c9cc352f05c5ada4818f708c6082bd04c3dbd2db7e9c2ee4eeb47ffece537` was continued for the approved Phase 2 corrective scope and settled after the focused frontend evidence.
 - Result: `complete` / passed; evidence revision `phase2-corrective-108-changed-lines` covers the bounded corrective source, tests, and Phase 2 artifact notes.
+- Token `sha256:9548c7bd971686dbe724e1b944c148ff21931002a28d49cae1d3e9d147b1b16c` settled once with request ID `pr4-skeining-grid-settle-20260901-1000`.
+- Result: `complete` / passed; evidence revision `sha256:f3a6a7419bd062afa0283bdd29b875544956780097a2f31f988e6b95d2a1cfe8` covers the bounded PR4 source, tests, and OpenSpec task/progress artifacts.
 
 ## Constraints Honored
 
@@ -55,4 +60,4 @@
 
 ## Remaining Tasks
 
-- [ ] Phase 4 through Phase 10 (tasks 4.1–10.2).
+- [ ] Phase 5 through Phase 10 (tasks 5.1–10.2).
