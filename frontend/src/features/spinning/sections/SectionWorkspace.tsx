@@ -31,8 +31,10 @@ export function SectionWorkspace({ workspace, gateway = unavailableSpinningGatew
       <Title order={1}>{spinningWorkspaces[workspace]}</Title>
       <Text>Área de trabajo de cierre de sección de Hilatura</Text>
     </div>
+    <NativeSelect label="Contexto de captura" data={[{ value: 'operational-supervisor', label: 'Supervisor operativo' }]} value="operational-supervisor" disabled aria-describedby="capture-context-help" />
+    <Text id="capture-context-help" size="sm" c="dimmed">El supervisor operativo se aplicará a los registros cuando el servicio autorice y confirme el envío.</Text>
     <TextInput label="Fecha operativa" type="date" value={businessDate} onChange={(event) => setBusinessDate(event.currentTarget.value)} />
-    <NativeSelect label="Turno" data={[{ value: '', label: 'Seleccione un turno' }, { value: 'first', label: 'Primer turno' }, { value: 'second', label: 'Segundo turno' }, { value: 'third', label: 'Tercer turno' }]} value={shift} onChange={(event) => setShift(event.currentTarget.value)} />
+    <NativeSelect label="Turno" data={[{ value: '', label: 'Seleccione un turno' }, { value: 'A', label: 'Turno A' }, { value: 'B', label: 'Turno B' }, { value: 'C', label: 'Turno C' }]} value={shift} onChange={(event) => setShift(event.currentTarget.value)} />
     {config.discharge ? <ProductionDischargeGrid catalog={catalog} draft={draft} onRowsChange={rows => setDraft(current => replaceDischargeRows(current, rows))} onAddRow={() => setDraft(appendDischargeRow)} onPaste={(rowId, column, text) => setDraft(current => pasteDischargeRows(current, rowId, column, text))} /> : <Text>La descarga de producción no está configurada para esta sección.</Text>}
     {config.progress && <ProgressGrid identity={{ section: workspace, businessDate, shift }} catalog={catalog} draft={progressDraft} gateway={gateway} onDraftChange={setProgressDraft} />}
     <Text>Los borradores de producción permanecen locales; el envío no está disponible hasta que el servicio esté disponible.</Text>

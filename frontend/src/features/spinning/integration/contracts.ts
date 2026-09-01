@@ -14,6 +14,7 @@ export type ReferenceOption = Readonly<{ id: string; label: string }>
 export type ProductionDischargeCatalog = Readonly<{
   machines: readonly ReferenceOption[]
   applicableMachineIds: readonly string[]
+  rovingTitleApplicableMachineIds: readonly string[]
   yarnCounts: readonly ReferenceOption[]
 }>
 
