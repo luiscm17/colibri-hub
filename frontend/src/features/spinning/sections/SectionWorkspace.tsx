@@ -2,7 +2,8 @@ import { NativeSelect, Stack, Text, TextInput, Title } from '@mantine/core'
 import { useEffect, useState } from 'react'
 import { IntegrationState } from '../components/IntegrationState'
 import type { ProductionDischargeCatalog, RemoteState, SpinningGateway } from '../integration/contracts'
-import { unavailableIntegrationState, unavailableSpinningGateway } from '../integration/unavailableGateway'
+import { developmentSpinningGateway } from '../integration/developmentGateway'
+import { unavailableIntegrationState } from '../integration/unavailableGateway'
 import { spinningWorkspaces, type SpinningWorkspace } from '../workspaces'
 import { sectionGridConfig } from './configuration'
 import { ProductionDischargeGrid } from './ProductionDischargeGrid'
@@ -10,7 +11,7 @@ import { appendDischargeRow, createDischargeDraft, pasteDischargeRows, replaceDi
 import { ProgressGrid } from './ProgressGrid'
 import { createProgressDraft } from './progressModel'
 
-export function SectionWorkspace({ workspace, gateway = unavailableSpinningGateway }: { workspace: SpinningWorkspace; gateway?: SpinningGateway }) {
+export function SectionWorkspace({ workspace, gateway = developmentSpinningGateway }: { workspace: SpinningWorkspace; gateway?: SpinningGateway }) {
   const [businessDate, setBusinessDate] = useState('')
   const [shift, setShift] = useState('')
   const [draft, setDraft] = useState(createDischargeDraft)

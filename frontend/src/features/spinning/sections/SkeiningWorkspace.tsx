@@ -1,11 +1,11 @@
 import { Stack, Text, Title } from '@mantine/core'
 import { useEffect, useState } from 'react'
 import type { ProductionDischargeCatalog, RemoteState, SpinningGateway } from '../integration/contracts'
-import { unavailableSpinningGateway } from '../integration/unavailableGateway'
+import { developmentSpinningGateway } from '../integration/developmentGateway'
 import { SkeiningGrid } from './SkeiningGrid'
 import { appendSkeiningRow, createSkeiningDraft, replaceSkeiningRows } from './skeiningModel'
 
-export function SkeiningWorkspace({ gateway = unavailableSpinningGateway }: { gateway?: SpinningGateway }) {
+export function SkeiningWorkspace({ gateway = developmentSpinningGateway }: { gateway?: SpinningGateway }) {
   const [draft, setDraft] = useState(createSkeiningDraft)
   const [catalog, setCatalog] = useState<RemoteState<ProductionDischargeCatalog>>({ status: 'loading' })
 

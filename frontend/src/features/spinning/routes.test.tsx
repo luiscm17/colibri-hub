@@ -2,6 +2,7 @@ import { MantineProvider } from '@mantine/core'
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SpinningGateway } from './integration/contracts'
+import { unavailableSpinningGateway } from './integration/unavailableGateway'
 import { SectionWorkspace } from './sections/SectionWorkspace'
 import { hasRovingTitleInput, rovingTitleMachineIds } from './sections/configuration'
 import { SpinningRoutePage } from './routes'
@@ -51,8 +52,8 @@ describe('SpinningRoutePage', () => {
     expect(await screen.findByLabelText('Production Discharge grid')).toBeTruthy()
   })
 
-  it('keeps catalog-dependent selections unavailable when production reference data is unavailable', async () => {
-    render(<MantineProvider><SectionWorkspace workspace="preparation" /></MantineProvider>)
+  it('keeps catalog-dependent selections unavailable when the unavailable gateway is injected', async () => {
+    render(<MantineProvider><SectionWorkspace workspace="preparation" gateway={unavailableSpinningGateway} /></MantineProvider>)
 
     expect(await screen.findByText('Las selecciones de máquina y título de hilo no están disponibles hasta que los datos de referencia estén disponibles.')).toBeTruthy()
     expect((screen.getByRole('button', { name: 'Agregar descarga' }) as HTMLButtonElement).disabled).toBe(true)
@@ -63,6 +64,7 @@ const catalogGateway: SpinningGateway = {
   getIntegrationState: async () => ({ status: 'unavailable', message: 'Not used by this grid.', retryable: false }),
   getSectionContext: async () => ({ status: 'unavailable', message: 'Not used by this grid.', retryable: false }),
   getProgressContinuity: async () => ({ status: 'unavailable', message: 'Not used by this grid.', retryable: false }),
+  getQualityCaptureCatalog: async () => ({ status: 'unavailable', message: 'Not used by this grid.', retryable: false }),
   getQualityProfiles: async () => ({ status: 'unavailable', message: 'Not used by this grid.', retryable: false }),
   getProductionDischargeCatalog: async () => ({
     status: 'populated',
