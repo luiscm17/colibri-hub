@@ -18,6 +18,27 @@ export type ProductionDischargeCatalog = Readonly<{
   yarnCounts: readonly ReferenceOption[]
 }>
 
+export type WasteCaptureCatalog = Readonly<{
+  context: WasteCaptureContext
+  rows: readonly WasteCaptureRecord[]
+  totalKg: string | null
+}>
+
+export type WasteCaptureContext = Readonly<{
+  shift: string
+  supervisor: string
+  businessDate: string
+  recorder: string
+}>
+
+export type WasteCaptureRecord = Readonly<{
+  id: string
+  number: number
+  section: string
+  machine: string
+  weightKg: string
+}>
+
 export type ProgressContinuity =
   | { kind: 'predecessor'; predecessorInput: unknown; editableSuggestions: readonly unknown[] }
   | { kind: 'no-predecessor' }
@@ -88,4 +109,5 @@ export interface SpinningGateway {
   getQualityCaptureCatalog(signal?: AbortSignal): Promise<RemoteState<QualityCaptureCatalog>>
   getQualityProfiles(context: QualityCaptureContext, signal?: AbortSignal): Promise<RemoteState<readonly QualityProfile[]>>
   getQualitySampleRecords(profileId: string, context: QualityCaptureContext, signal?: AbortSignal): Promise<RemoteState<readonly QualitySampleRecord[]>>
+  getWasteCaptureCatalog?(signal?: AbortSignal): Promise<RemoteState<WasteCaptureCatalog>>
 }
