@@ -31,17 +31,61 @@ export type QualityCaptureField = Readonly<{
   required: boolean
 }>
 
-export type QualityProfile = Readonly<{
+export type QualityCaptureContext = Readonly<{
+  businessDate: string
+  shiftId: string
+  supervisorId: string
+  analystId: string
+}>
+
+export type QualityCaptureCatalog = Readonly<{
+  shifts: readonly ReferenceOption[]
+  supervisors: readonly ReferenceOption[]
+  analysts: readonly ReferenceOption[]
+}>
+
+export type QualitySampleProjectionColumn = Readonly<{
   id: string
   label: string
-  method: 'sample' | 'observation'
+}>
+
+export type QualitySampleRecord = Readonly<{
+  id: string
+  number: number
+  section: string
+  machine: string
+  type: string
+  yarnTitle: string
+  samples: readonly string[]
+  projections: Readonly<Record<string, string | null>>
+  observations?: string
+}>
+
+export type QualityObservationProfile = Readonly<{
+  id: string
+  label: string
+  method: 'observation'
   captureFields: readonly QualityCaptureField[]
 }>
 
+export type QualitySampleProfile = Readonly<{
+  id: string
+  label: string
+  method: 'sample'
+  sampleCount: number
+  resultColumns: readonly QualitySampleProjectionColumn[]
+  supportsObservations: boolean
+}>
+
+export type QualityProfile = QualityObservationProfile | QualitySampleProfile
+
 export interface SpinningGateway {
+  defaultQualityCaptureContext?: QualityCaptureContext
   getIntegrationState(signal?: AbortSignal): Promise<RemoteState<never>>
   getSectionContext(identity: SectionIdentity, signal?: AbortSignal): Promise<RemoteState<never>>
   getProductionDischargeCatalog(identity: SectionIdentity, signal?: AbortSignal): Promise<RemoteState<ProductionDischargeCatalog>>
   getProgressContinuity(identity: ProgressIdentity, signal?: AbortSignal): Promise<RemoteState<ProgressContinuity>>
-  getQualityProfiles(signal?: AbortSignal): Promise<RemoteState<readonly QualityProfile[]>>
+  getQualityCaptureCatalog(signal?: AbortSignal): Promise<RemoteState<QualityCaptureCatalog>>
+  getQualityProfiles(context: QualityCaptureContext, signal?: AbortSignal): Promise<RemoteState<readonly QualityProfile[]>>
+  getQualitySampleRecords(profileId: string, context: QualityCaptureContext, signal?: AbortSignal): Promise<RemoteState<readonly QualitySampleRecord[]>>
 }

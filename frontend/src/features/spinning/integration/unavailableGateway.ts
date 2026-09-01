@@ -11,5 +11,7 @@ export const unavailableSpinningGateway: SpinningGateway = {
   getSectionContext: async () => unavailableIntegrationState,
   getProductionDischargeCatalog: async () => unavailableIntegrationState,
   getProgressContinuity: async () => unavailableIntegrationState,
+  getQualityCaptureCatalog: async () => unavailableIntegrationState,
   getQualityProfiles: async () => unavailableIntegrationState,
+  getQualitySampleRecords: async () => unavailableIntegrationState,
 }
