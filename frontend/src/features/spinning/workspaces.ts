@@ -1,12 +1,12 @@
 export const spinningWorkspaces = {
-  preparation: 'Preparation',
-  ringSpinning: 'Ring Spinning',
-  bobbinWinding: 'Bobbin Winding',
-  twisting: 'Twisting',
-  skeining: 'Skeining',
-  quality: 'Process Quality',
-  waste: 'Waste',
-  consolidated: 'Consolidated reporting',
-} as const
+    preparation: "Preparación",
+    ringSpinning: "Continuas",
+    bobbinWinding: "Bobinados",
+    twisting: "Retorcedoras",
+    skeining: "Madejeras",
+    quality: "Control de Calidad",
+    waste: "Desperdicio",
+    consolidated: "Informes consolidados",
+} as const;
 
-export type SpinningWorkspace = keyof typeof spinningWorkspaces
+export type SpinningWorkspace = keyof typeof spinningWorkspaces;

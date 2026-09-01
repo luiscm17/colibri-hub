@@ -7,11 +7,14 @@ import { spinningWorkspaces, type SpinningWorkspace } from '../workspaces'
 import { sectionGridConfig } from './configuration'
 import { ProductionDischargeGrid } from './ProductionDischargeGrid'
 import { appendDischargeRow, createDischargeDraft, pasteDischargeRows, replaceDischargeRows } from './dischargeModel'
+import { ProgressGrid } from './ProgressGrid'
+import { createProgressDraft } from './progressModel'
 
 export function SectionWorkspace({ workspace, gateway = unavailableSpinningGateway }: { workspace: SpinningWorkspace; gateway?: SpinningGateway }) {
   const [businessDate, setBusinessDate] = useState('')
   const [shift, setShift] = useState('')
   const [draft, setDraft] = useState(createDischargeDraft)
+  const [progressDraft, setProgressDraft] = useState(createProgressDraft)
   const [catalog, setCatalog] = useState<RemoteState<ProductionDischargeCatalog>>({ status: 'loading' })
   const config = sectionGridConfig(workspace)
 
@@ -26,12 +29,15 @@ export function SectionWorkspace({ workspace, gateway = unavailableSpinningGatew
   return <Stack gap="lg">
     <div>
       <Title order={1}>{spinningWorkspaces[workspace]}</Title>
-      <Text>Yarn Spinning section-close workspace</Text>
+      <Text>Área de trabajo de cierre de sección de Hilatura</Text>
     </div>
-    <TextInput label="Business date" type="date" value={businessDate} onChange={(event) => setBusinessDate(event.currentTarget.value)} />
-    <NativeSelect label="Shift" data={[{ value: '', label: 'Choose a shift' }, { value: 'first', label: 'First shift' }, { value: 'second', label: 'Second shift' }, { value: 'third', label: 'Third shift' }]} value={shift} onChange={(event) => setShift(event.currentTarget.value)} />
-    {config.discharge ? <ProductionDischargeGrid catalog={catalog} draft={draft} onRowsChange={rows => setDraft(current => replaceDischargeRows(current, rows))} onAddRow={() => setDraft(appendDischargeRow)} onPaste={(rowId, column, text) => setDraft(current => pasteDischargeRows(current, rowId, column, text))} /> : <Text>Production Discharge is not configured for this section.</Text>}
-    <Text>Production drafts remain local; submission is unavailable until the service is delivered.</Text>
+    <NativeSelect label="Contexto de captura" data={[{ value: 'operational-supervisor', label: 'Supervisor operativo' }]} value="operational-supervisor" disabled aria-describedby="capture-context-help" />
+    <Text id="capture-context-help" size="sm" c="dimmed">El supervisor operativo se aplicará a los registros cuando el servicio autorice y confirme el envío.</Text>
+    <TextInput label="Fecha operativa" type="date" value={businessDate} onChange={(event) => setBusinessDate(event.currentTarget.value)} />
+    <NativeSelect label="Turno" data={[{ value: '', label: 'Seleccione un turno' }, { value: 'A', label: 'Turno A' }, { value: 'B', label: 'Turno B' }, { value: 'C', label: 'Turno C' }]} value={shift} onChange={(event) => setShift(event.currentTarget.value)} />
+    {config.discharge ? <ProductionDischargeGrid catalog={catalog} draft={draft} onRowsChange={rows => setDraft(current => replaceDischargeRows(current, rows))} onAddRow={() => setDraft(appendDischargeRow)} onPaste={(rowId, column, text) => setDraft(current => pasteDischargeRows(current, rowId, column, text))} /> : <Text>La descarga de producción no está configurada para esta sección.</Text>}
+    {config.progress && <ProgressGrid identity={{ section: workspace, businessDate, shift }} catalog={catalog} draft={progressDraft} gateway={gateway} onDraftChange={setProgressDraft} />}
+    <Text>Los borradores de producción permanecen locales; el envío no está disponible hasta que el servicio esté disponible.</Text>
     <IntegrationState state={unavailableIntegrationState} />
   </Stack>
 }

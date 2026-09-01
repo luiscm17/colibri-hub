@@ -14,6 +14,7 @@ export type ReferenceOption = Readonly<{ id: string; label: string }>
 export type ProductionDischargeCatalog = Readonly<{
   machines: readonly ReferenceOption[]
   applicableMachineIds: readonly string[]
+  rovingTitleApplicableMachineIds: readonly string[]
   yarnCounts: readonly ReferenceOption[]
 }>
 
@@ -22,9 +23,11 @@ export type ProgressContinuity =
   | { kind: 'no-predecessor' }
   | { kind: 'stale-configuration'; message: string }
 
+export type ProgressIdentity = SectionIdentity & Readonly<{ machineId: string; yarnCountId: string }>
+
 export interface SpinningGateway {
   getIntegrationState(signal?: AbortSignal): Promise<RemoteState<never>>
   getSectionContext(identity: SectionIdentity, signal?: AbortSignal): Promise<RemoteState<never>>
   getProductionDischargeCatalog(identity: SectionIdentity, signal?: AbortSignal): Promise<RemoteState<ProductionDischargeCatalog>>
-  getProgressContinuity(identity: SectionIdentity, signal?: AbortSignal): Promise<RemoteState<ProgressContinuity>>
+  getProgressContinuity(identity: ProgressIdentity, signal?: AbortSignal): Promise<RemoteState<ProgressContinuity>>
 }

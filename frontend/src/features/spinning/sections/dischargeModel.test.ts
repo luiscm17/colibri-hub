@@ -11,7 +11,7 @@ import {
 describe('Production Discharge draft', () => {
   it('defines all captured units and omits direct net-weight input', () => {
     expect(DISCHARGE_EDITABLE_COLUMNS).toEqual(['machine', 'yarnCount', 'grossWeightKg', 'operativeSpindleCount', 'spindleTareWeightG', 'cartWeightKg', 'rovingCount', 'observations'])
-    expect(DISCHARGE_COLUMN_LABELS).toMatchObject({ grossWeightKg: 'Gross weight (kg)', spindleTareWeightG: 'Spindle tare weight (g)', cartWeightKg: 'Cart weight (kg)', rovingCount: 'Roving count (optional)', observations: 'Observations (optional)', netWeight: 'Net weight (kg)' })
+    expect(DISCHARGE_COLUMN_LABELS).toMatchObject({ grossWeightKg: 'Peso bruto (kg)', spindleTareWeightG: 'Peso de tara del huso (g)', cartWeightKg: 'Peso del carro (kg)', rovingCount: 'Título de mecha (opcional)', observations: 'Observaciones (opcional)', netWeight: 'Peso neto (kg)' })
     expect(DISCHARGE_EDITABLE_COLUMNS).not.toContain('netWeight')
   })
   it('keeps repeated machine and yarn-count discharges as distinct immutable events', () => {
@@ -31,7 +31,7 @@ describe('Production Discharge draft', () => {
 
     expect(next.rows).toHaveLength(1)
     expect(next.rows[0]).toMatchObject({ machine: 'machine-a', yarnCount: 'count-a', grossWeightKg: 'invalid', rovingCount: '8', observations: 'Shift note' })
-    expect(dischargeRowFeedback(next.rows[0])).toMatchObject({ state: 'invalid', errors: { grossWeightKg: 'Enter a non-negative decimal value.' } })
+    expect(dischargeRowFeedback(next.rows[0])).toMatchObject({ state: 'invalid', errors: { grossWeightKg: 'Ingrese un valor decimal no negativo.' } })
   })
 
   it('recognizes a raw zero discharge acknowledgement without calculating net weight', () => {

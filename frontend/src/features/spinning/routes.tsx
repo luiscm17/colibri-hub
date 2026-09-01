@@ -8,7 +8,7 @@ import { spinningWorkspaces, type SpinningWorkspace } from './workspaces'
 export function SpinningRoutePage({ workspace }: { workspace: SpinningWorkspace }) {
   if (isSectionWorkspace(workspace)) return <SectionWorkspace workspace={workspace} />
   return <Stack gap="lg">
-    <div><Title order={1}>{spinningWorkspaces[workspace]}</Title><Text>Yarn Spinning</Text></div>
+    <div><Title order={1}>{spinningWorkspaces[workspace]}</Title><Text>Hilatura</Text></div>
     <IntegrationState state={unavailableIntegrationState} />
   </Stack>
 }
