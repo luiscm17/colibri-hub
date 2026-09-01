@@ -25,9 +25,23 @@ export type ProgressContinuity =
 
 export type ProgressIdentity = SectionIdentity & Readonly<{ machineId: string; yarnCountId: string }>
 
+export type QualityCaptureField = Readonly<{
+  id: string
+  label: string
+  required: boolean
+}>
+
+export type QualityProfile = Readonly<{
+  id: string
+  label: string
+  method: 'sample' | 'observation'
+  captureFields: readonly QualityCaptureField[]
+}>
+
 export interface SpinningGateway {
   getIntegrationState(signal?: AbortSignal): Promise<RemoteState<never>>
   getSectionContext(identity: SectionIdentity, signal?: AbortSignal): Promise<RemoteState<never>>
   getProductionDischargeCatalog(identity: SectionIdentity, signal?: AbortSignal): Promise<RemoteState<ProductionDischargeCatalog>>
   getProgressContinuity(identity: ProgressIdentity, signal?: AbortSignal): Promise<RemoteState<ProgressContinuity>>
+  getQualityProfiles(signal?: AbortSignal): Promise<RemoteState<readonly QualityProfile[]>>
 }

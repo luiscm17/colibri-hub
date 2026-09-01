@@ -63,6 +63,7 @@ const catalogGateway: SpinningGateway = {
   getIntegrationState: async () => ({ status: 'unavailable', message: 'Not used by this grid.', retryable: false }),
   getSectionContext: async () => ({ status: 'unavailable', message: 'Not used by this grid.', retryable: false }),
   getProgressContinuity: async () => ({ status: 'unavailable', message: 'Not used by this grid.', retryable: false }),
+  getQualityProfiles: async () => ({ status: 'unavailable', message: 'Not used by this grid.', retryable: false }),
   getProductionDischargeCatalog: async () => ({
     status: 'populated',
     data: {
