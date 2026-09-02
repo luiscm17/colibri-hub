@@ -3,6 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SpinningGateway } from './integration/contracts'
 import { unavailableSpinningGateway } from './integration/unavailableGateway'
+import { SpinningRoutePage } from './routes'
 import { SectionWorkspace } from './sections/SectionWorkspace'
 
 Object.defineProperty(window, 'matchMedia', { writable: true, value: () => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} }) })
@@ -21,19 +22,20 @@ describe('SectionWorkspace', () => {
     expect(screen.queryByRole('button', { name: /agregar/i })).toBeNull()
   })
 
-  it('renders the Madejeras production schema without Progress', async () => {
-    render(<MantineProvider><SectionWorkspace workspace="skeining" gateway={catalogGateway} /></MantineProvider>)
+  it('composes Skeining as production only, without Progress or Lot Processing controls', async () => {
+    render(<MantineProvider><SpinningRoutePage workspace="skeining" gateway={catalogGateway} /></MantineProvider>)
 
     expect(await screen.findByLabelText('Production roster grid')).toBeTruthy()
     expect(screen.getByText('Las filas del roster y las proyecciones son suministradas por el servicio.')).toBeTruthy()
     expect(screen.queryByLabelText('Progress roster grid')).toBeNull()
+    expect(screen.queryByText(/lote|lot processing/i)).toBeNull()
   })
 
   it('renders only the Finisor production table for Preparation', async () => {
     render(<MantineProvider><SectionWorkspace workspace="preparation" gateway={catalogGateway} /></MantineProvider>)
 
     expect(await screen.findByLabelText('Production roster grid')).toBeTruthy()
-    expect(screen.queryByLabelText('Progress roster grid')).toBeNull()
+    expect(screen.getByLabelText('Progress roster grid')).toBeTruthy()
   })
 
   it('keeps roster injection unavailable when the unavailable gateway is supplied', async () => {

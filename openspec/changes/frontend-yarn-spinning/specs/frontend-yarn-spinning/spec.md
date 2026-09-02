@@ -24,6 +24,8 @@ The system MUST compose applicable section production as repeatable spreadsheet-
 
 The system MUST provide one distinct unique per-machine-and-yarn-count Progress summary grid only for Preparation PSJ, Ring Spinning, and Twisting. It MUST NOT expose Progress for Bobbin Winding or Skeining, calculate or aggregate Progress locally, or treat Progress as a discharge-event grid. The grid SHALL show only server-derived continuity and editable predecessor suggestions.
 
+The frontend-complete boundary is limited to rendering the fixed gateway roster for the applicable sections. The backend remains authoritative for canonical machine × shift × business-date × yarn-count identity, predecessor continuity, stale-response handling, discharge reconciliation, tolerance decisions, and persistence; no frontend state may claim those outcomes.
+
 #### Scenario: Render applicable Progress
 - GIVEN a user opens Ring Spinning
 - WHEN the section workspace renders
@@ -69,6 +71,8 @@ The system MUST provide independent Process Quality configuration and capture. A
 ### Requirement: Server-Confirmed and Recoverable States
 
 The system MUST show explicit unavailable-integration states for unavailable server-dependent reads and submits, preserving drafts where recoverable. It MUST NOT fabricate successful records, continuity, calculations, metrics, or authorization outcomes. Dashboards and record reads SHALL retain filters and distinguish loading, empty, populated, stale, failure, and unavailable states; correction conflicts MUST retain local work and require a current-record read before retry.
+
+Frontend evidence for an unavailable submit is limited to retaining the local draft and displaying no success state. It does not prove submission, record creation, validation acceptance, authorization, or any backend outcome.
 
 #### Scenario: Submit while integration is unavailable
 - GIVEN a user has a valid local capture draft

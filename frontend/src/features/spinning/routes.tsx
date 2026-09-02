@@ -13,7 +13,7 @@ import { spinningWorkspaces, type SpinningWorkspace } from './workspaces'
 
 export function SpinningRoutePage({ workspace, gateway }: { workspace: SpinningWorkspace; gateway?: SpinningGateway }) {
   const compositionGateway = gateway ?? developmentSpinningGateway
-  if (isSectionWorkspace(workspace)) return <><SectionWorkspace workspace={workspace} gateway={compositionGateway} /><ReportingWorkspace gateway={compositionGateway} section={spinningWorkspaces[workspace]} /></>
+  if (isSectionWorkspace(workspace)) return <SectionWorkspace workspace={workspace} gateway={compositionGateway} />
   if (workspace === 'quality') return <QualityWorkspace gateway={compositionGateway} />
   if (workspace === 'waste') return <WasteWorkspace gateway={compositionGateway} />
   if (workspace === 'corrections') return <CorrectionsWorkspace gateway={compositionGateway} />

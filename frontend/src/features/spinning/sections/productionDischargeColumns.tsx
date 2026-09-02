@@ -1,7 +1,7 @@
 import { Text } from '@mantine/core'
 import { renderTextEditor, type Column } from 'react-data-grid'
 import type { SpinningWorkspace } from '../workspaces'
-import type { DischargeColumn, ProductionDischargeRow } from './dischargeModel'
+import { productionRowState, type DischargeColumn, type ProductionDischargeRow, type ProductionRowState } from './dischargeModel'
 
 export function productionDischargeColumns(workspace: SpinningWorkspace): readonly Column<ProductionDischargeRow>[] {
   const isSkeining = workspace === 'skeining'
@@ -31,6 +31,7 @@ export function productionDischargeColumns(workspace: SpinningWorkspace): readon
       projectionColumn('netWeightKg', 'Peso Neto [kg]', 160),
     ]),
     editableColumn('observations', 'Observaciones', 220),
+    stateColumn(workspace),
   ]
 }
 
@@ -44,4 +45,15 @@ function editableColumn(key: DischargeColumn, name: string, width: number): Colu
 
 function projectionColumn(key: string, name: string, width: number): Column<ProductionDischargeRow> {
   return { key, name, width, renderCell: cell => <Text component="span">{cell.row.projections[key] ?? '—'}</Text> }
+}
+
+function stateColumn(workspace: SpinningWorkspace): Column<ProductionDischargeRow> {
+  return { key: 'entryState', name: 'Estado local', width: 190, renderCell: cell => <Text component="span">{stateLabels[productionRowState(cell.row, workspace)]}</Text> }
+}
+
+const stateLabels: Readonly<Record<ProductionRowState, string>> = {
+  pending: 'Pendiente',
+  invalid: 'Requiere corrección',
+  complete: 'Sintaxis completa',
+  'acknowledged-no-production': 'Sin producción indicada',
 }

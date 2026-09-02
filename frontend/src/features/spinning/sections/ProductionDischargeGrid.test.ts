@@ -6,7 +6,7 @@ describe('Preparation production grid', () => {
     const columns = productionDischargeColumns('preparation')
 
     expect(columns.map(column => column.name)).toEqual([
-      'No', 'Máquina', 'Tipo', 'Peso Bruto', 'Núm. Mechas', 'Peso Cañete [kg]', 'Peso Tacho [kg]', 'Peso Neto [kg]', 'Observaciones',
+      'No', 'Máquina', 'Tipo', 'Peso Bruto', 'Núm. Mechas', 'Peso Cañete [kg]', 'Peso Tacho [kg]', 'Peso Neto [kg]', 'Observaciones', 'Estado local',
     ])
     expect(columns.find(column => column.key === 'netWeightKg')?.editable).toBeUndefined()
     expect(columns.find(column => column.key === 'defaultPackageTareWeightKg')?.editable).toBeUndefined()

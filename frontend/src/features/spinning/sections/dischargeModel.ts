@@ -1,4 +1,5 @@
 import type { ProductionRosterEntry } from '../integration/contracts'
+import type { SpinningWorkspace } from '../workspaces'
 
 export type DischargeColumn = 'grossWeightKg' | 'spindleCount' | 'packageTareWeightG' | 'cartWeightKg' | 'skeinQuantity' | 'skeinUnitWeightG' | 'operator' | 'observations'
 
@@ -24,6 +25,8 @@ export type ProductionDischargeRow = Readonly<{
 export type ProductionDischargeDraft = Readonly<{
   rows: readonly ProductionDischargeRow[]
 }>
+
+export type ProductionRowState = 'pending' | 'invalid' | 'complete' | 'acknowledged-no-production'
 
 export function createDischargeDraft(): ProductionDischargeDraft {
   return { rows: [] }
@@ -59,6 +62,23 @@ export function pasteDischargeRows(
 }
 
 export const DISCHARGE_EDITABLE_COLUMNS: readonly DischargeColumn[] = ['grossWeightKg', 'spindleCount', 'packageTareWeightG', 'cartWeightKg', 'skeinQuantity', 'skeinUnitWeightG', 'operator', 'observations']
+
+const decimalPattern = /^\d+(?:[.,]\d+)?$/
+const wholeNumberPattern = /^\d+$/
+const zeroPattern = /^0(?:[.,]0+)?$/
+
+export function productionRowState(row: ProductionDischargeRow, workspace: SpinningWorkspace): ProductionRowState {
+  const fields = workspace === 'preparation'
+    ? [{ value: row.grossWeightKg, pattern: decimalPattern }, { value: row.spindleCount, pattern: wholeNumberPattern }]
+    : workspace === 'skeining'
+      ? [{ value: row.skeinQuantity, pattern: wholeNumberPattern }, { value: row.skeinUnitWeightG, pattern: decimalPattern }]
+      : [{ value: row.grossWeightKg, pattern: decimalPattern }, { value: row.spindleCount, pattern: wholeNumberPattern }, { value: row.packageTareWeightG, pattern: decimalPattern }, { value: row.cartWeightKg, pattern: decimalPattern }]
+
+  if (fields.some(({ value, pattern }) => value !== '' && !pattern.test(value))) return 'invalid'
+  if (fields.every(({ value }) => value === '')) return 'pending'
+  if (fields.every(({ value }) => zeroPattern.test(value))) return 'acknowledged-no-production'
+  return fields.every(({ value, pattern }) => pattern.test(value)) ? 'complete' : 'pending'
+}
 
 function emptyRow(entry: ProductionRosterEntry): ProductionDischargeRow {
   return { rowId: entry.id, number: entry.number, machine: entry.machine, yarnTitle: entry.yarnTitle, type: entry.type, defaultPackageTareWeightKg: entry.defaultPackageTareWeightKg, defaultCartWeightKg: entry.defaultCartWeightKg, projections: entry.projections, grossWeightKg: '', spindleCount: '', packageTareWeightG: '', cartWeightKg: '', skeinQuantity: '', skeinUnitWeightG: '', operator: '', observations: '' }

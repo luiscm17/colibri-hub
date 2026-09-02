@@ -36,11 +36,12 @@ Corrective scope for the already discharged tasks 2.1/2.2: the optional roving-t
 
 ## Phase 3: Applicable Progress (PR 3)
 
-- [x] 3.1 RED/GREEN: add `progressModel`/`ProgressGrid` unique machine+yarn-count rows only for PSJ/Ring/Twisting; reject stale reads and aggregation.
+- [x] 3.1 Frontend: render the fixed gateway Progress roster only for Preparation PSJ, Ring Spinning, and Twisting; keep Bobbin Winding and Skeining excluded.
+- [ ] 3.2 Backend-deferred: establish the canonical machine × shift × business-date × yarn-count identity, authoritative predecessor continuity, stale-response rejection, discharge reconciliation, and persistence. Frontend code MUST not substitute local identity, continuity, aggregation, or outcome claims.
 
 ## Phase 4: Skeining (PR 4)
 
-- [x] 4.1 RED/GREEN: create `SkeiningGrid` as independent production; assert no Progress or Lot Processing controls.
+- [x] 4.1 RED/GREEN: compose Skeining as its own Yarn Spinning production schema and assert no Progress or Lot Processing controls.
 
 ## Phase 5: Quality Profiles (PR 5)
 
@@ -66,3 +67,9 @@ Corrective scope for the already discharged tasks 2.1/2.2: the optional roving-t
 
 - [x] 10.1 RED/GREEN: test keyboard editing, visible focus, accessible status announcements (`role="status"` / `aria-live`), and narrow overflow. This does not introduce real-time transport or live-data behavior.
 - [x] 10.2 User-run handoff (not assistant-run): run the frontend with its development gateway and visit `/spinning/preparation`, `/ring-spinning`, `/twisting`, `/bobbin-winding`, `/skeining`, `/quality`, `/waste`, `/consolidated`. Enter/paste repeated rows, tab controls, narrow viewport, and verify unavailable messaging while a local draft is present. Expect distinct discharges; Progress only PSJ/Ring/Twisting; independent Skeining/Waste; ordered Sample; focus/status announcements; retained draft/no success. On failure capture URL, screenshot, console response, and entered values. This is a manual frontend handoff only: backend continuity, submits, tolerance, records, corrections, authentication, authorization, and live API behavior require backend APIs and remain unproven.
+
+## Reconciliation Boundary
+
+- Frontend-complete evidence is limited to fixed gateway roster presentation, local draft retention, syntactic entry feedback, route boundaries, and unavailable-state injection.
+- Progress canonical identity, stale-continuity handling, predecessor derivation, discharge reconciliation, tolerance policy, and persistence remain backend-deferred requirements; they are not completed by the current frontend grid.
+- Unavailable-submit retention is frontend-complete only as local draft preservation with no success state. A real submission outcome remains unavailable until the authoritative backend contract exists.

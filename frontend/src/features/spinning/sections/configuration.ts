@@ -6,7 +6,7 @@ export type SectionGridConfig = Readonly<{
 }>
 
 const configurations: Readonly<Partial<Record<SpinningWorkspace, SectionGridConfig>>> = {
-  preparation: { discharge: true, progress: false },
+  preparation: { discharge: true, progress: true },
   ringSpinning: { discharge: true, progress: true },
   bobbinWinding: { discharge: true, progress: false },
   twisting: { discharge: true, progress: true },

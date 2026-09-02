@@ -4,9 +4,9 @@
 
 - Strategy: `auto-chain`
 - Chain strategy: `feature-branch-chain`
-- Current work unit: `pr5-quality-profile-configuration-capture`
-- PR boundary: profile-driven Quality configuration and capture on `front/yarn-spinning-quality-profiles`, targeting `front/yarn-spinning-implentation`. No commit or PR was created.
-- Review budget: pending final native settlement; the scoped implementation remains below the 400-line limit.
+- Current work unit: `yarn-spinning-reconcile`
+- PR boundary: reconciliation of the delivered frontend surfaces on `front/yarn-spinning-reconcile`. No commit or PR was created.
+- Review budget: this reconciliation is limited to the Preparation PSJ/FIN boundary, production local-entry feedback, Skeining route composition, and truthful planning evidence.
 
 ## Completed Tasks
 
@@ -16,9 +16,10 @@
 - [x] 2.1 Test five routes retain date/shift/drafts; Skeining identifies Yarn Spinning and excludes Lot Processing.
 - [x] 2.2 Create `sections/**` section-close workspaces with one production/applicable-Progress intent and unavailable reads/submits.
 - [x] 2.3 Test continuity unavailable retains draft and an older request-key response cannot replace changed Progress identity.
-- [x] 3.1 RED/GREEN: add `progressModel`/`ProgressGrid` unique machine+yarn-count rows only for PSJ/Ring/Twisting; reject stale reads and aggregation.
+- [x] 3.1 Frontend: render the fixed gateway Progress roster for Preparation PSJ, Ring Spinning, and Twisting; Bobbin Winding and Skeining remain excluded.
+- [ ] 3.2 Backend-deferred: canonical Progress identity, stale continuity, predecessor derivation, discharge reconciliation, tolerance, and persistence. No frontend completion claim is valid for these requirements.
 - [x] Corrective scope for 2.1/2.2: derive the optional roving-title input from the read-only catalog's applicable-machine configuration; show the operational supervisor capture context and use shift values `A`/`B`/`C`. No future-phase task was completed.
-- [x] 4.1 RED/GREEN: create `SkeiningGrid` as independent production; assert no Progress or Lot Processing controls.
+- [x] 4.1 RED/GREEN: compose Skeining as Yarn Spinning production only and assert no Progress or Lot Processing controls.
 - [x] 5.1 RED/GREEN: create `quality/**` configuration/capture; unavailable profiles invent no fields/results and retain drafts.
 
 ## Work Unit Evidence
@@ -59,10 +60,16 @@
 - No HTTP call, mocked success, business calculation, fabricated record/metric, or integration outcome was introduced.
 - Existing `ProtectedRoute` and `ACCESS_CATALOG` ownership remain unchanged; no access-control policy, role, scope, or evaluation was added.
 - Skeining is explicitly a Yarn Spinning section workspace and exposes no Lot Processing behavior.
-- Progress is a unique catalog-backed machine+yarn-count summary only for Preparation, Ring Spinning, and Twisting. The full section/date/shift/machine/yarn-count request key rejects stale continuity responses; drafts survive unavailable reads, and the UI shows only server-derived continuity labels.
-- No discharged-weight calculation or aggregation was added; Production Discharge remains unchanged. Bobbin Winding and Skeining expose no Progress.
+- Progress is visible only for Preparation PSJ, Ring Spinning, and Twisting from its fixed gateway roster. Canonical identity, stale continuity, predecessor derivation, aggregation, reconciliation, tolerance, and persistence remain backend-deferred and are not claimed as frontend evidence.
+- No discharged-weight calculation or aggregation was added. Production rows retain raw local drafts, report only syntactic local entry state, and make no backend acceptance or outcome claim. Bobbin Winding and Skeining expose no Progress.
 - The roving-title input is not tied to a section identifier: it depends only on catalog-provided applicable machine IDs and catalog-provided roving-title eligibility. The visible supervisor capture context remains non-actionable until an authorized server selection contract exists.
+
+## Reconciliation Evidence
+
+- Completed frontend phases: foundation/routes, Production Discharge presentation, applicable Progress presentation, Skeining boundary, Quality capture, Sample grid, Waste, Reporting, Corrections, and accessibility/handoff.
+- Deferred backend requirements: Progress canonical identity/stale continuity and all authoritative submit, validation, calculation, reconciliation, tolerance, persistence, authorization, and correction outcomes.
+- The prior failed `verify-report.md`, when present in repository history, remains historical evidence and was not rewritten by this reconciliation.
 
 ## Remaining Tasks
 
-- [ ] Phase 6 through Phase 10 (tasks 6.1–10.2).
+- [ ] Progress backend completion (task 3.2) and all authoritative integration outcomes remain pending.
