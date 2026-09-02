@@ -23,6 +23,7 @@ export function DataGridStatusBar({ message, type, count }: DataGridStatusBarPro
     <Alert
       color={colorMap[type]}
       role={type === 'error' ? 'alert' : 'status'}
+      aria-live={type === 'error' ? undefined : 'polite'}
       mt="sm"
     >
       {displayMessage}

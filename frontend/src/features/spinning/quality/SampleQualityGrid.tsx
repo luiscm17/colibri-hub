@@ -1,8 +1,9 @@
-import { Alert, Group, Text } from '@mantine/core'
+import { Group, Text } from '@mantine/core'
 import { useMemo } from 'react'
 import { renderTextEditor, type Column } from 'react-data-grid'
 import 'react-data-grid/lib/styles.css'
 import { DataGridShell } from '@/common/grid/DataGridShell'
+import { DataGridStatusBar } from '@/common/grid/DataGridStatusBar'
 import type { QualitySampleProfile, QualitySampleRecord } from '../integration/contracts'
 
 interface SampleQualityGridProps {
@@ -25,9 +26,8 @@ export function SampleQualityGrid({ profile, records, onRecordsChange }: SampleQ
 
   return <DataGridShell
     toolbar={<Group justify="space-between" mb="sm"><Text fw={600}>Registros de muestra: {records.length}</Text></Group>}
-    statusBar={<Alert id="sample-quality-grid-feedback" color="blue" role="status">Las proyecciones son confirmadas únicamente por el servidor.</Alert>}
+    statusBar={<DataGridStatusBar type="info" message="Las proyecciones son confirmadas únicamente por el servidor." />}
     aria-label="Planilla de muestra de calidad"
-    aria-describedby="sample-quality-grid-feedback"
     columns={columns}
     rows={records}
     rowKeyGetter={row => row.id}

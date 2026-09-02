@@ -1,7 +1,8 @@
-import { Alert, Text } from '@mantine/core'
+import { Text } from '@mantine/core'
 import { useMemo } from 'react'
 import 'react-data-grid/lib/styles.css'
 import { DataGridShell } from '@/common/grid/DataGridShell'
+import { DataGridStatusBar } from '@/common/grid/DataGridStatusBar'
 import type { ProductionDischargeCatalog, RemoteState } from '../integration/contracts'
 import type { SpinningWorkspace } from '../workspaces'
 import { type DischargeColumn, type ProductionDischargeDraft, type ProductionDischargeRow } from './dischargeModel'
@@ -21,7 +22,7 @@ export function ProductionDischargeGrid({ workspace, catalog, draft, onRowsChang
   const rosterAvailable = catalog.status === 'populated'
   return <DataGridShell
     toolbar={<Text fw={600}>Descarga de producción</Text>}
-    statusBar={<Alert role="status" color="blue">{rosterAvailable ? 'Las filas del roster y las proyecciones son suministradas por el servicio.' : 'El roster de producción no está disponible hasta que el servicio esté disponible.'}</Alert>}
+    statusBar={<DataGridStatusBar type="info" message={rosterAvailable ? 'Las filas del roster y las proyecciones son suministradas por el servicio.' : 'El roster de producción no está disponible hasta que el servicio esté disponible.'} />}
     aria-label="Production roster grid"
     columns={columns}
     rows={draft.rows}

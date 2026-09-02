@@ -1,8 +1,9 @@
-import { Alert, Text } from '@mantine/core'
+import { Text } from '@mantine/core'
 import { useMemo } from 'react'
 import { renderTextEditor, type Column } from 'react-data-grid'
 import 'react-data-grid/lib/styles.css'
 import { DataGridShell } from '@/common/grid/DataGridShell'
+import { DataGridStatusBar } from '@/common/grid/DataGridStatusBar'
 import type { ProductionDischargeCatalog, RemoteState } from '../integration/contracts'
 import { replaceProgressRows, type ProgressDraft, type ProgressRow } from './progressModel'
 
@@ -29,7 +30,7 @@ export function ProgressGrid({ catalog, draft, onDraftChange }: ProgressGridProp
   ], [])
   return <DataGridShell
     toolbar={<Text fw={600}>Avance</Text>}
-    statusBar={<Alert role="status" color="blue">{catalog.status === 'populated' ? 'Las filas del roster y las proyecciones son suministradas por el servicio.' : 'El roster de avance no está disponible hasta que el servicio esté disponible.'}</Alert>}
+    statusBar={<DataGridStatusBar type="info" message={catalog.status === 'populated' ? 'Las filas del roster y las proyecciones son suministradas por el servicio.' : 'El roster de avance no está disponible hasta que el servicio esté disponible.'} />}
     aria-label="Progress roster grid"
     columns={columns}
     rows={draft.rows}
