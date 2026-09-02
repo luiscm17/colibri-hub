@@ -100,6 +100,34 @@ export type QualitySampleProfile = Readonly<{
 
 export type QualityProfile = QualityObservationProfile | QualitySampleProfile
 
+export type DashboardMetricAvailability = 'available' | 'zero' | 'not_applicable' | 'unavailable'
+
+export type DashboardMetric = Readonly<{
+  name: string
+  value: string | null
+  unit: string | null
+  availability: DashboardMetricAvailability
+  reason?: string
+}>
+
+export type DashboardSection = Readonly<{
+  section: string
+  metrics: readonly DashboardMetric[]
+}>
+
+export type DashboardProjection = Readonly<{
+  sections: readonly DashboardSection[]
+}>
+
+export type DashboardFilters = Readonly<{
+  businessDateFrom: string
+  businessDateTo: string
+  shift: string
+  machine: string
+  machineGroup: string
+  yarnCount: string
+}>
+
 export interface SpinningGateway {
   defaultQualityCaptureContext?: QualityCaptureContext
   getIntegrationState(signal?: AbortSignal): Promise<RemoteState<never>>
@@ -110,4 +138,5 @@ export interface SpinningGateway {
   getQualityProfiles(context: QualityCaptureContext, signal?: AbortSignal): Promise<RemoteState<readonly QualityProfile[]>>
   getQualitySampleRecords(profileId: string, context: QualityCaptureContext, signal?: AbortSignal): Promise<RemoteState<readonly QualitySampleRecord[]>>
   getWasteCaptureCatalog?(signal?: AbortSignal): Promise<RemoteState<WasteCaptureCatalog>>
+  getDashboard?(filters: DashboardFilters, section: string | null, signal?: AbortSignal): Promise<RemoteState<DashboardProjection>>
 }

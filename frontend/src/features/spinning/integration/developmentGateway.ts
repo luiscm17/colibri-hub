@@ -1,4 +1,4 @@
-import type { ProductionDischargeCatalog, QualityCaptureCatalog, QualityProfile, QualitySampleRecord, RemoteState, SpinningGateway, WasteCaptureCatalog } from './contracts'
+import type { DashboardFilters, DashboardProjection, ProductionDischargeCatalog, QualityCaptureCatalog, QualityProfile, QualitySampleRecord, RemoteState, SpinningGateway, WasteCaptureCatalog } from './contracts'
 import { unavailableIntegrationState } from './unavailableGateway'
 
 const catalog: ProductionDischargeCatalog = {
@@ -81,6 +81,19 @@ const wasteCaptureCatalog: WasteCaptureCatalog = {
   totalKg: null,
 }
 
+const reportingProjection: DashboardProjection = {
+  sections: [
+    { section: 'Preparación', metrics: [{ name: 'total_discharged_kg', value: '1240.50', unit: 'kg', availability: 'available' }, { name: 'discharge_count', value: '18', unit: 'count', availability: 'available' }, { name: 'real_waste_kg', value: null, unit: 'kg', availability: 'unavailable', reason: 'El servicio aún no confirmó este indicador.' }] },
+    { section: 'Continuas', metrics: [{ name: 'total_discharged_kg', value: '980.00', unit: 'kg', availability: 'available' }, { name: 'net_process_production_kg', value: '1012.00', unit: 'kg', availability: 'available' }, { name: 'real_waste_kg', value: '0', unit: 'kg', availability: 'zero' }] },
+    { section: 'Bobinados', metrics: [{ name: 'average_discharge_kg', value: null, unit: 'kg', availability: 'not_applicable', reason: 'No hay una proyección aplicable para este período.' }] },
+  ],
+}
+
+function getDevelopmentDashboard(_filters: DashboardFilters, section: string | null): RemoteState<DashboardProjection> {
+  if (!section) return { status: 'populated', data: reportingProjection }
+  return { status: 'populated', data: { sections: reportingProjection.sections.filter(item => item.section === section) } }
+}
+
 export const developmentSpinningGateway: SpinningGateway = {
   defaultQualityCaptureContext: {
     businessDate: '2026-09-01',
@@ -96,4 +109,5 @@ export const developmentSpinningGateway: SpinningGateway = {
   getQualityProfiles: async (context) => context.businessDate && context.shiftId && context.supervisorId && context.analystId ? qualityProfiles : { status: 'empty' },
   getQualitySampleRecords: async (profileId) => profileId === 'authorized-sample' ? { status: 'populated', data: sampleRecords } : { status: 'empty' },
   getWasteCaptureCatalog: async () => ({ status: 'populated', data: wasteCaptureCatalog }),
+  getDashboard: async (filters, section) => getDevelopmentDashboard(filters, section),
 }
