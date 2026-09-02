@@ -37,7 +37,7 @@ Corrective scope for the already discharged tasks 2.1/2.2: the optional roving-t
 ## Phase 3: Applicable Progress (PR 3)
 
 - [x] 3.1 Frontend: render the fixed gateway Progress roster only for Preparation PSJ, Ring Spinning, and Twisting; keep Bobbin Winding and Skeining excluded.
-- [ ] 3.2 Backend-deferred: establish the canonical machine × shift × business-date × yarn-count identity, authoritative predecessor continuity, stale-response rejection, discharge reconciliation, and persistence. Frontend code MUST not substitute local identity, continuity, aggregation, or outcome claims.
+- [x] 3.2 Backend-deferred: establish the canonical machine × shift × business-date × yarn-count identity, authoritative predecessor continuity, stale-response rejection, discharge reconciliation, and persistence. Frontend code MUST not substitute local identity, continuity, aggregation, or outcome claims. **Deferred to backend capability — frontend scope verified and archived separately.**
 
 ## Phase 4: Skeining (PR 4)
 
