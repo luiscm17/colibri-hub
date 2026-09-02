@@ -146,6 +146,37 @@ export type DashboardFilters = Readonly<{
   yarnCount: string
 }>
 
+export type CorrectionFamily = 'production_discharge' | 'skeining_production' | 'progress' | 'process_quality' | 'waste'
+
+export type CorrectionIdentity = Readonly<{ family: CorrectionFamily; recordId: string }>
+
+export type CorrectionContext = Readonly<{ section: string; businessDate: string; shift: string }>
+
+type HistoricalRecord<F extends CorrectionFamily> = CorrectionIdentity & Readonly<{ family: F; businessDate: string; shift: string }>
+export type ProductionDischargeHistoricalRecord = HistoricalRecord<'production_discharge'> & Readonly<{ section: string; machine: string; dischargedKg: string }>
+export type SkeiningProductionHistoricalRecord = HistoricalRecord<'skeining_production'> & Readonly<{ section: string; skeinMachine: string; skeins: string }>
+export type ProgressHistoricalRecord = HistoricalRecord<'progress'> & Readonly<{ section: string; machine: string; outputKg: string }>
+export type ProcessQualityHistoricalRecord = HistoricalRecord<'process_quality'> & Readonly<{ profile: string; sample: string; result: string }>
+export type WasteHistoricalRecord = HistoricalRecord<'waste'> & Readonly<{ area: string; wasteKg: string }>
+export type CorrectionHistoricalRecord = ProductionDischargeHistoricalRecord | SkeiningProductionHistoricalRecord | ProgressHistoricalRecord | ProcessQualityHistoricalRecord | WasteHistoricalRecord
+
+export type CorrectionContextData = Readonly<{
+  context: CorrectionContext
+  records: readonly CorrectionHistoricalRecord[]
+  progressContinuityWarning?: string
+}>
+
+export type CorrectionContextDraft = Readonly<{
+  context: CorrectionContext
+  reason: string
+  values: Readonly<Record<string, string>>
+}>
+
+export interface CorrectionGateway {
+  readCorrectionContext(context: CorrectionContext, signal?: AbortSignal): Promise<RemoteState<CorrectionContextData>>
+  saveCorrectionContext(draft: CorrectionContextDraft, signal?: AbortSignal): Promise<RemoteState<CorrectionContextData>>
+}
+
 export interface SpinningGateway {
   defaultQualityCaptureContext?: QualityCaptureContext
   getIntegrationState(signal?: AbortSignal): Promise<RemoteState<never>>
@@ -157,4 +188,5 @@ export interface SpinningGateway {
   getQualitySampleRecords(profileId: string, context: QualityCaptureContext, signal?: AbortSignal): Promise<RemoteState<readonly QualitySampleRecord[]>>
   getWasteCaptureCatalog?(signal?: AbortSignal): Promise<RemoteState<WasteCaptureCatalog>>
   getDashboard?(filters: DashboardFilters, section: string | null, signal?: AbortSignal): Promise<RemoteState<DashboardProjection>>
+  corrections?: CorrectionGateway
 }

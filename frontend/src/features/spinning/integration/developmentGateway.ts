@@ -1,4 +1,4 @@
-import type { DashboardFilters, DashboardProjection, ProductionDischargeCatalog, QualityCaptureCatalog, QualityProfile, QualitySampleRecord, RemoteState, SpinningGateway, WasteCaptureCatalog } from './contracts'
+import type { CorrectionContext, CorrectionHistoricalRecord, DashboardFilters, DashboardProjection, ProductionDischargeCatalog, QualityCaptureCatalog, QualityProfile, QualitySampleRecord, RemoteState, SpinningGateway, WasteCaptureCatalog } from './contracts'
 import { unavailableIntegrationState } from './unavailableGateway'
 
 const catalog: ProductionDischargeCatalog = {
@@ -94,6 +94,16 @@ const reportingProjection: DashboardProjection = {
   ],
 }
 
+const correctionRecords: readonly CorrectionHistoricalRecord[] = [
+  { family: 'production_discharge', recordId: 'discharge-1', section: 'Continuas', businessDate: '2026-09-01', shift: 'A', machine: 'Continua 01', dischargedKg: '120 kg' },
+  { family: 'skeining_production', recordId: 'skeining-1', section: 'Madejeras', businessDate: '2026-09-01', shift: 'A', skeinMachine: 'Madejera 01', skeins: '48' },
+  { family: 'progress', recordId: 'progress-1', section: 'Continuas', businessDate: '2026-09-01', shift: 'A', machine: 'Continua 01', outputKg: '12 kg' },
+  { family: 'process_quality', recordId: 'quality-1', businessDate: '2026-09-01', shift: 'A', profile: 'Muestra autorizada', sample: 'PSJ-0A', result: '22,45' },
+  { family: 'waste', recordId: 'waste-1', businessDate: '2026-09-01', shift: 'A', area: 'Continuas', wasteKg: '4 kg' },
+]
+
+const readCorrectionContext = (context: CorrectionContext) => ({ status: 'populated' as const, data: { context, records: correctionRecords.filter(record => record.businessDate === context.businessDate && record.shift === context.shift && (!('section' in record) || record.section === context.section)), progressContinuityWarning: 'Revise la continuidad con el registro anterior.' } })
+
 function getDevelopmentDashboard(_filters: DashboardFilters, section: string | null): RemoteState<DashboardProjection> {
   if (!section) return { status: 'populated', data: reportingProjection }
   return { status: 'populated', data: { sections: reportingProjection.sections.filter(item => item.section === section) } }
@@ -115,4 +125,8 @@ export const developmentSpinningGateway: SpinningGateway = {
   getQualitySampleRecords: async (profileId) => profileId === 'authorized-sample' ? { status: 'populated', data: sampleRecords } : { status: 'empty' },
   getWasteCaptureCatalog: async () => ({ status: 'populated', data: wasteCaptureCatalog }),
   getDashboard: async (filters, section) => getDevelopmentDashboard(filters, section),
+  corrections: {
+    readCorrectionContext: async context => readCorrectionContext(context),
+    saveCorrectionContext: async draft => readCorrectionContext(draft.context),
+  },
 }
