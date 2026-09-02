@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deriveNavigation } from './navigation-state'
+import { canDisplayNavigationItem, deriveNavigation } from './navigation-state'
 import { navData, type NavItem } from '../navigation-data'
 import { ACCESS_CATALOG } from '@/features/access-control'
 
@@ -22,5 +22,13 @@ describe('deriveNavigation', () => {
     expect(ACCESS_CATALOG['/auth/accounts']).toEqual({ action: 'manage_access', scope: 'access_control' })
     expect(deriveNavigation([accounts!], (item) => item.path === '/auth/accounts')).toHaveLength(1)
     expect(deriveNavigation([accounts!], () => false)).toEqual([])
+  })
+
+  it('shows explicitly authorized non-catalog routes without creating an access requirement', () => {
+    const corrections = navData.find((item) => item.label === 'Hilatura')?.children?.find((item) => item.path === '/spinning/corrections')
+
+    expect(corrections).toMatchObject({ label: 'Correcciones', path: '/spinning/corrections', displayWithoutAccess: true })
+    expect(canDisplayNavigationItem(corrections!, () => false)).toBe(true)
+    expect(ACCESS_CATALOG).not.toHaveProperty('/spinning/corrections')
   })
 })

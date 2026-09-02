@@ -15,15 +15,27 @@ import {
     IconFileAnalytics,
     IconListDetails,
     IconRoute,
+    IconPencil,
 } from "@tabler/icons-react";
 import { ACCESS_CATALOG } from "@/features/access-control";
 
-export interface NavItem {
+interface NavigationItemBase {
     label: string;
-    path?: keyof typeof ACCESS_CATALOG;
     icon?: ReactNode;
     children?: NavItem[];
 }
+
+interface CatalogNavItem extends NavigationItemBase {
+    path?: keyof typeof ACCESS_CATALOG;
+    displayWithoutAccess?: never;
+}
+
+interface ExplicitNavItem extends NavigationItemBase {
+    path: string;
+    displayWithoutAccess: true;
+}
+
+export type NavItem = CatalogNavItem | ExplicitNavItem;
 
 export const navData: NavItem[] = [
     {
@@ -89,6 +101,7 @@ export const navData: NavItem[] = [
                 icon: <IconSitemap size={16} />,
             },
             { label: "Desperdicio", path: "/spinning/waste", icon: <IconTrash size={16} /> },
+            { label: "Correcciones", path: "/spinning/corrections", icon: <IconPencil size={16} />, displayWithoutAccess: true },
             {
                 label: "Consolidado",
                 path: "/spinning/consolidated",

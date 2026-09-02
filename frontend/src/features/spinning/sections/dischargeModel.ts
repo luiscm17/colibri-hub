@@ -1,47 +1,41 @@
-export const DISCHARGE_EDITABLE_COLUMNS = [
-  'machine', 'yarnCount', 'grossWeightKg', 'operativeSpindleCount', 'spindleTareWeightG', 'cartWeightKg', 'rovingCount', 'observations',
-] as const
-export const DISCHARGE_COLUMN_LABELS = {
-  machine: 'Máquina', yarnCount: 'Título del hilo', grossWeightKg: 'Peso bruto (kg)', operativeSpindleCount: 'Cantidad de husos operativos',
-  spindleTareWeightG: 'Peso de tara del huso (g)', cartWeightKg: 'Peso del carro (kg)', rovingCount: 'Título de mecha (opcional)', observations: 'Observaciones (opcional)',
-  netWeight: 'Peso neto (kg)',
-} as const
+import type { ProductionRosterEntry } from '../integration/contracts'
 
-export type DischargeColumn = (typeof DISCHARGE_EDITABLE_COLUMNS)[number]
-export type GridRowState = 'pending' | 'invalid' | 'complete' | 'acknowledged-no-production'
+export type DischargeColumn = 'grossWeightKg' | 'spindleCount' | 'packageTareWeightG' | 'cartWeightKg' | 'skeinQuantity' | 'skeinUnitWeightG' | 'operator' | 'observations'
 
 export type ProductionDischargeRow = Readonly<{
   rowId: string
+  number: number
   machine: string
-  yarnCount: string
+  yarnTitle: string
+  type: string
+  defaultPackageTareWeightKg: string
+  defaultCartWeightKg: string
+  projections: Readonly<Record<string, string | null>>
   grossWeightKg: string
-  operativeSpindleCount: string
-  spindleTareWeightG: string
+  spindleCount: string
+  packageTareWeightG: string
   cartWeightKg: string
-  rovingCount: string
+  skeinQuantity: string
+  skeinUnitWeightG: string
+  operator: string
   observations: string
 }>
 
 export type ProductionDischargeDraft = Readonly<{
   rows: readonly ProductionDischargeRow[]
-  nextRowId: number
-}>
-
-export type DischargeRowFeedback = Readonly<{
-  state: GridRowState
-  errors: Readonly<Partial<Record<DischargeColumn, string>>>
 }>
 
 export function createDischargeDraft(): ProductionDischargeDraft {
-  return { rows: [emptyRow(1)], nextRowId: 2 }
+  return { rows: [] }
 }
 
-export function appendDischargeRow(draft: ProductionDischargeDraft): ProductionDischargeDraft {
-  return { rows: [...draft.rows, emptyRow(draft.nextRowId)], nextRowId: draft.nextRowId + 1 }
+export function replaceDischargeRows(_draft: ProductionDischargeDraft, rows: readonly ProductionDischargeRow[]): ProductionDischargeDraft {
+  return { rows }
 }
 
-export function replaceDischargeRows(draft: ProductionDischargeDraft, rows: readonly ProductionDischargeRow[]): ProductionDischargeDraft {
-  return { ...draft, rows }
+export function applyProductionRoster(draft: ProductionDischargeDraft, roster: readonly ProductionRosterEntry[]): ProductionDischargeDraft {
+  const existing = new Map(draft.rows.map(row => [row.rowId, row]))
+  return { rows: roster.map(entry => ({ ...emptyRow(entry), ...existing.get(entry.id), rowId: entry.id, number: entry.number, machine: entry.machine, yarnTitle: entry.yarnTitle, type: entry.type, defaultPackageTareWeightKg: entry.defaultPackageTareWeightKg, defaultCartWeightKg: entry.defaultCartWeightKg, projections: entry.projections })) }
 }
 
 export function pasteDischargeRows(
@@ -52,41 +46,20 @@ export function pasteDischargeRows(
 ): ProductionDischargeDraft {
   const startRow = draft.rows.findIndex(row => row.rowId === rowId)
   if (startRow < 0) return draft
-  let next = draft
   const startColumn = DISCHARGE_EDITABLE_COLUMNS.indexOf(column)
+  if (startColumn < 0) return draft
+  let rows = [...draft.rows]
   for (const [offset, values] of text.replace(/\r/g, '').split('\n').filter(Boolean).map(line => line.split('\t')).entries()) {
-    while (startRow + offset >= next.rows.length) next = appendDischargeRow(next)
-    const row = next.rows[startRow + offset]
+    const row = rows[startRow + offset]
+    if (!row) break
     const patch = Object.fromEntries(values.slice(0, DISCHARGE_EDITABLE_COLUMNS.length - startColumn).map((value, index) => [DISCHARGE_EDITABLE_COLUMNS[startColumn + index], value]))
-    next = replaceDischargeRows(next, next.rows.map(candidate => candidate.rowId === row.rowId ? { ...candidate, ...patch } : candidate))
+    rows = rows.map(candidate => candidate.rowId === row.rowId ? { ...candidate, ...patch } : candidate)
   }
-  return next
+  return { rows }
 }
 
-export function dischargeRowFeedback(row: ProductionDischargeRow): DischargeRowFeedback {
-  const values = {
-    machine: row.machine.trim(), yarnCount: row.yarnCount.trim(), grossWeightKg: row.grossWeightKg.trim(),
-    operativeSpindleCount: row.operativeSpindleCount.trim(), spindleTareWeightG: row.spindleTareWeightG.trim(),
-    cartWeightKg: row.cartWeightKg.trim(), rovingCount: row.rovingCount.trim(), observations: row.observations.trim(),
-  }
-  if (!Object.values(values).some(Boolean)) return { state: 'pending', errors: {} }
-  const errors: Partial<Record<DischargeColumn, string>> = {}
-  if (!values.machine) errors.machine = 'La máquina es obligatoria.'
-  if (!values.yarnCount) errors.yarnCount = 'El título del hilo es obligatorio.'
-  if (!values.grossWeightKg) errors.grossWeightKg = 'El peso bruto es obligatorio.'
-  if (!values.operativeSpindleCount) errors.operativeSpindleCount = 'La cantidad de husos operativos es obligatoria.'
-  if (!values.spindleTareWeightG) errors.spindleTareWeightG = 'El peso de tara del huso es obligatorio.'
-  if (!values.cartWeightKg) errors.cartWeightKg = 'El peso del carro es obligatorio.'
-  for (const field of ['grossWeightKg', 'spindleTareWeightG', 'cartWeightKg'] as const) {
-    if (values[field] && !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(values[field])) errors[field] = 'Ingrese un valor decimal no negativo.'
-  }
-  for (const field of ['operativeSpindleCount', 'rovingCount'] as const) {
-    if (values[field] && !/^(?:0|[1-9]\d*)$/.test(values[field])) errors[field] = 'Ingrese un número entero no negativo.'
-  }
-  if (Object.keys(errors).length) return { state: 'invalid', errors }
-  return { state: values.grossWeightKg === '0' ? 'acknowledged-no-production' : 'complete', errors }
-}
+export const DISCHARGE_EDITABLE_COLUMNS: readonly DischargeColumn[] = ['grossWeightKg', 'spindleCount', 'packageTareWeightG', 'cartWeightKg', 'skeinQuantity', 'skeinUnitWeightG', 'operator', 'observations']
 
-function emptyRow(sequence: number): ProductionDischargeRow {
-  return { rowId: `discharge-row-${sequence}`, machine: '', yarnCount: '', grossWeightKg: '', operativeSpindleCount: '', spindleTareWeightG: '', cartWeightKg: '', rovingCount: '', observations: '' }
+function emptyRow(entry: ProductionRosterEntry): ProductionDischargeRow {
+  return { rowId: entry.id, number: entry.number, machine: entry.machine, yarnTitle: entry.yarnTitle, type: entry.type, defaultPackageTareWeightKg: entry.defaultPackageTareWeightKg, defaultCartWeightKg: entry.defaultCartWeightKg, projections: entry.projections, grossWeightKg: '', spindleCount: '', packageTareWeightG: '', cartWeightKg: '', skeinQuantity: '', skeinUnitWeightG: '', operator: '', observations: '' }
 }

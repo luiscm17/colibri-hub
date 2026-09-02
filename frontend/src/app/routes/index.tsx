@@ -37,6 +37,7 @@ const router = createBrowserRouter([
       { path: 'spinning/skeining', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/skeining']}>{spinningPage('skeining')}</ProtectedRoute> },
       { path: 'spinning/quality', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/quality']}>{spinningPage('quality')}</ProtectedRoute> },
       { path: 'spinning/waste', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/waste']}>{spinningPage('waste')}</ProtectedRoute> },
+      { path: 'spinning/corrections', element: spinningPage('corrections') },
       { path: 'spinning/consolidated', element: <ProtectedRoute requirement={ACCESS_CATALOG['/spinning/consolidated']}>{spinningPage('consolidated')}</ProtectedRoute> },
       ...['lots', 'lots/queue', 'lots/detail', 'lots/inventory', 'lots/dyeing', 'lots/drying', 'lots/winding', 'lots/bagging', 'lots/quality'].map((path) => ({ path, element: <ProtectedRoute requirement={ACCESS_CATALOG[`/${path}`]}><LotsPage /></ProtectedRoute> })),
       { path: 'auth/accounts', element: protectAdministration('/auth/accounts', <AuthenticationAccountsPage />) },

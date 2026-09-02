@@ -1,25 +1,20 @@
 import type { ProgressIdentity } from '../integration/contracts'
+import type { ProgressRosterEntry } from '../integration/contracts'
 
-export type ProgressRow = Readonly<{ rowId: string; machineId: string; yarnCountId: string }>
-export type ProgressDraft = Readonly<{ rows: readonly ProgressRow[]; nextRowId: number }>
+export type ProgressRow = Readonly<{ rowId: string; number: number; machine: string; yarnTitle: string; type: string; projections: Readonly<Record<string, string | null>>; grossWeightG: string; tareWeightG: string; spindleCount: string; inputWeightKg: string; outputWeightKg: string; dischargeWeightKg: string; hours: string; observations: string }>
+export type ProgressDraft = Readonly<{ rows: readonly ProgressRow[] }>
 
 export function createProgressDraft(): ProgressDraft {
-  return { rows: [emptyRow(1)], nextRowId: 2 }
+  return { rows: [] }
 }
 
-export function appendProgressRow(draft: ProgressDraft): ProgressDraft {
-  return { rows: [...draft.rows, emptyRow(draft.nextRowId)], nextRowId: draft.nextRowId + 1 }
+export function replaceProgressRows(_draft: ProgressDraft, rows: readonly ProgressRow[]): ProgressDraft {
+  return { rows }
 }
 
-export function replaceProgressRows(draft: ProgressDraft, rows: readonly ProgressRow[]): ProgressDraft {
-  const seen = new Set<string>()
-  const uniqueRows = rows.filter(row => {
-    const key = row.machineId && row.yarnCountId ? `${row.machineId}\u0000${row.yarnCountId}` : row.rowId
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-  return { ...draft, rows: uniqueRows }
+export function applyProgressRoster(draft: ProgressDraft, roster: readonly ProgressRosterEntry[]): ProgressDraft {
+  const existing = new Map(draft.rows.map(row => [row.rowId, row]))
+  return { rows: roster.map(entry => ({ ...emptyRow(entry), ...existing.get(entry.id), rowId: entry.id, number: entry.number, machine: entry.machine, yarnTitle: entry.yarnTitle, type: entry.type, projections: entry.projections })) }
 }
 
 export function progressRequestKey(identity: ProgressIdentity): string {
@@ -30,6 +25,6 @@ export function isCurrentProgressRequest(requestKey: string, currentKey: string 
   return requestKey === currentKey
 }
 
-function emptyRow(sequence: number): ProgressRow {
-  return { rowId: `progress-row-${sequence}`, machineId: '', yarnCountId: '' }
+function emptyRow(entry: ProgressRosterEntry): ProgressRow {
+  return { rowId: entry.id, number: entry.number, machine: entry.machine, yarnTitle: entry.yarnTitle, type: entry.type, projections: entry.projections, grossWeightG: '', tareWeightG: '', spindleCount: '', inputWeightKg: '', outputWeightKg: '', dischargeWeightKg: '', hours: '', observations: '' }
 }

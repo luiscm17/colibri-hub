@@ -1,19 +1,24 @@
-import type { DashboardFilters, DashboardProjection, ProductionDischargeCatalog, QualityCaptureCatalog, QualityProfile, QualitySampleRecord, RemoteState, SpinningGateway, WasteCaptureCatalog } from './contracts'
+import type { CorrectionContext, CorrectionHistoricalRecord, DashboardFilters, DashboardProjection, ProductionDischargeCatalog, QualityCaptureCatalog, QualityProfile, QualitySampleRecord, RemoteState, SpinningGateway, WasteCaptureCatalog } from './contracts'
 import { unavailableIntegrationState } from './unavailableGateway'
 
 const catalog: ProductionDischargeCatalog = {
-  machines: [
-    { id: 'FIN-01', label: 'Continua 01' },
-    { id: 'FIN-02', label: 'Continua 02' },
-    { id: 'MAD-01', label: 'Madejera 01' },
+  productionRoster: [
+    { id: 'production-1', number: 1, machine: 'Continua 01', yarnTitle: '20/1', type: 'Algodón', defaultPackageTareWeightKg: '', defaultCartWeightKg: '', projections: { netWeightKg: null } },
+    { id: 'production-2', number: 2, machine: 'Continua 02', yarnTitle: '30/1', type: 'Algodón', defaultPackageTareWeightKg: '', defaultCartWeightKg: '', projections: { netWeightKg: null } },
+    { id: 'production-3', number: 3, machine: 'Madejera 01', yarnTitle: '40/1', type: 'Madeja', defaultPackageTareWeightKg: '', defaultCartWeightKg: '', projections: { netWeightKg: null } },
   ],
-  applicableMachineIds: ['FIN-01', 'FIN-02', 'MAD-01'],
-  rovingTitleApplicableMachineIds: ['FIN-01', 'FIN-02'],
-  yarnCounts: [
-    { id: '20-1', label: '20/1' },
-    { id: '30-1', label: '30/1' },
-    { id: '40-1', label: '40/1' },
+  progressRoster: [
+    { id: 'progress-1', number: 1, machine: 'Continua 01', yarnTitle: '20/1', type: 'Algodón', projections: { continuity: null } },
+    { id: 'progress-2', number: 2, machine: 'Continua 02', yarnTitle: '30/1', type: 'Algodón', projections: { continuity: null } },
   ],
+}
+
+const preparationCatalog: ProductionDischargeCatalog = {
+  productionRoster: [
+    { id: 'fin-01', number: 1, machine: 'FIN-01', yarnTitle: '', type: 'Finisor', defaultPackageTareWeightKg: '0', defaultCartWeightKg: '0', projections: { netWeightKg: null } },
+    { id: 'fin-02', number: 2, machine: 'FIN-02', yarnTitle: '', type: 'Finisor', defaultPackageTareWeightKg: '0', defaultCartWeightKg: '0', projections: { netWeightKg: null } },
+  ],
+  progressRoster: [],
 }
 
 const qualityProfiles: RemoteState<readonly QualityProfile[]> = {
@@ -89,6 +94,16 @@ const reportingProjection: DashboardProjection = {
   ],
 }
 
+const correctionRecords: readonly CorrectionHistoricalRecord[] = [
+  { family: 'production_discharge', recordId: 'discharge-1', section: 'Continuas', businessDate: '2026-09-01', shift: 'A', machine: 'Continua 01', dischargedKg: '120 kg' },
+  { family: 'skeining_production', recordId: 'skeining-1', section: 'Madejeras', businessDate: '2026-09-01', shift: 'A', skeinMachine: 'Madejera 01', skeins: '48' },
+  { family: 'progress', recordId: 'progress-1', section: 'Continuas', businessDate: '2026-09-01', shift: 'A', machine: 'Continua 01', outputKg: '12 kg' },
+  { family: 'process_quality', recordId: 'quality-1', businessDate: '2026-09-01', shift: 'A', profile: 'Muestra autorizada', sample: 'PSJ-0A', result: '22,45' },
+  { family: 'waste', recordId: 'waste-1', businessDate: '2026-09-01', shift: 'A', area: 'Continuas', wasteKg: '4 kg' },
+]
+
+const readCorrectionContext = (context: CorrectionContext) => ({ status: 'populated' as const, data: { context, records: correctionRecords.filter(record => record.businessDate === context.businessDate && record.shift === context.shift && (!('section' in record) || record.section === context.section)), progressContinuityWarning: 'Revise la continuidad con el registro anterior.' } })
+
 function getDevelopmentDashboard(_filters: DashboardFilters, section: string | null): RemoteState<DashboardProjection> {
   if (!section) return { status: 'populated', data: reportingProjection }
   return { status: 'populated', data: { sections: reportingProjection.sections.filter(item => item.section === section) } }
@@ -103,11 +118,15 @@ export const developmentSpinningGateway: SpinningGateway = {
   },
   getIntegrationState: async () => unavailableIntegrationState,
   getSectionContext: async () => unavailableIntegrationState,
-  getProductionDischargeCatalog: async () => ({ status: 'populated', data: catalog }),
+  getProductionDischargeCatalog: async (identity) => ({ status: 'populated', data: identity.section === 'preparation' ? preparationCatalog : catalog }),
   getProgressContinuity: async () => unavailableIntegrationState,
   getQualityCaptureCatalog: async () => ({ status: 'populated', data: qualityCaptureCatalog }),
   getQualityProfiles: async (context) => context.businessDate && context.shiftId && context.supervisorId && context.analystId ? qualityProfiles : { status: 'empty' },
   getQualitySampleRecords: async (profileId) => profileId === 'authorized-sample' ? { status: 'populated', data: sampleRecords } : { status: 'empty' },
   getWasteCaptureCatalog: async () => ({ status: 'populated', data: wasteCaptureCatalog }),
   getDashboard: async (filters, section) => getDevelopmentDashboard(filters, section),
+  corrections: {
+    readCorrectionContext: async context => readCorrectionContext(context),
+    saveCorrectionContext: async draft => readCorrectionContext(draft.context),
+  },
 }

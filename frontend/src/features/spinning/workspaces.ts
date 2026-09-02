@@ -6,6 +6,7 @@ export const spinningWorkspaces = {
     skeining: "Madejeras",
     quality: "Control de Calidad",
     waste: "Desperdicio",
+    corrections: "Correcciones",
     consolidated: "Informes consolidados",
 } as const;
 
