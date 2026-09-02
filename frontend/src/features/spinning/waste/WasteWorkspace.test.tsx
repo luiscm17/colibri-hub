@@ -11,11 +11,12 @@ Object.defineProperty(window, 'matchMedia', { writable: true, value: () => ({ ma
 afterEach(cleanup)
 
 describe('WasteWorkspace', () => {
-  it('renders the worksheet-shaped waste grid with gateway-provided context and no calculated columns', async () => {
+  it('renders the worksheet-shaped waste grid at its full row height with gateway-provided context and no calculated columns', async () => {
     renderWorkspace(catalogGateway)
 
     expect(await screen.findByLabelText('Waste capture grid')).toBeTruthy()
     expect(screen.getByRole('grid').getAttribute('aria-colcount')).toBe('5')
+    expect(screen.getByRole('grid').style.height).toBe('70px')
     expect(screen.getByLabelText('Contexto operativo de desperdicio').textContent).toContain('Turno: A')
     expect(screen.getByLabelText('Contexto operativo de desperdicio').textContent).toContain('Supervisor: JUNIOR')
     expect(screen.getByLabelText('Contexto operativo de desperdicio').textContent).toContain('Encargado: RICHARD')
