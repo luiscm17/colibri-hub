@@ -47,7 +47,7 @@ Corrective scope for the already discharged tasks 2.1/2.2: the optional roving-t
 - [x] 7.1 RED/GREEN: create independent `waste/**` weighed machine-group/shift grid; prohibit production/Progress coupling and calculated waste.
 
 ## Phase 8: Reporting (PR 8)
-- [ ] 8.1 RED/GREEN: create `reporting/**`; retain URL filters and distinguish loading/empty/populated/stale/failure/unavailable without zero substitution.
+- [x] 8.1 RED/GREEN: create `reporting/**`; retain URL filters and distinguish loading/empty/populated/stale/failure/unavailable without zero substitution.
 
 ## Phase 9: Corrections (PR 9)
 - [ ] 9.1 RED/GREEN: create `corrections/**`; retain conflict drafts, require current-record read, and prohibit automatic retry.
