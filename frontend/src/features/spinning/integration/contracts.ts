@@ -11,11 +11,29 @@ export type SectionIdentity = Readonly<{ section: string; businessDate: string; 
 
 export type ReferenceOption = Readonly<{ id: string; label: string }>
 
+export type ProductionRosterEntry = Readonly<{
+  id: string
+  number: number
+  machine: string
+  yarnTitle: string
+  type: string
+  defaultPackageTareWeightKg: string
+  defaultCartWeightKg: string
+  projections: Readonly<Record<string, string | null>>
+}>
+
+export type ProgressRosterEntry = Readonly<{
+  id: string
+  number: number
+  machine: string
+  yarnTitle: string
+  type: string
+  projections: Readonly<Record<string, string | null>>
+}>
+
 export type ProductionDischargeCatalog = Readonly<{
-  machines: readonly ReferenceOption[]
-  applicableMachineIds: readonly string[]
-  rovingTitleApplicableMachineIds: readonly string[]
-  yarnCounts: readonly ReferenceOption[]
+  productionRoster: readonly ProductionRosterEntry[]
+  progressRoster: readonly ProgressRosterEntry[]
 }>
 
 export type WasteCaptureCatalog = Readonly<{

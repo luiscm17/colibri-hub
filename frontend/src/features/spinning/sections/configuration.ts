@@ -1,5 +1,4 @@
 import type { SpinningWorkspace } from '../workspaces'
-import type { ProductionDischargeCatalog } from '../integration/contracts'
 
 export type SectionGridConfig = Readonly<{
   discharge: boolean
@@ -7,20 +6,13 @@ export type SectionGridConfig = Readonly<{
 }>
 
 const configurations: Readonly<Partial<Record<SpinningWorkspace, SectionGridConfig>>> = {
-  preparation: { discharge: true, progress: true },
+  preparation: { discharge: true, progress: false },
   ringSpinning: { discharge: true, progress: true },
   bobbinWinding: { discharge: true, progress: false },
   twisting: { discharge: true, progress: true },
+  skeining: { discharge: true, progress: false },
 }
 
 export function sectionGridConfig(workspace: SpinningWorkspace): SectionGridConfig {
   return configurations[workspace] ?? { discharge: false, progress: false }
-}
-
-export function rovingTitleMachineIds(catalog: ProductionDischargeCatalog): readonly string[] {
-  return catalog.rovingTitleApplicableMachineIds.filter(machineId => catalog.applicableMachineIds.includes(machineId))
-}
-
-export function hasRovingTitleInput(catalog: ProductionDischargeCatalog): boolean {
-  return rovingTitleMachineIds(catalog).length > 0
 }

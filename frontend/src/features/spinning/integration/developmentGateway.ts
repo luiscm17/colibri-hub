@@ -2,18 +2,23 @@ import type { DashboardFilters, DashboardProjection, ProductionDischargeCatalog,
 import { unavailableIntegrationState } from './unavailableGateway'
 
 const catalog: ProductionDischargeCatalog = {
-  machines: [
-    { id: 'FIN-01', label: 'Continua 01' },
-    { id: 'FIN-02', label: 'Continua 02' },
-    { id: 'MAD-01', label: 'Madejera 01' },
+  productionRoster: [
+    { id: 'production-1', number: 1, machine: 'Continua 01', yarnTitle: '20/1', type: 'Algodón', defaultPackageTareWeightKg: '', defaultCartWeightKg: '', projections: { netWeightKg: null } },
+    { id: 'production-2', number: 2, machine: 'Continua 02', yarnTitle: '30/1', type: 'Algodón', defaultPackageTareWeightKg: '', defaultCartWeightKg: '', projections: { netWeightKg: null } },
+    { id: 'production-3', number: 3, machine: 'Madejera 01', yarnTitle: '40/1', type: 'Madeja', defaultPackageTareWeightKg: '', defaultCartWeightKg: '', projections: { netWeightKg: null } },
   ],
-  applicableMachineIds: ['FIN-01', 'FIN-02', 'MAD-01'],
-  rovingTitleApplicableMachineIds: ['FIN-01', 'FIN-02'],
-  yarnCounts: [
-    { id: '20-1', label: '20/1' },
-    { id: '30-1', label: '30/1' },
-    { id: '40-1', label: '40/1' },
+  progressRoster: [
+    { id: 'progress-1', number: 1, machine: 'Continua 01', yarnTitle: '20/1', type: 'Algodón', projections: { continuity: null } },
+    { id: 'progress-2', number: 2, machine: 'Continua 02', yarnTitle: '30/1', type: 'Algodón', projections: { continuity: null } },
   ],
+}
+
+const preparationCatalog: ProductionDischargeCatalog = {
+  productionRoster: [
+    { id: 'fin-01', number: 1, machine: 'FIN-01', yarnTitle: '', type: 'Finisor', defaultPackageTareWeightKg: '0', defaultCartWeightKg: '0', projections: { netWeightKg: null } },
+    { id: 'fin-02', number: 2, machine: 'FIN-02', yarnTitle: '', type: 'Finisor', defaultPackageTareWeightKg: '0', defaultCartWeightKg: '0', projections: { netWeightKg: null } },
+  ],
+  progressRoster: [],
 }
 
 const qualityProfiles: RemoteState<readonly QualityProfile[]> = {
@@ -103,7 +108,7 @@ export const developmentSpinningGateway: SpinningGateway = {
   },
   getIntegrationState: async () => unavailableIntegrationState,
   getSectionContext: async () => unavailableIntegrationState,
-  getProductionDischargeCatalog: async () => ({ status: 'populated', data: catalog }),
+  getProductionDischargeCatalog: async (identity) => ({ status: 'populated', data: identity.section === 'preparation' ? preparationCatalog : catalog }),
   getProgressContinuity: async () => unavailableIntegrationState,
   getQualityCaptureCatalog: async () => ({ status: 'populated', data: qualityCaptureCatalog }),
   getQualityProfiles: async (context) => context.businessDate && context.shiftId && context.supervisorId && context.analystId ? qualityProfiles : { status: 'empty' },
