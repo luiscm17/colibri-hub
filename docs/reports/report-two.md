@@ -21,7 +21,7 @@ El nuevo período integra:
 * mejoras en la experiencia de usuario y navegación;
 * diseño adaptable a escritorio, tablet y dispositivos móviles.
 
-![Captura 1 — Hilatura: sección de Continuas](img/desktop/21-spinning-continuas-light.png)
+![Captura 1 — Hilatura: sección de Continuas](img/desktop/11-spinning-continuas-light.png)
 *Vista de la sección Continuas, mostrando la grilla de descarga de producción con las máquinas del turno.*
 
 ---
@@ -52,7 +52,7 @@ Cada sección incluye:
 * filtros por fecha, turno, máquina y título de hilo;
 * indicadores de producción consolidados.
 
-![Captura 2 — Hilatura: sección de Madejeras](img/desktop/23-spinning-madejeras.png)
+![Captura 2 — Hilatura: sección de Madejeras](img/desktop/12-spinning-madejeras.png)
 *Vista de la sección Madejeras, mostrando la grilla de producción con las máquinas del turno.*
 
 ### Control de Acceso mejorado
@@ -66,7 +66,7 @@ El sistema de administración de acceso incorpora:
 * historial de autenticación con registros de inicio de sesión;
 * historial de acceso con seguimiento de operaciones.
 
-![Captura 3 — Control de Acceso: gestión de usuarios](img/desktop/24-access-users.png)
+![Captura 3 — Control de Acceso: gestión de usuarios](img/desktop/13-access-users.png)
 *Panel de administración de usuarios, mostrando la lista de usuarios del sistema y sus roles asignados.*
 
 ### Mejoras de experiencia de usuario
@@ -80,7 +80,7 @@ Las mejoras implementadas incluyen:
 * toggle de tema claro y oscuro funcional;
 * diseño responsive para tablet y dispositivos móviles.
 
-![Captura 4 — Tema oscuro en Hilatura](img/desktop/22-spinning-continuas-dark.png)
+![Captura 4 — Tema oscuro en Hilatura](img/desktop/14-spinning-continuas-dark.png)
 *Vista de la sección Continuas con tema oscuro aplicado.*
 
 ---
@@ -97,7 +97,7 @@ El diseño responsive garantiza que el sistema sea utilizable en diferentes disp
 
 | Tema claro (desktop) | Tema oscuro (desktop) |
 |:-:|:-:|
-| ![Captura 5a — Hilatura tema claro](img/desktop/25-spinning-preparation-light.png) | ![Captura 5b — Hilatura tema oscuro](img/desktop/26-spinning-preparation-dark.png) |
+| ![Captura 5a — Hilatura tema claro](img/desktop/15-spinning-preparation-light.png) | ![Captura 5b — Hilatura tema oscuro](img/desktop/16-spinning-preparation-dark.png) |
 *Vistas de Hilatura con temas claro y oscuro en dispositivo de escritorio.*
 
 ---
