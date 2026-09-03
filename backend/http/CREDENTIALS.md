@@ -21,11 +21,15 @@ responsibilities.
 
 ## Users
 
+Emails use a fictional corporate domain (`colibritextil.com.ar`) with
+`firstname.lastname` format so local data resembles a real plant directory.
+Passwords are unchanged across database resets.
+
 | User | Email | Password | Role(s) | State |
 | ---- | ----- | -------- | ------- | ----- |
-| Alex Rivera | `admin@colibri.test` | `AdminTest123!` | `system_administrator` | active |
-| Sofía Torres | `section@colibri.test` | `SectionTest123!` | `section-responsible` | active |
-| Diego Morales | `supervisor@colibri.test` | `SupervisorTest123!` | `supervisor` | active |
+| Alex Rivera | `alex.rivera@colibritextil.com.ar` | `AdminTest123!` | `system_administrator` | active |
+| Sofía Torres | `sofia.torres@colibritextil.com.ar` | `SectionTest123!` | `section-responsible` | active |
+| Diego Morales | `diego.morales@colibritextil.com.ar` | `SupervisorTest123!` | `supervisor` | active |
 
 Test role permission sets (scopes as documented in the scope definitions seed):
 
@@ -47,7 +51,7 @@ does), so export it first. Run from the repository root:
 ```bash
 set -a; source backend/.env; set +a
 
-BOOTSTRAP_EMAIL=admin@colibri.test \
+BOOTSTRAP_EMAIL=alex.rivera@colibritextil.com.ar \
 BOOTSTRAP_PASSWORD=AdminBootstrap123! \
 BOOTSTRAP_USER_CODE=USR-ADM-001 \
 BOOTSTRAP_DISPLAY_NAME="Alex Rivera" \
@@ -60,7 +64,7 @@ the provisional password above.
 
 ### 2. Replace the provisional password with the stable one
 
-Sign in with `admin@colibri.test` / `AdminBootstrap123!` (see "Getting an
+Sign in with `alex.rivera@colibritextil.com.ar` / `AdminBootstrap123!` (see "Getting an
 access token"), then call the `password-change` request in `auth.http`
 (`current_password` = provisional, `new_password` = `AdminTest123!`).
 
@@ -105,7 +109,7 @@ one: the activation step requires `current != new` (see step 6).
 ```http
 POST /api/v1/auth/accounts
 {
-  "email": "section@colibri.test",
+  "email": "sofia.torres@colibritextil.com.ar",
   "provisional_password": "TempSection123!",
   "user_code": "USR-SEC-001",
   "display_name": "Sofía Torres",
@@ -114,7 +118,7 @@ POST /api/v1/auth/accounts
 }
 ```
 
-Repeat for `supervisor@colibri.test` with `display_name: "Diego Morales"`,
+Repeat for `diego.morales@colibritextil.com.ar` with `display_name: "Diego Morales"`,
 `role_codes: ["supervisor"]`, and a different temporary provisional (e.g.
 `TempSupervisor123!`).
 
@@ -139,10 +143,12 @@ variable of the `.http` file you are using:
 
 ```bash
 curl -s -X POST http://127.0.0.1:54321/auth/v1/token?grant_type=password \
-  -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0" \
+  -H "apikey: sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH" \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@colibri.test","password":"AdminTest123!"}' | python3 -m json.tool
+  -d '{"email":"alex.rivera@colibritextil.com.ar","password":"AdminTest123!"}' | python3 -m json.tool
 ```
+
+> Note: `pnpm supabase status` now emits `sb_publishable_*` / `sb_secret_*` format (new CLI) and the old JWTs are legacy/compat.
 
 The token request for the other users is the same, with their email and
 password.
