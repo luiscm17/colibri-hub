@@ -2,7 +2,7 @@ import { ScrollArea, Stack } from "@mantine/core";
 import { navData } from '../navigation-data'
 import { SidebarLinksGroup } from "./SidebarLinksGroup";
 import { ACCESS_CATALOG, useAccess } from '@/features/access-control'
-import { deriveNavigation } from './navigation-state'
+import { canDisplayNavigationItem, deriveNavigation } from './navigation-state'
 
 interface SidebarProps {
     /** Se llama después de navegar — cierra el sidebar en mobile */
@@ -11,7 +11,7 @@ interface SidebarProps {
 
 export function Sidebar({ onNavigate }: SidebarProps) {
     const { snapshot } = useAccess()
-    const visibleNavData = deriveNavigation(navData, (item) => !item.path || Boolean(snapshot?.allows(ACCESS_CATALOG[item.path])));
+    const visibleNavData = deriveNavigation(navData, (item) => canDisplayNavigationItem(item, (path) => Boolean(snapshot?.allows(ACCESS_CATALOG[path]))));
 
     return (
         <Stack gap={0} style={{ height: "100%" }} pt="xs">

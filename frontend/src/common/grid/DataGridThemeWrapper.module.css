@@ -20,3 +20,10 @@
   --rdg-row-height: 42px;
   --rdg-cell-padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
 }
+
+.root [role='gridcell']:focus-visible,
+.root [role='columnheader']:focus-visible,
+.root [role='gridcell']:focus-within {
+  outline: 3px solid var(--mantine-primary-color-filled);
+  outline-offset: -3px;
+}

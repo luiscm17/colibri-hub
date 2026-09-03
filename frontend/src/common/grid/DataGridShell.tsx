@@ -22,12 +22,18 @@ function DataGridShellInner<R, SR = unknown, K extends React.Key = React.Key>(
   ref: React.Ref<DataGridHandle>,
 ) {
   const densityClass = classes[density]
+  const gridLabel = typeof gridProps['aria-label'] === 'string' ? gridProps['aria-label'] : 'Data grid'
 
   return (
     <Paper withBorder p="md">
       {toolbar}
       <DataGridThemeWrapper className={densityClass}>
-        <Box style={{ overflowX: 'auto' }}>
+        <Box
+          role="region"
+          aria-label={`Horizontal scroll region for ${gridLabel}`}
+          tabIndex={0}
+          style={{ maxWidth: '100%', overflowX: 'auto' }}
+        >
           <DataGrid {...gridProps} ref={ref} />
         </Box>
       </DataGridThemeWrapper>
@@ -43,4 +49,3 @@ export const DataGridShell = forwardRef(DataGridShellInner) as <
 >(
   props: DataGridShellProps<R, SR, K> & { ref?: React.Ref<DataGridHandle> },
 ) => React.ReactElement | null
-
