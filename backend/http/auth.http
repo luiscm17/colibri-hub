@@ -1,14 +1,14 @@
 ### Variables
 @host = http://127.0.0.1:8000
 @supabase = http://127.0.0.1:54321
-@anon_key = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+@anon_key = sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH
 
 # Access token — expires after ~1h. Run the Sign in request below, copy the
 # access_token from the response, and paste it here.
 @token = <paste_access_token_here>
 
-# Credentials: see CREDENTIALS.md (admin@colibri.test / AdminTest123!,
-# section@colibri.test / SectionTest123!, supervisor@colibri.test / SupervisorTest123!).
+# Credentials: see CREDENTIALS.md (alex.rivera@colibritextil.com.ar / AdminTest123!,
+# sofia.torres@colibritextil.com.ar / SectionTest123!, diego.morales@colibritextil.com.ar / SupervisorTest123!).
 
 ### ─────────────────────────────────────────────────────
 ### Sign in (Supabase Auth) — get access_token
@@ -19,7 +19,7 @@ apikey: {{anon_key}}
 Content-Type: application/json
 
 {
-  "email": "admin@colibri.test",
+  "email": "alex.rivera@colibritextil.com.ar",
   "password": "AdminTest123!"
 }
 
